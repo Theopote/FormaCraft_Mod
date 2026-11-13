@@ -132,8 +132,8 @@ public class RoofGenerator implements ComponentGenerator {
                         footprint, appliedOverhang, resolveGableAlongDepth(params, width, depth));
                 case CROSS_GABLE -> generateCrossGableRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
                         resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang, alongDepthHint);
-                case BELLCAST_HIP -> generateBellcastHip(out, baseX, rp.y(), baseZ, width, depth, height,
-                        resolveFullRoofBlock(semantic, palette), footprint, appliedOverhang, params);
+                case BELLCAST_HIP -> generateBellcastHip(out, semantic, baseX, rp.y(), baseZ, width, depth, height,
+                        palette, footprint, appliedOverhang, params);
                 case HIP -> generateHipRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
                         footprint, appliedOverhang);
                 case XIESHAN -> generateXieshanRoof(out, semantic, baseX, rp.y(), baseZ, width, depth, height, palette,
@@ -643,10 +643,15 @@ public class RoofGenerator implements ComponentGenerator {
         };
     }
 
-    private static void generateBellcastHip(List<BlockPatch> out, int baseX, int baseY, int baseZ,
-                                             int width, int depth, int height, String fullBlock,
+    private static void generateBellcastHip(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
+                                             int width, int depth, int height, Palette palette,
                                              ComponentFootprintMask footprint, int overhang, Map<String, Object> params) {
         BellcastProfile profile = BellcastProfile.resolve(params);
+        if (isLShapedHipFootprint(footprint)) {
+            generateLShapedHip(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, profile);
+            return;
+        }
+        String fullBlock = resolveFullRoofBlock(semantic, palette);
         int run = (Math.min(width, depth) - 1) / 2;
         int maxRise = height - 1;
         String stairs = MaterialBlockFamily.stairs(fullBlock);
@@ -756,19 +761,23 @@ public class RoofGenerator implements ComponentGenerator {
     private void generateHipRoof(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY, int baseZ,
                                  int width, int depth, int height, Palette palette,
                                  ComponentFootprintMask footprint, int overhang) {
-        ResolvedFootprint plan = footprint == null ? null : footprint.footprint();
-        if (plan != null && plan.shape() == ResolvedFootprint.FootprintShape.RECTANGLE
-                && plan.pattern() == ResolvedFootprint.PlanPattern.L_SHAPE && plan.patternSize() > 0
-                && Math.min(plan.width(), plan.depth()) > 1) {
-            generateLShapedHip(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang);
+        if (isLShapedHipFootprint(footprint)) {
+            generateLShapedHip(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, null);
             return;
         }
         generateHipRoof(out, semantic, baseX, baseY, baseZ, width, depth, height, palette, footprint, overhang, 0, 0);
     }
 
+    private static boolean isLShapedHipFootprint(ComponentFootprintMask footprint) {
+        ResolvedFootprint plan = footprint == null ? null : footprint.footprint();
+        return plan != null && plan.shape() == ResolvedFootprint.FootprintShape.RECTANGLE
+                && plan.pattern() == ResolvedFootprint.PlanPattern.L_SHAPE && plan.patternSize() > 0
+                && Math.min(plan.width(), plan.depth()) > 1;
+    }
+
     private static void generateLShapedHip(List<BlockPatch> out, SemanticComponent semantic, int baseX, int baseY,
                                           int baseZ, int width, int depth, int height, Palette palette,
-                                          ComponentFootprintMask footprint, int overhang) {
+                                          ComponentFootprintMask footprint, int overhang, BellcastProfile bellcast) {
         var plan = footprint.footprint();
         // Both the inner and outer eaves shift by the same overhang, so the
         // missing corner keeps its dimensions in expanded roof coordinates.
@@ -782,7 +791,14 @@ public class RoofGenerator implements ComponentGenerator {
         String stairs = MaterialBlockFamily.stairs(fullBlock);
         String slab = MaterialBlockFamily.slab(fullBlock);
         String lowerSlab = slab == null ? fullBlock : BlockStateStringUtil.withProperty(slab, "type", "bottom");
-        double[] rises = sampleRoofProfile(semantic, maxRun, height - 1);
+        double[] rises;
+        if (bellcast == null) {
+            rises = sampleRoofProfile(semantic, maxRun, height - 1);
+        } else {
+            rises = new double[maxRun + 1];
+            for (int distance = 0; distance <= maxRun; distance++)
+                rises[distance] = bellcast.fractionAt(distance / (double) maxRun) * (height - 1);
+        }
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
                 if (!allowsRoofCell(footprint, overhang, x - overhang, z - overhang)) continue;

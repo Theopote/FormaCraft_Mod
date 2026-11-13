@@ -76,6 +76,70 @@ class BellcastHipRoofTest {
                 Map.of("bellcast_break_run_fraction",0.2,"bellcast_break_rise_fraction",0.4)));
     }
 
+    @Test void lShapedFootprintsStartAtBothInnerAndOuterEavesAndKeepValleysJoined() {
+        for (String corner:List.of("NW","NE","SW","SE")) for (int overhang:List.of(0,1,2)) {
+            int w=17+2*overhang, d=21+2*overhang;
+            var roof=generate(17,21,13,Map.of("plan_type","l_shape","l_cut",7,
+                    "l_corner",corner,"overhang",overhang));
+            var columns=new HashMap<List<Integer>,Set<Integer>>();
+            for (var patch:roof) {
+                int x=corner.endsWith("E") ? 16+overhang-patch.dx() : patch.dx()+overhang;
+                int z=corner.startsWith("S") ? 20+overhang-patch.dz() : patch.dz()+overhang;
+                assertTrue(x>=0 && x<w && z>=0 && z<d);
+                columns.computeIfAbsent(List.of(x,z), k -> new HashSet<>()).add(patch.dy());
+            }
+            for (int x=0;x<w;x++) for (int z=0;z<d;z++) {
+                var ys=columns.get(List.of(x,z));
+                assertEquals(x>=7 || z>=7,ys!=null,corner+" "+overhang+" "+x+","+z);
+                if (ys==null) continue;
+                if (x==0 || z==0 || x==w-1 || z==d-1 || (x==7 && z<=7) || (z==7 && x<=7))
+                    assertEquals(20,Collections.max(ys));
+                for (int[] delta:List.of(new int[]{1,0},new int[]{0,1})) {
+                    var next=columns.get(List.of(x+delta[0],z+delta[1]));
+                    if(next!=null) assertFalse(Collections.disjoint(ys,next),corner+" "+x+","+z);
+                }
+            }
+            assertEquals(32,roof.stream().mapToInt(BlockPatch::dy).max().orElseThrow());
+            assertFalse(columns.get(List.of(w-4,d-4)).contains(20));
+        }
+    }
+
+    @Test void lShapedBellcastTilesPointAwayFromTheCutoutAndRespectTheFold() {
+        for (String corner:List.of("NW","NE","SW","SE")) {
+            var roof=generate(17,21,7,Map.of("plan_type","l_shape","l_cut",7,"l_corner",corner,
+                    "overhang",1,"roof_block","minecraft:stone_bricks"));
+            int x=corner.endsWith("E") ? 9 : 7;
+            int z=corner.startsWith("S") ? 12 : 8;
+            assertTrue(roof.stream().anyMatch(p -> p.dx()==x && p.dz()==z && p.dy()==21
+                    && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")
+                    && p.targetBlock().contains(corner.startsWith("S") ? "facing=north" : "facing=south")));
+            int valleyZ=corner.startsWith("S") ? 13 : 7;
+            assertTrue(roof.stream().anyMatch(p -> p.dx()==x && p.dz()==valleyZ && p.dy()==20
+                    && "minecraft:stone_bricks".equals(p.targetBlock())));
+        }
+        var adjusted=generate(17,21,7,Map.of("plan_type","l_shape","l_cut",7,"l_corner","NW",
+                "overhang",1,"bellcast_break_run_fraction",0.5,"bellcast_break_rise_fraction",0.2));
+        assertEquals(21,top(adjusted,9,9));
+        var original=generate(17,21,7,Map.of("plan_type","l_shape","l_cut",7,"l_corner","NW","overhang",1));
+        assertEquals(22,top(original,9,9));
+    }
+
+    @Test void hostedBellcastInheritsTheHostsLShapedInnerEaves() throws Exception {
+        var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
+        var document=mapper.readTree(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json").toFile());
+        var hostParams=(com.fasterxml.jackson.databind.node.ObjectNode)document.at("/components/0/params");
+        hostParams.put("plan_type","l_shape").put("l_cut",5).put("l_corner","NW");
+        var roofParams=(com.fasterxml.jackson.databind.node.ObjectNode)document.at("/components/1/params");
+        roofParams.put("roof_type","bellcast_hip").put("roof_height",13);
+        var patches=com.formacraft.server.compiler.ComponentPlanCompiler.compile(mapper.treeToValue(document,LlmPlan.class),
+                new net.minecraft.util.math.BlockPos(0,64,0),null,null,false);
+        var roof=patches.stream().filter(p -> "minecraft:hay_block".equals(p.targetBlock())).toList();
+        assertFalse(roof.stream().anyMatch(p -> p.dx()<5 && p.dz()<5));
+        assertEquals(9,top(roof,5,5));
+        assertEquals(9,top(roof,5,2));
+        assertEquals(21,roof.stream().mapToInt(BlockPatch::dy).max().orElseThrow());
+    }
+
     @Test void hostedChineseNameCompilesAsFourSlopes() throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
         var document=mapper.readTree(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json").toFile());
