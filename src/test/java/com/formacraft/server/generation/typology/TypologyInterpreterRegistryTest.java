@@ -1,4 +1,4 @@
-package com.formacraft.common.typology;
+package com.formacraft.server.generation.typology;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;

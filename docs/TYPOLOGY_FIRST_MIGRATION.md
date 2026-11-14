@@ -256,7 +256,7 @@ Java StructuralTypologyRegistry → legacyInterpreterId → 现有 Generator
 | Python 加载 | `python_backend/app/services/typology_registry.py` |
 | Python 检索 | `python_backend/app/services/typology_retriever.py` |
 | Java 加载 | `com.formacraft.common.typology.StructuralTypologyRegistry` |
-| Java 解释器 | `com.formacraft.common.typology.TypologyInterpreterRegistry` |
+| Java 解释器 | `com.formacraft.server.generation.typology.TypologyInterpreterRegistry` |
 | Java 构件路由 | `com.formacraft.common.typology.TypologyComponentRouter` |
 | Java 解释器实现 | `server.generation.typology.interpreter.*` |
 | Java 参数化 Builder | `server.generation.typology.builder.*` |

@@ -1,4 +1,4 @@
-package com.formacraft.common.typology;
+package com.formacraft.server.generation.typology;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.patch.BlockPatch;

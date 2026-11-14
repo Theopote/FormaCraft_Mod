@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Native typology interpreter for {@code gothic_cathedral_hall}. */
-public final class GothicCathedralHallInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
+public final class GothicCathedralHallInterpreter implements com.formacraft.server.generation.typology.TypologyInterpreter {
 
     @Override
     public String typologyId() {

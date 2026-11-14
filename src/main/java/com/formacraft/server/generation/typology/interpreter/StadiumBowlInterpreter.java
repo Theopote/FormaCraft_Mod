@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Native typology interpreter for {@code stadium_bowl} — elliptical stadium bowl without landmark id. */
-public final class StadiumBowlInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
+public final class StadiumBowlInterpreter implements com.formacraft.server.generation.typology.TypologyInterpreter {
 
     @Override
     public String typologyId() {

@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Native typology interpreter for {@code suspension_bridge} — span suspension without landmark id. */
-public final class SuspensionBridgeInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
+public final class SuspensionBridgeInterpreter implements com.formacraft.server.generation.typology.TypologyInterpreter {
 
     @Override
     public String typologyId() {

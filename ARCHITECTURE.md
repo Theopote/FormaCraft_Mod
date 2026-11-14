@@ -2,7 +2,7 @@
 
 **Formacraft is a semantic architecture compiler for Minecraft.**
 
-> 核查更新：2026-10-03。新人先读 [开发入口](docs/DEVELOPER_START_HERE.md)。本文包含设计规则，当前未满足的边界及分阶段整改见 [架构审计](docs/refactoring/ARCHITECTURE_AUDIT.md)。
+> 核查更新：2026-11-14。新人先读 [开发入口](docs/DEVELOPER_START_HERE.md)。本文包含设计规则，当前未满足的边界及分阶段整改见 [架构审计](docs/refactoring/ARCHITECTURE_AUDIT.md)。
 
 ---
 
@@ -142,7 +142,7 @@ Minecraft World
 
 ### 2.1 Package Layering Rules（common / server / client）
 
-以下是目标分层规则，而非已完全实现的状态。2026-10-03 第二轮已将 10 个内置 TypologyInterpreter 的创建迁到 `server.init.TypologySystemInitializer`，由 `FormacraftMod.onInitialize` 注册，common 注册表只保存外部提供的解释器。`PatchHistoryManager` 的直接调用点已收敛到少数 server 路径（`MutationHistoryFacade` / `PatchPreviewService` / `BuildExecutionService` 等），`common.patch` 仍使用 ServerWorld。仅查 import 会漏报。新代码必须遵守以下规则，既有债务由 `scripts/check_architecture.py` 和 `config/architecture-debt.json` 冻结，整改见 [审计](docs/refactoring/ARCHITECTURE_AUDIT.md)：
+以下是目标分层规则，而非已完全实现的状态。2026-10-03 第二轮已将 10 个内置 TypologyInterpreter 的创建迁到 `server.init.TypologySystemInitializer`，由 `FormacraftMod.onInitialize` 注册，解释器接口、注册表与执行路由现均位于 server.generation.typology，common 只保留类型元数据与识别逻辑。`PatchHistoryManager` 的直接调用点已收敛到少数 server 路径（`MutationHistoryFacade` / `PatchPreviewService` / `BuildExecutionService` 等），`common.patch` 通过 BlockMutationAccess 抽象操作，真实世界/NBT 适配器位于 server.world。仅查 import 会漏报。新代码必须遵守以下规则，既有债务由 `scripts/check_architecture.py` 和 `config/architecture-debt.json` 冻结，整改见 [审计](docs/refactoring/ARCHITECTURE_AUDIT.md)：
 
 | 包 | 允许 | 禁止 |
 |----|------|------|

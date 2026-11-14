@@ -22,7 +22,7 @@ import java.util.UUID;
  * Registers a frozen {@link PalacePreviewPlan} under the active
  * {@link GenerationRequestContext} — never by patchHash or planId alone.
  */
-public final class TieredMountainPalaceInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
+public final class TieredMountainPalaceInterpreter implements com.formacraft.server.generation.typology.TypologyInterpreter {
 
     @Override
     public String typologyId() {

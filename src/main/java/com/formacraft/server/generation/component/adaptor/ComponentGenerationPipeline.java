@@ -118,7 +118,7 @@ final class ComponentGenerationPipeline {
                 && com.formacraft.common.typology.TypologyComponentRouter.hasTypologyHint(c)
                 && (base.isEmpty() ? canTypologyFillEmpty : canReplace)) {
             try {
-                List<BlockPatch> typologyPatches = com.formacraft.common.typology.TypologyComponentRouter
+                List<BlockPatch> typologyPatches = com.formacraft.server.generation.typology.TypologyGenerationRouter
                         .tryGenerate(semantic, world);
                 if (!typologyPatches.isEmpty()) {
                     FormacraftMod.LOGGER.debug(

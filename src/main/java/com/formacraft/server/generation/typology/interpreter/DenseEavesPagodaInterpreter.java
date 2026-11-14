@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Native typology interpreter for {@code dense_eaves_pagoda} — no landmark id required. */
-public final class DenseEavesPagodaInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
+public final class DenseEavesPagodaInterpreter implements com.formacraft.server.generation.typology.TypologyInterpreter {
 
     @Override
     public String typologyId() {

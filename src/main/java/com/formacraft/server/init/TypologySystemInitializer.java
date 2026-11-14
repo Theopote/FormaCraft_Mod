@@ -1,7 +1,7 @@
 package com.formacraft.server.init;
 
-import com.formacraft.common.typology.TypologyInterpreter;
-import com.formacraft.common.typology.TypologyInterpreterRegistry;
+import com.formacraft.server.generation.typology.TypologyInterpreter;
+import com.formacraft.server.generation.typology.TypologyInterpreterRegistry;
 import com.formacraft.server.generation.typology.interpreter.*;
 
 import java.util.List;

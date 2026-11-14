@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Native typology interpreter for {@code courtyard_compound}. */
-public final class CourtyardCompoundInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
+public final class CourtyardCompoundInterpreter implements com.formacraft.server.generation.typology.TypologyInterpreter {
 
     @Override
     public String typologyId() {

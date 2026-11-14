@@ -13,7 +13,7 @@
 | Panel 行数（软） | `python scripts/check_panel_line_budget.py` | 仅打印超标 |
 | 生成入口 | `python scripts/check_generation_entrypoints.py` | exit 0 |
 
-`config/architecture-debt.json` 现登记 common 内既有的 `ServerWorld` / `ServerPlayerEntity` / `MinecraftServer` 引用；**禁止新增**。包引用 `com.formacraft.server` 在 common 中应保持为 0。
+`config/architecture-debt.json` 中登记的 common 服务端类型引用现已清空；**禁止新增**。包引用 `com.formacraft.server` 在 common 中应保持为 0。
 
 ## 未决项（优先）
 
@@ -69,6 +69,8 @@ PlanProgramCompiler 已迁至 server.compiler，调用方和同包原子性测�
 SkeletonExecutor 和 SkeletonExecutors 已迁至 server.skeleton，服务端编译、路由和启动注册同步更新，骨架计划 DTO 继续位于 common。对应边界债务减少 4 处，剩余 16 处。
 
 PlayerComponentExpander 和 PlayerComponentGroupExpander 改为接收存档目录与随机种子，由服务端路由提取；common 中的几何、挂载和裁剪算法保留。对应边界债务减少 10 处，剩余 6 处。
+
+类型执行已拆到 server.generation.typology.TypologyGenerationRouter，解释器接口与注册表同迁服务端。common.typology.TypologyComponentRouter 保留类型识别、旧地标兼容和参数元数据逻辑。最后 6 处服务端类型债务已消除，基线为空；ThreadLocal、事务原子性和其他架构未决项仍按上文推进。
 
 ## 原则
 

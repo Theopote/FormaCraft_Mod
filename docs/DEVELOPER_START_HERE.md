@@ -52,6 +52,6 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 
 测试中使用 `LlmPlanTestFixtures.builder()` 按字段构造计划；不要复制二十多个位置参数。未指定字段保持 null，不默认填充，以保留缺字段场景。
 
-TypologyInterpreterRegistry 不再懒加载服务端实现。游戏启动由 `FormacraftMod.onInitialize` 调用 `server.init.TypologySystemInitializer.initialize()`；直接运行解释器注册测试时显式初始化。自定义解释器可通过 registry.register 注册，重复初始化不会覆盖已有注册。
+解释器接口及 TypologyInterpreterRegistry 位于 server.generation.typology，不再由 common 持有服务端执行契约。游戏启动由 `FormacraftMod.onInitialize` 调用 `server.init.TypologySystemInitializer.initialize()`；直接运行解释器注册测试时显式初始化。自定义解释器可通过 registry.register 注册，重复初始化不会覆盖已有注册。
 
 模组入口的静态字段不能访问活注册表；RegistryKey 使用 `RegistryKeys.ITEM` 构建。方块注册和世界访问应在运行时生命周期内完成。普通 JUnit 不能代替 Fabric 加载环境，涉及真实 Minecraft 注册表的失败需单独核查。当前剩余回归见 [回归清单](refactoring/REGRESSION_BASELINE.md)。

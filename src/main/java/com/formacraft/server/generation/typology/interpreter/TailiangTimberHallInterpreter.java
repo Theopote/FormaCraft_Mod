@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Native typology interpreter for {@code tailiang_timber_hall} — no landmark id required. */
-public final class TailiangTimberHallInterpreter implements com.formacraft.common.typology.TypologyInterpreter {
+public final class TailiangTimberHallInterpreter implements com.formacraft.server.generation.typology.TypologyInterpreter {
 
     @Override
     public String typologyId() {

@@ -1,4 +1,4 @@
-package com.formacraft.common.typology;
+package com.formacraft.server.generation.typology;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -6,7 +6,7 @@ import java.util.Map;
 
 /**
  * Registry of structural typology interpreters supplied by the runtime.
- * This shared registry never constructs server implementations.
+ * Runtime initialization supplies the server implementations.
  */
 public final class TypologyInterpreterRegistry {
 

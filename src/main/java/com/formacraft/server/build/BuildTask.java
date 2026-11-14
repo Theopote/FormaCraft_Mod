@@ -548,13 +548,8 @@ public class BuildTask {
         for (BlockChange c : residuals) {
             if (c == null || c.getPos() == null || c.getFrom() == null) continue;
             BlockPos key = c.getPos().toImmutable();
-            BlockChange prev = byPos.get(key);
-            if (prev == null) {
-                byPos.put(key, c);
-            } else {
-                // Keep earliest Before; refresh After to the latest observed residual.
-                byPos.put(key, new BlockChange(key, prev.getFrom(), c.getTo() != null ? c.getTo() : prev.getTo()));
-            }
+            // Keep earliest Before; refresh After to the latest observed residual.
+            byPos.merge(key, c, (a, b) -> new BlockChange(key, a.getFrom(), b.getTo() != null ? b.getTo() : a.getTo()));
         }
         return new ArrayList<>(byPos.values());
     }
