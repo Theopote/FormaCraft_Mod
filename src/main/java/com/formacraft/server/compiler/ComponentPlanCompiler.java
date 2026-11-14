@@ -233,8 +233,7 @@ public final class ComponentPlanCompiler {
         var previousCompileContext = GenerationCompileContext.current();
         GenerationCompileContext.install(GenerationCompileContext.fromPlan(plan, typologyExclusivePlan));
         PatchOccupancyIndex patchOccupancy;
-        try {
-            com.formacraft.common.generation.component.util.BuildingGeometryContext.begin();
+        try (var geometry = com.formacraft.common.generation.component.util.BuildingGeometryContext.open()) {
             for (Component mass : components) {
                 if (com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(mass)) {
                     com.formacraft.common.generation.component.util.BuildingGeometryContext.putMass(mass);
@@ -256,7 +255,6 @@ public final class ComponentPlanCompiler {
                         slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions, openingExpectations);
             }
         } finally {
-            com.formacraft.common.generation.component.util.BuildingGeometryContext.end();
             GenerationCompileContext.install(previousCompileContext);
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();

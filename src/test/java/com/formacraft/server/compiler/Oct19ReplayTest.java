@@ -73,8 +73,8 @@ class Oct19ReplayTest {
             var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct19_crash_"+i+".normalized.json")));
             var body=plan.components().stream().filter(c->"MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
             var cells=new java.util.ArrayList<com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell>();
-            com.formacraft.common.generation.component.util.BuildingGeometryContext.begin();
-            try (var capture=com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.captureTo(cells::add)) {
+            try (var geometry=com.formacraft.common.generation.component.util.BuildingGeometryContext.open();
+                 var capture=com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.captureTo(cells::add)) {
                 com.formacraft.common.generation.component.util.BuildingGeometryContext.putMass(body);
                 var patches=new com.formacraft.common.generation.component.impl.MassMainGenerator().generate(
                         new com.formacraft.common.compiler.semantic.SemanticComponent("MASS_MAIN",null,body));
@@ -85,7 +85,7 @@ class Oct19ReplayTest {
                 var parts=com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(body);
                 assertEquals(i==1?5:6,parts.size());
                 assertTrue(parts.getFirst().dimensions().height()<body.dimensions().height());
-            } finally { com.formacraft.common.generation.component.util.BuildingGeometryContext.end(); }
+            }
         }
     }
 }

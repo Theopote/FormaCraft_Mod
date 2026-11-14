@@ -46,18 +46,6 @@ public final class BuildingGeometryContext {
         }
     }
 
-    public static void begin() {
-        CACHE.get().clear();
-        ACTIVE.set(true);
-    }
-
-    public static void end() {
-        CACHE.get().clear();
-        ACTIVE.set(false);
-        CACHE.remove();
-        ACTIVE.remove();
-    }
-
     public static boolean isActive() {
         return Boolean.TRUE.equals(ACTIVE.get());
     }

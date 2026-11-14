@@ -38,7 +38,9 @@
 
 回归覆盖路由权限、typology 排他规则，以及真实编译的成功、能力缺口和异常退出后的外层状态恢复。
 
-几何缓存的生产编译入口改用 `BuildingGeometryContext.open()`，通过 try-with-resources 隔离每层缓存并在异常退出后恢复外层状态。原有 begin/end 保留兼容调用，缓存底层仍使用 ThreadLocal。
+几何缓存的生产编译入口改用 `BuildingGeometryContext.open()`，通过 try-with-resources 隔离每层缓存并在异常退出后恢复外层状态。旧 begin/end 调用已迁移并删除，缓存底层仍使用 ThreadLocal。
+
+编译上下文已删除无调用者的 withAuthority、withPlanMeta、withTypologyExclusive 和 clear 方法。planMeta 保存独立的顶层 Map 快照，保留空值；嵌套集合仍沿用原引用。回归验证源 Map 修改隔离、只读访问和嵌套异常恢复。
 
 ## 原则
 
