@@ -44,6 +44,10 @@
 
 几何缓存已合并为一个可空的线程状态。作用域外的生成只解析几何，不写缓存；最外层作用域关闭时移除线程引用，嵌套关闭仍恢复外层缓存。
 
+## 隔离路径清理（2026-11-14）
+
+已核对旧 AutoAssembler、ClusterLayoutPlanner 和 ConfirmBuildPacket 的删除状态，修正架构概览中的待删除列表。BuildingMassSystemTest 仍由服务端命令调用，已迁至 server.command.diagnostic，保留原诊断行为。common.mass 中的实际调用链继续冻结迁移。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

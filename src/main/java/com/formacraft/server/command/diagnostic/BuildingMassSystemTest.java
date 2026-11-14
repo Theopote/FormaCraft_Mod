@@ -1,7 +1,8 @@
-package com.formacraft.common.mass.integration;
+package com.formacraft.server.command.diagnostic;
 
 import com.formacraft.common.llm.dto.PlanSkeleton;
 import com.formacraft.common.mass.*;
+import com.formacraft.common.mass.integration.BuildingMassPipeline;
 import com.formacraft.common.mass.integration.BuildingMassPipeline.BuildingMassPipelineResult;
 import com.formacraft.FormacraftMod;
 

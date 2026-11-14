@@ -568,7 +568,7 @@ public class FormaCraftCommands {
 
                     // 运行 BuildingMass 系统测试
                     try {
-                        com.formacraft.common.mass.integration.BuildingMassSystemTest.runBasicTest();
+                        com.formacraft.server.command.diagnostic.BuildingMassSystemTest.runBasicTest();
                         ctx.getSource().sendFeedback(
                                 () -> Text.literal("BuildingMass System Test completed. Check server logs for details."),
                                 false
