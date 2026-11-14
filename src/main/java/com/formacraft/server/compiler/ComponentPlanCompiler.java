@@ -319,7 +319,8 @@ public final class ComponentPlanCompiler {
             
             if (applyTerrainAdaptation && world != null && terrainSampler != null) {
                 // 包含地形适应的完整管道
-                pipeline = PostProcessPipeline.createWithTerrain(context, world, terrainSampler);
+                pipeline = PostProcessPipeline.createWithTerrain(context,
+                        (x, z) -> terrainSampler.sampleGroundY(world, x, z));
             } else {
                 // 基础管道（不包含地形适应）
                 pipeline = PostProcessPipeline.createDefault(context);

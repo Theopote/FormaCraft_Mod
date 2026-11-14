@@ -58,12 +58,11 @@ public class PostProcessPipeline {
 
     public static PostProcessPipeline createWithTerrain(
             PostProcessContext context,
-            net.minecraft.server.world.ServerWorld world,
-            com.formacraft.common.terrain.TerrainStrategySampler terrainSampler
+            java.util.function.IntBinaryOperator groundHeight
     ) {
         PostProcessPipeline pipeline = createDefault(context);
-        if (world != null && terrainSampler != null) {
-            pipeline.add(new TerrainAdaptationPostProcessor(world, terrainSampler));
+        if (groundHeight != null) {
+            pipeline.add(new TerrainAdaptationPostProcessor(groundHeight));
         }
         return pipeline;
     }

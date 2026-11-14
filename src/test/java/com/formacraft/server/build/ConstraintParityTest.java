@@ -577,7 +577,7 @@ class ConstraintParityTest {
         assertThrows(AssertionError.class, () -> assertWalkCell(blocked,width/2,5,-2));
         var gap = new HashMap<>(blocks); gap.remove(new Vec3i(width/2,5,-2));
         assertThrows(AssertionError.class, () -> assertWalkCell(gap,width/2,5,-2));
-        var terrain = new com.formacraft.common.compiler.postprocess.TerrainAdaptationPostProcessor(null,null);
+        var terrain = new com.formacraft.common.compiler.postprocess.TerrainAdaptationPostProcessor(null);
         assertSame(patches, terrain.process(patches,
                 com.formacraft.common.compiler.postprocess.PostProcessContext.create(plan,ORIGIN)));
         var min=ORIGIN.add(0,-32,-8); var max=ORIGIN.add(width/2,64,depth-1);

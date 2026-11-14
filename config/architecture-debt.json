@@ -7,8 +7,6 @@
   "common/typology/TypologyInterpreter.java: common uses minecraft server type": 3,
   "common/world/BlockMutationAccess.java: common uses minecraft server type": 3,
   "common/world/WorldBuildBounds.java: common uses minecraft server type": 5,
-  "common/compiler/postprocess/PostProcessPipeline.java: common uses minecraft server type": 2,
-  "common/compiler/postprocess/TerrainAdaptationPostProcessor.java: common uses minecraft server type": 4,
   "common/component/group/PlayerComponentGroupExpander.java: common uses minecraft server type": 4,
   "common/llm/compiler/PlanCompileContext.java: common uses minecraft server type": 5
 }

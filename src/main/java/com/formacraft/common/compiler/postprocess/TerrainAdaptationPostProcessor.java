@@ -2,15 +2,14 @@ package com.formacraft.common.compiler.postprocess;
 
 import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.common.terrain.TerrainStrategySampler;
 import com.formacraft.FormacraftMod;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.IntBinaryOperator;
 
 /**
  * TerrainAdaptationPostProcessor（地形适应后处理器）
@@ -25,12 +24,10 @@ import java.util.Map;
  */
 public class TerrainAdaptationPostProcessor implements PostProcessor {
 
-    private final ServerWorld world;
-    private final TerrainStrategySampler terrainSampler;
+    private final IntBinaryOperator groundHeight;
 
-    public TerrainAdaptationPostProcessor(ServerWorld world, TerrainStrategySampler terrainSampler) {
-        this.world = world;
-        this.terrainSampler = terrainSampler;
+    public TerrainAdaptationPostProcessor(IntBinaryOperator groundHeight) {
+        this.groundHeight = groundHeight;
     }
 
     @Override
@@ -81,7 +78,7 @@ public class TerrainAdaptationPostProcessor implements PostProcessor {
             int worldZ = globalAnchor.getZ() + dz;
             int worldBaseY = globalAnchor.getY() + baseDy;
 
-            int groundY = terrainSampler.sampleGroundY(world, worldX, worldZ);
+            int groundY = groundHeight.applyAsInt(worldX, worldZ);
             int rawShift = groundY - worldBaseY;
             int shift = resolveShiftForStrategy(rawShift, strategy, context, worldBaseY);
             shiftByColumn.put(key, shift);
@@ -112,7 +109,7 @@ public class TerrainAdaptationPostProcessor implements PostProcessor {
      */
     private int resolveShiftForStrategy(int rawShift, GlobalConstraints.TerrainStrategy strategy,
                                         PostProcessContext context, int worldBaseY) {
-        if (world == null || terrainSampler == null) {
+        if (groundHeight == null) {
             return 0;
         }
 
