@@ -4,6 +4,7 @@ import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.RoofTypeCatalog;
+import com.formacraft.common.generation.component.util.RoofTypeKind;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
@@ -20,13 +21,13 @@ final class RoofSurfaceContinuityAudit {
                 .map(s -> s.trim().toLowerCase(Locale.ROOT))
                 .orElse("");
         var kind = RoofTypeCatalog.parseExplicit(type).orElse(null);
-        boolean profiledRoof = kind != null && (kind.isProfiledGable()
-                || kind == com.formacraft.common.generation.component.util.RoofTypeKind.BELLCAST_HIP);
-        if (!profiledRoof && (!Set.of("gable", "double_gable", "shed", "sawtooth").contains(type)
-                || Boolean.TRUE.equals(c.params().get("double_eave"))
-                || Boolean.TRUE.equals(c.params().get("doubleEave")))) return Optional.empty();
+        if (kind == null || !isContinuityAudited(kind)) return Optional.empty();
+        // Double-eave mid shelves intentionally break a single continuous slope column graph.
+        if (isDoubleEave(c.params()) && !kind.isProfiledGable() && kind != RoofTypeKind.BELLCAST_HIP) {
+            return Optional.empty();
+        }
         int width = c.dimensions().width(), depth = c.dimensions().depth();
-        boolean coverage = profiledRoof || "shed".equals(type) || "sawtooth".equals(type);
+        boolean coverage = requiresFullColumnCoverage(kind);
         var mask = ComponentFootprintMask.from(semantic,c.params(),width,depth);
         int base = c.relativePosition().y()+offset.getY();
         var blocks = new HashMap<BlockPos,BlockPatch>();
@@ -62,6 +63,41 @@ final class RoofSurfaceContinuityAudit {
             }
         }
         return Optional.empty();
+    }
+
+    /** Types that enter this final surface continuity pass. */
+    private static boolean isContinuityAudited(RoofTypeKind kind) {
+        return kind == RoofTypeKind.GABLE
+                || kind == RoofTypeKind.DOUBLE_GABLE
+                || kind == RoofTypeKind.SHED
+                || kind == RoofTypeKind.SAWTOOTH
+                || kind.isProfiledGable()
+                || kind == RoofTypeKind.BELLCAST_HIP
+                || kind == RoofTypeKind.HIP
+                || kind == RoofTypeKind.MANSARD
+                || kind == RoofTypeKind.GAMBREL
+                || kind.isDome()
+                || kind == RoofTypeKind.ONION_DOME;
+    }
+
+    /**
+     * Full footprint column occupancy. Domes stay continuity-only so intentional oculus /
+     * drum openings are not forced closed by this pass.
+     */
+    private static boolean requiresFullColumnCoverage(RoofTypeKind kind) {
+        return kind == RoofTypeKind.SHED
+                || kind == RoofTypeKind.SAWTOOTH
+                || kind.isProfiledGable()
+                || kind == RoofTypeKind.BELLCAST_HIP
+                || kind == RoofTypeKind.HIP
+                || kind == RoofTypeKind.MANSARD
+                || kind == RoofTypeKind.GAMBREL;
+    }
+
+    private static boolean isDoubleEave(Map<String, Object> params) {
+        if (params == null) return false;
+        return Boolean.TRUE.equals(params.get("double_eave"))
+                || Boolean.TRUE.equals(params.get("doubleEave"));
     }
 
     private static Optional<CapabilityGap> gap(Object id,String reason,BlockPos pos) {
