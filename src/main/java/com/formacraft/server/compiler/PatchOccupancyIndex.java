@@ -88,12 +88,19 @@ public final class PatchOccupancyIndex {
             overlap++;
             if (java.util.Objects.equals(writer.slotId(), prev.owner().slotId())) sameSlotOverlap++;
         }
-        // Only sculptural secondary volumes (sphere/cylinder) and connector shells may clip into
-        // a prior mass. Rectangular / mostly-overlapping masses must not gain overwrite via join.
+        // Sculptural secondaries / connector shells may clip into a prior mass.
+        // Courtyard wings already nudged by MassFootprintSeparationRepair
+        // (footprint_separated) may still share a thin residual seam when a primary
+        // shell overreaches its AABB — clip those cells rather than E_PATCH_CONFLICT.
+        // Mostly-overlapping rectangular masses still must not gain overwrite via join.
         boolean connector = writer.params() != null && Boolean.TRUE.equals(writer.params().get("compiler_connector_body"));
         boolean sculptural = isSculpturalVolume(writer);
-        if (!connector && !sculptural) return 0;
-        if (!connector && overlap * 2 >= occupied) return 0;
+        boolean separatedAnnex = writer.params() != null
+                && Boolean.TRUE.equals(writer.params().get("footprint_separated"));
+        boolean namedAnnex = isNamedCompoundAnnex(writer);
+        if (!connector && !sculptural && !separatedAnnex && !namedAnnex) return 0;
+        // Annex seams may still touch a large share of a thin wing shell — always clip.
+        if (!connector && !separatedAnnex && !namedAnnex && overlap * 2 >= occupied) return 0;
         int before = patches.size();
         patches.removeIf(p -> {
             var prev = places.get(new BlockPos(p.dx(), p.dy(), p.dz()));
@@ -113,6 +120,25 @@ public final class PatchOccupancyIndex {
         if (c.params().containsKey("floor_count")) return false;
         return "sphere".equals(c.params().get("volume_geometry"))
                 || "cylinder".equals(c.params().get("shape"));
+    }
+
+    /** Courtyard / campus annexes that share a thin wall seam with a prior primary mass. */
+    private static boolean isNamedCompoundAnnex(Component c) {
+        if (c == null || c.params() == null) return false;
+        String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        if (!(type.startsWith("MASS") || "TOWER".equals(type))) return false;
+        Object id = c.params().get("component_id");
+        if (id == null) id = c.params().get("componentId");
+        if (id == null) return false;
+        String s = String.valueOf(id).toLowerCase(Locale.ROOT);
+        // Include MASS_MAIN-typed wings (LLM often labels side halls as MASS_MAIN).
+        boolean annexName = s.contains("wing") || s.contains("side") || s.contains("corridor")
+                || s.contains("link") || s.contains("annex") || s.contains("配")
+                || s.contains("厢") || s.contains("廊");
+        if (!annexName) return false;
+        // Never treat the compound's primary hall as an annex clipper.
+        if (s.contains("main") && !s.contains("wing") && !s.contains("side")) return false;
+        return true;
     }
 
     public int trimWallTowerJoins(Component writer, List<BlockPatch> patches) {

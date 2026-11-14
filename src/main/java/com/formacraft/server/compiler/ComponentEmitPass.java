@@ -371,12 +371,14 @@ final class ComponentEmitPass {
                                 return false;
                             }
                             BlockPos pos = new BlockPos(p.dx(), p.dy(), p.dz());
-                            // Non-bridge plates must not pave over recorded shell openings.
-                            // Bridge portal sill PLACE drops the WINDOW expectation before this filter.
+                            // Non-bridge plates must not glaze over recorded WINDOW cells.
+                            // DOOR_OPENING from bridge portal REMOVEs stays writable so intentional
+                            // seal/interior plates (portal_blocked fixtures) can re-fill the doorway.
+                            // Bridge portal sill PLACE already drops WINDOW expectations above.
                             if (!bridge && BlockPatch.PLACE.equals(p.action())) {
                                 var expected = openingExpectations.get(pos);
-                                if (expected != null && (expected.role() == GeneratedSurfaceCapture.Role.WINDOW
-                                        || expected.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING)) {
+                                if (expected != null
+                                        && expected.role() == GeneratedSurfaceCapture.Role.WINDOW) {
                                     return true;
                                 }
                             }
