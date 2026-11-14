@@ -8,7 +8,6 @@ import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.model.request.FormaRequest;
-import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.List;
 import java.util.Locale;
@@ -33,7 +32,7 @@ public final class LandmarkRoutingMetrics {
     /**
      * 扫描 LlmPlan 中的 landmark/module feature，与用户意图对比后打点。
      */
-    public static void recordFromPlan(ServerPlayerEntity player, FormaRequest req, LlmPlan plan) {
+    public static void recordFromPlan(String player, FormaRequest req, LlmPlan plan) {
         if (plan == null || plan.components() == null) return;
         String intent = BuildingSpecRoutingPolicy.userIntentText(req);
         String llmModule = extractLandmarkModuleId(plan.components());
@@ -118,14 +117,14 @@ public final class LandmarkRoutingMetrics {
 
     private static void log(
             String event,
-            ServerPlayerEntity player,
+            String player,
             String intent,
             String matched,
             String policyModule,
             String intentResolved,
             String reason
     ) {
-        String playerName = player != null ? player.getName().getString() : "?";
+        String playerName = player != null ? player : "?";
         FormacraftMod.LOGGER.info(
                 "[LandmarkMetrics] event={} reason={} player={} requested=\"{}\" matched={} policy={} intent_resolved={} stats=explicit:{} approx:{} override:{}",
                 event,

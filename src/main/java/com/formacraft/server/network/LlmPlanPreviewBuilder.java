@@ -204,7 +204,7 @@ public final class LlmPlanPreviewBuilder {
                     LOG.error("off-thread LlmPlan components[] compile failed (no main-thread recompile)", t);
                     server.execute(() -> deliverPreview(finish, () -> {
                         hbAlive.set(false);
-                        LlmPlanRoutingMetrics.recordError(player, req, "off_thread_compile_failed");
+                        LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "off_thread_compile_failed");
                         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                                 "建筑方案编译失败（后台）。请简化请求或重试；不会在主线程重跑完整编译。"
                         ));
@@ -324,9 +324,9 @@ public final class LlmPlanPreviewBuilder {
         }
 
         if (allowGeometryRepair) {
-            LlmPlanRoutingMetrics.recordTaggedAttempt(player, req);
-            com.formacraft.common.network.metrics.LandmarkRoutingMetrics.recordFromPlan(player, req, llmPlan);
-            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordFromPlan(player, req, llmPlan);
+            LlmPlanRoutingMetrics.recordTaggedAttempt((player == null ? null : player.getName().getString()), req);
+            com.formacraft.common.network.metrics.LandmarkRoutingMetrics.recordFromPlan((player == null ? null : player.getName().getString()), req, llmPlan);
+            com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordFromPlan((player == null ? null : player.getName().getString()), req, llmPlan);
         }
         String landmarkModule = com.formacraft.common.network.metrics.LandmarkRoutingMetrics.extractLandmarkModuleId(llmPlan);
         if (landmarkModule != null) {
@@ -347,7 +347,7 @@ public final class LlmPlanPreviewBuilder {
         }
 
         if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req)) {
-            LlmPlanRoutingMetrics.recordFallback(FallbackReason.ROUTING_POLICY, player, req);
+            LlmPlanRoutingMetrics.recordFallback(FallbackReason.ROUTING_POLICY, (player == null ? null : player.getName().getString()), req);
             return false;
         }
 
@@ -402,7 +402,7 @@ public final class LlmPlanPreviewBuilder {
                 List<com.formacraft.common.patch.BlockPatch> patchCompiled = compilation.patches();
                 if (patchCompiled == null || patchCompiled.isEmpty()) {
                     hbAlive.set(false);
-                    LlmPlanRoutingMetrics.recordError(player, req, "patch_components_empty");
+                    LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "patch_components_empty");
                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                             "增量 components[] 编译结果为空，无法应用局部修改。"));
                     return true;
@@ -415,7 +415,7 @@ public final class LlmPlanPreviewBuilder {
             // mode=patch. Coerce full compositions to the build path.
             if (patchRequest && !isCoercibleFullBuildPlan(llmPlan)) {
                 hbAlive.set(false);
-                LlmPlanRoutingMetrics.recordError(player, req, "patch_expected_rebuild_rejected");
+                LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "patch_expected_rebuild_rejected");
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                         "增量修改需要 LlmPlan mode=patch 且提供 patch.blocks[] 或局部 components[]（如开窗）。"
                                 + "后端返回了整栋方案，已拒绝落地以免在屋顶/脚下重建。"
@@ -488,7 +488,7 @@ public final class LlmPlanPreviewBuilder {
                 if (com.formacraft.common.mass.integration.BuildingMassSystemIntegrator.shouldUseBuildingMassPath(llmPlan)) {
                     List<com.formacraft.common.patch.BlockPatch> buildingMassPatches =
                             com.formacraft.common.mass.integration.BuildingMassSystemIntegrator.compileWithBuildingMass(
-                                    llmPlan, planOrigin, serverWorld);
+                                    llmPlan, planOrigin);
                     if (!buildingMassPatches.isEmpty()) {
                         var merged = com.formacraft.common.patch.PatchMergePolicy
                                 .mergeSkeletonWithBuildingMass(patches, buildingMassPatches);
@@ -569,7 +569,7 @@ public final class LlmPlanPreviewBuilder {
                             ));
                     return true;
                 }
-                LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+                LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, (player == null ? null : player.getName().getString()), req);
                 return false;
             }
 
@@ -601,7 +601,7 @@ public final class LlmPlanPreviewBuilder {
                 if (landing.problem() != null) {
                     hbAlive.set(false);
                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(landing.problem()));
-                    LlmPlanRoutingMetrics.recordError(player, req, "terrain:" + landing.problem());
+                    LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "terrain:" + landing.problem());
                     return true;
                 }
                 plannedBlocks = landing.blocks();
@@ -986,7 +986,7 @@ public final class LlmPlanPreviewBuilder {
                 }
                 hbAlive.set(false);
                 if (pipeline.report() != null) {
-                    LlmPlanRoutingMetrics.recordError(player, req, "quality:" + pipeline.report().summaryZh());
+                    LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "quality:" + pipeline.report().summaryZh());
                 }
                 return true;
             }
@@ -1019,14 +1019,14 @@ public final class LlmPlanPreviewBuilder {
             ));
             hbAlive.set(false);
 
-            LlmPlanRoutingMetrics.recordSuccess(player, req, patches.size(), plannedBlocks.size());
+            LlmPlanRoutingMetrics.recordSuccess((player == null ? null : player.getName().getString()), req, patches.size(), plannedBlocks.size());
             IntentFidelityMetrics.recordCompileAttempt(
                     player, req, llmPlan, true, true, null);
             return true;
         } catch (Exception e) {
             hbAlive.set(false);
             FormacraftMod.LOGGER.error("Failed to process LlmPlan", e);
-            LlmPlanRoutingMetrics.recordError(player, req, "process:" + e.getClass().getSimpleName());
+            LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "process:" + e.getClass().getSimpleName());
             IntentFidelityMetrics.recordCompileAttempt(
                     player, req, llmPlan, true, false,
                     IntentFidelityMetrics.fromGap(new com.formacraft.common.llm.dto.CapabilityGap(
@@ -1242,7 +1242,7 @@ public final class LlmPlanPreviewBuilder {
                 com.formacraft.common.component.transform.BlockStateStringUtil
                         .fromState(serverWorld.getBlockState(cell)));
         if (!prepared.ok()) {
-            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_fbd_refused");
+            LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "building_edit_fbd_refused");
             String msg = prepared.refusals().isEmpty()
                     ? "FBD 程序替换被拒绝。"
                     : String.join("；", prepared.refusals());
@@ -1268,7 +1268,7 @@ public final class LlmPlanPreviewBuilder {
                 com.formacraft.server.preview.PreviewEditKind.BUILDING_FBD_REPLACE
         );
         if (ticket == null) {
-            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_fbd_preview_failed");
+            LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "building_edit_fbd_preview_failed");
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "FBD 程序替换预览创建失败。"));
             return true;
@@ -1284,7 +1284,7 @@ public final class LlmPlanPreviewBuilder {
         }
         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                 "FBD 程序替换预览已就绪（确认后可 Undo/Redo）"));
-        LlmPlanRoutingMetrics.recordSuccess(player, req, prepared.patches().size(), prepared.patches().size());
+        LlmPlanRoutingMetrics.recordSuccess((player == null ? null : player.getName().getString()), req, prepared.patches().size(), prepared.patches().size());
         return true;
     }
 
@@ -1302,7 +1302,7 @@ public final class LlmPlanPreviewBuilder {
         hbAlive.set(false);
         var memoryManager = com.formacraft.server.build.BuildExecutionService.getInstance().getMemoryManager();
         if (memoryManager == null) {
-            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_memory_unavailable");
+            LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "building_edit_memory_unavailable");
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "建筑记忆系统未就绪，无法安全执行屋顶材质替换。"));
             return true;
@@ -1325,7 +1325,7 @@ public final class LlmPlanPreviewBuilder {
         var service = new com.formacraft.server.edit.BuildingEditService(memoryManager);
         var target = service.targets().resolve(query);
         if (!target.ok()) {
-            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_target_" + target.failure());
+            LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "building_edit_target_" + target.failure());
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     com.formacraft.server.edit.BuildingTargetResolver.refusalMessage(target)
                             .orElse("无法确定要修改的建筑。")));
@@ -1342,7 +1342,7 @@ public final class LlmPlanPreviewBuilder {
 
         var prepared = service.prepareRoofMaterialReplace(query, material, live, null);
         if (!prepared.ok()) {
-            LlmPlanRoutingMetrics.recordError(player, req, "building_edit_roof_refused");
+            LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "building_edit_roof_refused");
             String msg = prepared.refusals().isEmpty()
                     ? "屋顶材质替换被拒绝。"
                     : String.join("；", prepared.refusals());
@@ -1368,7 +1368,7 @@ public final class LlmPlanPreviewBuilder {
                 com.formacraft.server.preview.PreviewEditKind.BUILDING_ROOF_MATERIAL
         );
         if (ticket == null) {
-            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, (player == null ? null : player.getName().getString()), req);
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "屋顶材质替换预览创建失败。"));
             return true;
@@ -1383,7 +1383,7 @@ public final class LlmPlanPreviewBuilder {
         }
         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                 "屋顶材质替换预览已就绪（仅屋顶方块；确认后可 Undo/Redo）"));
-        LlmPlanRoutingMetrics.recordSuccess(player, req, prepared.patches().size(), prepared.patches().size());
+        LlmPlanRoutingMetrics.recordSuccess((player == null ? null : player.getName().getString()), req, prepared.patches().size(), prepared.patches().size());
         return true;
     }
 
@@ -1402,7 +1402,7 @@ public final class LlmPlanPreviewBuilder {
         List<com.formacraft.common.patch.BlockPatch> finalPatches =
                 com.formacraft.common.patch.ConfirmedPlanIdentity.toFinalPatches(patchList);
         if (finalPatches.isEmpty()) {
-            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, (player == null ? null : player.getName().getString()), req);
             return false;
         }
         com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
@@ -1422,14 +1422,14 @@ public final class LlmPlanPreviewBuilder {
                 req.getSelectionMax()
         );
         if (ticket == null) {
-            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, player, req);
+            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, (player == null ? null : player.getName().getString()), req);
             return false;
         }
 
         hbAlive.set(false);
         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
                 "Patch 预览已就绪：检查改动后点击「应用」（可 Undo/Redo）"));
-        LlmPlanRoutingMetrics.recordSuccess(player, req, finalPatches.size(), finalPatches.size());
+        LlmPlanRoutingMetrics.recordSuccess((player == null ? null : player.getName().getString()), req, finalPatches.size(), finalPatches.size());
         return true;
     }
 
@@ -1493,7 +1493,7 @@ public final class LlmPlanPreviewBuilder {
             com.formacraft.common.llm.dto.CapabilityGap gap
     ) {
         hbAlive.set(false);
-        LlmPlanRoutingMetrics.recordError(player, req, gap.code() != null ? gap.code() : "capability_gap");
+        LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, gap.code() != null ? gap.code() : "capability_gap");
         IntentFidelityMetrics.recordCompileAttempt(
                 player, req, null, true, false, IntentFidelityMetrics.fromGap(gap));
         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(

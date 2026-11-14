@@ -7,7 +7,6 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.typology.StructuralTypologyRegistry;
 import com.formacraft.common.typology.TypologyComponentRouter;
-import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.List;
 import java.util.Locale;
@@ -89,7 +88,7 @@ public final class TypologyRoutingMetrics {
         log("legacy_redirect", null, "-", typologyId, legacyModuleId, "migration_map");
     }
 
-    public static void recordFromPlan(ServerPlayerEntity player, FormaRequest req, LlmPlan plan) {
+    public static void recordFromPlan(String player, FormaRequest req, LlmPlan plan) {
         if (plan == null || plan.components() == null) return;
         String intent = BuildingSpecRoutingPolicy.userIntentText(req);
 
@@ -132,7 +131,7 @@ public final class TypologyRoutingMetrics {
     }
 
     private static void recordPlanPrimaryPath(
-            ServerPlayerEntity player,
+            String player,
             String intent,
             boolean hasTypology,
             boolean hasModule,
@@ -259,13 +258,13 @@ public final class TypologyRoutingMetrics {
 
     private static void log(
             String event,
-            ServerPlayerEntity player,
+            String player,
             String intent,
             String typologyId,
             String legacyModule,
             String source
     ) {
-        String playerName = player != null ? player.getName().getString() : "-";
+        String playerName = player != null ? player : "-";
         FormacraftMod.LOGGER.info(
                 "[TypologyMetrics] event={} source={} player={} intent=\"{}\" typology={} legacy_module={} {}",
                 event,

@@ -76,7 +76,7 @@ public final class BuildRequestProcessor {
                         enrichRequestFromPlayer(req, player);
                         BuildPromptContextEnricher.enrich(req, player);
                     } catch (Throwable t) {
-                        LOG.player(player).warn("enrichRequestFromPlayer failed", t);
+                        LOG.playerId(player.getName().getString()).warn("enrichRequestFromPlayer failed", t);
                     }
                     com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
                     com.formacraft.server.state.PlayerOutlineStorage.syncFromRequest(player, req);
@@ -271,7 +271,7 @@ public final class BuildRequestProcessor {
                                                                         return;
                                                                     }
                                                                     gateTicket.advance(BuildRequestGate.RequestState.FAILED);
-                                                                    LlmPlanRoutingMetrics.recordStructureAfterFallback(player, req);
+                                                                    LlmPlanRoutingMetrics.recordStructureAfterFallback((player == null ? null : player.getName().getString()), req);
                                                                     ServerPlayNetworking.send(player,
                                                                             new FormaCraftNetworking.ResponseBuildErrorPayload(
                                                                                     "LlmPlan 预览生成失败（已跳过假 BuildingSpec 回退）。请调整请求或检查后端输出。"
@@ -285,7 +285,7 @@ public final class BuildRequestProcessor {
                                                 }
                                                 case AiPlanResult.BuildingSpec(var spec) -> {
                                                     BuildingSpecRoutingPolicy.applySpecDefaults(spec, req);
-                                                    LlmPlanRoutingMetrics.recordDirectStructurePreview(player, req);
+                                                    LlmPlanRoutingMetrics.recordDirectStructurePreview((player == null ? null : player.getName().getString()), req);
                                                     previewBuildingSpec(player, req, spec, origin, serverWorld, hbAlive);
                                                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(spec));
                                                 }

@@ -48,6 +48,12 @@
 
 已核对旧 AutoAssembler、ClusterLayoutPlanner 和 ConfirmBuildPacket 的删除状态，修正架构概览中的待删除列表。BuildingMassSystemTest 仍由服务端命令调用，已迁至 server.command.diagnostic，保留原诊断行为。common.mass 中的实际调用链继续冻结迁移。
 
+BuildingMassSystemIntegrator 已删除未使用的 ServerWorld 参数，预览入口改为只传计划和世界锚点。对应 common 服务端类型债务减少 3 处；显式启用条件和生成行为沿用原实现。
+
+LandmarkRoutingMetrics、TypologyRoutingMetrics、LlmPlanRoutingMetrics 改为接收玩家名称字符串，服务端调用方负责读取名称。指标类不再依赖 ServerPlayerEntity，保留缺失玩家时的原日志占位符，边界债务再减少 18 处，剩余 65 处。
+
+FcaLog 已删除接收玩家实体的 player 方法，服务端唯一调用点复用 playerId(String)。日志工具不再依赖服务端玩家类型，边界债务再减少 3 处，剩余 62 处。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

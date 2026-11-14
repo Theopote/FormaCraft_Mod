@@ -3,7 +3,6 @@ package com.formacraft.common.network.metrics;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.model.request.FormaRequest;
-import net.minecraft.server.network.ServerPlayerEntity;
 
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
@@ -35,17 +34,17 @@ public final class LlmPlanRoutingMetrics {
     private LlmPlanRoutingMetrics() {}
 
     /** 进入 {@link com.formacraft.common.orchestrator.AiPlanResult.LlmPlan} 处理分支 */
-    public static void recordTaggedAttempt(ServerPlayerEntity player, FormaRequest req) {
+    public static void recordTaggedAttempt(String player, FormaRequest req) {
         taggedRequests.incrementAndGet();
         log("attempt", null, player, req);
     }
 
-    public static void recordSuccess(ServerPlayerEntity player, FormaRequest req, int patchCount, int blockCount) {
+    public static void recordSuccess(String player, FormaRequest req, int patchCount, int blockCount) {
         llmSuccess.incrementAndGet();
         log("success", "patches=" + patchCount + " blocks=" + blockCount, player, req);
     }
 
-    public static void recordError(ServerPlayerEntity player, FormaRequest req, String errorKind) {
+    public static void recordError(String player, FormaRequest req, String errorKind) {
         llmError.incrementAndGet();
         log("error", errorKind, player, req);
     }
@@ -53,7 +52,7 @@ public final class LlmPlanRoutingMetrics {
     /** LlmPlan 主动放弃预览，回退整栋 {@code GenerationHub.routeStructure()} */
     public static void recordFallback(
             FallbackReason reason,
-            ServerPlayerEntity player,
+            String player,
             FormaRequest req
     ) {
         llmFallback.incrementAndGet();
@@ -61,13 +60,13 @@ public final class LlmPlanRoutingMetrics {
     }
 
     /** 从未标记 LlmPlan，直接走整栋预览 */
-    public static void recordDirectStructurePreview(ServerPlayerEntity player, FormaRequest req) {
+    public static void recordDirectStructurePreview(String player, FormaRequest req) {
         directStructure.incrementAndGet();
         log("structure_direct", null, player, req);
     }
 
     /** LlmPlan 返回 false 后，实际进入整栋预览（与 {@link #recordFallback} 成对出现） */
-    public static void recordStructureAfterFallback(ServerPlayerEntity player, FormaRequest req) {
+    public static void recordStructureAfterFallback(String player, FormaRequest req) {
         structureAfterFallback.incrementAndGet();
         log("structure_after_fallback", null, player, req);
     }
@@ -90,8 +89,8 @@ public final class LlmPlanRoutingMetrics {
         );
     }
 
-    private static void log(String event, String detail, ServerPlayerEntity player, FormaRequest req) {
-        String playerName = player != null ? player.getName().getString() : "?";
+    private static void log(String event, String detail, String player, FormaRequest req) {
+        String playerName = player != null ? player : "?";
         String prompt = truncate(BuildingSpecRoutingPolicy.userIntentText(req), 80);
         if (detail == null || detail.isBlank()) {
             FormacraftMod.LOGGER.info(

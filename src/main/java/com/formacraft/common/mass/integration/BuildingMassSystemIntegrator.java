@@ -4,7 +4,6 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.PlanSkeleton;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
@@ -24,8 +23,7 @@ public final class BuildingMassSystemIntegrator {
 
     public static List<BlockPatch> compileWithBuildingMass(
             LlmPlan llmPlan,
-            BlockPos origin,
-            ServerWorld world
+            BlockPos origin
     ) {
         if (llmPlan == null) {
             FormacraftMod.LOGGER.warn("BuildingMassSystemIntegrator: llmPlan is null");
