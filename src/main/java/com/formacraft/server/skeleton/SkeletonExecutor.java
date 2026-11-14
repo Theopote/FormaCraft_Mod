@@ -1,15 +1,16 @@
-package com.formacraft.common.skeleton;
+package com.formacraft.server.skeleton;
 
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
 
 /**
- * 骨架执行门面（common 侧契约）。
+ * 服务端骨架执行门面。
  * <p>
- * Phase 1：common 编译器通过此接口调用骨架生成，避免直接依赖 {@code server.skeleton.gen}。
+ * 服务端编译器通过此接口调用骨架生成，具体实现位于 {@code server.skeleton.gen}。
  * 服务端在 mod 初始化时注册 {@link com.formacraft.server.skeleton.gen.SkeletonBuildService} 实现。
  */
 public interface SkeletonExecutor {

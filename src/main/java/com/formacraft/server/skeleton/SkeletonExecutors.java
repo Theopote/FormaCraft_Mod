@@ -1,4 +1,4 @@
-package com.formacraft.common.skeleton;
+package com.formacraft.server.skeleton;
 
 /**
  * 全局骨架执行器持有者。

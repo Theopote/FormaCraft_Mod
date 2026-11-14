@@ -28,8 +28,6 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.SemanticStyleProfileRegistry;
 import com.formacraft.common.skeleton.transform.YRotation;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -52,15 +50,15 @@ public final class PlayerComponentGroupExpander {
 
     private static final String PREFIX = "group_request:";
 
-    public static List<BlockPatch> tryExpand(SemanticComponent semantic, ServerWorld world) {
-        ComponentGenerationOutcome outcome = tryExpandResult(semantic, world);
+    public static List<BlockPatch> tryExpand(SemanticComponent semantic, Path worldDir, long expansionSeed) {
+        ComponentGenerationOutcome outcome = tryExpandResult(semantic, worldDir, expansionSeed);
         if (outcome == null) return null;
         return outcome.patches();
     }
 
     /** Structured expand; prefer this when diagnostics / hard-fail matter. */
-    public static ComponentGenerationOutcome tryExpandResult(SemanticComponent semantic, ServerWorld world) {
-        if (semantic == null || semantic.source() == null || world == null) return null;
+    public static ComponentGenerationOutcome tryExpandResult(SemanticComponent semantic, Path worldDir, long expansionSeed) {
+        if (semantic == null || semantic.source() == null || worldDir == null) return null;
         String featureJson = extractFeatureJson(semantic.source().features());
         if (featureJson == null) return null;
 
@@ -91,7 +89,6 @@ public final class PlayerComponentGroupExpander {
                     ComponentGenerationOutcome.Status.LOAD_FAILED, "group_not_found", groupId);
         }
 
-        Path worldDir = world.getServer().getSavePath(WorldSavePath.ROOT);
 
         BlockPos baseOffset = resolveBaseOffset(semantic);
         int baseX = baseOffset.getX();
@@ -178,7 +175,7 @@ public final class PlayerComponentGroupExpander {
 
         List<BlockPatch> placePatches = new ArrayList<>(256);
         ExpandStats stats = expandGroupInto(placePatches, worldDir, group, baseX, baseY, baseZ, groupFacing, groupMirror,
-                semanticSkin, semanticStyleId, world.getSeed(),
+                semanticSkin, semanticStyleId, expansionSeed,
                 reqMap, 0);
 
         if (stats.missingRequiredIds != null && !stats.missingRequiredIds.isEmpty()) {

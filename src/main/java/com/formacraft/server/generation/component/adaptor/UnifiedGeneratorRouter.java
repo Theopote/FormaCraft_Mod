@@ -10,7 +10,7 @@ import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
-import com.formacraft.common.skeleton.SkeletonExecutors;
+import com.formacraft.server.skeleton.SkeletonExecutors;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -278,8 +278,9 @@ public final class UnifiedGeneratorRouter {
 
         if (hasGroupRequest) {
             try {
-                var outcome = com.formacraft.common.component.group.PlayerComponentGroupExpander
-                        .tryExpandResult(semantic, world);
+                var outcome = world == null ? null : com.formacraft.common.component.group.PlayerComponentGroupExpander
+                        .tryExpandResult(semantic, world.getServer().getSavePath(net.minecraft.util.WorldSavePath.ROOT),
+                                world.getSeed());
                 if (outcome != null) {
                     if (outcome.commitAllowed()) {
                         if (base.isEmpty()) {
@@ -313,8 +314,9 @@ public final class UnifiedGeneratorRouter {
 
         if (hasComponentRequest) {
             try {
-                var outcome = com.formacraft.common.component.PlayerComponentExpander
-                        .tryExpandResult(semantic, world);
+                var outcome = world == null ? null : com.formacraft.common.component.PlayerComponentExpander
+                        .tryExpandResult(semantic, world.getServer().getSavePath(net.minecraft.util.WorldSavePath.ROOT),
+                                world.getSeed());
                 if (outcome != null) {
                     if (outcome.commitAllowed()) {
                         return new ExpanderStage(outcome.patches(), null, outcome.diagnostics(),

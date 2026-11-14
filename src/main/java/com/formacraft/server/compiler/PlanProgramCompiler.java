@@ -11,7 +11,7 @@ import com.formacraft.common.llm.parser.PlanSkeletonParser;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
-import com.formacraft.common.skeleton.SkeletonExecutors;
+import com.formacraft.server.skeleton.SkeletonExecutors;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 

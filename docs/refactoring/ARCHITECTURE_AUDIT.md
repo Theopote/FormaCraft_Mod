@@ -66,6 +66,10 @@ PlanCompileContext.TerrainContext 已移除无读取者的世界字段，创建�
 
 PlanProgramCompiler 已迁至 server.compiler，调用方和同包原子性测试同步迁移，更新生成入口清单与活文档。骨架转换、累计预算及失败协议保持原实现。对应边界债务减少 9 处，剩余 20 处。
 
+SkeletonExecutor 和 SkeletonExecutors 已迁至 server.skeleton，服务端编译、路由和启动注册同步更新，骨架计划 DTO 继续位于 common。对应边界债务减少 4 处，剩余 16 处。
+
+PlayerComponentExpander 和 PlayerComponentGroupExpander 改为接收存档目录与随机种子，由服务端路由提取；common 中的几何、挂载和裁剪算法保留。对应边界债务减少 10 处，剩余 6 处。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

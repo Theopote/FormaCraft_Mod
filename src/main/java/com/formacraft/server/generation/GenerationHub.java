@@ -5,7 +5,7 @@ import com.formacraft.server.generation.component.adaptor.UnifiedGeneratorRouter
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
-import com.formacraft.common.skeleton.SkeletonExecutors;
+import com.formacraft.server.skeleton.SkeletonExecutors;
 import com.formacraft.server.generation.structure.StructureGenerator;
 import com.formacraft.server.generation.structure.StructureGeneratorFactory;
 import net.minecraft.server.world.ServerWorld;

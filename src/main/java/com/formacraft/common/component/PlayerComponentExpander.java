@@ -25,8 +25,6 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import net.minecraft.block.BlockState;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -53,15 +51,15 @@ public final class PlayerComponentExpander {
 
     private static final String PREFIX = "component_request:";
 
-    public static List<BlockPatch> tryExpand(SemanticComponent semantic, ServerWorld world) {
-        ComponentGenerationOutcome outcome = tryExpandResult(semantic, world);
+    public static List<BlockPatch> tryExpand(SemanticComponent semantic, Path worldDir, long expansionSeed) {
+        ComponentGenerationOutcome outcome = tryExpandResult(semantic, worldDir, expansionSeed);
         if (outcome == null) return null;
         return outcome.patches();
     }
 
     /** Structured expand; prefer this over {@link #tryExpand} when diagnostics matter. */
-    public static ComponentGenerationOutcome tryExpandResult(SemanticComponent semantic, ServerWorld world) {
-        if (semantic == null || semantic.source() == null || world == null) return null;
+    public static ComponentGenerationOutcome tryExpandResult(SemanticComponent semantic, Path worldDir, long expansionSeed) {
+        if (semantic == null || semantic.source() == null || worldDir == null) return null;
         String featureJson = extractFeatureJson(semantic.source().features());
         if (featureJson == null) return null;
 
@@ -80,17 +78,16 @@ public final class PlayerComponentExpander {
                     ComponentGenerationOutcome.Status.INVALID_INPUT, "null_request", "reqMap_null");
         }
 
-        Path worldDir = world.getServer().getSavePath(WorldSavePath.ROOT);
 
         if (isMountRequest(reqMap)) {
-            return expandMountResult(semantic, world, worldDir, reqMap);
+            return expandMountResult(semantic, expansionSeed, worldDir, reqMap);
         }
 
-        return expandSingleResult(semantic, world, worldDir, reqMap);
+        return expandSingleResult(semantic, expansionSeed, worldDir, reqMap);
     }
 
     private static ComponentGenerationOutcome expandSingleResult(
-            SemanticComponent semantic, ServerWorld world, Path worldDir, Map<String, Object> reqMap) {
+            SemanticComponent semantic, long expansionSeed, Path worldDir, Map<String, Object> reqMap) {
         com.formacraft.common.component.query.ComponentResolveResult resolved =
                 resolveSingleRequest(semantic.source(), worldDir, reqMap);
         if (!resolved.ok()) {
@@ -166,7 +163,7 @@ public final class PlayerComponentExpander {
         }
         boolean semanticSkin = ComponentFeatureFlags.resolveSemanticSkin(
                 reqMap, semanticStyleId, "semantic_skin", "semanticSkin");
-        long worldSeed = world.getSeed();
+        long worldSeed = expansionSeed;
 
         ResolvedComponentGeometry geo = ComponentGeometryResolver.emit(
                 def, fromFacing, transform, baseX, baseY, baseZ, semanticSkin, semanticStyleId, worldSeed);
@@ -202,7 +199,7 @@ public final class PlayerComponentExpander {
     }
 
     private static ComponentGenerationOutcome expandMountResult(
-            SemanticComponent semantic, ServerWorld world, Path worldDir, Map<String, Object> reqMap) {
+            SemanticComponent semantic, long expansionSeed, Path worldDir, Map<String, Object> reqMap) {
         Object host0 = reqMap.get("host");
         Object mount0 = reqMap.get("mount");
         if (!(host0 instanceof Map<?, ?>) || !(mount0 instanceof Map<?, ?>)) {
@@ -289,7 +286,7 @@ public final class PlayerComponentExpander {
                     "PlayerComponentExpander: degraded_optional_mount mount={} need={} hostAttachment={}",
                     mount.id, mount.placementSpec != null ? mount.placementSpec.attachment : null, hostAttachment);
             ResolvedComponentGeometry onlyHost = ComponentGeometryResolver.emit(
-                    host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, world.getSeed());
+                    host, hostFromFacing, hostTransform, baseX, baseY, baseZ, hostSkin, hostStyleId, expansionSeed);
             if (!onlyHost.ok()) {
                 return ComponentGenerationOutcome.failure(mapGeoStatus(onlyHost.status()),
                         "host_emit", onlyHost.message());
@@ -337,7 +334,7 @@ public final class PlayerComponentExpander {
         int mountBaseX = baseX + socketOff.getX();
         int mountBaseY = baseY + socketOff.getY();
         int mountBaseZ = baseZ + socketOff.getZ();
-        long seed = world.getSeed();
+        long seed = expansionSeed;
 
         // Emit host + mount first (atomic: no patches returned until all stages ok).
         ResolvedComponentGeometry hostGeo = ComponentGeometryResolver.emit(

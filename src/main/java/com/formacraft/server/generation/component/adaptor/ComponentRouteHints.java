@@ -5,7 +5,7 @@ import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.skeleton.ExecutableSkeletonPlan;
-import com.formacraft.common.skeleton.SkeletonExecutors;
+import com.formacraft.server.skeleton.SkeletonExecutors;
 import com.formacraft.server.generation.component.impl.AssemblyPatchGenerator;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;

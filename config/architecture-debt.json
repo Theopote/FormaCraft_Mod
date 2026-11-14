@@ -1,7 +1,4 @@
 {
-  "common/component/PlayerComponentExpander.java: common uses minecraft server type": 6,
-  "common/skeleton/SkeletonExecutor.java: common uses minecraft server type": 4,
   "common/typology/TypologyComponentRouter.java: common uses minecraft server type": 3,
-  "common/typology/TypologyInterpreter.java: common uses minecraft server type": 3,
-  "common/component/group/PlayerComponentGroupExpander.java: common uses minecraft server type": 4
+  "common/typology/TypologyInterpreter.java: common uses minecraft server type": 3
 }
