@@ -1,5 +1,6 @@
 package com.formacraft.common.palette.component;
 
+import net.minecraft.Bootstrap;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
@@ -33,6 +34,9 @@ public final class MaterialBlockFamily {
                 ns + ":" + stem + "_block",
                 ns + ":" + stem
         };
+        if (!canUseBlockRegistry()) {
+            return candidates[0];
+        }
         try {
             if (!Registries.BLOCK.containsId(id)) return null;
             for (String candidate : candidates) {
@@ -40,7 +44,7 @@ public final class MaterialBlockFamily {
                 if (cid != null && Registries.BLOCK.containsId(cid)) return candidate;
             }
             return null;
-        } catch (ExceptionInInitializerError | IllegalArgumentException | IllegalStateException e) {
+        } catch (ExceptionInInitializerError | NoClassDefFoundError | IllegalArgumentException | IllegalStateException e) {
             return candidates[0];
         }
     }
@@ -51,15 +55,28 @@ public final class MaterialBlockFamily {
         if (!base.contains(":")) base = "minecraft:" + base;
         Identifier id = Identifier.tryParse(base);
         if (id == null) return null;
+        if (!canUseBlockRegistry()) {
+            // Unit tests / early parse before Minecraft Bootstrap — never touch Registries.
+            return stringShapeCandidate(id, shape);
+        }
         try {
             if (!Registries.BLOCK.containsId(id)) return null;
             String stem = stemOf(id.getPath());
             String candidate = id.getNamespace() + ":" + stem + "_" + shape;
             Identifier shapeId = Identifier.tryParse(candidate);
             return shapeId != null && Registries.BLOCK.containsId(shapeId) ? candidate : null;
-        } catch (ExceptionInInitializerError | IllegalArgumentException | IllegalStateException e) {
-            // Unit tests / early parse before Minecraft Bootstrap.
+        } catch (ExceptionInInitializerError | NoClassDefFoundError | IllegalArgumentException | IllegalStateException e) {
             return stringShapeCandidate(id, shape);
+        }
+    }
+
+    /** Avoid Registries clinit before Bootstrap — a failed init poisons the whole JVM test run. */
+    private static boolean canUseBlockRegistry() {
+        try {
+            Bootstrap.ensureBootstrapped(() -> "MaterialBlockFamily");
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
         }
     }
 
