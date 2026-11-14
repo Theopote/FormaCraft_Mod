@@ -41,6 +41,8 @@ public final class SpecialtyRoofSurfaces {
                         out.add(new BlockPatch(BlockPatch.PLACE,bx+x,by+y,bz+z,material));
                 }
             }
+            // Seal only adjacent-column height jumps >1; keep the hollow bulb interior.
+            sealAdjacentSurfaceSteps(out, bx, by, bz, width, depth, material);
         } else {
             double breakRun = 0.35;
             double breakRise = 0.65;
@@ -90,5 +92,42 @@ public final class SpecialtyRoofSurfaces {
 
     private static boolean allowed(ComponentFootprintMask footprint,int overhang,int x,int z) {
         return footprint==null || footprint.shouldPlaceRoof(x-overhang,z-overhang,overhang);
+    }
+
+    /** Fill under the taller of two adjacent shell columns until they share a one-block step. */
+    private static void sealAdjacentSurfaceSteps(
+            List<BlockPatch> out, int baseX, int baseY, int baseZ, int width, int depth, String material) {
+        if (out == null || out.isEmpty() || width <= 0 || depth <= 0) return;
+        int[][] maxRise = new int[width][depth];
+        for (int x = 0; x < width; x++) {
+            java.util.Arrays.fill(maxRise[x], Integer.MIN_VALUE);
+        }
+        for (BlockPatch patch : out) {
+            if (!GeneratedSurfaceCapture.occupied(patch)) continue;
+            int lx = patch.dx() - baseX;
+            int lz = patch.dz() - baseZ;
+            if (lx < 0 || lz < 0 || lx >= width || lz >= depth || patch.dy() < baseY) continue;
+            maxRise[lx][lz] = Math.max(maxRise[lx][lz], patch.dy() - baseY);
+        }
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                if (maxRise[x][z] == Integer.MIN_VALUE) continue;
+                for (int[] delta : new int[][]{{1, 0}, {0, 1}}) {
+                    int nx = x + delta[0];
+                    int nz = z + delta[1];
+                    if (nx >= width || nz >= depth || maxRise[nx][nz] == Integer.MIN_VALUE) continue;
+                    int a = maxRise[x][z];
+                    int b = maxRise[nx][nz];
+                    if (Math.abs(a - b) <= 1) continue;
+                    int lo = Math.min(a, b);
+                    int hi = Math.max(a, b);
+                    int tx = a > b ? x : nx;
+                    int tz = a > b ? z : nz;
+                    for (int y = lo + 1; y < hi; y++) {
+                        out.add(new BlockPatch(BlockPatch.PLACE, baseX + tx, baseY + y, baseZ + tz, material));
+                    }
+                }
+            }
+        }
     }
 }

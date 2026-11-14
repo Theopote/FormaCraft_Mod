@@ -385,8 +385,10 @@ public final class ComponentPlanCompiler {
             var offset = anchor == null ? BlockPos.ORIGIN : new BlockPos(anchor.x(), anchor.y(), anchor.z());
             var semantic = new SemanticComponent("ROOF", slot, roof, plan.styleProfile());
             // Adjacent taller towers can share roof materials and overlap this
-            // roof's section. Shape audit stays roof-owned; continuity also keeps
+            // roof's section. Shape audit stays roof-owned. Pitched roofs also keep
             // facade/opening/host cells that physically join slope rows after overwrite.
+            // Dome / onion shells are intentionally inset from the wall plate, so those
+            // join cells must not seed the slope graph (false disconnected_slope_rows).
             final var auditOccupancy = patchOccupancy;
             String roofIdentity = getParamString(roof.params(), "component_id");
             String roofHost = getParamString(roof.params(), "host_id");
@@ -396,8 +398,13 @@ public final class ComponentPlanCompiler {
             var finalPatches = finalOccupiedPatches(result);
             var roofOwnedPatches = finalPatches.stream().filter(p ->
                     belongsToRoofAudit(p, roofIdentity, roofHost, roofBaseY, auditOccupancy, false)).toList();
+            boolean domeShellContinuity = com.formacraft.common.generation.component.util.RoofTypeCatalog
+                    .extractExplicitType(roof, roof.params())
+                    .flatMap(com.formacraft.common.generation.component.util.RoofTypeCatalog::parseExplicit)
+                    .map(kind -> kind.isDome() || kind == com.formacraft.common.generation.component.util.RoofTypeKind.ONION_DOME)
+                    .orElse(false);
             var continuityPatches = finalPatches.stream().filter(p ->
-                    belongsToRoofAudit(p, roofIdentity, roofHost, roofBaseY, auditOccupancy, true)).toList();
+                    belongsToRoofAudit(p, roofIdentity, roofHost, roofBaseY, auditOccupancy, !domeShellContinuity)).toList();
             var occludedColumns = new HashSet<BlockPos>();
             for (var other : ComponentEmitPass.roofOccluders(roof, components, slotMap)) {
                 var b = other.bounds();
