@@ -100,8 +100,10 @@ final class FlatRoofAttachmentRepair {
                         roof.componentType(), roof.slotId(), roof.relativePosition(),
                         roof.dimensions(), roof.features(), params);
             }
+            // Compare upper storeys in plan Y (hostTop + hostSlotY), never roof-local expected.
             if (actual > expected + 1 && snapHost == body
-                    && hasUpperStoreyAbove(body, masses, slots, expected)) {
+                    && hasUpperStoreyAbove(body, masses, slots, hostTop + hostOffsetY,
+                    planBounds(roof, slots))) {
                 return roof;
             }
             FormacraftMod.LOGGER.info(
@@ -191,18 +193,27 @@ final class FlatRoofAttachmentRepair {
         return overlapW * overlapD * 2 >= roofArea;
     }
 
+    /**
+     * @param hostTopPlan host top plane in plan space ({@code hostTopLocal + hostSlotOffsetY})
+     * @param roofPlanBounds roof footprint in plan space; upper storeys that do not cover it are ignored
+     */
     private static boolean hasUpperStoreyAbove(
-            Component body, Map<String, Component> masses, Map<String, Slot> slots, int bodyTopLocal) {
+            Component body, Map<String, Component> masses, Map<String, Slot> slots,
+            int hostTopPlan, ComponentFootprintUtil.Bounds roofPlanBounds) {
         String bodyId = body.params() == null ? ""
                 : String.valueOf(body.params().getOrDefault("component_id", ""));
-        int bodyTopPlan = bodyTopLocal + slotOffsetY(slots, body.slotId());
         for (Component m : masses.values()) {
             if (m == null || m == body || m.relativePosition() == null) continue;
             Object host = m.params() == null ? null : m.params().get("host_id");
             if (host == null && m.params() != null) host = m.params().get("hostId");
             if (host == null || !String.valueOf(host).equals(bodyId)) continue;
             int my = m.relativePosition().y() + slotOffsetY(slots, m.slotId());
-            if (my >= bodyTopPlan) return true;
+            if (my < hostTopPlan) continue;
+            var upperBounds = planBounds(m, slots);
+            if (roofPlanBounds != null && upperBounds != null && !xzCovers(upperBounds, roofPlanBounds)) {
+                continue;
+            }
+            return true;
         }
         return false;
     }

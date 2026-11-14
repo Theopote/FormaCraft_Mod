@@ -95,4 +95,39 @@ class FlatRoofAttachmentRepairTest {
         // attic top enclosed = 8+3-1 = 10
         assertEquals(10, snapped.relativePosition().y());
     }
+
+    @Test
+    void crossSlotUpperStoreyDoesNotPreventRoofSnap() {
+        // Host slot Y=10, roof slot Y=20 → expected local = hostTop(7)+10-20 = -3.
+        // A hosted annex at plan Y=10 sits above the *wrong* bodyTopPlan (=expected+hostSlotY=7)
+        // but below the correct host top plane (17) — must not suppress snap.
+        Component body = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(6, 6, 8), List.of(),
+                Map.of("component_id", "house", "anchor_mode", "min_corner"));
+        // Same XZ as the roof; height 11 → plan top = 10+11-1 = 20 (>= roofPlanY) so preferAtticHost
+        // does not rebind, while plan base Y=10 still sits above the buggy threshold (7) and below
+        // the correct host top plane (17).
+        Component annex = new Component(
+                "MASS_SECONDARY", "body", new Vec3i(0, 0, 0),
+                new Dimensions(6, 6, 11), List.of(),
+                Map.of("component_id", "house_annex", "host_id", "house",
+                        "anchor_mode", "min_corner"));
+        Component roof = new Component(
+                "ROOF", "roof", new Vec3i(0, 0, 0),
+                new Dimensions(6, 6, 1), List.of(),
+                Map.of("component_id", "house_roof", "host_id", "house",
+                        "roof_type", "flat", "anchor_mode", "min_corner"));
+        Slot bodySlot = new Slot("body", new Vec3i(0, 10, 0), null, null, null, null);
+        Slot roofSlot = new Slot("roof", new Vec3i(0, 20, 0), null, null, null, null);
+        LlmPlan repaired = FlatRoofAttachmentRepair.apply(LlmPlanTestFixtures.builder()
+                .layout(new Layout(null, false, List.of(bodySlot, roofSlot)))
+                .components(List.of(body, annex, roof))
+                .build());
+        Component snapped = repaired.components().stream()
+                .filter(c -> "house_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(-3, snapped.relativePosition().y(),
+                "cross-slot annex below host top must not block flat-roof snap");
+    }
 }

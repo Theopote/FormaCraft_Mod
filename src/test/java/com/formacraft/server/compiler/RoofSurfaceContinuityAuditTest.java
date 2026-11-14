@@ -53,4 +53,20 @@ class RoofSurfaceContinuityAuditTest {
         assertFalse(patches.stream().anyMatch(p -> p.dx()==9 && p.dz()==7));
         assertTrue(RoofSurfaceContinuityAudit.inspect(semantic,patches,BlockPos.ORIGIN,Set.of()).isEmpty());
     }
+
+    @Test void camelCaseRoofTypeAliasEntersSameContinuityPath() {
+        var roof = new Component("ROOF","chapel",new Vec3i(0,12,0),new Dimensions(23,11,8),List.of(),
+                Map.of("roofType","gable","roof_height",8,"overhang",1,"roof_block","minecraft:dark_oak_planks"));
+        var semantic = new SemanticComponent("ROOF",null,roof);
+        var patches = new RoofGenerator().generate(semantic);
+        assertTrue(RoofSurfaceContinuityAudit.inspect(semantic,patches,BlockPos.ORIGIN,Set.of()).isEmpty());
+        var tops = new HashMap<BlockPos,BlockPatch>();
+        for (var p : patches) {
+            var col = new BlockPos(p.dx(),0,p.dz()); var old=tops.get(col);
+            if (old==null || old.dy()<p.dy()) tops.put(col,p);
+        }
+        var gap = RoofSurfaceContinuityAudit.inspect(semantic,new ArrayList<>(tops.values()),BlockPos.ORIGIN,Set.of());
+        assertEquals("E_ROOF_SURFACE_DISCONNECTED",gap.orElseThrow().code(),
+                "roofType=gable must audit continuity like roof_type=gable");
+    }
 }

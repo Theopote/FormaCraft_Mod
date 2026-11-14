@@ -15,12 +15,16 @@ final class RoofSurfaceContinuityAudit {
                                            BlockPos offset, Set<BlockPos> occluded) {
         var c = semantic.source();
         if (c == null || c.params() == null || c.dimensions() == null || c.relativePosition() == null) return Optional.empty();
-        String type = String.valueOf(c.params().getOrDefault("roof_type", "")).toLowerCase(Locale.ROOT);
-        var kind = RoofTypeCatalog.extractExplicitType(c, c.params()).flatMap(RoofTypeCatalog::parseExplicit).orElse(null);
+        // Use RoofTypeCatalog so roof_type / roofType aliases share one audit path.
+        String type = RoofTypeCatalog.extractExplicitType(c, c.params())
+                .map(s -> s.trim().toLowerCase(Locale.ROOT))
+                .orElse("");
+        var kind = RoofTypeCatalog.parseExplicit(type).orElse(null);
         boolean profiledRoof = kind != null && (kind.isProfiledGable()
                 || kind == com.formacraft.common.generation.component.util.RoofTypeKind.BELLCAST_HIP);
         if (!profiledRoof && (!Set.of("gable", "double_gable", "shed", "sawtooth").contains(type)
-                || Boolean.TRUE.equals(c.params().get("double_eave")))) return Optional.empty();
+                || Boolean.TRUE.equals(c.params().get("double_eave"))
+                || Boolean.TRUE.equals(c.params().get("doubleEave")))) return Optional.empty();
         int width = c.dimensions().width(), depth = c.dimensions().depth();
         boolean coverage = profiledRoof || "shed".equals(type) || "sawtooth".equals(type);
         var mask = ComponentFootprintMask.from(semantic,c.params(),width,depth);

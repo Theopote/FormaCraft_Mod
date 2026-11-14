@@ -3,8 +3,10 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
+import com.formacraft.common.llm.dto.Layout;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
+import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import org.junit.jupiter.api.Test;
 
@@ -245,6 +247,48 @@ class TempleSideHallMisrouteRepairTest {
         int rightCz = right.relativePosition().z() + right.dimensions().depth() / 2;
         assertTrue(leftCz >= hallMaxZ, "west-facing left 配殿 must sit south of the hall");
         assertTrue(rightCz < hallMinZ, "west-facing right 配殿 must sit north of the hall");
+    }
+
+    @Test
+    void sideHallRecognitionUsesSlotAnchors() {
+        // Main + left/right 配殿 live on distinct slots with local (0,0,0); plan spacing is in anchors.
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        Component left = new Component(
+                "MASS_SECONDARY", "left", new Vec3i(0, 0, 0),
+                new Dimensions(8, 10, 8), List.of("配殿", "side_hall"),
+                Map.of("component_id", "left_peidian", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        Component right = new Component(
+                "MASS_SECONDARY", "right", new Vec3i(0, 0, 0),
+                new Dimensions(8, 10, 8), List.of("配殿", "side_hall"),
+                Map.of("component_id", "right_peidian", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        Slot hallSlot = new Slot("hall", new Vec3i(0, 0, 0), null, null, null, null);
+        Slot leftSlot = new Slot("left", new Vec3i(-20, 0, 0), null, null, null, null);
+        Slot rightSlot = new Slot("right", new Vec3i(20, 0, 0), null, null, null, null);
+        String prompt = "生成一座大雄宝殿，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .styleProfile("chinese_temple_imperial")
+                .layout(new Layout(null, false, List.of(hallSlot, leftSlot, rightSlot)))
+                .components(List.of(hall, left, right))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        long peidian = repaired.components().stream()
+                .filter(c -> c.params() != null
+                        && String.valueOf(c.params().get("component_id")).contains("peidian")
+                        && c.componentType() != null
+                        && c.componentType().startsWith("MASS"))
+                .count();
+        assertEquals(2, peidian, "slot-anchored left/right 配殿 must not be duplicated");
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                "left_peidian".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                "right_peidian".equals(String.valueOf(c.params().get("component_id")))));
     }
 
     @Test

@@ -1,11 +1,13 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 
 import java.util.ArrayList;
@@ -433,6 +435,8 @@ final class TempleSideHallMisrouteRepair {
      * True only when at least two side halls sit on the building-local left and right of the
      * primary mass. 「左右」is relative to the main hall front (globalConstraints.facing), not
      * an arbitrary world E-W or N-S pair. Two halls both on the left do not satisfy 「左右配殿」.
+     * Footprints are compared in plan space (slot anchors applied), matching
+     * {@link MassFootprintSeparationRepair}.
      */
     private static boolean hasSideHalls(LlmPlan plan) {
         List<Component> sides = new ArrayList<>();
@@ -446,10 +450,12 @@ final class TempleSideHallMisrouteRepair {
         if (main == null || main.relativePosition() == null || main.dimensions() == null) {
             return true;
         }
-        int minX = main.relativePosition().x();
-        int maxX = minX + main.dimensions().width();
-        int minZ = main.relativePosition().z();
-        int maxZ = minZ + main.dimensions().depth();
+        var mainBounds = planBounds(plan, main);
+        if (mainBounds == null) return true;
+        int minX = mainBounds.minX();
+        int maxX = mainBounds.maxX();
+        int minZ = mainBounds.minZ();
+        int maxZ = mainBounds.maxZ();
         GlobalConstraints.Facing facing = resolveFacing(plan);
         int[] leftDir = leftOffset(facing);
         int[] rightDir = new int[]{-leftDir[0], -leftDir[1]};
@@ -458,8 +464,10 @@ final class TempleSideHallMisrouteRepair {
         int midX = (minX + maxX) / 2;
         int midZ = (minZ + maxZ) / 2;
         for (Component c : sides) {
-            int cx = c.relativePosition().x() + c.dimensions().width() / 2;
-            int cz = c.relativePosition().z() + c.dimensions().depth() / 2;
+            var sideBounds = planBounds(plan, c);
+            if (sideBounds == null) continue;
+            int cx = (sideBounds.minX() + sideBounds.maxX()) / 2;
+            int cz = (sideBounds.minZ() + sideBounds.maxZ()) / 2;
             int dx = cx - midX;
             int dz = cz - midZ;
             // Outside the main footprint on the left/right axis.
@@ -469,6 +477,43 @@ final class TempleSideHallMisrouteRepair {
             if (dx * rightDir[0] + dz * rightDir[1] > 0) right = true;
         }
         return left && right;
+    }
+
+    /** Component footprint in plan space (local bounds + layout slot anchor). */
+    private static ComponentFootprintUtil.Bounds planBounds(LlmPlan plan, Component c) {
+        if (c == null) return null;
+        Vec3i origin = slotAnchor(plan, c.slotId());
+        int ox = origin.x();
+        int oy = origin.y();
+        int oz = origin.z();
+        var local = ComponentFootprintUtil.bounds(c);
+        if (local != null) {
+            if (ox == 0 && oy == 0 && oz == 0) return local;
+            return new ComponentFootprintUtil.Bounds(
+                    local.minX() + ox, local.minY() + oy, local.minZ() + oz,
+                    local.maxX() + ox, local.maxY() + oy, local.maxZ() + oz);
+        }
+        if (c.relativePosition() == null || c.dimensions() == null) return null;
+        Vec3i p = c.relativePosition();
+        Dimensions d = c.dimensions();
+        return new ComponentFootprintUtil.Bounds(
+                p.x() + ox, p.y() + oy, p.z() + oz,
+                p.x() + ox + Math.max(1, d.width()),
+                p.y() + oy + Math.max(1, d.height()),
+                p.z() + oz + Math.max(1, d.depth()));
+    }
+
+    private static Vec3i slotAnchor(LlmPlan plan, String slotId) {
+        if (plan == null || plan.layout() == null || plan.layout().slots() == null
+                || slotId == null || slotId.isBlank()) {
+            return new Vec3i(0, 0, 0);
+        }
+        for (Slot slot : plan.layout().slots()) {
+            if (slot != null && slotId.equals(slot.slotId()) && slot.anchor() != null) {
+                return slot.anchor();
+            }
+        }
+        return new Vec3i(0, 0, 0);
     }
 
     private static GlobalConstraints.Facing resolveFacing(LlmPlan plan) {

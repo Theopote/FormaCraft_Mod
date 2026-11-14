@@ -207,7 +207,8 @@ final class ComponentEmitPass {
                             + "; missing=" + missingSurfaces.size();
                     // Opening / decor incompleteness must not abort the whole compound
                     // (e.g. FACADE_WINDOWS declaring WINDOW cells that the emitter skipped).
-                    if (isSoftSurfaceIncomplete(normalizedType)) {
+                    // Player-required openings still hard-fail — type alone is not enough.
+                    if (isSoftSurfaceIncomplete(normalizedType, c)) {
                         FormacraftMod.LOGGER.warn(
                                 "ComponentPlanCompiler: soft surface incomplete type={} id={} missing={}",
                                 normalizedType, ComponentPlanTypes.paramIdentity(c), missingSurfaces.size());
@@ -757,9 +758,17 @@ final class ComponentEmitPass {
     /**
      * Optional openings / courtyards / decorative detail may miss declared surfaces without aborting.
      * Player-required roofs, mass shells, crowns and domes hard-fail at this checkpoint.
+     * User-required door / window / entrance / gate openings also hard-fail here.
      */
     static boolean isSoftSurfaceIncomplete(String normalizedType) {
+        return isSoftSurfaceIncomplete(normalizedType, null);
+    }
+
+    static boolean isSoftSurfaceIncomplete(String normalizedType, Component c) {
         if (normalizedType == null) return false;
+        if (isOpeningSurfaceType(normalizedType) && isUserRequiredComponent(c)) {
+            return false;
+        }
         return "FACADE_WINDOWS".equals(normalizedType)
                 || "FACADE".equals(normalizedType)
                 || "FACADE_OPENING".equals(normalizedType)
@@ -771,6 +780,15 @@ final class ComponentEmitPass {
                 || "COURTYARD".equals(normalizedType)
                 || "DECOR_DETAIL".equals(normalizedType)
                 || normalizedType.startsWith("DECOR");
+    }
+
+    private static boolean isOpeningSurfaceType(String normalizedType) {
+        return "FACADE_WINDOWS".equals(normalizedType)
+                || "FACADE_OPENING".equals(normalizedType)
+                || "WINDOW".equals(normalizedType)
+                || "DOOR".equals(normalizedType)
+                || "GATE".equals(normalizedType)
+                || "ENTRANCE".equals(normalizedType);
     }
 
     /**
