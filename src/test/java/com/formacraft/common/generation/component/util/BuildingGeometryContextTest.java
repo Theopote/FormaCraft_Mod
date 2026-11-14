@@ -16,6 +16,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BuildingGeometryContextTest {
 
+    @Test
+    void nestedScopeRestoresCacheAfterException() {
+        var mass = new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(), Map.of("component_id", "body"));
+        try (var outer = BuildingGeometryContext.open()) {
+            BuildingGeometryContext.putMass(mass);
+            var original = BuildingGeometryContext.get("body");
+            assertNotNull(original);
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> {
+                try (var inner = BuildingGeometryContext.open()) {
+                    assertNull(BuildingGeometryContext.get("body"));
+                    BuildingGeometryContext.putMass(mass);
+                    org.junit.jupiter.api.Assertions.assertNotSame(original, BuildingGeometryContext.get("body"));
+                    throw new IllegalStateException("abort");
+                }
+            });
+            assertSame(original, BuildingGeometryContext.get("body"));
+            assertTrue(BuildingGeometryContext.isActive());
+        }
+        assertNull(BuildingGeometryContext.get("body"));
+        org.junit.jupiter.api.Assertions.assertFalse(BuildingGeometryContext.isActive());
+    }
+
     @AfterEach
     void tearDown() {
         BuildingGeometryContext.end();

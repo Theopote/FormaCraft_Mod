@@ -19,7 +19,6 @@ import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.typology.TypologyComponentRouter;
-import com.formacraft.common.typology.TypologyPatchBridge;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import com.formacraft.common.terrain.TerrainStrategySampler;
@@ -235,7 +234,6 @@ public final class ComponentPlanCompiler {
         GenerationCompileContext.install(GenerationCompileContext.fromPlan(plan, typologyExclusivePlan));
         PatchOccupancyIndex patchOccupancy;
         try {
-            TypologyPatchBridge.setPlanWorldAnchor(globalAnchor);
             com.formacraft.common.generation.component.util.BuildingGeometryContext.begin();
             for (Component mass : components) {
                 if (com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(mass)) {
@@ -259,7 +257,6 @@ public final class ComponentPlanCompiler {
             }
         } finally {
             com.formacraft.common.generation.component.util.BuildingGeometryContext.end();
-            TypologyPatchBridge.clearPlanWorldAnchor();
             GenerationCompileContext.install(previousCompileContext);
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();

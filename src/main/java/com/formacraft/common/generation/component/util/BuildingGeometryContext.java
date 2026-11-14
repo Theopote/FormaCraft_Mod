@@ -19,6 +19,33 @@ public final class BuildingGeometryContext {
     private static final ThreadLocal<Map<String, Entry>> CACHE = ThreadLocal.withInitial(HashMap::new);
     private static final ThreadLocal<Boolean> ACTIVE = ThreadLocal.withInitial(() -> false);
 
+    /** Install an isolated cache and restore the enclosing compilation on close. */
+    public static Scope open() {
+        var scope = new Scope(CACHE.get(), isActive());
+        CACHE.set(new HashMap<>());
+        ACTIVE.set(true);
+        return scope;
+    }
+
+    public static final class Scope implements AutoCloseable {
+        private final Map<String, Entry> previous;
+        private final boolean previouslyActive;
+        private boolean closed;
+
+        private Scope(Map<String, Entry> previous, boolean previouslyActive) {
+            this.previous = previous;
+            this.previouslyActive = previouslyActive;
+        }
+
+        @Override
+        public void close() {
+            if (closed) return;
+            CACHE.set(previous);
+            ACTIVE.set(previouslyActive);
+            closed = true;
+        }
+    }
+
     public static void begin() {
         CACHE.get().clear();
         ACTIVE.set(true);
