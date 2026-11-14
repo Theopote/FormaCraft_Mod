@@ -7,3 +7,6 @@
 # These are Windows script files and should use crlf
 *.bat           text eol=crlf
 
+# Fixture SHA pins are LF-normalized; keep JSON captures on LF across platforms.
+*.json          text eol=lf
+

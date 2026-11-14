@@ -1164,6 +1164,80 @@
       "llmPlanGuidance": "Use structural_typology=setback_tower with layout.skeleton_type=VERTICAL_STACK. Output proportion_hints.typology=setback_tower, slenderness≈4.5, setback_ratio≈0.12, window_wall_ratio≈0.55. Prefer STRUCTURE + typology:setback_tower; set reference_landmark=modern_skyscraper when user names modern skyscraper preset. Params: width, depth, height, floors, setbackEveryFloors, setbackStep, facing, paletteId. global_constraints.symmetry=RADIAL. FORBID plain MASS box without setbacks and curtain wall grammar. Office block / Zaha deconstructivism use other routes."
     },
     {
+      "id": "truss_tower",
+      "displayName": {
+        "zh": "桁架瞭望塔",
+        "en": "Truss observation tower"
+      },
+      "skeletonType": "VERTICAL_TAPER",
+      "styleFamilies": [
+        "Industrial_Structural",
+        "Modern_International"
+      ],
+      "matchKeywords": [
+        "东京塔",
+        "铁塔",
+        "桁架塔",
+        "钢架塔",
+        "瞭望塔",
+        "东京铁塔",
+        "truss tower",
+        "lattice tower",
+        "tokyo tower",
+        "observation tower",
+        "X brace",
+        "x-brace"
+      ],
+      "negativeKeywords": [
+        "埃菲尔",
+        "eiffel",
+        "摩天楼",
+        "skyscraper",
+        "哥特",
+        "教堂",
+        "pagoda",
+        "塔楼住宅"
+      ],
+      "interpreterId": "truss_tower",
+      "routingPolicy": "typology_first",
+      "defaultParams": {
+        "height": 45,
+        "baseWidth": 18,
+        "platformCount": 2,
+        "taper_ratio": 0.35
+      },
+      "paramSchema": {
+        "height": {
+          "min": 16,
+          "ideal": 45,
+          "max": 220,
+          "desc": "塔高（格）"
+        },
+        "baseWidth": {
+          "min": 9,
+          "ideal": 18,
+          "max": 81,
+          "desc": "底部边长（奇数）"
+        },
+        "platformCount": {
+          "min": 1,
+          "ideal": 2,
+          "max": 4,
+          "desc": "观景平台层数"
+        }
+      },
+      "referenceLandmarks": [
+        {
+          "archetypeId": "tokyo_tower",
+          "role": "primary",
+          "notes": "红色主桁架 + 白色斜撑 + 观景平台的垂直锥形钢塔"
+        }
+      ],
+      "proportionCardIds": [],
+      "cultureCardIds": [],
+      "llmPlanGuidance": "Use structural_typology=truss_tower with STRUCTURE + typology:truss_tower. Output proportion_hints.typology=truss_tower. Params: height, baseWidth, platformCount, material_primary, material_secondary. Prefer open lattice / X-brace silhouette — FORBID solid MASS box towers."
+    },
+    {
       "id": "tiered_mountain_palace",
       "displayName": {
         "zh": "台地退台宫城",

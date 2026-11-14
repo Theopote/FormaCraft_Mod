@@ -42,6 +42,27 @@ class ChurchAndArchRepairTest {
     }
 
     @Test
+    void brutalistStructureRemapsToMassAfterGothicStrip() {
+        Component structure = new Component(
+                "STRUCTURE", "church", new Vec3i(0, 0, 0),
+                new Dimensions(20, 28, 18), List.of("church"),
+                new HashMap<>(Map.of(
+                        "component_id", "brutalist_shell",
+                        "typology_id", "gothic_cathedral_hall")));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .playerFidelityNoticeZh("生成一座野兽派风格教堂")
+                .distinguishingFeatures(List.of("brutalist", "教堂"))
+                .components(List.of(structure))
+                .build();
+
+        LlmPlan repaired = ChurchGothicMisrouteRepair.apply(plan);
+        Component out = repaired.components().getFirst();
+        assertEquals("MASS_MAIN", out.componentType());
+        assertNull(out.params().get("typology_id"));
+        assertEquals(true, out.params().get("hollow"));
+    }
+
+    @Test
     void explicitGothicChurchKeepsTypology() {
         Component mass = new Component(
                 "MASS_MAIN", "church", new Vec3i(0, 0, 0),

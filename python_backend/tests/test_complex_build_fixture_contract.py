@@ -133,6 +133,11 @@ class ComplexBuildFixtureContract(unittest.TestCase):
             checked += 1
         self.assertGreaterEqual(checked, 1, "expected at least one clamped golden pair")
 
+    @staticmethod
+    def _sha256_lf(path: Path) -> str:
+        """Hash LF-normalized bytes so Windows CRLF checkouts match Linux CI."""
+        return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
     def test_raw_fixture_sha256_manifest_pins_historical_llm_bytes(self):
         """Raw captures are immutable; golden updates must not rewrite them quietly."""
         self.assertTrue(
@@ -141,7 +146,7 @@ class ComplexBuildFixtureContract(unittest.TestCase):
         )
         expected = json.loads(RAW_SHA256_MANIFEST.read_text(encoding="utf-8"))
         actual = {
-            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            path.name: self._sha256_lf(path)
             for path in sorted(FIXTURES.glob("*.json"))
             if not path.name.endswith(".normalized.json")
             and path.name != RAW_SHA256_MANIFEST.name

@@ -27,7 +27,8 @@ public final class TypologySystemInitializer {
                 new CourtyardCompoundInterpreter(),
                 new RadialFortressInterpreter(),
                 new SetbackTowerInterpreter(),
-                new TieredMountainPalaceInterpreter());
+                new TieredMountainPalaceInterpreter(),
+                new TrussTowerInterpreter());
         for (TypologyInterpreter interpreter : builtIns) {
             // Do not overwrite an interpreter registered by an extension before startup.
             if (!TypologyInterpreterRegistry.has(interpreter.typologyId())) {

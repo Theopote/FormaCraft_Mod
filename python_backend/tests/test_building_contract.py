@@ -140,6 +140,39 @@ class BuildingContractTest(unittest.TestCase):
         reqs = extract_requirements('第一栋宽15格；第二栋宽20格。两栋均每层高度5格。')
         self.assertEqual('all_main_masses', reqs[-1]['scope'])
 
+    def test_compound_apse_does_not_overbind_main_envelope(self):
+        """Adjacent annex MASS_MAIN must not fail a global length×width for the nave."""
+        nave = {
+            'component_type': 'MASS_MAIN',
+            'slot_id': 'main_slot',
+            'relative_position': {'x': 0, 'y': 0, 'z': 0},
+            'dimensions': {'width': 16, 'depth': 30, 'height': 12},
+            'params': {
+                'component_id': 'nave_main',
+                'requirement_scope': 'all_main_masses',
+                'anchor_mode': 'min_corner',
+                'floor_count': 3,
+                'floor_height': 4,
+                'roof_type': 'gable',
+            },
+        }
+        apse = {
+            'component_type': 'MASS_MAIN',
+            'slot_id': 'apse_slot',
+            'relative_position': {'x': 2, 'y': 0, 'z': 30},
+            'dimensions': {'width': 12, 'depth': 8, 'height': 10},
+            'params': {
+                'component_id': 'apse_main',
+                'requirement_scope': 'all_main_masses',
+                'anchor_mode': 'min_corner',
+                'shape': 'semicircle',
+                'roof_type': 'cone',
+            },
+        }
+        text = '生成一座长 30 格、宽 16 格的罗曼式白色圆顶教堂。'
+        result = apply_building_contract({'components': [nave, apse]}, text, finalize=True)
+        self.assertNotIn('capability_gap', result)
+
     def test_negated_material_is_not_a_positive_requirement(self):
         reqs = extract_requirements('不要用石砖外墙，使用橡木外墙。不要宽15格。')
         self.assertEqual(['wall_block'], [r['property'] for r in reqs])

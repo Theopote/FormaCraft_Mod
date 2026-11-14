@@ -138,7 +138,22 @@ final class ChurchGothicMisrouteRepair {
         if (!hit) {
             return c;
         }
-        return new Component(c.componentType(), c.slotId(), c.relativePosition(),
+        String type = c.componentType();
+        // Lone STRUCTURE that only carried gothic_cathedral_hall would otherwise emit zero
+        // patches after the typology strip — remap to a hollow MASS so geometry remains.
+        if (type != null && "STRUCTURE".equalsIgnoreCase(type)) {
+            type = "MASS_MAIN";
+            if (params == null) {
+                params = new HashMap<>();
+            }
+            params.putIfAbsent("hollow", true);
+            params.putIfAbsent("void_ratio", 0.12);
+            params.putIfAbsent("shape", "rectangle");
+            FormacraftMod.LOGGER.info(
+                    "ChurchGothicMisrouteRepair: STRUCTURE→MASS_MAIN after gothic strip id={}",
+                    params.get("component_id"));
+        }
+        return new Component(type, c.slotId(), c.relativePosition(),
                 c.dimensions(), features, params);
     }
 

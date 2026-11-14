@@ -219,13 +219,33 @@ def evaluate_capability(plan: Dict[str, Any]) -> List[str]:
                 or any(tok in joined_feats for tok in ("stair:", "stair_", "stairs"))
                 or str(params.get("extrude_mode") or "").lower() == "stair"
             )
+            # Parametric STRUCTURE (colonnade/gear/cross/spiral/truss) is emitted by
+            # StructureComponentGenerator from structure_type — typology_id is optional.
+            structure_type = (
+                params.get("structure_type")
+                or params.get("structureType")
+                or params.get("kind")
+            )
+            parametric_tokens = (
+                "colonnade", "column_ring", "radial_colonnade", "columns",
+                "gear", "cog", "industrial_gear",
+                "cross", "crucifix",
+                "spiral", "spiral_stair",
+                "truss", "lattice", "x_brace",
+            )
+            is_parametric = False
+            if structure_type is not None:
+                st = str(structure_type).strip().lower()
+                is_parametric = any(tok in st for tok in parametric_tokens) or bool(st)
+            if not is_parametric:
+                is_parametric = any(tok in joined_feats for tok in parametric_tokens)
             if not typology:
                 for f in feats:
                     lower = f.lower()
                     if lower.startswith("typology:"):
                         typology = f.split(":", 1)[1].strip()
                         break
-            if not typology and not is_stair_flight:
+            if not typology and not is_stair_flight and not is_parametric:
                 if not any(tok in joined_feats for tok in ("dense_eaves", "pagoda", "stupa", "typology")):
                     errors.append(
                         f"capability: STRUCTURE {params.get('component_id') or ''} lacks typology_id"

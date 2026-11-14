@@ -1,0 +1,68 @@
+﻿
+> Configure project :
+Fabric Loom: 1.11.8
+
+> Task :compileJava
+gradlew.bat : F:\development\formacraft-1.21.10\src\main\java\com\formacraft\server\generation\typology\builder\TrussTo
+werBuilder.java:78: 閿欒: 瀵逛簬resolveBlock(Map<String,Object>,String,String,BlockState), 鎵句笉鍒板悎閫傜殑鏂规硶
+所在位置 C:\Users\OOPS\AppData\Local\Temp\ps-script-bf255aa0-d333-48c9-8f5f-a2f8d2724247.ps1:76 字符: 1
++ & ".\gradlew.bat" test --tests "com.formacraft.server.compiler.Live22 ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (F:\development\...), 鎵句笉鍒板悎閫傜殑鏂规硶:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+        BlockState rail = resolveBlock(merged,
+                          ^
+    鏂规硶 TrussTowerBuilder.resolveBlock(Map<String,Object>,String,String,String,BlockState)涓嶉€傜敤
+      (瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+    鏂规硶 TrussTowerBuilder.resolveBlock(Map<String,Object>,String,String,String,String,BlockState)涓嶉€傜敤
+      (瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+F:\development\formacraft-1.21.10\src\main\java\com\formacraft\server\generation\typology\builder\TrussTowerBuilder.jav
+a:81: 閿欒: 瀵逛簬resolveBlock(Map<String,Object>,String,String,BlockState), 鎵句笉鍒板悎閫傜殑鏂规硶
+        BlockState spire = resolveBlock(merged,
+                           ^
+    鏂规硶 TrussTowerBuilder.resolveBlock(Map<String,Object>,String,String,String,BlockState)涓嶉€傜敤
+      (瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+    鏂规硶 TrussTowerBuilder.resolveBlock(Map<String,Object>,String,String,String,String,BlockState)涓嶉€傜敤
+      (瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+娉? F:\development\formacraft-1.21.10\src\main\java\com\formacraft\common\llm\dto\StyleAttributes.java浣跨敤浜嗘湭缁忔鏌ユ垨涓嶅畨鍏ㄧ殑
+鎿嶄綔銆?
+娉? 鏈夊叧璇︾粏淇℃伅, 璇蜂娇鐢?-Xlint:unchecked 閲嶆柊缂栬瘧銆?
+2 涓敊璇?
+
+> Task :compileJava FAILED
+
+[Incubating] Problems report is available at: file:///F:/development/formacraft-1.21.10/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  F:\development\formacraft-1.21.10\src\main\java\com\formacraft\server\generation\typology\builder\TrussTowerBuilder.j
+ava:78: 閿欒: 瀵逛簬resolveBlock(Map<String,Object>,String,String,BlockState), 鎵句笉鍒板悎閫傜殑鏂规硶
+          BlockState rail = resolveBlock(merged,
+                            ^
+      鏂规硶 TrussTowerBuilder.resolveBlock(Map<String,Object>,String,String,String,BlockState)涓嶉€傜敤
+        (瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+      鏂规硶 TrussTowerBuilder.resolveBlock(Map<String,Object>,String,String,String,String,BlockState)涓嶉€傜敤
+        (瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+  F:\development\formacraft-1.21.10\src\main\java\com\formacraft\server\generation\typology\builder\TrussTowerBuilder.j
+ava:81: 閿欒: 瀵逛簬resolveBlock(Map<String,Object>,String,String,BlockState), 鎵句笉鍒板悎閫傜殑鏂规硶
+          BlockState spire = resolveBlock(merged,
+                             ^
+      鏂规硶 TrussTowerBuilder.resolveBlock(Map<String,Object>,String,String,String,BlockState)涓嶉€傜敤
+        (瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+      鏂规硶 TrussTowerBuilder.resolveBlock(Map<String,Object>,String,String,String,String,BlockState)涓嶉€傜敤
+        (瀹為檯鍙傛暟鍒楄〃鍜屽舰寮忓弬鏁板垪琛ㄩ暱搴︿笉鍚?
+  娉? F:\development\formacraft-1.21.10\src\main\java\com\formacraft\common\llm\dto\StyleAttributes.java浣跨敤浜嗘湭缁忔鏌ユ垨涓嶅畨鍏
+ㄧ殑鎿嶄綔銆?
+  娉? 鏈夊叧璇︾粏淇℃伅, 璇蜂娇鐢?-Xlint:unchecked 閲嶆柊缂栬瘧銆?
+  2 涓敊璇?
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+
+BUILD FAILED in 46s
+1 actionable task: 1 executed

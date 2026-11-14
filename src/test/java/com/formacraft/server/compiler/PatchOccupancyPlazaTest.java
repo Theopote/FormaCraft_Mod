@@ -29,6 +29,21 @@ class PatchOccupancyPlazaTest {
         assertFalse(PatchOccupancyIndex.canOverwritePlace(plaza));
     }
 
+    @Test void hostBoundPrimitiveBalconyMayOverwriteMass() {
+        var index = new PatchOccupancyIndex();
+        var mass = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0), new Dimensions(12, 12, 20), List.of(),
+                Map.of("component_id", "cyberpunk_highrise_main"));
+        var balconyFloor = new Component("PRIMITIVE", "main", new Vec3i(0, 4, 11), new Dimensions(4, 1, 2), List.of(),
+                Map.of("component_id", "cyberpunk_highrise_balcony_floor",
+                        "host_id", "cyberpunk_highrise_main",
+                        "kind", "box"));
+        index.commit(mass, List.of(new BlockPatch(BlockPatch.PLACE, 0, 4, 11, "minecraft:cyan_concrete")));
+        assertTrue(index.accept(balconyFloor, List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 4, 11, "minecraft:polished_andesite"))).isEmpty());
+        assertEquals("PRIMITIVE", index.placeAt(new BlockPos(0, 4, 11)).writerType());
+        assertEquals("minecraft:polished_andesite", index.placeAt(new BlockPos(0, 4, 11)).targetBlock());
+    }
+
     @Test void gateMayOverwritePathAtThreshold() {
         var index = new PatchOccupancyIndex();
         var path = new Component("PATH", null, new Vec3i(0, 0, 0), new Dimensions(4, 1, 1), List.of(),

@@ -142,6 +142,24 @@ class GenerationCapabilityBatch2Test(unittest.TestCase):
         errors = evaluate_capability(plan)
         self.assertTrue(any("unsupported roof_type" in e for e in errors), errors)
 
+    def test_parametric_structure_type_does_not_require_typology(self):
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "params": {
+                        "component_id": "apse_colonnade",
+                        "structure_type": "radial_colonnade",
+                        "count": 8,
+                    },
+                    "features": ["columns:8"],
+                    "dimensions": {"width": 16, "depth": 16, "height": 10},
+                }
+            ]
+        }
+        errors = evaluate_capability(plan)
+        self.assertFalse(any("lacks typology_id" in e for e in errors), errors)
+
 
 if __name__ == "__main__":
     unittest.main()

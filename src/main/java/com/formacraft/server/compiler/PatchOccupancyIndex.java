@@ -576,7 +576,8 @@ public final class PatchOccupancyIndex {
         // the separate stair/carve rules.
         String writerType = writer.componentType().toUpperCase(Locale.ROOT);
         if (Set.of("ROOF", "ROOF_STRUCTURE", "CROWN", "CUPOLA", "DOME",
-                "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER", "CHIMNEY", "GATE")
+                "BALCONY", "TERRACE", "DECOR_DETAIL", "TOWER", "CHIMNEY", "GATE",
+                "PRIMITIVE", "SHAPE")
                 .contains(writerType)) {
             return true;
         }
@@ -597,7 +598,8 @@ public final class PatchOccupancyIndex {
         // Host-bound roofs/terraces often live on a dedicated *_roof slot while the mass
         // stays on the building slot — host_id is the authority, not slot equality.
         boolean hostBoundAccessory = Set.of("ROOF", "ROOF_STRUCTURE", "CROWN", "CUPOLA", "DOME",
-                        "BALCONY", "TERRACE", "DECOR_DETAIL", "CHIMNEY", "GATE")
+                        "BALCONY", "TERRACE", "DECOR_DETAIL", "CHIMNEY", "GATE",
+                        "PRIMITIVE", "SHAPE")
                 .contains(writerTypeEarly);
         return hostBoundAccessory;
     }

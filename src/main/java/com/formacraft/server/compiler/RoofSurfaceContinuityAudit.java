@@ -55,14 +55,26 @@ final class RoofSurfaceContinuityAudit {
                     if (coverage) return gap(c.params().get("component_id"),"missing_column",next);
                     continue;
                 }
-                // A one-block staircase silhouette is closed at its shared edge.
-                // Larger height jumps need an actual vertical joining surface.
-                if (Collections.disjoint(ys,other)
-                        && Math.abs(Collections.max(ys)-Collections.max(other))>1)
+                // Adjacent columns are continuous when any occupied Y differs by at most 1
+                // (shared edge or one-block stair step). Comparing only column maxima falsely
+                // rejects multi-layer slopes where lower rows still join the neighbor.
+                if (!slopeRowsTouch(ys, other))
                     return gap(c.params().get("component_id"),"disconnected_slope_rows",pos);
             }
         }
         return Optional.empty();
+    }
+
+    /** True when any occupied Y in {@code a} is within 1 of any Y in {@code b}. */
+    private static boolean slopeRowsTouch(Set<Integer> a, Set<Integer> b) {
+        for (int ya : a) {
+            for (int yb : b) {
+                if (Math.abs(ya - yb) <= 1) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Types that enter this final surface continuity pass. */

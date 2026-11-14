@@ -48,6 +48,8 @@ public final class ComponentGeneratorRegistry {
         register("CHIMNEY", new ChimneyGenerator());
         register("FOUNDATION", new FoundationGenerator());
         register("DECOR_DETAIL", new DecorDetailGenerator());
+        // Parametric STRUCTURE (colonnade/gear/cross/truss) when typology does not own the component.
+        register("STRUCTURE", new StructureComponentGenerator());
 
         register("TOWER_BASE", new TowerComponentGenerator());
         register("TOWER_MID", new TowerComponentGenerator());

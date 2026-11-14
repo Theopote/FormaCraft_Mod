@@ -631,7 +631,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if key == 'no_complex_decor':
             invalid = [c['params']['component_id'] for c in owned if c.get('component_type') in ('CROWN', 'CUPOLA', 'DOME')]
         elif key in ('width', 'depth', 'length'):
-            from .resolved_geometry import multi_mass_geometry
+            from .resolved_geometry import multi_mass_geometry, body_dimensions
             axis = 'x' if key == 'width' else 'z'
             def envelope_size(component):
                 envelope = multi_mass_geometry(component)['envelope_local']
@@ -645,7 +645,23 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                     return max(envelope['max_x'] - envelope['min_x'], envelope['max_z'] - envelope['min_z'])
                 return envelope['max_' + axis] - envelope['min_' + axis]
             requirement['dimension_subject'] = 'building_envelope'
-            invalid = [c['params']['component_id'] for c in targets if envelope_size(c) != expected]
+            # Compound churches / annexes: a global width×length binds the dominant
+            # footprint, not every apse/wing MASS_MAIN that shares all_main_masses.
+            # Separate buildings (non-adjacent) still each must match.
+            dim_targets = targets
+            if scope in ('all_main_masses', 'plan') and len(targets) > 1:
+                envelopes = [multi_mass_geometry(c)['envelope_local'] for c in targets]
+                def _near(a, b, gap=2):
+                    return not (a['max_x'] + gap < b['min_x'] or b['max_x'] + gap < a['min_x']
+                                or a['max_z'] + gap < b['min_z'] or b['max_z'] + gap < a['min_z'])
+                compound = any(_near(a, b) for i, a in enumerate(envelopes) for b in envelopes[i + 1:])
+                if compound:
+                    primary = max(
+                        targets,
+                        key=lambda c: max(1, body_dimensions(c).get('width', 1))
+                        * max(1, body_dimensions(c).get('depth', 1)))
+                    dim_targets = [primary]
+            invalid = [c['params']['component_id'] for c in dim_targets if envelope_size(c) != expected]
         elif key == 'floor_count':
             def storeys(c):
                 p = c['params']
