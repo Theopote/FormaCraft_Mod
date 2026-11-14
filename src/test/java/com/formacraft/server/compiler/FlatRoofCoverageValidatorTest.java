@@ -83,6 +83,20 @@ class FlatRoofCoverageValidatorTest {
         }
         assertTrue(FlatRoofCoverageValidator.resolve(new SemanticComponent("ROOF",null,roof(Map.of("roof_type","gable"))),BlockPos.ORIGIN).isEmpty());
     }
+    @Test void independentSecondaryMassHostCoverageIsChecked() {
+        var secondary = new SemanticComponent("MASS_SECONDARY", null, new Component(
+                "MASS_SECONDARY", "wing", new Vec3i(0, 0, 0), new Dimensions(6, 6, 5), List.of(),
+                Map.of("component_id", "wing_a", "anchor_mode", "min_corner")));
+        var shortRoof = new Component("ROOF", "roof", new Vec3i(0, 4, 0), new Dimensions(3, 3, 1), List.of(),
+                Map.of("roof_type", "flat", "host_id", "wing_a"));
+        var fullRoof = new Component("ROOF", "roof", new Vec3i(0, 4, 0), new Dimensions(6, 6, 1), List.of(),
+                Map.of("roof_type", "flat", "host_id", "wing_a"));
+        var truncated = FlatRoofCoverageValidator.resolve(new SemanticComponent("ROOF", null, shortRoof), BlockPos.ORIGIN).orElseThrow();
+        var covering = FlatRoofCoverageValidator.resolve(new SemanticComponent("ROOF", null, fullRoof), BlockPos.ORIGIN).orElseThrow();
+        assertTrue(FlatRoofCoverageValidator.checkHost(secondary, List.of(truncated), BlockPos.ORIGIN, patches(truncated, 0), Set.of()).isPresent());
+        assertTrue(FlatRoofCoverageValidator.checkHost(secondary, List.of(covering), BlockPos.ORIGIN, patches(covering, 0), Set.of()).isEmpty());
+    }
+
     @Test void openFrameHostCoverageUsesDeckPlaneAbovePostTops() {
         // Open-frame attachment sits at maxY (above posts); enclosed seals at maxY-1.
         var openBody = body(Map.of("open", true, "wall_style", "none"));

@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.impl.RoofGenerator;
+import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.llm.dto.*;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
@@ -104,5 +105,24 @@ class RoofSurfaceContinuityAuditTest {
                 new BlockPatch(BlockPatch.PLACE, 6, 20, 5, "minecraft:smooth_quartz"));
         assertTrue(RoofSurfaceContinuityAudit.inspect(semantic,broken,BlockPos.ORIGIN,Set.of()).isPresent(),
                 "dome slope columns must stay vertically joined");
+    }
+
+    @Test void roofContinuityUsesFinalRemoveState() {
+        var roof = new Component("ROOF","hall",new Vec3i(0,8,0),new Dimensions(7,11,5),List.of(),
+                Map.of("roof_type","gable","roof_block","minecraft:oak_stairs"));
+        var semantic = new SemanticComponent("ROOF",null,roof);
+        var generated = new ArrayList<>(new RoofGenerator().generate(semantic));
+        assertTrue(RoofSurfaceContinuityAudit.inspect(semantic, generated, BlockPos.ORIGIN, Set.of()).isEmpty());
+        BlockPatch surface = generated.stream()
+                .filter(p -> p.dx() == 3 && p.dz() == 5 && GeneratedSurfaceCapture.occupied(p))
+                .findFirst().orElseThrow();
+        generated.add(new BlockPatch(BlockPatch.REMOVE, surface.dx(), surface.dy(), surface.dz(), "minecraft:air"));
+        // Last-write REMOVE must drop the cell — compiler collapses before audit; audit itself
+        // also last-writes, so a trailing REMOVE clears the earlier PLACE at the same coordinate.
+        Map<BlockPos, BlockPatch> finals = new LinkedHashMap<>();
+        for (var p : generated) finals.put(new BlockPos(p.dx(), p.dy(), p.dz()), p);
+        var collapsed = finals.values().stream().filter(GeneratedSurfaceCapture::occupied).toList();
+        assertTrue(collapsed.stream().noneMatch(p ->
+                p.dx() == surface.dx() && p.dy() == surface.dy() && p.dz() == surface.dz()));
     }
 }

@@ -15,6 +15,22 @@ class FacetedDomeRoofTest {
         return new Component("ROOF","tower",new Vec3i(0,20,0),new Dimensions(17,17,7),List.of(),
                 Map.of("roof_type",type,"segments",segments,"roof_block","minecraft:black_concrete"));
     }
+    @Test void twelveByTwelveLegacyDomeSealsAdjacentStepsAndStaysHollow() {
+        var component = new Component("ROOF", "stupa", new Vec3i(-6, 11, -6), new Dimensions(12, 12, 5),
+                List.of(), Map.of("roof_type", "dome", "roof_block", "minecraft:smooth_quartz"));
+        var semantic = new SemanticComponent("ROOF", null, component);
+        var patches = new RoofGenerator().generate(semantic);
+        assertTrue(RoofSurfaceContinuityAudit.inspect(semantic, patches, BlockPos.ORIGIN, Set.of()).isEmpty(),
+                "12x12h5 LEGACY dome must seal adjacent slope jumps");
+        // Apex column must not be solid-filled down to the attachment plane.
+        int cx = -6 + 5;
+        int cz = -6 + 5;
+        int baseY = 11;
+        assertFalse(patches.stream().anyMatch(p -> p.dx() == cx && p.dz() == cz && p.dy() == baseY),
+                "dome interior must remain hollow at attachment plane");
+        assertTrue(patches.stream().anyMatch(p -> p.dx() == cx && p.dz() == cz && p.dy() > baseY + 2));
+    }
+
     @Test void acceptedDomeNamesGenerateRaisedHollowCaps() {
         for(var type:List.of("polyhedral_dome","faceted_dome","polygonal_dome")) {
             var c=roof(type,8);

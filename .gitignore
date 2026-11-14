@@ -71,6 +71,7 @@ venv/
 /build_*_out.txt
 /p0_verify.txt
 /complex_retest_out.txt
+/fix-*.txt
 /*_diag.txt
 /*_diag[0-9].txt
 /*_diag[0-9][0-9].txt

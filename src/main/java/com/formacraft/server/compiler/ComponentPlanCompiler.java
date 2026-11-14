@@ -285,23 +285,8 @@ public final class ComponentPlanCompiler {
                     List.of("Restore the roof core or remove the conflicting operation; keep courtyard and stair openings explicit.")));
             return List.of();
         }
-        for (var body : components) {
-            if (!"MASS_MAIN".equals(normalizeType(body.componentType()))) continue;
-            Slot hostSlot = slotMap.get(body.slotId());
-            if (hostSlot == null) hostSlot = defaultSlot(plan);
-            Vec3i hostAnchor = hostSlot.anchor();
-            var hostSemantic = new SemanticComponent(body.componentType(), hostSlot, body,
-                    plan.styleProfile(), plan.styleAttributes(), plan.genome());
-            var uncovered = FlatRoofCoverageValidator.checkHost(hostSemantic, flatRoofs,
-                    hostAnchor == null ? BlockPos.ORIGIN : new BlockPos(hostAnchor.x(),hostAnchor.y(),hostAnchor.z()), result, roofClearance);
-            if (uncovered.isPresent()) {
-                var missing = uncovered.get();
-                AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_HOST_COVERAGE",
-                        "平屋顶未覆盖宿主顶层：part=" + missing.source() + ", plan=" + missing.position().toShortString()
-                                + ", uncovered=" + missing.count(), "components[]",
-                        List.of("Align and size the bound roof to the host footprint; preserve explicit courtyard and L-shaped voids.")));
-                return List.of();
-            }
+        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result, roofClearance)) {
+            return List.of();
         }
 
         FormacraftMod.LOGGER.info("ComponentPlanCompiler: compiled {} components into {} patches",
@@ -406,9 +391,12 @@ public final class ComponentPlanCompiler {
             String roofIdentity = getParamString(roof.params(), "component_id");
             String roofHost = getParamString(roof.params(), "host_id");
             int roofBaseY = roof.relativePosition().y() + offset.getY();
-            var roofOwnedPatches = result.stream().filter(p ->
+            // Collapse PLACE→REMOVE last-write-wins before ownership filter so a later REMOVE
+            // cannot leave a stale PLACE cell in the continuity/shape surface.
+            var finalPatches = finalOccupiedPatches(result);
+            var roofOwnedPatches = finalPatches.stream().filter(p ->
                     belongsToRoofAudit(p, roofIdentity, roofHost, roofBaseY, auditOccupancy, false)).toList();
-            var continuityPatches = result.stream().filter(p ->
+            var continuityPatches = finalPatches.stream().filter(p ->
                     belongsToRoofAudit(p, roofIdentity, roofHost, roofBaseY, auditOccupancy, true)).toList();
             var occludedColumns = new HashSet<BlockPos>();
             for (var other : ComponentEmitPass.roofOccluders(roof, components, slotMap)) {
@@ -503,6 +491,20 @@ public final class ComponentPlanCompiler {
             }
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
+        // Re-validate flat roofs on the final post-process patch list (core + host coverage).
+        var finalRoofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofClearance);
+        if (finalRoofMissing.isPresent()) {
+            var missing = finalRoofMissing.get();
+            AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_COVERAGE",
+                    "平屋顶核心覆盖不完整（后处理终态）：" + missing.source()
+                            + ", plan=" + missing.position().toShortString()
+                            + ", missing=" + missing.count(), "components[]",
+                    List.of("Restore the roof core or remove the conflicting operation; keep courtyard and stair openings explicit.")));
+            return List.of();
+        }
+        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result, roofClearance)) {
+            return List.of();
+        }
         for (var body : components) {
             if (!"MASS_MAIN".equals(normalizeType(body.componentType()))) continue;
             var slot = slotMap.get(body.slotId());
@@ -514,6 +516,50 @@ public final class ComponentPlanCompiler {
         }
         AssemblyCirculationConstraints.publish(circulation);
         return result;
+    }
+
+    /** Last-write-wins occupied cells only (PLACE superseded by REMOVE at the same coordinate). */
+    private static List<BlockPatch> finalOccupiedPatches(List<BlockPatch> patches) {
+        if (patches == null || patches.isEmpty()) return List.of();
+        Map<BlockPos, BlockPatch> last = new LinkedHashMap<>();
+        for (BlockPatch patch : patches) {
+            if (patch == null) continue;
+            last.put(new BlockPos(patch.dx(), patch.dy(), patch.dz()), patch);
+        }
+        return last.values().stream().filter(GeneratedSurfaceCapture::occupied).toList();
+    }
+
+    /** Host coverage for every bindable mass (MASS_MAIN / MASS_SECONDARY / …), not only MASS_MAIN. */
+    private static boolean reportFlatRoofHostGaps(
+            List<Component> components,
+            Map<String, Slot> slotMap,
+            LlmPlan plan,
+            List<FlatRoofCoverageValidator.Roof> flatRoofs,
+            List<BlockPatch> patches,
+            Set<BlockPos> roofClearance
+    ) {
+        for (var body : components) {
+            if (!com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(body)) continue;
+            Slot hostSlot = slotMap.get(body.slotId());
+            if (hostSlot == null) hostSlot = defaultSlot(plan);
+            Vec3i hostAnchor = hostSlot.anchor();
+            var hostSemantic = new SemanticComponent(body.componentType(), hostSlot, body,
+                    plan.styleProfile(), plan.styleAttributes(), plan.genome());
+            var uncovered = FlatRoofCoverageValidator.checkHost(hostSemantic, flatRoofs,
+                    hostAnchor == null ? BlockPos.ORIGIN
+                            : new BlockPos(hostAnchor.x(), hostAnchor.y(), hostAnchor.z()),
+                    patches, roofClearance);
+            if (uncovered.isPresent()) {
+                var missing = uncovered.get();
+                AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_HOST_COVERAGE",
+                        "平屋顶未覆盖宿主顶层：part=" + missing.source()
+                                + ", plan=" + missing.position().toShortString()
+                                + ", uncovered=" + missing.count(), "components[]",
+                        List.of("Align and size the bound roof to the host footprint; preserve explicit courtyard and L-shaped voids.")));
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

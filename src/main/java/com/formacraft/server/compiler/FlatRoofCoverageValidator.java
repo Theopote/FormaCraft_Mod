@@ -82,7 +82,8 @@ final class FlatRoofCoverageValidator {
     static Optional<Missing> checkHost(SemanticComponent body, List<Roof> roofs, BlockPos offset,
                                        List<BlockPatch> patches, Set<BlockPos> clearance) {
         var c = body.source();
-        if (c == null || !"MASS_MAIN".equalsIgnoreCase(c.componentType()) || c.params() == null
+        if (c == null || !com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(c)
+                || c.params() == null
                 || c.params().get("component_id") == null || "plate".equals(c.params().get("extrude_mode"))) return Optional.empty();
         String host = c.params().get("component_id").toString();
         var bound = roofs.stream().filter(r -> host.equals(r.host())).toList();

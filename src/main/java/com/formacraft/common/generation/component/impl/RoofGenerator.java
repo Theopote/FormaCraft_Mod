@@ -1295,6 +1295,12 @@ public class RoofGenerator implements ComponentGenerator {
                 }
             }
         }
+        // Thin LEGACY shells can jump >1 between adjacent columns; thicken only the taller
+        // column downward so slope rows touch — never solid-fill the hollow interior.
+        if (dome) {
+            sealDomeAdjacentSteps(out, baseX, baseY + drumHeight, baseZ, width, depth,
+                    resolveFullRoofBlock(semantic, palette));
+        }
         if (openingRadius > 0 && !hasDomeOculusRim(capColumns, cx, cz, openingRadiusSquared)) {
             throw new IllegalArgumentException(openingError);
         }
@@ -1303,6 +1309,48 @@ public class RoofGenerator implements ComponentGenerator {
             if (drumMaterial == null) drumMaterial = getBlockForPart(semantic, palette, SemanticPart.WALL);
             emitDomeDrum(out, baseX, baseY, baseZ, capColumns, drumHeight, slopeFillBlock(drumMaterial),
                     resolveFullRoofBlock(semantic, palette));
+        }
+    }
+
+    /**
+     * When adjacent dome surface columns differ by more than one block, place fill under the
+     * taller surface until the columns share a one-block stair contact. Leaves the interior void.
+     */
+    private static void sealDomeAdjacentSteps(
+            List<BlockPatch> out, int baseX, int baseY, int baseZ,
+            int width, int depth, String surfaceBlock) {
+        if (out == null || out.isEmpty() || width <= 0 || depth <= 0) return;
+        int[][] maxRise = new int[width][depth];
+        for (int x = 0; x < width; x++) {
+            java.util.Arrays.fill(maxRise[x], Integer.MIN_VALUE);
+        }
+        for (BlockPatch patch : out) {
+            if (!GeneratedSurfaceCapture.occupied(patch)) continue;
+            int lx = patch.dx() - baseX;
+            int lz = patch.dz() - baseZ;
+            if (lx < 0 || lz < 0 || lx >= width || lz >= depth || patch.dy() < baseY) continue;
+            maxRise[lx][lz] = Math.max(maxRise[lx][lz], patch.dy() - baseY);
+        }
+        String fill = slopeFillBlock(surfaceBlock);
+        for (int x = 0; x < width; x++) {
+            for (int z = 0; z < depth; z++) {
+                if (maxRise[x][z] == Integer.MIN_VALUE) continue;
+                for (int[] delta : new int[][]{{1, 0}, {0, 1}}) {
+                    int nx = x + delta[0];
+                    int nz = z + delta[1];
+                    if (nx >= width || nz >= depth || maxRise[nx][nz] == Integer.MIN_VALUE) continue;
+                    int a = maxRise[x][z];
+                    int b = maxRise[nx][nz];
+                    if (Math.abs(a - b) <= 1) continue;
+                    int lo = Math.min(a, b);
+                    int hi = Math.max(a, b);
+                    int tx = a > b ? x : nx;
+                    int tz = a > b ? z : nz;
+                    for (int y = lo + 1; y < hi; y++) {
+                        out.add(new BlockPatch(BlockPatch.PLACE, baseX + tx, baseY + y, baseZ + tz, fill));
+                    }
+                }
+            }
         }
     }
 
