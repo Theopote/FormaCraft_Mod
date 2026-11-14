@@ -16,6 +16,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BuildingGeometryContextTest {
 
     @Test
+    void standaloneGeometryResolutionDoesNotPopulateThreadCache() {
+        var mass = new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(), Map.of("component_id", "body"));
+        BuildingGeometryContext.putMass(mass);
+        assertNull(BuildingGeometryContext.get("body"));
+        var resolved = BuildingGeometryContext.getOrResolve(mass);
+        assertNotNull(resolved);
+        BuildingGeometryContext.put("body", resolved.geometry(), resolved.originMinCorner());
+        assertNull(BuildingGeometryContext.get("body"));
+        org.junit.jupiter.api.Assertions.assertFalse(BuildingGeometryContext.isActive());
+        try (var scope = BuildingGeometryContext.open()) {
+            assertNull(BuildingGeometryContext.get("body"));
+            BuildingGeometryContext.putMass(mass);
+            assertNotNull(BuildingGeometryContext.get("body"));
+        }
+        assertNull(BuildingGeometryContext.get("body"));
+    }
+
+    @Test
     void nestedScopeRestoresCacheAfterException() {
         var mass = new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0),
                 new Dimensions(12, 10, 8), List.of(), Map.of("component_id", "body"));

@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * Compile-scoped cache of {@link ResolvedBuildingGeometry} keyed by mass {@code component_id}.
- * Populated by the plan compiler; cleared in the same try/finally as other compile ThreadLocals.
+ * Populated only inside a scope; closing restores the enclosing cache or releases thread state.
  * Generators must prefer this over re-resolving host topology.
  */
 public final class BuildingGeometryContext {
@@ -16,49 +16,46 @@ public final class BuildingGeometryContext {
 
     public record Entry(ResolvedBuildingGeometry geometry, Vec3i originMinCorner) {}
 
-    private static final ThreadLocal<Map<String, Entry>> CACHE = ThreadLocal.withInitial(HashMap::new);
-    private static final ThreadLocal<Boolean> ACTIVE = ThreadLocal.withInitial(() -> false);
+    private static final ThreadLocal<Map<String, Entry>> CACHE = new ThreadLocal<>();
 
     /** Install an isolated cache and restore the enclosing compilation on close. */
     public static Scope open() {
-        var scope = new Scope(CACHE.get(), isActive());
+        var scope = new Scope(CACHE.get());
         CACHE.set(new HashMap<>());
-        ACTIVE.set(true);
         return scope;
     }
 
     public static final class Scope implements AutoCloseable {
         private final Map<String, Entry> previous;
-        private final boolean previouslyActive;
         private boolean closed;
 
-        private Scope(Map<String, Entry> previous, boolean previouslyActive) {
+        private Scope(Map<String, Entry> previous) {
             this.previous = previous;
-            this.previouslyActive = previouslyActive;
         }
 
         @Override
         public void close() {
             if (closed) return;
-            CACHE.set(previous);
-            ACTIVE.set(previouslyActive);
+            if (previous == null) CACHE.remove();
+            else CACHE.set(previous);
             closed = true;
         }
     }
 
     public static boolean isActive() {
-        return Boolean.TRUE.equals(ACTIVE.get());
+        return CACHE.get() != null;
     }
 
     public static void put(String componentId, ResolvedBuildingGeometry geometry, Vec3i originMinCorner) {
         if (componentId == null || componentId.isBlank() || geometry == null || originMinCorner == null) {
             return;
         }
-        CACHE.get().put(componentId, new Entry(geometry, originMinCorner));
+        var cache = CACHE.get();
+        if (cache != null) cache.put(componentId, new Entry(geometry, originMinCorner));
     }
 
     public static void putMass(Component mass) {
-        if (mass == null || mass.params() == null) {
+        if (!isActive() || mass == null || mass.params() == null) {
             return;
         }
         Object id = mass.params().get("component_id");
@@ -84,7 +81,8 @@ public final class BuildingGeometryContext {
         if (componentId == null || componentId.isBlank()) {
             return null;
         }
-        return CACHE.get().get(componentId.trim());
+        var cache = CACHE.get();
+        return cache == null ? null : cache.get(componentId.trim());
     }
 
     /** Return cached geometry for this mass id, or resolve+cache when compile context is active. */
