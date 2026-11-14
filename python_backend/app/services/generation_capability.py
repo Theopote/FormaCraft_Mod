@@ -221,6 +221,7 @@ def evaluate_capability(plan: Dict[str, Any]) -> List[str]:
             )
             # Parametric STRUCTURE (colonnade/gear/cross/spiral/truss) is emitted by
             # StructureComponentGenerator from structure_type — typology_id is optional.
+            # Keep the token list aligned with StructureComponentGenerator.normalizeKind.
             structure_type = (
                 params.get("structure_type")
                 or params.get("structureType")
@@ -234,9 +235,13 @@ def evaluate_capability(plan: Dict[str, Any]) -> List[str]:
                 "truss", "lattice", "x_brace",
             )
             is_parametric = False
+            unsupported_structure_type = None
             if structure_type is not None:
                 st = str(structure_type).strip().lower()
-                is_parametric = any(tok in st for tok in parametric_tokens) or bool(st)
+                if st:
+                    is_parametric = any(tok in st for tok in parametric_tokens)
+                    if not is_parametric:
+                        unsupported_structure_type = st
             if not is_parametric:
                 is_parametric = any(tok in joined_feats for tok in parametric_tokens)
             if not typology:
@@ -245,7 +250,12 @@ def evaluate_capability(plan: Dict[str, Any]) -> List[str]:
                     if lower.startswith("typology:"):
                         typology = f.split(":", 1)[1].strip()
                         break
-            if not typology and not is_stair_flight and not is_parametric:
+            label = params.get("component_id") or ctype
+            if unsupported_structure_type and not typology and not is_stair_flight and not is_parametric:
+                errors.append(
+                    f"capability: unsupported structure_type={unsupported_structure_type!r} on {label}"
+                )
+            elif not typology and not is_stair_flight and not is_parametric:
                 if not any(tok in joined_feats for tok in ("dense_eaves", "pagoda", "stupa", "typology")):
                     errors.append(
                         f"capability: STRUCTURE {params.get('component_id') or ''} lacks typology_id"

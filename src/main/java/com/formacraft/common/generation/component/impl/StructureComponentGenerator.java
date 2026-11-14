@@ -114,8 +114,9 @@ public final class StructureComponentGenerator implements ComponentGenerator {
     private static List<BlockPatch> colonnade(Vec3i rp, Dimensions d, Map<String, Object> params, String block) {
         List<BlockPatch> out = new ArrayList<>();
         int count = Math.max(4, intParam(params, 8, "count", "column_count"));
-        int radius = Math.max(2, intParam(params, Math.max(2, Math.min(d.width(), d.depth()) / 2 - 1),
-                "radius", "ring_radius"));
+        int maxRadius = maxInPlaneRadius(rp, d);
+        int radius = Math.max(1, Math.min(maxRadius, intParam(params, Math.max(1, maxRadius),
+                "radius", "ring_radius")));
         int height = Math.max(1, Math.min(d.height(), intParam(params, d.height(), "height", "column_height")));
         int cx = rp.x() + d.width() / 2;
         int cz = rp.z() + d.depth() / 2;
@@ -124,7 +125,7 @@ public final class StructureComponentGenerator implements ComponentGenerator {
             int x = cx + (int) Math.round(Math.cos(ang) * radius);
             int z = cz + (int) Math.round(Math.sin(ang) * radius);
             for (int y = 0; y < height; y++) {
-                out.add(new BlockPatch(BlockPatch.PLACE, x, rp.y() + y, z, block));
+                placeInside(out, rp, d, x, rp.y() + y, z, block);
             }
         }
         return out;
@@ -134,29 +135,32 @@ public final class StructureComponentGenerator implements ComponentGenerator {
         List<BlockPatch> out = new ArrayList<>();
         int cx = rp.x() + d.width() / 2;
         int cz = rp.z() + d.depth() / 2;
-        int outer = Math.max(2, Math.min(d.width(), d.depth()) / 2);
+        // Leave one cell for teeth so outer+1 stays inside Dimensions.
+        int maxRadius = maxInPlaneRadius(rp, d);
+        int outer = Math.max(1, Math.min(maxRadius - 1, Math.min(d.width(), d.depth()) / 2));
         int inner = Math.max(1, outer - 2);
         int teeth = Math.max(6, intParam(params, 12, "count", "teeth"));
-        int midY = rp.y() + Math.max(0, d.height() / 2);
+        int midY = rp.y() + Math.max(0, Math.min(d.height() - 1, d.height() / 2));
         for (int x = -outer; x <= outer; x++) {
             for (int z = -outer; z <= outer; z++) {
                 int r2 = x * x + z * z;
                 if (r2 <= outer * outer && r2 >= inner * inner) {
-                    out.add(new BlockPatch(BlockPatch.PLACE, cx + x, midY, cz + z, block));
+                    placeInside(out, rp, d, cx + x, midY, cz + z, block);
                 }
             }
         }
+        int toothR = Math.min(maxRadius, outer + 1);
         for (int i = 0; i < teeth; i++) {
             double ang = (2 * Math.PI * i) / teeth;
-            int x = (int) Math.round(Math.cos(ang) * (outer + 1));
-            int z = (int) Math.round(Math.sin(ang) * (outer + 1));
-            out.add(new BlockPatch(BlockPatch.PLACE, cx + x, midY, cz + z, block));
+            int x = (int) Math.round(Math.cos(ang) * toothR);
+            int z = (int) Math.round(Math.sin(ang) * toothR);
+            placeInside(out, rp, d, cx + x, midY, cz + z, block);
         }
         String hub = params.get("hub_block") != null
                 ? String.valueOf(params.get("hub_block"))
                 : "minecraft:polished_andesite";
         if (!hub.contains(":")) hub = "minecraft:" + hub;
-        out.add(new BlockPatch(BlockPatch.PLACE, cx, midY, cz, hub));
+        placeInside(out, rp, d, cx, midY, cz, hub);
         return out;
     }
 
@@ -164,13 +168,13 @@ public final class StructureComponentGenerator implements ComponentGenerator {
         List<BlockPatch> out = new ArrayList<>();
         int cx = rp.x() + d.width() / 2;
         int cz = rp.z() + d.depth() / 2;
-        int arm = Math.max(1, Math.min(d.width(), d.depth()) / 2);
-        int crossY = rp.y() + Math.max(d.height() * 2 / 3, 2);
+        int arm = Math.min(maxInPlaneRadius(rp, d), Math.max(1, Math.min(d.width(), d.depth()) / 2));
+        int crossY = rp.y() + Math.min(d.height() - 1, Math.max(d.height() * 2 / 3, 2));
         for (int y = 0; y < d.height(); y++) {
-            out.add(new BlockPatch(BlockPatch.PLACE, cx, rp.y() + y, cz, block));
+            placeInside(out, rp, d, cx, rp.y() + y, cz, block);
         }
         for (int dx = -arm; dx <= arm; dx++) {
-            out.add(new BlockPatch(BlockPatch.PLACE, cx + dx, crossY, cz, block));
+            placeInside(out, rp, d, cx + dx, crossY, cz, block);
         }
         return out;
     }
@@ -179,16 +183,33 @@ public final class StructureComponentGenerator implements ComponentGenerator {
         List<BlockPatch> out = new ArrayList<>();
         int cx = rp.x() + d.width() / 2;
         int cz = rp.z() + d.depth() / 2;
-        int radius = Math.max(2, Math.min(d.width(), d.depth()) / 2 - 1);
+        int radius = Math.max(1, Math.min(maxInPlaneRadius(rp, d), Math.min(d.width(), d.depth()) / 2 - 1));
         int steps = Math.max(d.height() * 4, 8);
         for (int i = 0; i < steps; i++) {
             double ang = (2 * Math.PI * i) / Math.max(8, radius * 4);
             int y = rp.y() + Math.min(d.height() - 1, i / 4);
             int x = cx + (int) Math.round(Math.cos(ang) * radius);
             int z = cz + (int) Math.round(Math.sin(ang) * radius);
-            out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));
+            placeInside(out, rp, d, x, y, z, block);
         }
         return out;
+    }
+
+    /** Max axis-aligned offset from the box center that still lands inside Dimensions. */
+    private static int maxInPlaneRadius(Vec3i rp, Dimensions d) {
+        int cx = rp.x() + d.width() / 2;
+        int cz = rp.z() + d.depth() / 2;
+        int xSpan = Math.min(cx - rp.x(), rp.x() + d.width() - 1 - cx);
+        int zSpan = Math.min(cz - rp.z(), rp.z() + d.depth() - 1 - cz);
+        return Math.max(0, Math.min(xSpan, zSpan));
+    }
+
+    private static void placeInside(List<BlockPatch> out, Vec3i rp, Dimensions d,
+                                    int x, int y, int z, String block) {
+        if (x < rp.x() || x >= rp.x() + d.width()) return;
+        if (y < rp.y() || y >= rp.y() + d.height()) return;
+        if (z < rp.z() || z >= rp.z() + d.depth()) return;
+        out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));
     }
 
     private static List<BlockPatch> truss(Vec3i rp, Dimensions d, Map<String, Object> params, String block) {

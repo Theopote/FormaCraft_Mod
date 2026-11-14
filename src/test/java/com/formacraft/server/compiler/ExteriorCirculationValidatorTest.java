@@ -289,6 +289,22 @@ class ExteriorCirculationValidatorTest {
                 List.of(stone(partition)), flight(partition, false), volumes, Set.of(partition), true).isEmpty());
     }
 
+    @Test void exteriorFlightsRejectObstaclesOutsideHostVolumes() {
+        // Approach stairs often clear against eaves/rails that sit just outside MASS bounds.
+        MinecraftRegistryTestBootstrap.initialize();
+        var eave = new BlockPos(9, 7, 23); // west of hall volume minX=10
+        assertFalse(volumes.stream().anyMatch(v -> v.contains(eave.getX(), eave.getY(), eave.getZ())));
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(eave)), flight(eave, true), volumes, Set.of(), false).isEmpty(),
+                "interior flights still ignore outside-volume solids");
+        assertEquals(eave, ExteriorCirculationValidator.findCollision(
+                List.of(stone(eave)), flight(eave, true), volumes, Set.of(), true)
+                .orElseThrow().position());
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(eave)), flight(eave, true), volumes, Set.of(eave), true).isEmpty(),
+                "connectorAccess still permits an authorized terminal carve");
+    }
+
     @Test void usesHeightAwareUnionAndShiftedFlightCoordinates() {
         MinecraftRegistryTestBootstrap.initialize();
         var shared = new BlockPos(15, 4, 23);

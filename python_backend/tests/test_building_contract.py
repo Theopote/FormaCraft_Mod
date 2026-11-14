@@ -173,6 +173,49 @@ class BuildingContractTest(unittest.TestCase):
         result = apply_building_contract({'components': [nave, apse]}, text, finalize=True)
         self.assertNotIn('capability_gap', result)
 
+    def test_distant_slot_buildings_still_validate_separately(self):
+        """Two MASS_MAINs that share local (0,0,0) but sit far apart via Slot anchors."""
+        first = {
+            'component_type': 'MASS_MAIN',
+            'slot_id': 'slot_a',
+            'relative_position': {'x': 0, 'y': 0, 'z': 0},
+            'dimensions': {'width': 15, 'depth': 13, 'height': 11},
+            'params': {
+                'component_id': 'house_a',
+                'requirement_scope': 'all_main_masses',
+                'anchor_mode': 'min_corner',
+                'floor_count': 2,
+                'floor_height': 5,
+                'roof_type': 'gable',
+            },
+        }
+        second = {
+            'component_type': 'MASS_MAIN',
+            'slot_id': 'slot_b',
+            'relative_position': {'x': 0, 'y': 0, 'z': 0},
+            'dimensions': {'width': 20, 'depth': 13, 'height': 11},
+            'params': {
+                'component_id': 'house_b',
+                'requirement_scope': 'all_main_masses',
+                'anchor_mode': 'min_corner',
+                'floor_count': 2,
+                'floor_height': 5,
+                'roof_type': 'gable',
+            },
+        }
+        plan = {
+            'components': [first, second],
+            'layout': {
+                'slots': [
+                    {'slot_id': 'slot_a', 'anchor': {'x': 0, 'y': 0, 'z': 0}},
+                    {'slot_id': 'slot_b', 'anchor': {'x': 100, 'y': 0, 'z': 0}},
+                ]
+            },
+        }
+        # Global width=15 must still fail the distant second house (not masked as one compound).
+        result = apply_building_contract(plan, '生成宽15格的建筑。', finalize=True)
+        self.assertIn('capability_gap', result)
+
     def test_negated_material_is_not_a_positive_requirement(self):
         reqs = extract_requirements('不要用石砖外墙，使用橡木外墙。不要宽15格。')
         self.assertEqual(['wall_block'], [r['property'] for r in reqs])

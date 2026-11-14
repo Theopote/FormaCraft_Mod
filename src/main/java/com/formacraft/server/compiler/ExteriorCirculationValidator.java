@@ -1,11 +1,11 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.compiler.postprocess.PostProcessContext.BuildingVolume;
-import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.common.patch.BlockPatchTargetResolver;
+import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Slot;
-import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.BlockPatchTargetResolver;
 import com.formacraft.server.assembly.AssemblyCirculationConstraints.Flight;
 import net.minecraft.util.math.BlockPos;
 import java.util.*;
@@ -25,8 +25,9 @@ final class ExteriorCirculationValidator {
     }
 
     /**
-     * @param rejectInteriorSolids when true (exterior stairs), collide with solid prior patches
-     *        anywhere inside a {@link BuildingVolume}, including deep interior partitions/columns.
+     * @param rejectInteriorSolids when true (exterior stairs), collide with any solid prior patch
+     *        in tread/clearance cells — including eaves, rails, and annexes outside host volumes.
+     *        Building volumes only gate interior-flight surface heuristics, not exterior obstacles.
      *        when false (interior stairs), keep surface-oriented checks so host floor openings
      *        can still be cut without treating every interior cell as an exterior wall.
      */
@@ -48,17 +49,17 @@ final class ExteriorCirculationValidator {
         for (var entry : relevant.entrySet()) {
             BlockPos p = entry.getKey();
             if (connectorAccess.contains(p)) continue;
-            if (!contains(p, volumes)) continue;
-            boolean deepInterior = contains(p.east(), volumes) && contains(p.west(), volumes)
-                    && contains(p.north(), volumes) && contains(p.south(), volumes);
-            // Interior flights: only surface/envelope cells (legacy). Exterior flights: all
-            // in-volume solids — closes the partition/column blind spot.
-            if (deepInterior && !rejectInteriorSolids) continue;
-            // Clearance may open floor/ceiling bands at the envelope edge (transition headroom).
-            // Vertical facade mid-walls still collide unless connectorAccess permits.
-            if ("clearance".equals(entry.getValue())
-                    && (!contains(p.up(), volumes) || !contains(p.down(), volumes))) {
-                continue;
+            if (!rejectInteriorSolids) {
+                // Interior flights: only shell surfaces inside host volumes.
+                if (!contains(p, volumes)) continue;
+                boolean deepInterior = contains(p.east(), volumes) && contains(p.west(), volumes)
+                        && contains(p.north(), volumes) && contains(p.south(), volumes);
+                if (deepInterior) continue;
+                // Clearance may open floor/ceiling bands at the envelope edge (transition headroom).
+                if ("clearance".equals(entry.getValue())
+                        && (!contains(p.up(), volumes) || !contains(p.down(), volumes))) {
+                    continue;
+                }
             }
             var patch = finalShell.get(p);
             if (patch == null) continue; // Authored doorway or other absent surface.
@@ -311,15 +312,14 @@ final class ExteriorCirculationValidator {
                     boolean onOwnHost = ownPlatform && previous.owner().params() != null
                             && (platformHost.equals(previous.owner().params().get("component_id"))
                                 || platformHost.equals(previous.owner().params().get("host_id")));
-                    // Own-platform terminal neighborhood may also meet the host shell just
-                    // past the plate (gallery/terrace landings), still limited to to±landing.
-                    if ((inConnector && (previous.owner() == connector || onOwnHost
-                            || (previous.owner().params() != null
-                                && java.util.Objects.equals(connector.params().get("component_id"),
-                                        previous.owner().params().get("host_id")))))
-                            || (onOwnHost && !inConnector
-                                && Set.of("MASS_MAIN", "MAIN_MASS", "TOWER", "MASS_SECONDARY",
-                                    "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(previous.writerType()))) {
+                    boolean hostedOnConnector = previous.owner().params() != null
+                            && java.util.Objects.equals(connector.params().get("component_id"),
+                                    previous.owner().params().get("host_id"));
+                    // Own-platform terminal may meet the plate itself, attachments hosted on it,
+                    // and the host shell — not arbitrary host-scoped PRIMITIVE eaves/obstacles.
+                    if ((inConnector && (previous.owner() == connector || hostedOnConnector
+                            || (onOwnHost && isHostShellWriter(previous.writerType()))))
+                            || (onOwnHost && !inConnector && isHostShellWriter(previous.writerType()))) {
                         result.add(pos);
                     }
                 }

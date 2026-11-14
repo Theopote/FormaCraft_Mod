@@ -160,6 +160,25 @@ class GenerationCapabilityBatch2Test(unittest.TestCase):
         errors = evaluate_capability(plan)
         self.assertFalse(any("lacks typology_id" in e for e in errors), errors)
 
+    def test_unknown_structure_type_is_rejected(self):
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "params": {
+                        "component_id": "mystery",
+                        "structure_type": "unsupported_structure",
+                    },
+                    "dimensions": {"width": 8, "depth": 8, "height": 6},
+                }
+            ]
+        }
+        errors = evaluate_capability(plan)
+        self.assertTrue(
+            any("unsupported structure_type" in e for e in errors),
+            errors,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

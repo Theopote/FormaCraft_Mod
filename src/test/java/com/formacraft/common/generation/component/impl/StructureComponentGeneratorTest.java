@@ -50,10 +50,16 @@ class StructureComponentGeneratorTest {
                 Map.of(
                         "component_id", "windmill_gear",
                         "structure_type", "industrial_gear",
+                        "anchor_mode", "min_corner",
                         "material", "minecraft:iron_block"));
         List<BlockPatch> patches = new StructureComponentGenerator()
                 .generate(new SemanticComponent("STRUCTURE", null, c));
         assertFalse(patches.isEmpty());
+        assertTrue(patches.stream().allMatch(p ->
+                        p.dx() >= 0 && p.dx() < 12
+                                && p.dy() >= 0 && p.dy() < 4
+                                && p.dz() >= 0 && p.dz() < 12),
+                "gear teeth must stay inside declared Dimensions");
     }
 
     @Test

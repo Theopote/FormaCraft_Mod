@@ -646,21 +646,59 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 return envelope['max_' + axis] - envelope['min_' + axis]
             requirement['dimension_subject'] = 'building_envelope'
             # Compound churches / annexes: a global width×length binds the dominant
-            # footprint, not every apse/wing MASS_MAIN that shares all_main_masses.
-            # Separate buildings (non-adjacent) still each must match.
+            # footprint per spatially connected cluster, not every apse/wing MASS_MAIN.
+            # Separate buildings (non-adjacent in plan coordinates) still each must match.
             dim_targets = targets
             if scope in ('all_main_masses', 'plan') and len(targets) > 1:
-                envelopes = [multi_mass_geometry(c)['envelope_local'] for c in targets]
+                plan_slots = {
+                    s.get('slot_id'): s
+                    for s in ((out.get('layout') or {}).get('slots') or [])
+                    if isinstance(s, dict) and s.get('slot_id')
+                }
+
+                def _plan_envelope(component, gap=0):
+                    env = multi_mass_geometry(component)['envelope_local']
+                    anchor = (plan_slots.get(component.get('slot_id')) or {}).get('anchor') or {}
+                    ox = int(anchor.get('x', 0) or 0)
+                    oz = int(anchor.get('z', 0) or 0)
+                    return {
+                        'min_x': env['min_x'] + ox - gap,
+                        'max_x': env['max_x'] + ox + gap,
+                        'min_z': env['min_z'] + oz - gap,
+                        'max_z': env['max_z'] + oz + gap,
+                    }
+
                 def _near(a, b, gap=2):
                     return not (a['max_x'] + gap < b['min_x'] or b['max_x'] + gap < a['min_x']
                                 or a['max_z'] + gap < b['min_z'] or b['max_z'] + gap < a['min_z'])
-                compound = any(_near(a, b) for i, a in enumerate(envelopes) for b in envelopes[i + 1:])
-                if compound:
-                    primary = max(
-                        targets,
-                        key=lambda c: max(1, body_dimensions(c).get('width', 1))
-                        * max(1, body_dimensions(c).get('depth', 1)))
-                    dim_targets = [primary]
+
+                envelopes = [_plan_envelope(c) for c in targets]
+                parent = list(range(len(targets)))
+
+                def _find(i):
+                    while parent[i] != i:
+                        parent[i] = parent[parent[i]]
+                        i = parent[i]
+                    return i
+
+                for i, a in enumerate(envelopes):
+                    for j in range(i + 1, len(envelopes)):
+                        if _near(a, envelopes[j]):
+                            ri, rj = _find(i), _find(j)
+                            if ri != rj:
+                                parent[rj] = ri
+                clusters = {}
+                for i, component in enumerate(targets):
+                    clusters.setdefault(_find(i), []).append(component)
+                dim_targets = []
+                for members in clusters.values():
+                    if len(members) == 1:
+                        dim_targets.append(members[0])
+                    else:
+                        dim_targets.append(max(
+                            members,
+                            key=lambda c: max(1, body_dimensions(c).get('width', 1))
+                            * max(1, body_dimensions(c).get('depth', 1))))
             invalid = [c['params']['component_id'] for c in dim_targets if envelope_size(c) != expected]
         elif key == 'floor_count':
             def storeys(c):
