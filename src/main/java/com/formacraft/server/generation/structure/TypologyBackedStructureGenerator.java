@@ -6,11 +6,13 @@ import com.formacraft.common.typology.TypologyGenerationException;
 import com.formacraft.server.generation.typology.builder.DenseEavesPagodaBuilder;
 import com.formacraft.server.generation.typology.builder.GothicCathedralHallBuilder;
 import com.formacraft.server.generation.typology.builder.RadialTerraceHallBuilder;
+import com.formacraft.server.generation.typology.builder.SetbackTowerBuilder;
 import com.formacraft.server.generation.typology.builder.StadiumBowlBuilder;
 import com.formacraft.server.generation.typology.builder.SuspensionBridgeBuilder;
 import com.formacraft.server.generation.typology.builder.TailiangTimberHallBuilder;
 import com.formacraft.server.generation.typology.builder.TibetanStupaBuilder;
 import com.formacraft.server.generation.typology.builder.TieredMountainPalaceBuilder;
+import com.formacraft.server.generation.typology.builder.TrussTowerBuilder;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -51,6 +53,10 @@ public final class TypologyBackedStructureGenerator implements StructureGenerato
                     SuspensionBridgeBuilder.fromBuildingSpec(spec, origin, world);
             case GothicCathedralHallBuilder.TYPOLOGY_ID ->
                     GothicCathedralHallBuilder.fromBuildingSpec(spec, origin, world);
+            case SetbackTowerBuilder.TYPOLOGY_ID ->
+                    SetbackTowerBuilder.fromBuildingSpec(spec, origin, world);
+            case TrussTowerBuilder.TYPOLOGY_ID ->
+                    TrussTowerBuilder.fromBuildingSpec(spec, origin, world);
             case TieredMountainPalaceBuilder.TYPOLOGY_ID -> palaceOrThrow(spec, origin, world);
             default -> null;
         };
