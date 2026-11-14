@@ -21,7 +21,7 @@ final class RoofSurfaceContinuityAudit {
                 .map(s -> s.trim().toLowerCase(Locale.ROOT))
                 .orElse("");
         var kind = RoofTypeCatalog.parseExplicit(type).orElse(null);
-        if (kind == null || !isContinuityAudited(kind)) return Optional.empty();
+        if (kind == null || kind == RoofTypeKind.FLAT || !isContinuityAudited(kind)) return Optional.empty();
         // Double-eave mid shelves intentionally break a single continuous slope column graph.
         if (isDoubleEave(c.params()) && !kind.isProfiledGable() && kind != RoofTypeKind.BELLCAST_HIP) {
             return Optional.empty();

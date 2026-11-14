@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
@@ -8,6 +9,7 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.generation.component.util.ResolvedMassPart;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.OpenFramePolicy;
 import com.formacraft.common.generation.component.util.ResolvedFacadeLayers;
 import net.minecraft.util.math.BlockPos;
 import java.util.*;
@@ -101,25 +103,42 @@ final class FlatRoofCoverageValidator {
             if (assigned.isEmpty()) continue; // A child may explicitly request another roof type.
             var roofCells = new HashSet<BlockPos>();
             for (var roof : assigned) roofCells.addAll(roof.coverage());
+            // Match attachmentMismatch / FlatRoofAttachmentRepair: open-frame decks sit at maxY
+            // (above post tops); enclosed shells seal at maxY-1.
+            boolean open = OpenFramePolicy.isOpen(c.params());
+            int roofPlaneY = open ? part.bounds().maxY() : part.bounds().maxY() - 1;
             int count = 0; BlockPos first = null;
             for (int x = 0; x < part.dimensions().width(); x++) for (int z = 0; z < part.dimensions().depth(); z++) {
                 if (!masks.get(i).contains(x,z) || !ResolvedFacadeLayers.contains(layers.get(i)[part.dimensions().height()-1],x,z)) continue;
-                int px = part.origin().x()+x, pz = part.origin().z()+z, y = part.bounds().maxY()-1;
+                int px = part.origin().x()+x, pz = part.origin().z()+z;
+                // Enclosed: a taller sibling buries the sealed top from above (y+1).
+                // Open-frame: the sibling occupies the deck plane itself (y).
+                int buryY = open ? roofPlaneY : roofPlaneY + 1;
                 boolean coveredByBody = false;
                 for (int j = 0; j < parts.size(); j++) {
                     var other = parts.get(j);
-                    if (y+1 >= other.origin().y() && y+1 < other.bounds().maxY()
+                    if (buryY >= other.origin().y() && buryY < other.bounds().maxY()
                             && masks.get(j).contains(px-other.origin().x(),pz-other.origin().z())
-                            && ResolvedFacadeLayers.contains(layers.get(j)[y+1-other.origin().y()],
+                            && ResolvedFacadeLayers.contains(layers.get(j)[buryY-other.origin().y()],
                                     px-other.origin().x(),pz-other.origin().z())) { coveredByBody = true; break; }
                 }
-                var pos = new BlockPos(px,y,pz).add(offset);
+                var pos = new BlockPos(px, roofPlaneY, pz).add(offset);
                 if (coveredByBody || clearance.contains(pos)) continue;
                 if (!roofCells.contains(pos) || !GeneratedSurfaceCapture.occupied(finalPatches.get(pos))) {
                     count++; if (first == null) first = pos;
                 }
             }
-            if (count > 0) return Optional.of(new Missing(part.partId(),first,count));
+            if (count > 0) {
+                int topY = first == null ? roofPlaneY : first.getY();
+                BlockPos roofSample = bound.isEmpty() || bound.getFirst().coverage().isEmpty()
+                        ? null : bound.getFirst().coverage().iterator().next();
+                FormacraftMod.LOGGER.warn(
+                        "[FlatRoofHostCoverage] host={} part={} open={} topY={} roofSample={} roofSources={} firstMissing={} uncovered={}",
+                        host, part.partId(), open, topY, roofSample,
+                        bound.stream().map(Roof::source).toList(),
+                        first, count);
+                return Optional.of(new Missing(part.partId(),first,count));
+            }
         }
         return Optional.empty();
     }

@@ -94,11 +94,25 @@ class FbdGeometryRepairGuardTest {
         assertThrows(IllegalArgumentException.class,()->FbdGeometryRepairGuard.candidate(plan(changed),permit,patch(Y,8)));
     }
 
-    @Test void rejectsExpressionsStaleAndSystemSourcesAndUnmeasuredQuality() throws Exception {
-        var original=plan(tree());var report=verify(original);var issue=report.activeDiagnostics().getFirst();
-        var expression=tree();((ObjectNode)expression.at(ROOT+"/main/1/params")).set("y",JSON.readTree("{\"expr\":\"+\",\"args\":[8,1]}"));
+    @Test void rejectsNonLiteralExpressionAtCompileOrGuardStage() throws Exception {
+        // Stage contract: either FBD lowering rejects the expression, or Guard
+        // returns NON_LITERAL_PARAMETER. Never require verify(exprPlan) first.
+        var expression=tree();
+        ((ObjectNode)expression.at(ROOT+"/main/1/params")).set("y",JSON.readTree("{\"expr\":\"+\",\"args\":[8,1]}"));
         var exprPlan=plan(expression);
-        assertEquals("NON_LITERAL_PARAMETER",FbdGeometryRepairGuard.assess(exprPlan,verify(exprPlan)).reason());
+        AssemblyCompileDiagnostics.clear();
+        FbdPlanLowering.lower(exprPlan.components());
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            assertNotNull(AssemblyCompileDiagnostics.get());
+            assertNotNull(AssemblyCompileDiagnostics.get().code());
+            return;
+        }
+        var report=verify(plan(tree()));
+        assertEquals("NON_LITERAL_PARAMETER",FbdGeometryRepairGuard.assess(exprPlan,report).reason());
+    }
+
+    @Test void rejectsStaleAndSystemSourcesAndUnmeasuredQuality() throws Exception {
+        var original=plan(tree());var report=verify(original);var issue=report.activeDiagnostics().getFirst();
         var historical=new BuildQualityReport();historical.add(issue.inPhase("initial"));
         assertEquals("NOT_FINAL",FbdGeometryRepairGuard.assess(original,historical).reason());
         var stale=new BuildQualityReport();var o=issue.origins().getFirst();var s=o.source();

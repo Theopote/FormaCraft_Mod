@@ -380,8 +380,18 @@ final class PlanIntentFidelityRepair {
         if ((mass || roof || structure) && hints.roofType() != null && roofStampScope) {
             String current = ComponentPlanTypes.getParamString(params, "roof_type", "roofType");
             String want = hints.roofType();
-            // Explicit roof_type=none means delegated / unroofed (e.g. Tudor jetty under a host roof).
-            if (!"none".equalsIgnoreCase(current)
+            boolean currentNone = "none".equalsIgnoreCase(current);
+            // Explicit roof_type=none usually means delegated / unroofed (e.g. Tudor jetty).
+            // Specialty carriers (tower / observatory) with none still need the campus dome
+            // so inference can emit the landmark roof instead of leaving a conflict.
+            boolean specialtyCarrier = specialtyRoof && isSpecialtyRoofCarrier(component, want);
+            if (currentNone && specialtyCarrier) {
+                params.put("roof_type", want);
+                if (mass) {
+                    params.put("preferred_roof_type", want);
+                }
+                changed = true;
+            } else if (!currentNone
                     && (isBlank(current) || !roofTypesCompatible(want, current))) {
                 params.put("roof_type", want);
                 if (mass) {
@@ -911,8 +921,12 @@ final class PlanIntentFidelityRepair {
         if (lower.contains("硬山") || lower.contains("yingshan")) {
             return "yingshan";
         }
-        if (lower.contains("穹顶") || lower.contains("dome") || lower.contains("polyhedral_dome")
-                || lower.contains("faceted_dome")) {
+        // Whole-building dome intent — ignore ornamental "domed pavilion" / chhatri phrases.
+        if ((lower.contains("穹顶") || lower.contains("polyhedral_dome") || lower.contains("faceted_dome")
+                || containsStandaloneToken(lower, "dome"))
+                && !lower.contains("chhatri")
+                && !lower.contains("domed pavilion")
+                && !lower.contains("pavilion dome")) {
             return "dome";
         }
         if (lower.contains("双坡") || lower.contains("人字顶") || lower.contains("double_gable")) {
@@ -1324,7 +1338,12 @@ final class PlanIntentFidelityRepair {
                 || w.contains("onion") || w.contains("mansard");
     }
 
-    /** Landmark specialty roofs land on tower/observation hosts, not the campus primary hall. */
+    /**
+     * Landmark specialty roofs land on tower/observation hosts, not the campus hall.
+     * Identity / role only — plan-wide {@code distinguishing_features} often mention
+     * "dome on the observation tower" and must not make every mass a specialty carrier
+     * after feature seeds are broadcast in {@link #enrich}.
+     */
     private static boolean isSpecialtyRoofCarrier(Component component, String want) {
         if (component == null || !isSpecialtyRoofToken(want)) return false;
         StringBuilder blob = new StringBuilder();
@@ -1333,11 +1352,6 @@ final class PlanIntentFidelityRepair {
         String host = BuildingHostResolver.roofHostId(component);
         if (host != null) blob.append(' ').append(host);
         if (component.slotId() != null) blob.append(' ').append(component.slotId());
-        if (component.features() != null) {
-            for (String f : component.features()) {
-                if (f != null) blob.append(' ').append(f);
-            }
-        }
         if (component.params() != null) {
             for (String key : List.of(
                     "building_role", "buildingRole", "role", "part",

@@ -1,0 +1,52 @@
+﻿
+> Configure project :
+Fabric Loom: 1.11.8
+
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+
+> Task :compileTestJava FAILED
+gradlew.bat : F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Landmark2FlatRoofDiagTest.
+java:35: 閿欒: 鎵句笉鍒扮鍙?                if (s != null && s.id() != null) slots.put(s.id(), s);
+所在位置 C:\Users\OOPS\AppData\Local\Temp\ps-script-6f035a13-4b50-4783-8a11-a7bc50bfecf5.ps1:80 字符: 4
++ "; & ".\gradlew.bat" test --tests "com.formacraft.server.compiler.Lan ...
++    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (F:\development\...put(s.id(), s);:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                  ^
+  绗﹀彿:   鏂规硶 id()
+  浣嶇疆: 绫诲瀷涓篠lot鐨勫彉閲?s
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Landmark2FlatRoofDiagTest.java:35: 閿欒: 
+鎵句笉鍒扮鍙?                if (s != null && s.id() != null) slots.put(s.id(), s);
+                                                            ^
+  绗﹀彿:   鏂规硶 id()
+  浣嶇疆: 绫诲瀷涓篠lot鐨勫彉閲?s
+2 涓敊璇?
+
+[Incubating] Problems report is available at: file:///F:/development/formacraft-1.21.10/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileTestJava'.
+> Compilation failed; see the compiler output below.
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Landmark2FlatRoofDiagTest.java:35: 閿欒
+: 鎵句笉鍒扮鍙?                  if (s != null && s.id() != null) slots.put(s.id(), s);
+                                    ^
+    绗﹀彿:   鏂规硶 id()
+    浣嶇疆: 绫诲瀷涓篠lot鐨勫彉閲?s
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Landmark2FlatRoofDiagTest.java:35: 閿欒
+: 鎵句笉鍒扮鍙?                  if (s != null && s.id() != null) slots.put(s.id(), s);
+                                                              ^
+    绗﹀彿:   鏂规硶 id()
+    浣嶇疆: 绫诲瀷涓篠lot鐨勫彉閲?s
+  2 涓敊璇?
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+
+BUILD FAILED in 3s
+3 actionable tasks: 1 executed, 2 up-to-date

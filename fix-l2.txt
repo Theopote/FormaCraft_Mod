@@ -1,0 +1,46 @@
+﻿
+> Configure project :
+Fabric Loom: 1.11.8
+
+> Task :compileJava
+gradlew.bat : F:\development\formacraft-1.21.10\src\main\java\com\formacraft\server\compiler\FlatRoofCoverageValidator.
+java:126: 閿欒: 鎵句笉鍒扮鍙?                        host, part.partId(), y,
+所在位置 C:\Users\OOPS\AppData\Local\Temp\ps-script-31c5cea1-21b5-4870-a92c-fe131966090b.ps1:76 字符: 41
++ ... t-1.21.10"; & ".\gradlew.bat" test --tests "com.formacraft.server.com ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (F:\development\...rt.partId(), y,:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                             ^
+  绗﹀彿:   鍙橀噺 y
+  浣嶇疆: 绫?FlatRoofCoverageValidator
+娉? F:\development\formacraft-1.21.10\src\main\java\com\formacraft\common\llm\dto\StyleAttributes.java浣跨敤浜嗘湭缁忔鏌ユ垨涓嶅畨鍏ㄧ殑
+鎿嶄綔銆?
+娉? 鏈夊叧璇︾粏淇℃伅, 璇蜂娇鐢?-Xlint:unchecked 閲嶆柊缂栬瘧銆?
+1 涓敊璇?
+
+> Task :compileJava FAILED
+
+[Incubating] Problems report is available at: file:///F:/development/formacraft-1.21.10/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  娉? F:\development\formacraft-1.21.10\src\main\java\com\formacraft\common\llm\dto\StyleAttributes.java浣跨敤浜嗘湭缁忔鏌ユ垨涓嶅畨鍏
+ㄧ殑鎿嶄綔銆?
+  F:\development\formacraft-1.21.10\src\main\java\com\formacraft\server\compiler\FlatRoofCoverageValidator.java:126: 閿欒
+: 鎵句笉鍒扮鍙?                          host, part.partId(), y,
+                                               ^
+    绗﹀彿:   鍙橀噺 y
+    浣嶇疆: 绫?FlatRoofCoverageValidator
+  娉? 鏈夊叧璇︾粏淇℃伅, 璇蜂娇鐢?-Xlint:unchecked 閲嶆柊缂栬瘧銆?
+  1 涓敊璇?
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+
+BUILD FAILED in 41s
+1 actionable task: 1 executed

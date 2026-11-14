@@ -1,0 +1,108 @@
+﻿
+> Configure project :
+Fabric Loom: 1.11.8
+
+> Task :compileJava
+gradlew.bat : 娉? F:\development\formacraft-1.21.10\src\main\java\com\formacraft\common\llm\dto\StyleAttributes.java浣跨敤浜
+嗘湭缁忔鏌ユ垨涓嶅畨鍏ㄧ殑鎿嶄綔銆?
+所在位置 C:\Users\OOPS\AppData\Local\Temp\ps-script-0bbd040d-154e-42d9-bc1e-0df1dc26aedb.ps1:76 字符: 41
++ ... t-1.21.10"; & ".\gradlew.bat" test --tests "com.formacraft.server.com ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (娉? F:\developme...鏌ユ垨涓嶅畨鍏ㄧ殑鎿嶄綔銆?:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+娉? 鏈夊叧璇︾粏淇℃伅, 璇蜂娇鐢?-Xlint:unchecked 閲嶆柊缂栬瘧銆?
+
+> Task :processResources UP-TO-DATE
+> Task :classes
+
+> Task :compileTestJava FAILED
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:1: 閿欒: 闈炴硶瀛楃: '
+\ufeff'
+锘縫ackage com.formacraft.server.compiler;
+^
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:1: 閿欒: 闇€瑕?class
+銆乮nterface銆乪num 鎴?record
+锘縫ackage com.formacraft.server.compiler;
+         ^
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:3: 閿欒: 闇€瑕?class
+銆乮nterface銆乪num 鎴?record
+import com.formacraft.common.llm.parser.LlmPlanParser;
+^
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:4: 閿欒: 闇€瑕?class
+銆乮nterface銆乪num 鎴?record
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+^
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:5: 閿欒: 闇€瑕?class
+銆乮nterface銆乪num 鎴?record
+import org.junit.jupiter.api.BeforeAll;
+^
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:6: 閿欒: 闇€瑕?class
+銆乮nterface銆乪num 鎴?record
+import org.junit.jupiter.api.Test;
+^
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:8: 閿欒: 闇€瑕?class
+銆乮nterface銆乪num 鎴?record
+import java.nio.file.Files;
+^
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:9: 閿欒: 闇€瑕?class
+銆乮nterface銆乪num 鎴?record
+import java.nio.file.Path;
+^
+F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:11: 閿欒: 闇€瑕?clas
+s銆乮nterface銆乪num 鎴?record
+import static org.junit.jupiter.api.Assertions.assertFalse;
+^
+9 涓敊璇?
+
+[Incubating] Problems report is available at: file:///F:/development/formacraft-1.21.10/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileTestJava'.
+> Compilation failed; see the compiler output below.
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:1: 閿欒: 闇€瑕?cla
+ss銆乮nterface銆乪num 鎴?record
+  锘縫ackage com.formacraft.server.compiler;
+           ^
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:3: 閿欒: 闇€瑕?cla
+ss銆乮nterface銆乪num 鎴?record
+  import com.formacraft.common.llm.parser.LlmPlanParser;
+  ^
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:4: 閿欒: 闇€瑕?cla
+ss銆乮nterface銆乪num 鎴?record
+  import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+  ^
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:5: 閿欒: 闇€瑕?cla
+ss銆乮nterface銆乪num 鎴?record
+  import org.junit.jupiter.api.BeforeAll;
+  ^
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:6: 閿欒: 闇€瑕?cla
+ss銆乮nterface銆乪num 鎴?record
+  import org.junit.jupiter.api.Test;
+  ^
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:8: 閿欒: 闇€瑕?cla
+ss銆乮nterface銆乪num 鎴?record
+  import java.nio.file.Files;
+  ^
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:9: 閿欒: 闇€瑕?cla
+ss銆乮nterface銆乪num 鎴?record
+  import java.nio.file.Path;
+  ^
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:11: 閿欒: 闇€瑕?cl
+ass銆乮nterface銆乪num 鎴?record
+  import static org.junit.jupiter.api.Assertions.assertFalse;
+  ^
+  F:\development\formacraft-1.21.10\src\test\java\com\formacraft\server\compiler\Oct18RoofDiagTest.java:1: 閿欒: 闈炴硶瀛楃:
+ '\ufeff'
+  锘縫ackage com.formacraft.server.compiler;
+  ^
+  9 涓敊璇?
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+
+BUILD FAILED in 32s
+3 actionable tasks: 2 executed, 1 up-to-date

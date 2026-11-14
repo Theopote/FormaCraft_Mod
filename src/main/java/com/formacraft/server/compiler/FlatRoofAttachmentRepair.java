@@ -152,6 +152,13 @@ final class FlatRoofAttachmentRepair {
             boolean atticCue = "attic".equalsIgnoreCase(role)
                     || idLower.contains("attic")
                     || idLower.contains("storey");
+            // Interior floor plates are not attic shells — binding host_id alone must not
+            // retarget the primary flat roof onto a plate with a mismatched top plane.
+            boolean floorPlate = idLower.contains("floor_plate") || idLower.contains("floorplate")
+                    || "plate".equalsIgnoreCase(role)
+                    || "plate".equalsIgnoreCase(String.valueOf(
+                            m.params() == null ? "" : m.params().getOrDefault("extrude_mode", "")));
+            if (floorPlate && !atticCue) continue;
             Object host = m.params() == null ? null : m.params().get("host_id");
             if (host == null && m.params() != null) host = m.params().get("hostId");
             boolean bound = host != null && String.valueOf(host).equals(bodyId);

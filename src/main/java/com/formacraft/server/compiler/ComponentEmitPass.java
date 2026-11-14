@@ -202,21 +202,32 @@ final class ComponentEmitPass {
                 var missingSurfaces = GeneratedSurfaceCapture.missing(surfaceCells, patches);
                 if (!missingSurfaces.isEmpty()) {
                     var first = missingSurfaces.getFirst();
+                    String componentId = ComponentPlanTypes.paramIdentity(c);
+                    String hostId = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
+                    String slotId = c.slotId();
                     String surfaceMsg = "生成器未提供声明的建筑表面：" + normalizedType + " " + first.role()
-                            + " at component " + first.position().toShortString()
-                            + "; missing=" + missingSurfaces.size();
+                            + " component_id=" + componentId
+                            + " host_id=" + hostId
+                            + " slot_id=" + slotId
+                            + " local=" + first.position().toShortString()
+                            + " missing=" + missingSurfaces.size()
+                            + " missing_units=" + missingSurfaces.stream()
+                            .limit(8)
+                            .map(s -> s.role() + "@" + s.position().toShortString())
+                            .toList();
                     // Opening / decor incompleteness must not abort the whole compound
                     // (e.g. FACADE_WINDOWS declaring WINDOW cells that the emitter skipped).
-                    // Player-required openings still hard-fail — type alone is not enough.
+                    // Player-required opening presence still hard-fail — material-only
+                    // USER_EXPLICIT glass must not promote the whole component.
                     if (isSoftSurfaceIncomplete(normalizedType, c)) {
                         FormacraftMod.LOGGER.warn(
-                                "ComponentPlanCompiler: soft surface incomplete type={} id={} missing={}",
-                                normalizedType, ComponentPlanTypes.paramIdentity(c), missingSurfaces.size());
+                                "ComponentPlanCompiler: soft surface incomplete type={} id={} host={} slot={} missing={}",
+                                normalizedType, componentId, hostId, slotId, missingSurfaces.size());
                         AssemblyCompileDiagnostics.addSoftWarning(
                                 "E_SURFACE_GENERATION_INCOMPLETE",
                                 surfaceMsg,
                                 c.componentType(),
-                                ComponentPlanTypes.paramIdentity(c));
+                                componentId);
                     } else {
                         AssemblyCompileDiagnostics.set(new CapabilityGap("E_SURFACE_GENERATION_INCOMPLETE",
                                 surfaceMsg,
@@ -766,7 +777,7 @@ final class ComponentEmitPass {
 
     static boolean isSoftSurfaceIncomplete(String normalizedType, Component c) {
         if (normalizedType == null) return false;
-        if (isOpeningSurfaceType(normalizedType) && isUserRequiredComponent(c)) {
+        if (isOpeningSurfaceType(normalizedType) && isUserRequiredOpeningPresence(c)) {
             return false;
         }
         return "FACADE_WINDOWS".equals(normalizedType)
@@ -780,6 +791,53 @@ final class ComponentEmitPass {
                 || "COURTYARD".equals(normalizedType)
                 || "DECOR_DETAIL".equals(normalizedType)
                 || normalizedType.startsWith("DECOR");
+    }
+
+    /**
+     * Hard-fail surface incompleteness only when the player required opening
+     * presence / count — not when they only named a glass material.
+     */
+    static boolean isUserRequiredOpeningPresence(Component c) {
+        if (c == null || c.params() == null) return false;
+        Object level = c.params().get("requirement_level");
+        if (level != null && "USER_REQUIRED".equalsIgnoreCase(String.valueOf(level).trim())) {
+            return true;
+        }
+        if (Boolean.TRUE.equals(c.params().get("door_presence_explicit"))
+                || Boolean.TRUE.equals(c.params().get("window_presence_explicit"))
+                || Boolean.TRUE.equals(c.params().get("upper_entrance_explicit"))) {
+            return true;
+        }
+        Object sources = c.params().get("constraint_sources");
+        if (sources instanceof Map<?, ?> map) {
+            Object presence = map.get("opening_presence");
+            if (presence != null) {
+                String s = String.valueOf(presence).trim();
+                if ("USER_EXPLICIT".equalsIgnoreCase(s) || "USER".equalsIgnoreCase(s)
+                        || "PLAYER".equalsIgnoreCase(s)) {
+                    return true;
+                }
+            }
+        }
+        // Legacy component-level USER_EXPLICIT: treat as presence unless the
+        // stamp is clearly material-only (glass_block field source alone).
+        Object src = c.params().get("constraint_source");
+        if (src != null) {
+            String s = String.valueOf(src).trim();
+            if ("USER_EXPLICIT".equalsIgnoreCase(s) || "USER".equalsIgnoreCase(s)
+                    || "PLAYER".equalsIgnoreCase(s)) {
+                if (sources instanceof Map<?, ?> map
+                        && map.containsKey("glass_block")
+                        && !map.containsKey("opening_presence")
+                        && !map.containsKey("door_width")
+                        && (Boolean.TRUE.equals(c.params().get("window_material_explicit"))
+                            || Boolean.TRUE.equals(c.params().get("window_explicit")))) {
+                    return false;
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isOpeningSurfaceType(String normalizedType) {

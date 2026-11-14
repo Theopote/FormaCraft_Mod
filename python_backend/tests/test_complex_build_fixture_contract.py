@@ -12,6 +12,7 @@ normalized — otherwise regressions in clamping / intent injection are masked.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import unittest
 from pathlib import Path
@@ -20,6 +21,7 @@ from app.services.building_contract import apply_building_contract
 from app.services.circulation_plan_normalizer import normalize_circulation_plan
 
 FIXTURES = Path(__file__).parent / "fixtures" / "complex_build_retest"
+RAW_SHA256_MANIFEST = FIXTURES / "raw_fixture_sha256.json"
 
 # Markers that only the normalize / contract pipeline should introduce.
 NORMALIZE_ONLY_MARKERS = (
@@ -130,6 +132,26 @@ class ComplexBuildFixtureContract(unittest.TestCase):
             )
             checked += 1
         self.assertGreaterEqual(checked, 1, "expected at least one clamped golden pair")
+
+    def test_raw_fixture_sha256_manifest_pins_historical_llm_bytes(self):
+        """Raw captures are immutable; golden updates must not rewrite them quietly."""
+        self.assertTrue(
+            RAW_SHA256_MANIFEST.is_file(),
+            "raw_fixture_sha256.json must pin historical LLM capture bytes",
+        )
+        expected = json.loads(RAW_SHA256_MANIFEST.read_text(encoding="utf-8"))
+        actual = {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(FIXTURES.glob("*.json"))
+            if not path.name.endswith(".normalized.json")
+            and path.name != RAW_SHA256_MANIFEST.name
+        }
+        self.assertEqual(
+            expected,
+            actual,
+            "raw complex_build fixtures changed; update raw_fixture_sha256.json "
+            "only in an explicitly reviewed commit that intends to replace LLM captures",
+        )
 
 
 if __name__ == "__main__":

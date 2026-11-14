@@ -102,15 +102,18 @@ final class OpeningConstraintProvenance {
                 mutated = true;
             }
             if (blockEquals(windowBlock, glass)) {
+                // Material-only: field-level source + window_explicit for material
+                // audit. Do not promote component-level constraint_source — that
+                // conflates glass choice with opening-presence hard-fail.
                 fieldSources.put("glass_block", "USER_EXPLICIT");
                 params.put("window_explicit", true);
-                params.put("constraint_source", "USER_EXPLICIT");
+                params.put("window_material_explicit", true);
                 mutated = true;
             }
         } else if (windowLike && glass != null && windowBlock != null && blockEquals(windowBlock, glass)) {
             fieldSources.put("glass_block", "USER_EXPLICIT");
             params.put("window_explicit", true);
-            params.put("constraint_source", "USER_EXPLICIT");
+            params.put("window_material_explicit", true);
             mutated = true;
         }
 

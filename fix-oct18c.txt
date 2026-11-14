@@ -1,0 +1,43 @@
+﻿
+> Configure project :
+Fabric Loom: 1.11.8
+
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileTestJava
+> Task :processTestResources UP-TO-DATE
+> Task :testClasses
+gradlew.bat : WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+所在位置 C:\Users\OOPS\AppData\Local\Temp\ps-script-d5a38a76-6f43-452a-8c42-d7bccfb285bc.ps1:76 字符: 41
++ ... t-1.21.10"; & ".\gradlew.bat" test --tests "com.formacraft.server.com ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (WARNING: A term...has been called:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/C:/Users/OOPS/.gra
+dle/caches/modules-2/files-2.1/org.joml/joml/1.10.8/fc0a71dad90a2cf41d82a76156a0e700af8e4f8d/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+
+> Task :test
+
+Oct18RoofDiagTest > oct18Final3ReceptionRoofCompiles() FAILED
+    org.opentest4j.AssertionFailedError at Oct18RoofDiagTest.java:28
+
+1 test completed, 1 failed
+
+> Task :test FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///F:/development/formacraft-1.21.10/build/reports/tests/test/index
+.html
+
+* Try:
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+
+BUILD FAILED in 23s
+5 actionable tasks: 2 executed, 3 up-to-date

@@ -192,10 +192,29 @@ final class OpeningMaterialAudit {
                 || Boolean.TRUE.equals(c.params().get("glass_explicit"));
     }
 
-    /** Window glazing is hard when provenance says so — not merely because glass_block is filled. */
+    /**
+     * Window glazing is hard when field-level material provenance says so — not merely because
+     * {@code glass_block} is filled, and not blocked by a leftover component-level
+     * {@code LLM_INFERRED} stamp (material must not require whole-component USER_EXPLICIT).
+     */
     static boolean isUserExplicitWindowMaterial(Component c) {
-        if (!isUserExplicitOpening(c)) return false;
-        return explicitWindowMaterial(c) != null;
+        if (c == null || c.params() == null) return false;
+        if (explicitWindowMaterial(c) == null) return false;
+        Object sources = c.params().get("constraint_sources");
+        if (sources instanceof Map<?, ?> map) {
+            Object glass = map.get("glass_block");
+            if (glass != null) {
+                String s = String.valueOf(glass).trim();
+                if ("USER_EXPLICIT".equalsIgnoreCase(s) || "USER".equalsIgnoreCase(s)
+                        || "PLAYER".equalsIgnoreCase(s)) {
+                    return true;
+                }
+            }
+        }
+        if (Boolean.TRUE.equals(c.params().get("window_material_explicit"))) {
+            return true;
+        }
+        return isUserExplicitOpening(c);
     }
 
     private static String explicitWindowMaterial(Component c) {

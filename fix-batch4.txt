@@ -1,0 +1,31 @@
+﻿
+> Configure project :
+Fabric Loom: 1.11.8
+
+> Task :compileJava
+gradlew.bat : 娉? F:\development\formacraft-1.21.10\src\main\java\com\formacraft\common\llm\dto\StyleAttributes.java浣跨敤浜
+嗘湭缁忔鏌ユ垨涓嶅畨鍏ㄧ殑鎿嶄綔銆?
+所在位置 C:\Users\OOPS\AppData\Local\Temp\ps-script-70477a6c-9381-499b-8291-a5194cb35607.ps1:76 字符: 41
++ ... t-1.21.10"; & ".\gradlew.bat" test --tests "com.formacraft.server.com ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (娉? F:\developme...鏌ユ垨涓嶅畨鍏ㄧ殑鎿嶄綔銆?:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+娉? 鏈夊叧璇︾粏淇℃伅, 璇蜂娇鐢?-Xlint:unchecked 閲嶆柊缂栬瘧銆?
+
+> Task :processResources UP-TO-DATE
+> Task :classes
+> Task :compileTestJava
+> Task :processTestResources UP-TO-DATE
+> Task :testClasses
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/C:/Users/OOPS/.gra
+dle/caches/modules-2/files-2.1/org.joml/joml/1.10.8/fc0a71dad90a2cf41d82a76156a0e700af8e4f8d/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+> Task :test
+
+[Incubating] Problems report is available at: file:///F:/development/formacraft-1.21.10/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 1m 23s
+5 actionable tasks: 3 executed, 2 up-to-date

@@ -26,9 +26,11 @@ import com.formacraft.common.terrain.TerrainStrategySampler;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * ComponentPlanCompiler（组件计划编译器）
@@ -398,17 +400,17 @@ public final class ComponentPlanCompiler {
             var offset = anchor == null ? BlockPos.ORIGIN : new BlockPos(anchor.x(), anchor.y(), anchor.z());
             var semantic = new SemanticComponent("ROOF", slot, roof, plan.styleProfile());
             // Adjacent taller towers can share roof materials and overlap this
-            // roof's section. Audit its own committed cells, not every roof.
+            // roof's section. Shape audit stays roof-owned; continuity also keeps
+            // facade/opening/host cells that physically join slope rows after overwrite.
             final var auditOccupancy = patchOccupancy;
             String roofIdentity = getParamString(roof.params(), "component_id");
-            var roofPatches = result.stream().filter(p -> {
-                var record = auditOccupancy == null ? null : auditOccupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
-                return record == null || roofIdentity == null
-                        || roofIdentity.equals(getParamString(record.owner() == null ? null : record.owner().params(), "component_id"))
-                        || record.writerType().startsWith("POSTPROCESS");
-            }).toList();
-            var occludedColumns = new HashSet<BlockPos>();
             String roofHost = getParamString(roof.params(), "host_id");
+            int roofBaseY = roof.relativePosition().y() + offset.getY();
+            var roofOwnedPatches = result.stream().filter(p ->
+                    belongsToRoofAudit(p, roofIdentity, roofHost, roofBaseY, auditOccupancy, false)).toList();
+            var continuityPatches = result.stream().filter(p ->
+                    belongsToRoofAudit(p, roofIdentity, roofHost, roofBaseY, auditOccupancy, true)).toList();
+            var occludedColumns = new HashSet<BlockPos>();
             for (var other : ComponentEmitPass.roofOccluders(roof, components, slotMap)) {
                 var b = other.bounds();
                 int baseY = roof.relativePosition().y();
@@ -443,9 +445,11 @@ public final class ComponentPlanCompiler {
                 }
                 occludedColumns.add(new BlockPos(p.dx(),0,p.dz()));
             }
-            var shapeAudit = RoofShapeAudit.inspect(semantic, roofPatches, offset, occludedColumns);
-            var continuityGap = RoofSurfaceContinuityAudit.inspect(semantic, roofPatches, offset, occludedColumns);
+            var shapeAudit = RoofShapeAudit.inspect(semantic, roofOwnedPatches, offset, occludedColumns);
+            var continuityGap = RoofSurfaceContinuityAudit.inspect(semantic, continuityPatches, offset, occludedColumns);
             if (continuityGap.isPresent()) {
+                diagnoseRoofContinuityFailure(roof, roofIdentity, roofHost, offset,
+                        result, continuityPatches, auditOccupancy, continuityGap.get());
                 AssemblyCompileDiagnostics.set(continuityGap.get());
                 return List.of();
             }
@@ -748,5 +752,116 @@ public final class ComponentPlanCompiler {
 
     private static String getParamString(Map<String, Object> params, String... keys) {
         return ComponentPlanTypes.getParamString(params, keys);
+    }
+
+    /**
+     * Roof continuity must see physical joins after facade/opening overwrite.
+     * Shape audit stays on roof-owned (and postprocess) cells only.
+     */
+    private static boolean belongsToRoofAudit(
+            BlockPatch patch,
+            String roofIdentity,
+            String roofHost,
+            int roofBaseY,
+            PatchOccupancyIndex occupancy,
+            boolean includePhysicalJoins
+    ) {
+        if (patch == null || !GeneratedSurfaceCapture.occupied(patch)) return false;
+        if (patch.dy() < roofBaseY) return false;
+        if (occupancy == null || roofIdentity == null) return true;
+        var record = occupancy.placeAt(new BlockPos(patch.dx(), patch.dy(), patch.dz()));
+        if (record == null || record.owner() == null) return true;
+        String ownerId = getParamString(record.owner().params(), "component_id");
+        if (roofIdentity.equals(ownerId)) return true;
+        String writerType = record.writerType() == null ? "" : record.writerType();
+        if (writerType.startsWith("POSTPROCESS")) return true;
+        if (!includePhysicalJoins) return false;
+        // Other roofs must not inflate this roof's slope graph.
+        if (writerType.startsWith("ROOF")) return false;
+        if (roofHost != null) {
+            if (roofHost.equals(ownerId)
+                    || roofHost.equals(getParamString(record.owner().params(), "host_id"))) {
+                return true;
+            }
+        }
+        return writerType.startsWith("FACADE")
+                || writerType.contains("WINDOW")
+                || writerType.contains("DOOR")
+                || writerType.contains("ENTRANCE")
+                || writerType.startsWith("STAIR")
+                || writerType.contains("CHIMNEY")
+                || writerType.startsWith("DECOR");
+    }
+
+    /**
+     * Staged continuity diagnosis: compare full post-process solids vs ownership-filtered
+     * roof patches at the failing column and its +X/+Z neighbours (Y sets + owners).
+     */
+    private static void diagnoseRoofContinuityFailure(
+            Component roof,
+            String roofIdentity,
+            String roofHost,
+            BlockPos offset,
+            List<BlockPatch> allPatches,
+            List<BlockPatch> roofPatches,
+            PatchOccupancyIndex occupancy,
+            CapabilityGap gap
+    ) {
+        if (roof == null || gap == null || gap.message() == null) return;
+        String msg = gap.message();
+        int marker = msg.lastIndexOf("column=");
+        if (marker < 0) return;
+        String col = msg.substring(marker + "column=".length()).trim();
+        String[] parts = col.split("[,\\s]+");
+        if (parts.length < 3) return;
+        int cx, cz;
+        try {
+            cx = Integer.parseInt(parts[0]);
+            cz = Integer.parseInt(parts[2]);
+        } catch (NumberFormatException ignored) {
+            return;
+        }
+        int baseY = roof.relativePosition() == null ? 0
+                : roof.relativePosition().y() + (offset == null ? 0 : offset.getY());
+        String roofType = getParamString(roof.params(), "roof_type", "roofType");
+        FormacraftMod.LOGGER.warn(
+                "[RoofContinuityDiag] id={} host={} roofType={} baseY={} allPatches={} roofPatches={} gap={}",
+                roofIdentity, roofHost, roofType, baseY,
+                allPatches == null ? 0 : allPatches.size(),
+                roofPatches == null ? 0 : roofPatches.size(),
+                gap.message());
+        for (int[] d : new int[][]{{0, 0}, {1, 0}, {0, 1}}) {
+            int x = cx + d[0];
+            int z = cz + d[1];
+            var fullYs = new TreeSet<Integer>();
+            var roofYs = new TreeSet<Integer>();
+            var owners = new LinkedHashMap<Integer, String>();
+            if (allPatches != null) {
+                for (var p : allPatches) {
+                    if (p == null || p.dx() != x || p.dz() != z || p.dy() < baseY) continue;
+                    if (!GeneratedSurfaceCapture.occupied(p)) continue;
+                    fullYs.add(p.dy());
+                    var record = occupancy == null ? null
+                            : occupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
+                    String ownerLabel = "null";
+                    if (record != null) {
+                        String oid = record.owner() == null ? "-"
+                                : getParamString(record.owner().params(), "component_id");
+                        ownerLabel = record.writerType() + ":" + oid;
+                    }
+                    owners.putIfAbsent(p.dy(), ownerLabel);
+                }
+            }
+            if (roofPatches != null) {
+                for (var p : roofPatches) {
+                    if (p == null || p.dx() != x || p.dz() != z || p.dy() < baseY) continue;
+                    if (!GeneratedSurfaceCapture.occupied(p)) continue;
+                    roofYs.add(p.dy());
+                }
+            }
+            FormacraftMod.LOGGER.warn(
+                    "[RoofContinuityDiag] col=({},{}) fullYs={} roofYs={} owners={}",
+                    x, z, fullYs, roofYs, owners);
+        }
     }
 }

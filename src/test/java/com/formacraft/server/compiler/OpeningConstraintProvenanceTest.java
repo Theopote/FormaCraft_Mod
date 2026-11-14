@@ -114,12 +114,15 @@ class OpeningConstraintProvenanceTest {
                 LlmPlanTestFixtures.builder().components(List.of(window)).build(),
                 "生成房屋，窗户使用黑色染色玻璃");
         Component stamped = plan.components().getFirst();
-        assertEquals("USER_EXPLICIT", String.valueOf(stamped.params().get("constraint_source")));
+        // Material stays field-scoped — do not promote component-level constraint_source.
+        assertEquals("LLM_INFERRED", String.valueOf(stamped.params().get("constraint_source")));
         assertTrue(OpeningMaterialAudit.isUserExplicitWindowMaterial(stamped));
         @SuppressWarnings("unchecked")
         Map<String, Object> field = (Map<String, Object>) stamped.params().get("constraint_sources");
         assertNotNull(field);
         assertEquals("USER_EXPLICIT", field.get("glass_block"));
+        assertFalse(ComponentEmitPass.isUserRequiredOpeningPresence(stamped),
+                "glass-only USER_EXPLICIT must not harden opening-presence surface incomplete");
     }
 
     @Test
@@ -136,7 +139,10 @@ class OpeningConstraintProvenanceTest {
         Component stamped = plan.components().getFirst();
         assertEquals("minecraft:black_stained_glass", stamped.params().get("glass_block"),
                 "LLM clear glass must be replaced with player black stained glass");
-        assertEquals("USER_EXPLICIT", String.valueOf(stamped.params().get("constraint_source")));
+        assertEquals("LLM_INFERRED", String.valueOf(stamped.params().get("constraint_source")));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> field = (Map<String, Object>) stamped.params().get("constraint_sources");
+        assertEquals("USER_EXPLICIT", field.get("glass_block"));
         assertTrue(OpeningMaterialAudit.isUserExplicitWindowMaterial(stamped));
     }
 

@@ -688,6 +688,55 @@ class PlanIntentFidelityRepairTest {
         assertEquals(27, outHall.dimensions().depth(), "authored depth stays 27 against intent 27x17 transpose");
     }
 
+    @Test
+    void campusDomeIntentDoesNotOverwriteReceptionFlatRoofViaFeatureSeeds() {
+        Component reception = new Component(
+                "MASS_MAIN", "reception", new Vec3i(-8, 0, -6),
+                new Dimensions(15, 13, 6), List.of("ornament"),
+                Map.of("component_id", "reception_main", "roof_type", "flat",
+                        "roof_block", "minecraft:white_concrete"));
+        Component tower = new Component(
+                "MASS_MAIN", "tower", new Vec3i(-4, 0, 20),
+                new Dimensions(9, 9, 20), List.of("ornament"),
+                Map.of("component_id", "tower_main", "roof_type", "flat",
+                        "roof_block", "minecraft:black_concrete"));
+        Component towerDome = new Component(
+                "ROOF", "tower", new Vec3i(-4, 20, -4),
+                new Dimensions(9, 9, 5), List.of("roof"),
+                Map.of("component_id", "tower_dome", "host_id", "tower_main",
+                        "roof_type", "dome", "roof_block", "minecraft:black_concrete"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Modern_Observatory_Stepped")
+                .components(List.of(reception, tower, towerDome))
+                .distinguishingFeatures(List.of(
+                        "dark polyhedral dome on the observation tower",
+                        "three staggered volumes ascending the hillside"))
+                .planMeta(Map.of(
+                        "request_intent", Map.of(
+                                "original_text", "山坡天文观测站，观测塔顶部有多面穹顶",
+                                "roof_type", "dome",
+                                "roof_explicit", true)))
+                .build();
+        LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
+        assertEquals("flat", findById(repaired, "reception_main").params().get("roof_type"),
+                "plan-wide dome feature text must not retype the reception hall");
+        assertEquals("dome", findById(repaired, "tower_dome").params().get("roof_type"));
+        // Inferred reception roof satellite must also keep flat after enrich.
+        Component receptionRoof = new Component(
+                "ROOF", "reception", new Vec3i(-8, 5, -6),
+                new Dimensions(15, 13, 1), List.of("roof"),
+                Map.of("component_id", "reception_main#roof", "host_id", "reception_main",
+                        "roof_type", "flat", "roof_block", "minecraft:white_concrete"));
+        Component enrichedRoof = PlanIntentFidelityRepair.enrich(
+                repaired, receptionRoof, PlanIntentFidelityRepair.parse(repaired));
+        assertEquals("flat", enrichedRoof.params().get("roof_type"),
+                "reception_main#roof must stay flat despite dome feature seeds");
+        // Tower mass authored as none still receives specialty dome for inference.
+        Component towerBody = findById(repaired, "tower_main");
+        assertEquals("dome", towerBody.params().get("roof_type"),
+                "tower_main may replace roof_type=none with campus dome intent");
+    }
+
     private static Component findByHost(LlmPlan plan, String hostId) {
         return plan.components().stream()
                 .filter(c -> c.params() != null && hostId.equals(String.valueOf(c.params().get("host_id"))))
