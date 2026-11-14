@@ -1,4 +1,4 @@
-package com.formacraft.common.compiler;
+package com.formacraft.server.compiler;
 
 import com.formacraft.common.llm.compiler.CompiledSkeleton;
 import com.formacraft.common.llm.compiler.PlanCompileContext;
@@ -179,7 +179,7 @@ public final class PlanProgramCompiler {
         try {
             // 创建编译上下文
             PlanCompileContext context = world != null && globalAnchor != null
-                    ? PlanCompileContext.createWithTerrain(world, globalAnchor)
+                    ? PlanCompileContext.createWithTerrain(globalAnchor)
                     : PlanCompileContext.createDefault();
             // C1：把 outline 注入上下文，让 FloorPlate 从真实轮廓生成。
             if (outline != null) {

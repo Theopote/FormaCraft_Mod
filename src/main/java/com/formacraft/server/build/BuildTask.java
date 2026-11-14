@@ -105,7 +105,7 @@ public class BuildTask {
     }
 
     public BuildTask(GeneratedStructure structure, ServerWorld world, String fbdSourcePlanJson) {
-        this(structure, world, com.formacraft.common.world.BlockMutationAccess.forWorld(world), fbdSourcePlanJson);
+        this(structure, world, com.formacraft.server.world.ServerBlockMutationAccess.forWorld(world), fbdSourcePlanJson);
     }
 
     BuildTask(GeneratedStructure structure, ServerWorld world,

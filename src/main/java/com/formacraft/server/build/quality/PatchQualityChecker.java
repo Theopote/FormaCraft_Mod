@@ -1,6 +1,6 @@
 package com.formacraft.server.build.quality;
 
-import com.formacraft.common.world.WorldBuildBounds;
+import com.formacraft.server.world.WorldBuildBounds;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;

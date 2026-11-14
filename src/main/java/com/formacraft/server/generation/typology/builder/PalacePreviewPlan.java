@@ -434,7 +434,7 @@ public final class PalacePreviewPlan {
                 return hist;
             }
         }
-        BlockMutationAccess access = BlockMutationAccess.forWorld(world);
+        BlockMutationAccess access = com.formacraft.server.world.ServerBlockMutationAccess.forWorld(world);
         return WorldPatchTransaction.execute(access, origin, patches);
     }
 

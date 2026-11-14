@@ -1,4 +1,4 @@
-package com.formacraft.common.compiler;
+package com.formacraft.server.compiler;
 
 import com.formacraft.common.skeleton.*;
 import com.formacraft.common.patch.BlockPatch;

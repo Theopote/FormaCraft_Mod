@@ -4,7 +4,6 @@ import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.world.BlockMutationAccess;
 import com.formacraft.common.world.BlockSnapshot;
 import net.minecraft.block.BlockState;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
@@ -80,14 +79,6 @@ public final class PatchExecutor {
             if (failedWrites > 0) sb.append("，写入失败 ").append(failedWrites).append(" 个");
             return sb.toString();
         }
-    }
-
-    public static ApplyResult apply(ServerWorld world, BlockPos origin, List<BlockPatch> patches) {
-        if (world == null || origin == null || patches == null || patches.isEmpty()) {
-            return new ApplyResult(0, 0, 0, 0);
-        }
-
-        return applyToAccess(BlockMutationAccess.forWorld(world), origin, patches);
     }
 
     public static ApplyResult applyToAccess(BlockMutationAccess access, BlockPos origin, List<BlockPatch> patches) {

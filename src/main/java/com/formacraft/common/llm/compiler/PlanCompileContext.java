@@ -1,6 +1,5 @@
 package com.formacraft.common.llm.compiler;
 
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
 /**
@@ -85,9 +84,9 @@ public class PlanCompileContext {
     /**
      * 创建带地形的上下文
      */
-    public static PlanCompileContext createWithTerrain(ServerWorld world, BlockPos origin) {
+    public static PlanCompileContext createWithTerrain(BlockPos origin) {
         return new PlanCompileContext(
-                new TerrainContext(world, origin),
+                new TerrainContext(origin),
                 HeightStrategy.ADAPTIVE,
                 RoofStrategy.UNIFIED,
                 5.0,
@@ -118,12 +117,10 @@ public class PlanCompileContext {
      * 地形上下文
      */
     public static class TerrainContext {
-        public final ServerWorld world;
         public final BlockPos origin;
 
-        public TerrainContext(ServerWorld world, BlockPos origin) {
-            this.world = world;
-            this.origin = origin;
+        public TerrainContext(BlockPos origin) {
+            this.origin = origin == null ? null : origin.toImmutable();
         }
     }
 }

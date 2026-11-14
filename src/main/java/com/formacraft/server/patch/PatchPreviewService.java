@@ -316,7 +316,7 @@ public final class PatchPreviewService {
             }
         }
 
-        BlockMutationAccess access = BlockMutationAccess.forWorld(sw);
+        BlockMutationAccess access = com.formacraft.server.world.ServerBlockMutationAccess.forWorld(sw);
         String conflict = PreviewWorldStateCapture.conflictDetail(access, pending.expectedStates());
         if (conflict != null) {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(

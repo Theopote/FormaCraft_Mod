@@ -60,6 +60,12 @@ SkeletonSocketGenerator 无运行时、测试或构建调用者，且未从骨�
 
 地形后处理改为接收世界坐标到地面高度的查询函数，世界读取由服务端编译器提供。common 后处理管道和处理器已移除 ServerWorld 依赖，地形策略与每列采样顺序保留，边界债务减少 6 处，剩余 45 处。
 
+PlanCompileContext.TerrainContext 已移除无读取者的世界字段，创建接口只接收锚点并保存不可变坐标。原有 ADAPTIVE/FLAT 策略选择仍由调用方保留。对应边界债务减少 5 处，剩余 40 处。
+
+真实世界状态/NBT 读写适配器已从 common 接口迁到 server.world.ServerBlockMutationAccess，WorldBuildBounds 同迁服务端。common 保留抽象操作及事务执行，删除无调用者的 PatchExecutor.apply(ServerWorld, ...) 入口。写世界门禁仅允许新的服务端适配器路径；对应债务减少 11 处，剩余 29 处。
+
+PlanProgramCompiler 已迁至 server.compiler，调用方和同包原子性测试同步迁移，更新生成入口清单与活文档。骨架转换、累计预算及失败协议保持原实现。对应边界债务减少 9 处，剩余 20 处。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

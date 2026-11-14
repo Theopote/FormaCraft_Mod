@@ -468,7 +468,7 @@ public final class LlmPlanPreviewBuilder {
                 } else if (llmPlan.planSkeleton() != null
                         && llmPlan.planSkeleton().zones() != null
                         && !llmPlan.planSkeleton().zones().isEmpty()) {
-                    patches = com.formacraft.common.compiler.PlanProgramCompiler.compileFromPlanSkeleton(
+                    patches = com.formacraft.server.compiler.PlanProgramCompiler.compileFromPlanSkeleton(
                             llmPlan.planSkeleton(),
                             planOrigin,
                             serverWorld,
@@ -476,7 +476,7 @@ public final class LlmPlanPreviewBuilder {
                             req != null ? req.getOutline() : null
                     );
                 } else {
-                    patches = com.formacraft.common.compiler.PlanProgramCompiler.compile(
+                    patches = com.formacraft.server.compiler.PlanProgramCompiler.compile(
                             llmPlan.planProgram(),
                             planOrigin,
                             serverWorld,

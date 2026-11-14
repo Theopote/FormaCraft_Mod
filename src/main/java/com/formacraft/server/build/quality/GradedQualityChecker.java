@@ -4,7 +4,7 @@ import com.formacraft.common.build.GeneratedStructure;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.Footprint;
-import com.formacraft.common.world.WorldBuildBounds;
+import com.formacraft.server.world.WorldBuildBounds;
 import com.formacraft.server.build.BuildConstraints;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.server.build.StructureSupportAnalysis;

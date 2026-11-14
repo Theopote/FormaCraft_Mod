@@ -1,4 +1,4 @@
-package com.formacraft.common.world;
+package com.formacraft.server.world;
 
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;

@@ -47,7 +47,7 @@ ChatPanel
 
 **状态分级（收敛目标）：**
 
-- ✅ **主干（新功能默认）**：LlmPlan → `server.compiler.ComponentPlanCompiler` / `common.compiler.PlanProgramCompiler` + 生成器 → `BlockPatch`；BuildingSpec 等兼容入口仍存在
+- ✅ **主干（新功能默认）**：LlmPlan → `server.compiler.ComponentPlanCompiler` / `server.compiler.PlanProgramCompiler` + 生成器 → `BlockPatch`；BuildingSpec 等兼容入口仍存在
 - 🟡 **精品库（Phase 5 并入主干）**：`server.generation.structure` 地标生成器 —— 目标是改造成"LlmPlan 可调用的命名模块"，而非独立的 BuildingSpec 并行路径
 - 🔴 **Quarantine / 冻结迁移**：保留的 `common.mass` 兼容算法及集成路径按调用链逐步收敛，禁止扩展为第二条生成主干。旧 `AutoAssembler`、`ClusterLayoutPlanner`、`PathClusterLayoutPlanner` 和 `ConfirmBuildPacket` 已删除；确认统一走 `/forma_confirm`。命令触发的体量系统诊断位于 `server.command.diagnostic`，客户端输入通过结构化请求交给 Python 后端组装提示词。
 

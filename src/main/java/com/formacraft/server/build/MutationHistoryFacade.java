@@ -46,7 +46,7 @@ public final class MutationHistoryFacade {
 
         PatchReplayHistory.ReplayResult result = switch (entry.kind()) {
             case BUILD -> BuildExecutionService.getInstance().getUndoService()
-                    .undo(playerId, world, com.formacraft.common.world.BlockMutationAccess.forWorld(world),
+                    .undo(playerId, world, com.formacraft.server.world.ServerBlockMutationAccess.forWorld(world),
                             entry.transactionId());
             case PATCH -> PatchHistoryManager.undoDetailed(world, playerId);
         };
@@ -93,7 +93,7 @@ public final class MutationHistoryFacade {
 
         PatchReplayHistory.ReplayResult result = switch (entry.kind()) {
             case BUILD -> BuildExecutionService.getInstance().getUndoService()
-                    .redo(playerId, world, com.formacraft.common.world.BlockMutationAccess.forWorld(world),
+                    .redo(playerId, world, com.formacraft.server.world.ServerBlockMutationAccess.forWorld(world),
                             entry.transactionId());
             case PATCH -> PatchHistoryManager.redoDetailed(world, playerId);
         };

@@ -57,7 +57,7 @@ final class WindowInsertPreview {
 
         var live = new HashMap<BlockPos, BlockState>();
         for (BlockPos p : BlockPos.iterate(min, max)) {
-            if (!com.formacraft.common.world.WorldBuildBounds.isChunkReady(world, p)) {
+            if (!com.formacraft.server.world.WorldBuildBounds.isChunkReady(world, p)) {
                 return refuse(player, "建筑尚未完整加载，请靠近后重试。");
             }
             live.put(p.toImmutable(), world.getBlockState(p));

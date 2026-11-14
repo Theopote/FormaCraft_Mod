@@ -23,7 +23,7 @@ public final class PreviewWorldStateCapture {
         if (world == null || origin == null || patches == null) {
             return Map.of();
         }
-        return capture(BlockMutationAccess.forWorld(world), origin, patches);
+        return capture(com.formacraft.server.world.ServerBlockMutationAccess.forWorld(world), origin, patches);
     }
 
     public static Map<BlockPos, String> capture(

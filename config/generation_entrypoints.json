@@ -24,7 +24,7 @@
     },
     {
       "id": "plan_program_compiler",
-      "class": "com.formacraft.common.compiler.PlanProgramCompiler",
+      "class": "com.formacraft.server.compiler.PlanProgramCompiler",
       "role": "plan_program / plan_skeleton compile"
     },
     {

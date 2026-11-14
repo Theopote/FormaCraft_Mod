@@ -110,7 +110,7 @@ public final class PatchHistoryManager {
             return WorldPatchTransaction.Result.preflightRejected(null);
         }
 
-        BlockMutationAccess access = BlockMutationAccess.forWorld(world);
+        BlockMutationAccess access = com.formacraft.server.world.ServerBlockMutationAccess.forWorld(world);
         Set<BlockPos> affected = collectAffected(origin, patches);
         Map<BlockPos, BlockSnapshot> beforeForHistory = snapshot(access, affected);
 
@@ -220,7 +220,7 @@ public final class PatchHistoryManager {
 
     public static PatchReplayHistory.ReplayResult undoDetailed(ServerWorld world, UUID playerId) {
         if (world == null || playerId == null) return PatchReplayHistory.ReplayResult.empty();
-        var result = stacks(playerId).undo(world, BlockMutationAccess.forWorld(world));
+        var result = stacks(playerId).undo(world, com.formacraft.server.world.ServerBlockMutationAccess.forWorld(world));
         if (result.delta() != null && !result.delta().patches().isEmpty()) {
             updateMemoryFromPatchUndo(world, result.delta().origin(), result.delta().patches());
         }
@@ -229,7 +229,7 @@ public final class PatchHistoryManager {
 
     public static PatchReplayHistory.ReplayResult redoDetailed(ServerWorld world, UUID playerId) {
         if (world == null || playerId == null) return PatchReplayHistory.ReplayResult.empty();
-        var result = stacks(playerId).redo(world, BlockMutationAccess.forWorld(world));
+        var result = stacks(playerId).redo(world, com.formacraft.server.world.ServerBlockMutationAccess.forWorld(world));
         if (result.delta() != null && !result.delta().patches().isEmpty()) {
             updateMemoryFromPatch(world, result.delta().origin(), result.delta().patches());
         }

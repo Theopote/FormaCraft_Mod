@@ -7,6 +7,19 @@ from check_architecture import client_mixin_sources, violations
 
 
 class BoundaryTests(unittest.TestCase):
+    def test_only_server_world_adapter_may_write_world_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("server/world/ServerBlockMutationAccess.java",
+                         "common/world/BlockMutationAccess.java", "server/world/Other.java"):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("world.setBlockState(pos, state);", encoding="utf-8")
+            errors = violations(root)
+            self.assertEqual(len(errors), 2)
+            self.assertTrue(any("common/world/BlockMutationAccess.java" in e for e in errors))
+            self.assertTrue(any("server/world/Other.java" in e for e in errors))
+
     def test_imports_and_qualified_references_ignore_comments_and_literals(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

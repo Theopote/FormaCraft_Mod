@@ -1,12 +1,7 @@
 {
-  "common/compiler/PlanProgramCompiler.java: common uses minecraft server type": 9,
   "common/component/PlayerComponentExpander.java: common uses minecraft server type": 6,
-  "common/patch/PatchExecutor.java: common uses minecraft server type": 3,
   "common/skeleton/SkeletonExecutor.java: common uses minecraft server type": 4,
   "common/typology/TypologyComponentRouter.java: common uses minecraft server type": 3,
   "common/typology/TypologyInterpreter.java: common uses minecraft server type": 3,
-  "common/world/BlockMutationAccess.java: common uses minecraft server type": 3,
-  "common/world/WorldBuildBounds.java: common uses minecraft server type": 5,
-  "common/component/group/PlayerComponentGroupExpander.java: common uses minecraft server type": 4,
-  "common/llm/compiler/PlanCompileContext.java: common uses minecraft server type": 5
+  "common/component/group/PlayerComponentGroupExpander.java: common uses minecraft server type": 4
 }

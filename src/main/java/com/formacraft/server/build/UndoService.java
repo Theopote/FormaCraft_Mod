@@ -85,7 +85,7 @@ public class UndoService {
     public boolean undoLast(ServerPlayerEntity player) { return undoLastResult(player).complete(); }
     public PatchReplayHistory.ReplayResult undoLastResult(ServerPlayerEntity player) {
         if (!(player.getEntityWorld() instanceof ServerWorld world)) return PatchReplayHistory.ReplayResult.empty();
-        var result = undo(player.getUuid(), world, BlockMutationAccess.forWorld(world));
+        var result = undo(player.getUuid(), world, com.formacraft.server.world.ServerBlockMutationAccess.forWorld(world));
         if (hasPendingMemory(player.getUuid())) {
             player.sendMessage(net.minecraft.text.Text.literal("方块恢复结果已记录；建筑记忆保存未完成，下次撤销命令会重试保存"), false);
         }

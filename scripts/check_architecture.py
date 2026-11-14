@@ -46,7 +46,7 @@ def violations(root: Path, *, client_only_sources: set[str] = frozenset()) -> li
         if layer == "common":
             for _ in SERVER_TYPE.finditer(code):
                 errors.append(f"{relative}: common uses minecraft server type")
-        if relative == "common/world/BlockMutationAccess.java":
+        if relative == "server/world/ServerBlockMutationAccess.java":
             continue
         for match in re.finditer(r"\.\s*setBlockState\s*\(([^;]*)", code):
             # World writes take position + state; Voxel setters take one argument.

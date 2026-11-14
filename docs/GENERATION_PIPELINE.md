@@ -63,7 +63,7 @@ flowchart TD
 
 | # | 条件 | 编译器 |
 |---|------|--------|
-| 6a | `plan_program` / `plan_skeleton` 非 null（Program 模式） | `common/compiler/PlanProgramCompiler.java`；空 zones → `E_PLAN_PROGRAM_MISSING`（仅有 `components[]` 时可显式降级） |
+| 6a | `plan_program` / `plan_skeleton` 非 null（Program 模式） | `server/compiler/PlanProgramCompiler.java`；空 zones → `E_PLAN_PROGRAM_MISSING`（仅有 `components[]` 时可显式降级） |
 | 6b | 非 Program 模式且有 `components[]` | `server/compiler/ComponentPlanCompiler.java` |
 | 6c | 显式 BuildingMass | `PatchMergePolicy`：Mass 覆盖同坐标壳层，非裸叠加 |
 
