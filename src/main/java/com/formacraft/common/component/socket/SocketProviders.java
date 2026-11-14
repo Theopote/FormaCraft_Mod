@@ -2,9 +2,7 @@ package com.formacraft.common.component.socket;
 
 import com.formacraft.common.component.socket.providers.*;
 
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
 
 import java.util.ArrayList;
@@ -112,33 +110,4 @@ public final class SocketProviders {
         return sortedSockets;
     }
 
-    /**
-     * 从已放置的组件实例中查找 Provider Socket（使用 SocketFinder）
-     * 
-     * @param world 服务器世界
-     * @param searchBox 搜索范围
-     * @param consumer 目标 Consumer Socket
-     * @return Socket 列表（从 SocketPlacement 转换而来）
-     */
-    public static List<Socket> findFromInstances(
-            ServerWorld world,
-            Box searchBox,
-            ComponentSocket consumer
-    ) {
-        // 1. 使用 SocketFinder 查找 Provider Socket
-        List<SocketPlacement> placements = SocketFinder.findProviders(world, searchBox, consumer);
-
-        // 2. 转换为 Socket
-        List<Socket> sockets = new ArrayList<>();
-        for (SocketPlacement placement : placements) {
-            // 从 SocketPlacement 推断 SocketType（简化处理）
-            SocketType socketType = SocketType.WALL_SURFACE; // v1 默认
-            Socket socket = SocketToPlacementAdapter.toSocket(placement, socketType);
-            if (socket != null) {
-                sockets.add(socket);
-            }
-        }
-
-        return sockets;
-    }
 }

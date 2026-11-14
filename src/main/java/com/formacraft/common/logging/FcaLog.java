@@ -1,7 +1,6 @@
 package com.formacraft.common.logging;
 
 import com.formacraft.FormacraftMod;
-import net.minecraft.server.network.ServerPlayerEntity;
 
 /**
  * 统一模块日志：在消息前附加 {@code [module]} 及可选的 requestId / playerId / componentId。
@@ -29,13 +28,6 @@ public final class FcaLog {
 
     public FcaLog playerId(String playerId) {
         this.playerId = playerId;
-        return this;
-    }
-
-    public FcaLog player(ServerPlayerEntity player) {
-        if (player != null) {
-            this.playerId = player.getName().getString();
-        }
         return this;
     }
 

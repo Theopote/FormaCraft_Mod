@@ -3,6 +3,7 @@ package com.formacraft.common.network.metrics;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.model.request.FormaRequest;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
@@ -127,7 +128,7 @@ public final class LlmPlanRoutingMetrics {
             long structureAfterFallback
     ) {
         @Override
-        public String toString() {
+        public @NotNull String toString() {
             return String.format(
                     Locale.ROOT,
                     "tagged=%d success=%d errors=%d fallback=%d fallback_rate=%.1f%% success_rate=%.1f%% direct_structure=%d structure_after_fallback=%d",

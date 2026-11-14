@@ -13,22 +13,7 @@ import com.formacraft.common.component.model.ComponentPrototype;
  * - ComponentTool：放置组件时，高亮可用的墙面/边缘/屋顶
  * - 未来其他工具（例如：SocketTool、MountTool 等）
  * <p>
- * 渲染逻辑（伪代码）：
- * <pre>
- * if (tool instanceof SocketAwareTool sat) {
- *     ComponentPrototype proto = sat.getActivePrototype();
- *     if (proto != null && proto.sockets != null) {
- *         for (ComponentSocket consumer : proto.sockets) {
- *             if (consumer.role == CONSUMER) {
- *                 List<SocketPlacement> providers = SocketFinder.findProviders(...);
- *                 for (SocketPlacement p : providers) {
- *                     renderSocketHighlight(p, canMatch ? GREEN : RED);
- *                 }
- *             }
- *         }
- *     }
- * }
- * </pre>
+ * 候选 Socket 可由 SocketProviders.collect 从工具上下文收集；已放置实例的世界扫描仍待实现。
  */
 public interface SocketAwareTool {
     /**

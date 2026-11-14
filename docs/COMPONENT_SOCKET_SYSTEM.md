@@ -1,3 +1,5 @@
+> 2026-11-14 核对：本文涉及 findProviders、findBySocketId、inferFromSelection 和 findFromInstances 的示例为未落地设计。对应返回空列表的占位接口已删除。当前可用接口为 SocketProviders.collect/collectAndSort 与 SocketFinder.sortByScore；已放置实例扫描仍待实现。
+
 # Component Socket System v1
 
 ## 📌 核心定义

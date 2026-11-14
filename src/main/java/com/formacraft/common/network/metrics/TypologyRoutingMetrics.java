@@ -7,6 +7,7 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.typology.StructuralTypologyRegistry;
 import com.formacraft.common.typology.TypologyComponentRouter;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Locale;
@@ -210,10 +211,7 @@ public final class TypologyRoutingMetrics {
             return !TypologyComponentRouter.hasTypologyHint(c);
         }
         String type = normalizeType(c.componentType());
-        if ("STRUCTURE".equals(type) && !TypologyComponentRouter.hasTypologyHint(c)) {
-            return true;
-        }
-        return false;
+        return "STRUCTURE".equals(type) && !TypologyComponentRouter.hasTypologyHint(c);
     }
 
     private static String extractLandmarkModuleId(Component c) {
@@ -296,7 +294,7 @@ public final class TypologyRoutingMetrics {
             double structureGeneratorRatePercent
     ) {
         @Override
-        public String toString() {
+        public @NotNull String toString() {
             return String.format(
                     Locale.ROOT,
                     "stats=compositional:%d typology_builder:%d structure_generator:%d module:%d "

@@ -54,6 +54,10 @@ LandmarkRoutingMetrics、TypologyRoutingMetrics、LlmPlanRoutingMetrics 改为�
 
 FcaLog 已删除接收玩家实体的 player 方法，服务端唯一调用点复用 playerId(String)。日志工具不再依赖服务端玩家类型，边界债务再减少 3 处，剩余 62 处。
 
+SocketFinder 的三个空实现查找方法及 SocketProviders.findFromInstances 包装链已删除，无业务调用者。保留工具上下文收集与排序，世界实例扫描仍待实现。对应边界债务减少 8 处，剩余 54 处。
+
+SkeletonSocketGenerator 无运行时、测试或构建调用者，且未从骨架填充查询几何，已删除并标注历史文档。边界债务减少 3 处，剩余 51 处。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

@@ -1,3 +1,5 @@
+> 2026-11-14 核对：本文中 SkeletonSocketGenerator 的调用属于历史设计示例。该无调用者、未完成几何派生的入口已删除；实际工具 Socket 收集使用 SocketProviders，骨架几何派生需另行接入与验收。
+
 # 完整的 PlanProgram → Skeleton 转换流程示例
 
 ## 🔄 完整流水线
