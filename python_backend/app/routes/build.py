@@ -9,9 +9,8 @@ from ..services.ai_planner import (
     generate_composite_spec,
     generate_city_spec,
     generate_llm_plan,
-    _should_generate_composite,
-    _should_generate_city
 )
+from ..services.planning_route_policy import _should_generate_city, _should_generate_composite
 from ..services.intent_clarification import maybe_clarification_response
 from ..services.planning_execution import planning_executor
 

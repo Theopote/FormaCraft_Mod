@@ -72,6 +72,8 @@ PlayerComponentExpander 和 PlayerComponentGroupExpander 改为接收存档目�
 
 类型执行已拆到 server.generation.typology.TypologyGenerationRouter，解释器接口与注册表同迁服务端。common.typology.TypologyComponentRouter 保留类型识别、旧地标兼容和参数元数据逻辑。最后 6 处服务端类型债务已消除，基线为空；ThreadLocal、事务原子性和其他架构未决项仍按上文推进。
 
+后端城市/复合兼容路由分类已从 ai_planner.py 提取至 planning_route_policy.py，build 路由直接引用策略模块；ai_planner 保留导入别名供已有调用者使用。关键词、城市优先级和 BUILD 模板保护沿用原实现。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
