@@ -74,6 +74,8 @@ PlayerComponentExpander 和 PlayerComponentGroupExpander 改为接收存档目�
 
 后端城市/复合兼容路由分类已从 ai_planner.py 提取至 planning_route_policy.py，build 路由直接引用策略模块；ai_planner 保留导入别名供已有调用者使用。关键词、城市优先级和 BUILD 模板保护沿用原实现。
 
+规模与地形提示推断已提取至 planning_request_hints.py，ai_planner 保留兼容导入。选区优先、闭区间尺寸阈值及中英文关键词匹配顺序保持原实现；新增边界与优先级回归测试。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
