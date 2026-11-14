@@ -5,6 +5,7 @@ import com.formacraft.common.generation.routing.PlanMetaAccess;
 import com.formacraft.common.llm.dto.LlmPlan;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -28,7 +29,7 @@ public final class GenerationCompileContext {
         this.authority = authority;
         this.planMeta = planMeta == null || planMeta.isEmpty()
                 ? Map.of()
-                : Collections.unmodifiableMap(planMeta);
+                : Collections.unmodifiableMap(new HashMap<>(planMeta));
         this.typologyExclusive = typologyExclusive;
     }
 
@@ -52,18 +53,6 @@ public final class GenerationCompileContext {
         return typologyExclusive;
     }
 
-    public GenerationCompileContext withAuthority(GenerationAuthority next) {
-        return new GenerationCompileContext(next, planMeta, typologyExclusive);
-    }
-
-    public GenerationCompileContext withPlanMeta(Map<String, Object> next) {
-        return new GenerationCompileContext(authority, next, typologyExclusive);
-    }
-
-    public GenerationCompileContext withTypologyExclusive(boolean next) {
-        return new GenerationCompileContext(authority, planMeta, next);
-    }
-
     public static GenerationCompileContext current() {
         return CURRENT.get();
     }
@@ -71,10 +60,6 @@ public final class GenerationCompileContext {
     public static void install(GenerationCompileContext ctx) {
         if (ctx == null) CURRENT.remove();
         else CURRENT.set(ctx);
-    }
-
-    public static void clear() {
-        CURRENT.remove();
     }
 
     public static <T> T runWith(GenerationCompileContext ctx, Supplier<T> fn) {
