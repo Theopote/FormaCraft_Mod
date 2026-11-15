@@ -63,7 +63,12 @@ final class ComponentSatelliteAligner {
         }
 
         int realigned = 0;
-        for (int i = 0; i < components.size(); i++) {
+        // Resolve roof frames before their chimneys without reordering the plan itself.
+        List<Integer> alignmentOrder = new ArrayList<>();
+        for (int i = 0; i < components.size(); i++) alignmentOrder.add(i);
+        alignmentOrder.sort(java.util.Comparator.comparingInt(i -> components.get(i) != null
+                && "CHIMNEY".equals(ComponentPlanTypes.normalizeType(components.get(i).componentType())) ? 1 : 0));
+        for (int i : alignmentOrder) {
             Component c = components.get(i);
             if (c == null) {
                 continue;
