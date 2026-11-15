@@ -73,11 +73,6 @@ class FloatingMassTest {
             var clipped=patches.stream().filter(p->bounds.allow(origin.add(p.dx(),p.dy(),p.dz()))).toList();
             assertFalse(clipped.isEmpty()); assertTrue(clipped.size()<patches.size());
             assertEquals(clipped,com.formacraft.server.patch.ServerPatchFilter.filter(origin,patches,List.of(),null,true,min,max).accepted);
-            var snapshot=new com.formacraft.common.tool.ToolConstraintSnapshot(
-                    new com.formacraft.common.buildcontext.SelectionBox(min,max),null,List.of(),List.of(),
-                    com.formacraft.common.tool.ToolConstraintSnapshot.SymmetryConstraint.none());
-            assertEquals(clipped,com.formacraft.common.patch.filter.PatchFilterPipeline.createDefault().apply(patches,origin,
-                    new com.formacraft.common.patch.filter.PatchFilterContext(snapshot)));
         }
     }
 }

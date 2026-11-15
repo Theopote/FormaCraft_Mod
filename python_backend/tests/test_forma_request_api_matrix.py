@@ -127,3 +127,35 @@ def test_unknown_output_format_rejected_both_shapes():
         )
     with pytest.raises(ValidationError):
         FormaRequestAdapter(requestText="x", outputFormat="building_spec")
+
+
+def test_symmetry_flat_fields_map_to_nested_constraint():
+    """SymmetryTool 必须真正到达后端，否则对称工具对生成结果没有任何影响。"""
+    req = FormaRequestAdapter(
+        requestText="symmetric hall",
+        playerPos={"x": 0, "y": 64, "z": 0},
+        symmetryMode="MIRROR_X",
+    ).to_build_request()
+    assert req.symmetry is not None
+    assert req.symmetry.mode == "MIRROR_X"
+
+
+def test_symmetry_custom_axis_carries_axis_points():
+    req = FormaRequestAdapter(
+        requestText="symmetric hall",
+        playerPos={"x": 0, "y": 64, "z": 0},
+        symmetryMode="CUSTOM_AXIS",
+        symmetryAxisA={"x": 1, "y": 64, "z": 2},
+        symmetryAxisB={"x": 9, "y": 64, "z": 2},
+    ).to_build_request()
+    assert req.symmetry is not None
+    assert req.symmetry.mode == "CUSTOM_AXIS"
+    assert req.symmetry.axisA is not None and req.symmetry.axisA.x == 1
+    assert req.symmetry.axisB is not None and req.symmetry.axisB.x == 9
+
+
+def test_symmetry_absent_or_none_produces_no_constraint():
+    assert FormaRequestAdapter(requestText="x").to_build_request().symmetry is None
+    assert FormaRequestAdapter(
+        requestText="x", symmetryMode="NONE"
+    ).to_build_request().symmetry is None

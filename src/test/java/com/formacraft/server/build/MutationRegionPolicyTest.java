@@ -9,15 +9,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class MutationRegionPolicyTest {
     @Test void mirroredBlocksCannotEnterProtectedZone() {
+        // 对称扩展已迁移到规划期（FormaRequest.symmetryMode → 后端提示词），
+        // 写入期不再做镜像扩展：补丁不会被悄悄翻倍，保护区也不需要"事后剔除镜像方块"。
         var forbidden = new com.formacraft.common.model.constraint.ProtectedZone(
                 new BlockPos(-2, 0, -1), new BlockPos(-1, 4, 1));
-        var snapshot = new com.formacraft.common.tool.ToolConstraintSnapshot(null, null, List.of(), List.of(forbidden),
-                new com.formacraft.common.tool.ToolConstraintSnapshot.SymmetryConstraint(
-                        com.formacraft.common.tool.MirrorSymmetryMode.MIRROR_X, null, null));
         var patch = new BlockPatch(BlockPatch.REMOVE, 1, 2, 0, null);
-        var result = com.formacraft.common.patch.filter.PatchFilterPipeline.createDefault().apply(
-                List.of(patch), BlockPos.ORIGIN, new com.formacraft.common.patch.filter.PatchFilterContext(snapshot));
-        assertEquals(List.of(patch), result);
+        // (1,2,0) 在禁区之外：原样放行，且不会生成任何镜像方块。
+        var result = ServerPatchFilter.filter(
+                BlockPos.ORIGIN, List.of(patch), List.of(forbidden), null, false, null, null);
+        assertEquals(List.of(patch), result.accepted);
+        assertTrue(result.rejected.isEmpty());
+        // (-1,2,0) 在禁区之内：拒绝。
+        var inside = new BlockPatch(BlockPatch.REMOVE, -1, 2, 0, null);
+        var rejected = ServerPatchFilter.filter(
+                BlockPos.ORIGIN, List.of(inside), List.of(forbidden), null, false, null, null);
+        assertTrue(rejected.accepted.isEmpty());
+        assertEquals(List.of(inside), rejected.rejected);
     }
 
     @Test void malformedOutlineIsRejectedByBothPaths() {

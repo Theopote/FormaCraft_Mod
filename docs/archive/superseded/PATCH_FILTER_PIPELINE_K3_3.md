@@ -1,3 +1,8 @@
+> **归档（ARCHIVED）**：本文描述的 `PatchFilterPipeline` 已在架构迁移中**整体删除**，**不是现行接线指南**。
+> 现行过滤路径只有两条：`ServerPatchFilter`（Patch 预览/确认）与 `BuildConstraints` + `BuildConstraintClipper`（普通建造），二者共用 `MutationRegionPolicy`。
+> 现行流程见 [GENERATION_PIPELINE.md](../../GENERATION_PIPELINE.md) 与 [ARCHITECTURE.md](../../../ARCHITECTURE.md)；删除台账见 [ARCHITECTURE_AUDIT.md](../../refactoring/ARCHITECTURE_AUDIT.md)。
+> 保留原因：记录历史设计思路，不代表可恢复的代码位置。
+
 # K3.3：Tool → PatchFilterPipeline（AI 改动裁剪系统）实现总结
 
 ## ✅ 已完全实现

@@ -1,5 +1,7 @@
 """Prompt ownership: backend owns system prompt; spatial constraints injected."""
 
+import pytest
+
 from app.models.request import (
     BuildRequest,
     OutlineShape,
@@ -7,6 +9,7 @@ from app.models.request import (
     PlayerInfo,
     ProtectedZone,
     Selection,
+    SymmetryConstraint,
     WorldContext,
     Vec3i,
 )
@@ -124,3 +127,62 @@ def test_polygon_outline_includes_bbox_and_full_vertex_count():
     assert "bboxXZ=" in text
     assert "(11,64,22)" in text  # last vertex within raised 32-cap
     assert "omitted" not in text
+
+
+def test_symmetry_constraint_is_injected_as_hard_constraint():
+    text = format_spatial_constraints(
+        _req(symmetry=SymmetryConstraint(mode="MIRROR_X"))
+    )
+    assert "Symmetry (HARD)" in text
+    assert "left/right symmetry" in text
+    assert "global_constraints.symmetry=MIRROR_X" in text
+
+
+def test_symmetry_none_produces_no_constraint_line():
+    text = format_spatial_constraints(_req(symmetry=SymmetryConstraint(mode="NONE")))
+    assert "Symmetry (HARD)" not in text
+    # An absent constraint must not create an empty constraint block.
+    assert format_spatial_constraints(_req()) and "Symmetry" not in format_spatial_constraints(_req())
+
+
+def test_custom_axis_symmetry_reports_axis_points():
+    text = format_spatial_constraints(
+        _req(
+            symmetry=SymmetryConstraint(
+                mode="CUSTOM_AXIS",
+                axisA=Vec3i(x=1, y=64, z=2),
+                axisB=Vec3i(x=9, y=64, z=2),
+            )
+        )
+    )
+    assert "Symmetry (HARD): custom axis" in text
+    assert "(1,64,2)" in text
+    assert "(9,64,2)" in text
+
+
+def test_custom_axis_without_axis_points_falls_back_to_anchor_symmetry():
+    text = format_spatial_constraints(
+        _req(symmetry=SymmetryConstraint(mode="CUSTOM_AXIS"))
+    )
+    assert "axis points are missing" in text
+
+
+@pytest.mark.parametrize("mode", ["MIRROR_Y", "BOTH", "CUSTOM_AXIS"])
+def test_modes_without_global_enum_never_instruct_a_bogus_enum(mode):
+    """global_constraints.symmetry 只有 NONE/MIRROR_X/MIRROR_Z/RADIAL。
+
+    其余模式必须走 alignment_and_symmetry 表达，提示词不得指示后端写非法枚举。
+    """
+    text = format_spatial_constraints(
+        _req(
+            symmetry=SymmetryConstraint(
+                mode=mode,
+                axisA=Vec3i(x=1, y=64, z=2),
+                axisB=Vec3i(x=9, y=64, z=2),
+            )
+        )
+    )
+    assert "global_constraints.symmetry=MIRROR_Y" not in text
+    assert "global_constraints.symmetry=BOTH" not in text
+    assert "global_constraints.symmetry=CUSTOM_AXIS" not in text
+    assert "alignment_and_symmetry" in text

@@ -7,7 +7,7 @@ import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.BuildExecutionStatus;
 import com.formacraft.common.patch.ConfirmedPlanIdentity;
-import com.formacraft.common.patch.filter.PatchFilterResult;
+import com.formacraft.common.patch.PatchFilterResult;
 import com.formacraft.common.world.BlockMutationAccess;
 import com.formacraft.server.build.PatchHistoryManager;
 import com.formacraft.server.build.quality.BuildQualityGate;

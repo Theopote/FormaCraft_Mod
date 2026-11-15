@@ -30,6 +30,14 @@
     {
       "id": "PromptAssembler_java",
       "patterns": ["PromptAssembler.java", "ai/prompt/PromptAssembler"]
+    },
+    {
+      "id": "PatchFilterPipeline",
+      "patterns": ["PatchFilterPipeline"]
+    },
+    {
+      "id": "ToolPatchFilter",
+      "patterns": ["ToolPatchFilter"]
     }
   ],
   "allow_line_substrings": [

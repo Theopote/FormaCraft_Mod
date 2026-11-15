@@ -61,7 +61,7 @@
 | [COMPONENT_PLAN_COMPILER_K3_1.md](COMPONENT_PLAN_COMPILER_K3_1.md) | ComponentPlanCompiler 实现要点 |
 | [LLM_JSON_TEMPLATE_K3_1.md](LLM_JSON_TEMPLATE_K3_1.md) | LLM 输出 JSON 模板 |
 | [LLM_JSON_PARSER_K3_1.md](LLM_JSON_PARSER_K3_1.md) | LLM JSON 解析层 |
-| [PATCH_FILTER_PIPELINE_K3_3.md](PATCH_FILTER_PIPELINE_K3_3.md) | **历史设计**；未全线接线；禁止再接第三套过滤主干 |
+| [archive/superseded/PATCH_FILTER_PIPELINE_K3_3.md](archive/superseded/PATCH_FILTER_PIPELINE_K3_3.md) | **已删除**；第三套过滤主干设计稿，现行过滤见 `ServerPatchFilter` / `BuildConstraints` |
 | [POST_PROCESS_PIPELINE_IMPLEMENTATION.md](POST_PROCESS_PIPELINE_IMPLEMENTATION.md) | PostProcessPipeline 后处理 |
 | [PALETTE_RESOLVER_K3_2.md](PALETTE_RESOLVER_K3_2.md) | 语义材质解析 |
 | [TERRAIN_STRATEGY_SYSTEM.md](TERRAIN_STRATEGY_SYSTEM.md) | 地形策略 |

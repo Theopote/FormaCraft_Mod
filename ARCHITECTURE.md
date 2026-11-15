@@ -116,7 +116,7 @@ LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhand
 - 恢复已删的 `BuildingSpecRoutingPolicy`、`requestBuildingSpec`、客户端 `PromptAssembler` 作为现行入口。
 - 在 common 中新增对 server/client 或裸 `setBlockState` 的依赖。
 - 以完成报告 / 过期 SUMMARY 文档覆盖 Tier 0 契约。
-- 暗示再接第三套通用过滤主干（`PatchFilterPipeline` 设计稿未全线接线；现行过滤见 WORLD_MUTATION_CONTRACT）。
+- 暗示再接第三套通用过滤主干（`PatchFilterPipeline` / `ToolPatchFilter` 设计稿已删除；现行过滤只有 `ServerPatchFilter` 与 `BuildConstraints`，共用 `MutationRegionPolicy`，见 WORLD_MUTATION_CONTRACT）。
 - 删除仍有消费者的 compat 路径（先更新审计退出清单）。
 
 ---

@@ -5,9 +5,6 @@ import com.formacraft.common.buildcontext.SelectionBox;
 import com.formacraft.common.llm.dto.*;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.common.patch.filter.*;
-import com.formacraft.common.patch.filter.impl.*;
-import com.formacraft.common.tool.MirrorSymmetryMode;
 import com.formacraft.common.tool.ToolConstraintSnapshot;
 import com.formacraft.common.world.MutationRegionPolicy;
 import com.formacraft.server.compiler.ComponentPlanCompiler;
@@ -223,8 +220,6 @@ class ConstraintParityTest {
         var expected=allowed(raw,ORIGIN,new BuildConstraints(min,max,null,List.of()));
         assertFalse(expected.isEmpty());assertTrue(expected.size()<raw.size());
         assertEquals(expected,ServerPatchFilter.filter(ORIGIN,raw,List.of(),null,true,min,max).accepted);
-        assertEquals(expected,PatchFilterPipeline.createDefault().apply(raw,ORIGIN,
-                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
     }
 
     static List<String> stylePlanNames(com.fasterxml.jackson.databind.JsonNode style) {
@@ -319,8 +314,6 @@ class ConstraintParityTest {
         assertFalse(expected.isEmpty(), fixture);
         assertTrue(expected.size() < raw.size(), fixture);
         assertEquals(expected, ServerPatchFilter.filter(ORIGIN, raw, List.of(), null, true, min, max).accepted);
-        assertEquals(expected, PatchFilterPipeline.createDefault().apply(raw, ORIGIN,
-                new PatchFilterContext(snapshot(new SelectionBox(min, max), null, List.of()))));
     }
 
     private static final BlockPos ORIGIN = new BlockPos(100, 64, -40);
@@ -408,8 +401,6 @@ class ConstraintParityTest {
         var expected=allowed(patches,ORIGIN,new BuildConstraints(min,max,null,List.of()));
         assertFalse(expected.isEmpty());assertTrue(expected.size()<patches.size());
         assertEquals(expected,ServerPatchFilter.filter(ORIGIN,patches,List.of(),null,true,min,max).accepted);
-        assertEquals(expected,PatchFilterPipeline.createDefault().apply(patches,ORIGIN,
-                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
     }
 
     @ParameterizedTest
@@ -459,8 +450,6 @@ class ConstraintParityTest {
         var expected=allowed(patches,ORIGIN,new BuildConstraints(min,max,null,List.of()));
         assertFalse(expected.isEmpty());assertTrue(expected.size()<patches.size());
         assertEquals(expected,ServerPatchFilter.filter(ORIGIN,patches,List.of(),null,true,min,max).accepted);
-        assertEquals(expected,PatchFilterPipeline.createDefault().apply(patches,ORIGIN,
-                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
     }
 
     private static Map<Vec3i,String> replayOn(Map<Vec3i,String> initial,List<BlockPatch> patches) {
@@ -530,8 +519,6 @@ class ConstraintParityTest {
         var expected=allowed(patches,ORIGIN,new BuildConstraints(min,max,null,List.of()));
         assertFalse(expected.isEmpty());assertTrue(expected.size()<patches.size());
         assertEquals(expected,ServerPatchFilter.filter(ORIGIN,patches,List.of(),null,true,min,max).accepted);
-        assertEquals(expected,PatchFilterPipeline.createDefault().apply(patches,ORIGIN,
-                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
     }
 
     @ParameterizedTest
@@ -584,8 +571,6 @@ class ConstraintParityTest {
         var expected=allowed(patches,ORIGIN,new BuildConstraints(min,max,null,List.of()));
         assertFalse(expected.isEmpty()); assertTrue(expected.size()<patches.size());
         assertEquals(expected,ServerPatchFilter.filter(ORIGIN,patches,List.of(),null,true,min,max).accepted);
-        assertEquals(expected,PatchFilterPipeline.createDefault().apply(patches,ORIGIN,
-                new PatchFilterContext(snapshot(new SelectionBox(min,max),null,List.of()))));
     }
 
     private static void assertWalkCell(Map<Vec3i,String> blocks,int x,int floor,int z) {
@@ -651,8 +636,6 @@ class ConstraintParityTest {
         var expected = allowed(enabled, ORIGIN, new BuildConstraints(min, max, null, List.of()));
         assertFalse(expected.isEmpty()); assertTrue(expected.size() < enabled.size());
         assertEquals(expected, ServerPatchFilter.filter(ORIGIN, enabled, List.of(), null, true, min, max).accepted);
-        assertEquals(expected, PatchFilterPipeline.createDefault().apply(enabled, ORIGIN,
-                new PatchFilterContext(snapshot(new SelectionBox(min, max), null, List.of()))));
     }
 
     @Test void allP1GenomeRolesReachTheRuntimeAdapterWithoutFallback() throws Exception {
@@ -705,13 +688,10 @@ class ConstraintParityTest {
         assertFalse(clipped.isEmpty());
         assertTrue(clipped.size() < raw.size());
         assertEquals(clipped, ServerPatchFilter.filter(ORIGIN, raw, List.of(), null, true, min, max).accepted);
-        assertEquals(clipped, PatchFilterPipeline.createDefault().apply(raw, ORIGIN,
-                new PatchFilterContext(snapshot(new SelectionBox(min, max), null, List.of()))));
     }
 
     private ToolConstraintSnapshot snapshot(SelectionBox selection, OutlineShape outline, List<ProtectedZone> zones) {
-        return new ToolConstraintSnapshot(selection, outline, List.of(), zones,
-                ToolConstraintSnapshot.SymmetryConstraint.none());
+        return new ToolConstraintSnapshot(selection, outline, List.of(), zones);
     }
 
     private List<BlockPatch> probes() {
@@ -728,14 +708,15 @@ class ConstraintParityTest {
     @Test void defaultPipelineAndBuildExposeExactlyTheSameSharedRules() {
         assertEquals(Set.of(MutationRegionPolicy.Constraint.BOUNDS, MutationRegionPolicy.Constraint.OUTLINE,
                 MutationRegionPolicy.Constraint.PROTECTED_ZONES), BuildConstraints.sharedRegionConstraints());
-        assertEquals(BuildConstraints.sharedRegionConstraints(), PatchFilterPipeline.createDefault().regionConstraints());
-        // The inventory detects a removed filter, and the behavior test also sees its escaped cells.
-        var missingBounds = new PatchFilterPipeline().add(new ForbiddenZoneFilter()).add(new OutlineClipFilter());
-        assertNotEquals(BuildConstraints.sharedRegionConstraints(), missingBounds.regionConstraints());
+        // Patch 与 Build 共用同一个策略清单：既没有第三套过滤主干，也没有额外实现。
+        assertEquals(BuildConstraints.sharedRegionConstraints(), MutationRegionPolicy.supportedConstraints());
+        // 共享清单就是执行清单：缺任何一条约束都会让越界方块逃逸。
         var selection = new SelectionBox(ORIGIN.add(-2, 0, -2), ORIGIN.add(2, 4, 2));
-        var context = new PatchFilterContext(snapshot(selection, null, List.of()));
-        assertEquals(343, missingBounds.apply(probes(), ORIGIN, context).size());
-        assertEquals(125, PatchFilterPipeline.createDefault().apply(probes(), ORIGIN, context).size());
+        assertEquals(125, allowed(probes(), ORIGIN,
+                new BuildConstraints(selection.min(), selection.max(), null, List.of())).size());
+        // 不带选区时只有轮廓/禁区生效，全部探针放行。
+        assertEquals(343, allowed(probes(), ORIGIN,
+                new BuildConstraints(null, null, null, List.of())).size());
     }
 
     @Test void clippingMatrixAgreesWithIndependentBoundaryCounts() {
@@ -755,9 +736,14 @@ class ConstraintParityTest {
             var box = input.selection == null ? null : input.selection.normalized();
             var build = new BuildConstraints(box == null ? null : box.min(), box == null ? null : box.max(),
                     input.outline, input.protectedZones);
-            var clipped = PatchFilterPipeline.createDefault().apply(probes(), ORIGIN, new PatchFilterContext(input));
+            var clipped = allowed(probes(), ORIGIN, build);
             assertEquals(expected[i], clipped.size(), "case " + i);
-            assertEquals(allowed(probes(), ORIGIN, build), clipped, "case " + i);
+            // Build 裁剪与 Patch 过滤都委托同一个 MutationRegionPolicy，必须逐点一致。
+            var policy = probes().stream().filter(p -> MutationRegionPolicy.allow(
+                    ORIGIN.add(p.dx(), p.dy(), p.dz()),
+                    box == null ? null : box.min(), box == null ? null : box.max(),
+                    input.outline, input.protectedZones)).toList();
+            assertEquals(policy, clipped, "case " + i);
         }
         assertFalse(new BuildConstraints(null, null, null, List.of()).allow(null));
     }
@@ -799,21 +785,20 @@ class ConstraintParityTest {
         assertFalse(expected.isEmpty(), style);
         assertTrue(expected.size() < raw.size(), "fixture must exercise clipping: " + style);
         assertEquals(expected, ServerPatchFilter.filter(ORIGIN, raw, zones, null, true, min, max).accepted);
-        assertEquals(expected, PatchFilterPipeline.createDefault().apply(raw, ORIGIN,
-                new PatchFilterContext(snapshot(new SelectionBox(min, max), null, zones))));
     }
 
-    @Test void symmetryExpansionIsClippedAfterGenerationIncludingItsMirroredCells() {
+    @Test void symmetryIsNotExpandedAtWriteTimeAndProtectedZonesStillReject() {
+        // 对称已迁移到规划期（FormaRequest.symmetryMode → 后端提示词要求生成对称布局）。
+        // 写入期不再做镜像扩展，因此同一批补丁不会被悄悄翻倍。
         var forbidden = new ProtectedZone(ORIGIN.add(-1, 0, -1), ORIGIN.add(-1, 4, 1));
-        var snapshot = new ToolConstraintSnapshot(null, null, List.of(), List.of(forbidden),
-                new ToolConstraintSnapshot.SymmetryConstraint(MirrorSymmetryMode.MIRROR_X, null, null));
         var original = new BlockPatch(BlockPatch.PLACE, 1, 2, 0, "minecraft:deepslate_tiles");
-        var expanded = new SymmetryFilter().filter(List.of(original), ORIGIN, new PatchFilterContext(snapshot));
-        assertEquals(2, expanded.size());
         var build = new BuildConstraints(null, null, null, List.of(forbidden));
-        assertEquals(List.of(original), allowed(expanded, ORIGIN, build));
-        assertEquals(List.of(original), PatchFilterPipeline.createDefault().apply(List.of(original), ORIGIN,
-                new PatchFilterContext(snapshot)));
+        assertEquals(List.of(original), allowed(List.of(original), ORIGIN, build));
+        // 禁区内的方块在两条路径上都必须被拒绝。
+        var inside = new BlockPatch(BlockPatch.PLACE, -1, 2, 0, "minecraft:deepslate_tiles");
+        assertTrue(allowed(List.of(inside), ORIGIN, build).isEmpty());
+        assertTrue(ServerPatchFilter.filter(ORIGIN, List.of(inside), List.of(forbidden), null, false, null, null)
+                .accepted.isEmpty());
     }
 
     @Test void buildOnlyBrushFallbackAndCorridorRemainExplicitAndDoNotDisappearFromBuild() {

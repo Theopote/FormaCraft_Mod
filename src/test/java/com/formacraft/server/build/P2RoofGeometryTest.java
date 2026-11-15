@@ -532,11 +532,6 @@ class P2RoofGeometryTest {
             assertTrue(expected.size()<patches.size());
             assertEquals(expected,com.formacraft.server.patch.ServerPatchFilter.filter(
                     origin,patches,List.of(),null,true,min,max).accepted);
-            var snapshot=new com.formacraft.common.tool.ToolConstraintSnapshot(
-                    new com.formacraft.common.buildcontext.SelectionBox(min,max),null,List.of(),List.of(),
-                    com.formacraft.common.tool.ToolConstraintSnapshot.SymmetryConstraint.none());
-            assertEquals(expected,com.formacraft.common.patch.filter.PatchFilterPipeline.createDefault().apply(
-                    patches,origin,new com.formacraft.common.patch.filter.PatchFilterContext(snapshot)));
             count++;
         }
         assertEquals(8,count);

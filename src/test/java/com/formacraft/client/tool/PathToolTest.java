@@ -66,11 +66,11 @@ class PathToolTest {
     @Test void constraintSnapshotUsesTheSameSelectedPathAsTheRequest() {
         var tool = new PathTool();
         path(tool, 0); path(tool, 100);
-        var snapshot = ToolConstraintSnapshotFactory.fromTools(null, null, null, null, tool);
+        var snapshot = ToolConstraintSnapshotFactory.fromTools(null, null, null, tool);
         assertEquals(List.of(tool.getPaths().getLast().polyline()), snapshot.paths);
         tool.selectNextPath();
         assertEquals(List.of(tool.getPaths().getFirst().polyline()),
-                ToolConstraintSnapshotFactory.fromTools(null, null, null, null, tool).paths);
+                ToolConstraintSnapshotFactory.fromTools(null, null, null, tool).paths);
         assertEquals(100, snapshot.paths.getFirst().getFirst().x, 0.6);
     }
 

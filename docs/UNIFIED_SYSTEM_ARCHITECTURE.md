@@ -47,7 +47,7 @@ List<BlockPatch>       GeneratedStructure
   ↓                    ↓
 PostProcessPipeline    BuildExecutionService
   ↓                    ↓
-PatchFilterPipeline    ──────┐
+约束裁剪（服务端）      ──────┐
   ↓                          │
 Preview / Apply ←────────────┘
 ```
@@ -323,7 +323,7 @@ TerrainAdaptationPostProcessor（地形适应）
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                      后处理层                                │
-│  PostProcessPipeline → PatchFilterPipeline                  │
+│  PostProcessPipeline → 约束裁剪（服务端）                   │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -354,7 +354,7 @@ TerrainAdaptationPostProcessor（地形适应）
 4. ComponentPlanCompiler.compile()
 5. ComponentGenerator.generate()
 6. PostProcessPipeline.process()
-7. PatchFilterPipeline.filter()
+7. 服务端约束裁剪（BuildConstraints / ServerPatchFilter → MutationRegionPolicy）
 8. Preview / Apply
 ```
 

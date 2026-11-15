@@ -20,7 +20,7 @@
 | 历史 | `PatchHistoryManager` | `UndoService` |
 | Memory | Patch Diff Mutation | `registerBuilding`（仅完整放置） |
 
-**共享核心约束**：Patch 与 Build 均调用 `MutationRegionPolicy.allow`，单点维护禁区/选区/轮廓；无效轮廓拒绝通过。Build 另含笔刷/路径走廊，这些输入不在当前 Patch 接口内。通用 PatchFilterPipeline 支持对称，但服务端 Patch 接口未启用对称；对称扩展先于区域裁剪。
+**共享核心约束**：Patch 与 Build 均调用 `MutationRegionPolicy.allow`，单点维护禁区/选区/轮廓；无效轮廓拒绝通过。Build 另含笔刷/路径走廊，这些输入不在当前 Patch 接口内。对称已迁移到**规划期**（`FormaRequest.symmetryMode` → 后端提示词），写入期不做镜像扩展，也不存在第三套通用过滤主干。
 
 **已修复**：Patch `confirm` 须先校验维度/距离再 `consume`，避免门禁失败丢票据；Ticket 绑定签发维度。
 

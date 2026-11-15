@@ -83,7 +83,7 @@ LLM 的组合能力 + Java 的参数化生成器 = 泛化的核心。
 
 | 差距 | 位置 | 影响 | 建议 |
 |------|------|------|------|
-| PatchFilterPipeline 未接线 | `common/patch/filter/PatchFilterPipeline.java` | 禁区/轮廓/对称 filter 设计存在但未调用 | 在预览/应用路径接入 |
+| PatchFilterPipeline 未接线 → **已删除** | `common/patch/filter/`（已整体移除） | 曾是禁区/轮廓/对称 filter 设计但从未被生产路径调用；现由 `ServerPatchFilter` + `BuildConstraints` 共用 `MutationRegionPolicy` 承担 | 已完成：删除第三套过滤主干，对称迁移到规划期 |
 | PostProcess 地形在预览时关闭 | `ComponentPlanCompiler` `applyTerrainAdaptation=false` | 预览与最终地形可能不一致 | 评估是否在预览启用轻量地形适应 |
 | RAG / Few-shot / Memory 利用不足 | Prompt 组装、Memory 检索 | LLM plan 质量不稳定 | 见 §4 演进思想 |
 
@@ -160,7 +160,7 @@ gantt
   section P1
   地标module_id注册（Top10）       :2026-08, 2M
   收窄BuildingSpecRoutingPolicy   :2026-08, 2w
-  PatchFilterPipeline接线          :2026-09, 2w
+  对称迁移到规划期              :2026-11, 已完成
   section P2
   Few-shot golden plans           :2026-09, 1M
   Culture Cards RAG               :2026-10, 1M

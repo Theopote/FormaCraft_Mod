@@ -203,24 +203,23 @@ List<BlockPatch> → PostProcessPipeline.process()
 ### 阶段 7：约束裁剪 → 最终 BlockPatch
 
 ```
-List<BlockPatch> → PatchFilterPipeline.filter()
+List<BlockPatch> → MutationRegionPolicy.allow()（服务端权威）
   ↓
-1. ForbiddenZoneFilter
-   - 移除禁区内的方块
+1. BOUNDS
+   - 移除选区/笔刷范围外的方块
   ↓
-2. OutlineClipFilter
+2. OUTLINE
    - 移除轮廓外的方块
   ↓
-3. SelectionOnlyFilter
-   - 只保留选区内的方块
-  ↓
-4. SymmetryFilter
-   - 生成对称的方块
+3. PROTECTED_ZONES
+   - 移除禁区内的方块
   ↓
 最终可应用的 List<BlockPatch>
 ```
 
-**核心**：确保生成的方块符合玩家的所有约束
+**核心**：确保生成的方块符合玩家的所有约束。
+普通建造走 `BuildConstraints` + `BuildConstraintClipper`；Patch 预览走 `ServerPatchFilter`；两者共用同一个 `MutationRegionPolicy`。
+**对称不是这里的阶段**：对称已迁移到**规划期**——`FormaRequest.symmetryMode` 随请求发给后端，由提示词要求生成对称布局；写入期不做镜像扩展。
 
 ### 阶段 8：预览 / 应用
 
@@ -424,7 +423,7 @@ List<SemanticComponent>
 List<BlockPatch>
   ↓ (PostProcessPipeline)
 Enhanced List<BlockPatch>
-  ↓ (PatchFilterPipeline)
+  ↓ (服务端约束裁剪：BuildConstraints / ServerPatchFilter → MutationRegionPolicy)
 Filtered List<BlockPatch>
   ↓ (转换为 PlannedBlock)
 List<PlannedBlock>

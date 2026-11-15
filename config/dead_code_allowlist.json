@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "description": "Top-level Java types that are referenced by the framework loader (not by Java source) and therefore look zero-consumer to scripts/check_dead_code.py.",
+  "allow": [
+    "ClientInitializer",
+    "HeldItemRendererMixin",
+    "InGameHudMixin",
+    "KeyBindingMixin",
+    "WorldRendererMixin",
+    "GameRendererMixin",
+    "MinecraftClientMixin",
+    "DemoCultureRetrieveMain",
+    "EvalAssemblyCasesMain",
+    "ExportAssemblySchemaMain",
+    "ExportGenerationCapabilityCatalogMain",
+    "ValidateAssemblyExamplesMain",
+    "ValidateCultureCardsMain",
+    "ValidateGeneratorRegistryMain",
+    "FormacraftDataGenerator"
+  ]
+}

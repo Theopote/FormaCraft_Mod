@@ -46,7 +46,21 @@
     "com.formacraft.common.assembly.SkeletonComponentRules",
     "com.formacraft.common.skeleton.SkeletonSemantics",
     "server.skeleton.gen.SemanticResolver",
-    "common.palette.WeightedPicker"
+    "common.palette.WeightedPicker",
+    "com.formacraft.common.patch.filter",
+    "PatchFilterPipeline",
+    "RuleBasedPatchFilter",
+    "PatchFilterContext",
+    "PatchRuleContext",
+    "com.formacraft.client.patch.filter",
+    "ToolPatchFilter",
+    "client.patch.filter.rules.BrushRegionRule",
+    "client.patch.filter.rules.OutlineRule",
+    "client.patch.filter.rules.ProtectedZoneRule",
+    "client.patch.filter.rules.SelectionOnlyRule",
+    "com.formacraft.common.tool.MirrorSymmetryMode",
+    "ProportionValidator",
+    "com.formacraft.common.proportion.ProportionValidator"
   ],
   "allow_path_substrings": [
     "/test/",

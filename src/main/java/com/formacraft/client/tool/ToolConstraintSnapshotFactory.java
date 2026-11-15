@@ -3,7 +3,6 @@ package com.formacraft.client.tool;
 import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.buildcontext.SelectionBox;
 import com.formacraft.common.model.constraint.ProtectedZone;
-import com.formacraft.common.tool.MirrorSymmetryMode;
 import com.formacraft.common.tool.ToolConstraintSnapshot;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -12,7 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 从 client 工具状态采集 {@link ToolConstraintSnapshot}，供 common/server 过滤管线使用。
+ * 从 client 工具状态采集 {@link ToolConstraintSnapshot}，供 common 侧空间查询使用。
+ *
+ * <p>对称工具不在此采集：对称是规划约束，由
+ * {@code ChatBuildRequestFactory} 写入 {@code FormaRequest.symmetryMode}。
  */
 public final class ToolConstraintSnapshotFactory {
     private ToolConstraintSnapshotFactory() {}
@@ -20,7 +22,6 @@ public final class ToolConstraintSnapshotFactory {
     public static ToolConstraintSnapshot fromTools(
             SelectionTool selection,
             OutlineTool outline,
-            SymmetryTool symmetry,
             ProtectedZoneTool forbidden,
             PathTool path
     ) {
@@ -38,17 +39,15 @@ public final class ToolConstraintSnapshotFactory {
                 ? forbidden.getZones()
                 : List.of();
 
-        ToolConstraintSnapshot.SymmetryConstraint symmetryConstraint = toSymmetry(symmetry);
         List<List<Vec3d>> paths = toPaths(path);
 
-        return new ToolConstraintSnapshot(selectionBox, outlineShape, paths, zones, symmetryConstraint);
+        return new ToolConstraintSnapshot(selectionBox, outlineShape, paths, zones);
     }
 
     public static ToolConstraintSnapshot fromDefaultTools() {
         return fromTools(
                 SelectionTool.INSTANCE,
                 OutlineTool.INSTANCE,
-                SymmetryTool.INSTANCE,
                 ProtectedZoneTool.INSTANCE,
                 PathTool.INSTANCE
         );
@@ -78,19 +77,5 @@ public final class ToolConstraintSnapshotFactory {
             }
         }
         return result;
-    }
-
-    private static ToolConstraintSnapshot.SymmetryConstraint toSymmetry(SymmetryTool tool) {
-        if (tool == null) {
-            return ToolConstraintSnapshot.SymmetryConstraint.none();
-        }
-        SymmetryMode mode = tool.getMode();
-        if (mode == null || mode == SymmetryMode.NONE) {
-            return ToolConstraintSnapshot.SymmetryConstraint.none();
-        }
-        MirrorSymmetryMode commonMode = MirrorSymmetryMode.valueOf(mode.name());
-        BlockPos axisA = tool.hasAxis() ? tool.getAxisA() : null;
-        BlockPos axisB = tool.hasAxis() ? tool.getAxisB() : null;
-        return new ToolConstraintSnapshot.SymmetryConstraint(commonMode, axisA, axisB);
     }
 }

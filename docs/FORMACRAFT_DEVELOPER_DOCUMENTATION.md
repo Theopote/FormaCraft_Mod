@@ -157,8 +157,8 @@ public record BlockPatch(
 // 1. 生成 Patch 列表
 List<BlockPatch> patches = compiler.generate(blueprint, context);
 
-// 2. 过滤（可选）
-patches = PatchFilterPipeline.filter(patches, constraints);
+// 2. 过滤（服务端权威；客户端不再自行过滤）
+patches = ServerPatchFilter.filter(origin, patches, protectedZones, outline, restrictToSelection, selectionMin, selectionMax).accepted;
 
 // 3. 预览（客户端）
 PreviewManager.showPreview(patches, origin);
@@ -610,22 +610,24 @@ PatchApplyPayload applyPayload = new PatchApplyPayload(origin, patches);
 FormaCraftNetworking.sendToServer(applyPayload);
 ```
 
-### 7.3 Patch 过滤管道
+### 7.3 Patch 过滤
 
-**在预览前，Patch 会经过过滤管道**：
+**Patch 过滤只有一个服务端入口**（客户端不再维护平行的过滤实现）：
 
 ```java
-List<BlockPatch> filtered = PatchFilterPipeline.filter(
+List<BlockPatch> accepted = ServerPatchFilter.filter(
+    origin,
     patches,
-    constraints  // 选区、禁区、对称等
-);
+    protectedZones,     // 禁区
+    outline,            // 轮廓
+    restrictToSelection,// 是否限制到选区内
+    selectionMin,
+    selectionMax
+).accepted;
 ```
 
-**过滤器类型**：
-- `SelectionOnlyFilter` - 仅保留选区内的 Patch
-- `ForbiddenZoneFilter` - 过滤禁区
-- `SymmetryFilter` - 对称约束
-- `TerrainFilter` - 地形策略
+**共享约束**：`ServerPatchFilter` 与普通建造的 `BuildConstraints` 都委托 `MutationRegionPolicy.allow`，单点维护禁区/选区/轮廓。
+**对称**：对称是**规划期**约束（`FormaRequest.symmetryMode` → 后端提示词），写入期不做镜像扩展。
 
 ### 7.4 BuildExecutionService（分 Tick 执行）
 

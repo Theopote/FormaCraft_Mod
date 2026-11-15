@@ -1,3 +1,8 @@
+> **归档（ARCHIVED）**：本文描述的骨架生成映射已归档，其中引用的 `PatchFilterPipeline` 已在架构迁移中**整体删除**。
+> 现行过滤路径只有 `ServerPatchFilter` 与 `BuildConstraints`，二者共用 `MutationRegionPolicy`。
+> 现行流程见 [GENERATION_PIPELINE.md](../../GENERATION_PIPELINE.md) 与 [ARCHITECTURE.md](../../../ARCHITECTURE.md)；删除台账见 [ARCHITECTURE_AUDIT.md](../../refactoring/ARCHITECTURE_AUDIT.md)。
+> 保留原因：记录历史设计思路，不代表可恢复的代码位置。
+
 # K3.4：Skeleton → Generator 映射表（Java 级）实现总结
 
 ## ✅ 已完全实现

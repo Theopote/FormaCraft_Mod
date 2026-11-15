@@ -4,11 +4,6 @@ import com.formacraft.common.buildcontext.SelectionBox;
 import com.formacraft.common.geometry.tool.symmetry.SymmetryPlane;
 import com.formacraft.common.geometry.tool.symmetry.SymmetryProcessor;
 import com.formacraft.common.model.constraint.ProtectedZone;
-import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.common.patch.filter.PatchFilterContext;
-import com.formacraft.common.patch.filter.impl.SymmetryFilter;
-import com.formacraft.common.tool.MirrorSymmetryMode;
-import com.formacraft.common.tool.ToolConstraintSnapshot;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.Test;
@@ -74,20 +69,37 @@ class ToolClearAndSymmetryTest {
 
     @Test void verticalMirrorAndItsOverlayAgreeOnSelectionPlane() {
         var selection = new SelectionBox(new BlockPos(-4, 60, -4), new BlockPos(4, 68, 4));
-        var snapshot = new ToolConstraintSnapshot(selection, null, List.of(), List.of(),
-                new ToolConstraintSnapshot.SymmetryConstraint(MirrorSymmetryMode.MIRROR_Y, null, null));
         BlockPos origin = new BlockPos(0, 60, 0);
-        var input = new BlockPatch(BlockPatch.PLACE, 1, 2, 0, "minecraft:stone");
-        var output = new SymmetryFilter().filter(List.of(input), origin, new PatchFilterContext(snapshot));
-        assertEquals(2, output.size());
-        int mirroredY = origin.getY() + output.getLast().dy();
-        assertEquals(66, mirroredY);
         double planeY = SymmetryOverlayGeometry.planes(SymmetryMode.MIRROR_Y, selection, origin, null, null).getFirst().corner().y;
-        assertEquals(planeY, ((62 + 0.5) + (mirroredY + 0.5)) / 2);
+        // 选区在 y=60..68，镜像平面位于 (60+68)/2 = 64，因此 y=62 的方块镜像到 y=66。
+        assertEquals(64.5, planeY);
         var processor = new SymmetryProcessor(new SymmetryPlane(SymmetryPlane.Axis.Y, 64));
         assertEquals(new BlockPos(1, 66, 0), processor.mirror(new BlockPos(1, 62, 0)));
         // Horizontal Y-plane mirrors flip positions; facing metadata stays UP/DOWN (placement).
         assertEquals(Direction.UP, processor.mirrorFacing(Direction.UP));
         assertEquals(Direction.NORTH, processor.mirrorFacing(Direction.NORTH));
+    }
+
+    @Test void symmetryToolModeReachesTheBuildRequestContract() {
+        // 对称必须真的进入生成请求，否则"有 UI 无效果"。
+        var request = new com.formacraft.common.model.request.FormaRequest();
+        var tool = new SymmetryTool();
+        assertEquals(SymmetryMode.NONE, tool.getMode());
+
+        tool.cycleMode();
+        assertEquals(SymmetryMode.MIRROR_X, tool.getMode());
+        request.setSymmetryMode(tool.getMode().name());
+        assertEquals("MIRROR_X", request.getSymmetryMode());
+
+        while (tool.getMode() != SymmetryMode.CUSTOM_AXIS) tool.cycleMode();
+        tool.selectAxisPoint(new BlockPos(1, 64, 1));
+        tool.selectAxisPoint(new BlockPos(1, 64, 9));
+        assertTrue(tool.hasAxis());
+        request.setSymmetryMode(tool.getMode().name());
+        request.setSymmetryAxisA(tool.getAxisA());
+        request.setSymmetryAxisB(tool.getAxisB());
+        assertEquals("CUSTOM_AXIS", request.getSymmetryMode());
+        assertEquals(new BlockPos(1, 64, 1), request.getSymmetryAxisA());
+        assertEquals(new BlockPos(1, 64, 9), request.getSymmetryAxisB());
     }
 }

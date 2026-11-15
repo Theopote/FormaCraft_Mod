@@ -80,6 +80,8 @@ jobs:
           python scripts/check_doc_dead_symbols.py
           python scripts/banner_archived_docs.py --check
           python scripts/check_banned_resurrect.py
+          python scripts/test_check_dead_code.py
+          python scripts/check_dead_code.py
 
   python:
     name: python

@@ -133,6 +133,12 @@ def _symmetry_lines(req: BuildRequest | None) -> list[str]:
 
     对称是**规划**约束（要求生成结果对称），不是客户端裁剪；因此必须由后端
     注入提示词，否则客户端的对称工具对生成结果没有任何影响。
+
+    注意：``global_constraints.symmetry`` 的合法枚举只有
+    NONE / MIRROR_X / MIRROR_Z / RADIAL；MIRROR_Y / BOTH / CUSTOM_AXIS
+    没有对应枚举值，只能以 ``alignment_and_symmetry.symmetry_type``
+    （bilateral_x / bilateral_z / radial）+ ``center_axis_x`` / ``center_axis_z``
+    表达，不得指示后端写不存在的枚举。
     """
     symmetry = getattr(req, "symmetry", None)
     if symmetry is None:
@@ -152,18 +158,42 @@ def _symmetry_lines(req: BuildRequest | None) -> list[str]:
         return [
             "Symmetry (HARD): custom axis through "
             f"({axis_a.x},{axis_a.y},{axis_a.z}) -> ({axis_b.x},{axis_b.y},{axis_b.z}); "
-            "the layout MUST be mirrored across this axis."
+            "the layout MUST be mirrored across this axis. Express it via "
+            "alignment_and_symmetry.symmetry_type=bilateral_x plus "
+            "alignment_and_symmetry.center_axis_x / center_axis_z, and place components "
+            "symmetrically about that axis."
         ]
 
-    axis_hint = {
-        "MIRROR_X": "mirror across the X axis (left/right symmetry)",
-        "MIRROR_Y": "mirror across the Y axis (top/bottom symmetry)",
-        "MIRROR_Z": "mirror across the Z axis (front/back symmetry)",
-        "BOTH": "mirror across both X and Z axes (four-fold symmetry)",
-    }.get(mode, mode.lower())
+    if mode == "MIRROR_X":
+        return [
+            "Symmetry (HARD): mirror across the X axis (left/right symmetry). "
+            "Set global_constraints.symmetry=MIRROR_X and place components symmetrically "
+            "about the X axis."
+        ]
+    if mode == "MIRROR_Z":
+        return [
+            "Symmetry (HARD): mirror across the Z axis (front/back symmetry). "
+            "Set global_constraints.symmetry=MIRROR_Z and place components symmetrically "
+            "about the Z axis."
+        ]
+    if mode == "MIRROR_Y":
+        return [
+            "Symmetry (HARD): mirror across the Y axis (top/bottom symmetry). "
+            "There is no global_constraints.symmetry enum for Y mirroring — express it via "
+            "alignment_and_symmetry.symmetry_type=bilateral_x with "
+            "alignment_and_symmetry.center_axis_x / center_axis_z, and place storeys "
+            "symmetrically about the given height."
+        ]
+    if mode == "BOTH":
+        return [
+            "Symmetry (HARD): mirror across both the X and Z axes (four-fold symmetry). "
+            "There is no global_constraints.symmetry enum for combined mirroring — express "
+            "it via alignment_and_symmetry.symmetry_type=bilateral_x with "
+            "alignment_and_symmetry.center_axis_x / center_axis_z, and place components "
+            "symmetrically about both axes."
+        ]
     return [
-        f"Symmetry (HARD): {axis_hint}. "
-        "Set global_constraints.symmetry to the matching enum and place components symmetrically."
+        f"Symmetry (HARD): {mode.lower()}. Place components symmetrically as requested."
     ]
 
 

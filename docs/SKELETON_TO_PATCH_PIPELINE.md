@@ -53,7 +53,7 @@ BuildConfirmPanel.INSTANCE.showPatchPreview(origin, patches);
 
 **内部流程**：
 1. `BuildConfirmPanel.showPatchPreview()` 被调用
-2. 应用 `ToolPatchFilter` 过滤（禁区、选区约束等）
+2. 客户端**不做**过滤；过滤由服务端 `ServerPatchFilter` 在签发 PreviewTicket 时完成（禁区、选区、轮廓）
 3. 调用 `PatchPreviewState.setPreview(origin, accepted, rejected)`
 4. `PatchOutlineBuilder` 生成 outline
 5. `PatchPreviewRenderer` 渲染预览（红/蓝/黄）
@@ -138,7 +138,7 @@ SkeletonBuildService.build()
     ↓
 List<BlockPatch> (相对 origin)
     ↓
-[可选] ToolPatchFilter.filter() (过滤禁区/选区)
+[可选] ToolPatchFilter.filter() (过滤禁区/选区) → 已删除；改由服务端 ServerPatchFilter 在签发预览票据时过滤
     ↓
 PatchPreviewState.setPreview()
     ↓

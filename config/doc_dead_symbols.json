@@ -97,7 +97,19 @@
     "WindowAspectConflictRepair",
     "ZonedSlot",
     "ZoneRule",
-    "ZoningProfile"
+    "ZoningProfile",
+    "PatchFilterPipeline",
+    "RuleBasedPatchFilter",
+    "PatchFilterContext",
+    "PatchRuleContext",
+    "PatchRule",
+    "ToolPatchFilter",
+    "BrushRegionRule",
+    "OutlineRule",
+    "ProtectedZoneRule",
+    "SelectionOnlyRule",
+    "MirrorSymmetryMode",
+    "ProportionValidator"
   ],
   "allow_line_substrings": [
     "已删除",

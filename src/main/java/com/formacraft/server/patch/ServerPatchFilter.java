@@ -4,7 +4,7 @@ import com.formacraft.common.buildcontext.OutlineShape;
 import com.formacraft.common.buildcontext.SelectionBox;
 import com.formacraft.common.model.constraint.ProtectedZone;
 import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.common.patch.filter.PatchFilterResult;
+import com.formacraft.common.patch.PatchFilterResult;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
@@ -13,8 +13,10 @@ import java.util.List;
  * 服务端 Patch 过滤：在签发 PreviewTicket 前应用禁区、选区与轮廓约束。
  * <p>
  * 委托共享 MutationRegionPolicy.allow，保证 Patch 与 Build 核心区域约束一致。
- * 与客户端 {@link com.formacraft.client.patch.filter.ToolPatchFilter} 语义对齐：
  * MODIFY_REGION 时仅限制选区，不叠加轮廓；否则轮廓与禁区同时生效。
+ * <p>
+ * 这是 Patch 过滤的**唯一**服务端入口；客户端不再维护平行的过滤实现
+ * （世界写入只经服务端权威过滤）。
  */
 public final class ServerPatchFilter {
     private ServerPatchFilter() {}

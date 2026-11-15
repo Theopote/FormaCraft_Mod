@@ -203,9 +203,12 @@ BuildingSpec → GenerationHub.routeStructure()
 | 管道 | 位置 | 当前接线状态 |
 |------|------|--------------|
 | `PostProcessPipeline` | `common/compiler/postprocess/` | ✅ 在 `ComponentPlanCompiler` 中调用 |
-| `PatchFilterPipeline` | `common/patch/filter/` | ⚠️ 历史设计稿，**未全线接线**；禁止当作第三套过滤主干再接；现行见 `ServerPatchFilter` / `BuildConstraints` |
-| `ServerPatchFilter` | `server/patch/` | ✅ Patch 预览签发 |
-| `ToolPatchFilter` | `client/patch/filter/` | ✅ 客户端工具约束 |
+| `ServerPatchFilter` | `server/patch/` | ✅ Patch 预览签发（**唯一** Patch 过滤入口） |
+| `BuildConstraints` + `BuildConstraintClipper` | `server/build/` | ✅ 普通建造裁剪 |
+
+> **过滤主干只有两条**：Patch 走 `ServerPatchFilter`，Build 走 `BuildConstraints`；二者共用 `MutationRegionPolicy.allow` 单点维护禁区/选区/轮廓。
+> 曾存在的第三套通用过滤主干（`common/patch/filter/` 的 `PatchFilterPipeline` 与 `client/patch/filter/` 的 `ToolPatchFilter`）已删除——它们从未被生产路径调用，只在测试里自证。
+> 对称不再是写入期扩展，而是**规划期约束**：`FormaRequest.symmetryMode` → 后端提示词要求生成对称布局。
 
 ---
 
