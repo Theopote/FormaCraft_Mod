@@ -8,14 +8,18 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * LlmPlan 预览链路指标（进程内累计 + 结构化日志，便于从 {@code logs/latest.log} 统计回退率）。
+ * LlmPlan 预览链路指标（进程内累计 + 结构化日志）。
  * <p>
  * 日志前缀：{@code [LlmPlanMetrics]}。grep 示例：
  * <pre>{@code
  * Select-String "\[LlmPlanMetrics\]" logs/latest.log
  * }</pre>
  * <p>
- * <b>回退率</b> = {@code fallback / tagged}（仅统计 {@link com.formacraft.common.orchestrator.AiPlanResult.LlmPlan} 分支）。
+ * <b>语义（2026-11-15）</b>：LlmPlan 预览失败<strong>不再</strong>回退假 BuildingSpec。
+ * 未产出预览时记 {@code error}（如 {@code preview_unhandled_no_structure_fallback}），
+ * <strong>不要</strong>记 {@code structure_after_fallback}。
+ * {@link #recordFallback} / {@link #recordStructureAfterFallback} 仅在真实发生整栋回退时使用；
+ * 现行主干不应再调用后者。迁移决策勿使用修复前被污染的历史 fallback 率。
  */
 public final class LlmPlanRoutingMetrics {
 
@@ -49,7 +53,10 @@ public final class LlmPlanRoutingMetrics {
         log("error", errorKind, player, req);
     }
 
-    /** LlmPlan 主动放弃预览，回退整栋 {@code GenerationHub.routeStructure()} */
+    /**
+     * 主动放弃 LlmPlan 并<strong>实际</strong>进入整栋预览前记录。
+     * 现行路径已取消假 BuildingSpec 回退；无真实回退时请用 {@link #recordError}。
+     */
     public static void recordFallback(
             FallbackReason reason,
             String player,
@@ -59,16 +66,29 @@ public final class LlmPlanRoutingMetrics {
         log("fallback", reason.name(), player, req);
     }
 
-    /** 从未标记 LlmPlan，直接走整栋预览 */
+    /** 从未标记 LlmPlan，直接走整栋预览（显式 buildingspec compat） */
     public static void recordDirectStructurePreview(String player, FormaRequest req) {
         directStructure.incrementAndGet();
         log("structure_direct", null, player, req);
     }
 
-    /** LlmPlan 返回 false 后，实际进入整栋预览（与 {@link #recordFallback} 成对出现） */
+    /**
+     * 仅在 {@link #recordFallback} 之后<strong>确实</strong>执行了整栋预览时调用。
+     * 预览失败且无回退时禁止调用——改用 {@link #recordError}。
+     */
     public static void recordStructureAfterFallback(String player, FormaRequest req) {
         structureAfterFallback.incrementAndGet();
         log("structure_after_fallback", null, player, req);
+    }
+
+    /** Test / diagnostics: reset process-local counters. */
+    public static void resetForTest() {
+        taggedRequests.set(0);
+        llmSuccess.set(0);
+        llmError.set(0);
+        llmFallback.set(0);
+        directStructure.set(0);
+        structureAfterFallback.set(0);
     }
 
     public static Snapshot snapshot() {

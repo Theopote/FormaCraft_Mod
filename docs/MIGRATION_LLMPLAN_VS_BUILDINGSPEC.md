@@ -38,7 +38,7 @@ OrchestratorClient.requestAiPlan(req)  →  POST /build
 
 ### 指标日志（谨慎解读）
 
-前缀 `[LlmPlanMetrics]`。`structure_after_fallback` 在预览失败路径上仍可能被调用，但**已无假 BuildingSpec 回退**（审计 LEGACY-014，PR-2 修正）。勿把该计数当作「整栋回退率」。
+前缀 `[LlmPlanMetrics]`。预览失败记 `error`/`preview_unhandled_no_structure_fallback`，**不再**记 `structure_after_fallback`（LEGACY-014 已 MIGRATED）。勿用修复前历史 fallback 率做迁移决策。
 
 ```powershell
 Select-String "\[LlmPlanMetrics\]" logs/latest.log
@@ -171,8 +171,8 @@ generator_selector_rules_v1.json
 ## 9. 后续（指向审计，不在此开第二套台账）
 
 - 兼容路径消费者与删除条件：见审计「弃用退出清单」。
-- 指标语义修正：`recordStructureAfterFallback` → PR-2。
 - 能力增强：按 §2–§5 补构件质量；降低 selector 命中，**不删**整栋类。
+- PR-3+：compat handler 拆分与无消费者删除见审计退出清单。
 
 ---
 

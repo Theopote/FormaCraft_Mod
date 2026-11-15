@@ -22,7 +22,7 @@
 | **B. BuildingSpec / City / Composite** | **仅**显式 `outputFormat=buildingspec`（及对应 kind） | `previewBuildingSpec` / Composite / City → `GenerationHub.routeStructure` | ACTIVE_COMPAT |
 | **C. Patch 增量** | `LlmPlan.mode=patch` | `LlmPlanPreviewBuilder` → `PatchPreviewService`（blocks）或增量 components | 属主干 A |
 
-**禁止**将 A/B 写成日常二选一。LlmPlan 预览失败**不再**回退假 BuildingSpec；失败时仍可能误记 `recordStructureAfterFallback`（审计 LEGACY-014，PR-2 修）。
+**禁止**将 A/B 写成日常二选一。LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhandled_no_structure_fallback`（审计 LEGACY-014 已 MIGRATED）。
 
 ---
 

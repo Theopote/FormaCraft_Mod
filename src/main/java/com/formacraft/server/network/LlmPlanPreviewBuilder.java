@@ -10,7 +10,6 @@ import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.network.LlmPlanTerrainBounds;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
-import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics.FallbackReason;
 import com.formacraft.common.network.LlmPlanTerrainBounds.Bounds;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.server.build.BuildPreviewPipeline;
@@ -281,7 +280,8 @@ public final class LlmPlanPreviewBuilder {
 
     /**
      * @param llmPlan 编排器返回的 LlmPlan（非伪装 BuildingSpec）
-     * @return true 表示已处理（成功、错误或主动回退）；false 表示应回退整栋 {@code GenerationHub.routeStructure()}
+     * @return true 表示已处理（成功或已向玩家报错）；false 表示未产出预览且<strong>不会</strong>回退假 BuildingSpec
+     *         （由 {@code BuildRequestProcessor} 记 {@code preview_unhandled_no_structure_fallback} 并报错）
      */
     public static boolean tryBuildPreview(
             ServerPlayerEntity player,
@@ -346,7 +346,8 @@ public final class LlmPlanPreviewBuilder {
         }
 
         if ((req != null && req.requestsLegacyBuildingSpec())) {
-            LlmPlanRoutingMetrics.recordFallback(FallbackReason.ROUTING_POLICY, (player == null ? null : player.getName().getString()), req);
+            // Explicit buildingspec opt-in should not use LlmPlan preview; no structure fallback.
+            // Metrics: BuildRequestProcessor records preview_unhandled_no_structure_fallback.
             return false;
         }
 
@@ -568,7 +569,8 @@ public final class LlmPlanPreviewBuilder {
                             ));
                     return true;
                 }
-                LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, (player == null ? null : player.getName().getString()), req);
+                // Empty compile with no structure fallback: leave metrics to the processor's
+                // preview_unhandled_no_structure_fallback when returning false.
                 return false;
             }
 
@@ -1367,7 +1369,8 @@ public final class LlmPlanPreviewBuilder {
                 com.formacraft.server.preview.PreviewEditKind.BUILDING_ROOF_MATERIAL
         );
         if (ticket == null) {
-            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, (player == null ? null : player.getName().getString()), req);
+            LlmPlanRoutingMetrics.recordError(
+                    (player == null ? null : player.getName().getString()), req, "roof_material_preview_failed");
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                     "屋顶材质替换预览创建失败。"));
             return true;
@@ -1401,7 +1404,6 @@ public final class LlmPlanPreviewBuilder {
         List<com.formacraft.common.patch.BlockPatch> finalPatches =
                 com.formacraft.common.patch.ConfirmedPlanIdentity.toFinalPatches(patchList);
         if (finalPatches.isEmpty()) {
-            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, (player == null ? null : player.getName().getString()), req);
             return false;
         }
         com.formacraft.server.state.PlayerProtectedZoneStorage.syncFromRequest(player, req);
@@ -1421,7 +1423,6 @@ public final class LlmPlanPreviewBuilder {
                 req.getSelectionMax()
         );
         if (ticket == null) {
-            LlmPlanRoutingMetrics.recordFallback(FallbackReason.EMPTY_OUTPUT, (player == null ? null : player.getName().getString()), req);
             return false;
         }
 

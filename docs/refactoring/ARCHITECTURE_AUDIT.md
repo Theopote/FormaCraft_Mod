@@ -12,7 +12,7 @@
 | 提交摘要 | `refactor(ai_planner): 添加兼容性重新导出以保持调用接口稳定` |
 | 本轮范围 | 仅文档与证据台账；**不改**生成算法默认值；**不删**仍有消费者的兼容路径 |
 | 本地门禁（本轮） | `python scripts/check_architecture.py`、`python scripts/check_generation_entrypoints.py` |
-| 延后 PR-2 | 入口符号硬校验、`check_active_docs`、跨语言 API 矩阵、`recordStructureAfterFallback` 语义修正 |
+| PR-2 门禁 | `check_generation_entrypoints`（符号/方法）、`check_active_docs`、`check_banned_resurrect`；跨语言 API 矩阵测试；预览失败记 `preview_unhandled_no_structure_fallback` |
 
 ### 现行入口调用图（默认 canonical + 显式 compat）
 
@@ -46,7 +46,9 @@ flowchart LR
 | 包边界 + common 服务端类型冻结 | `python scripts/check_architecture.py` | exit 0；新增引用必须先消债再改基线 |
 | StructureGenerator 冻结 | `python scripts/check_structure_generator_freeze.py` | register 调用数 = baseline |
 | Panel 行数（软） | `python scripts/check_panel_line_budget.py` | 仅打印超标 |
-| 生成入口 | `python scripts/check_generation_entrypoints.py` | exit 0 |
+| 生成入口（含符号/方法） | `python scripts/check_generation_entrypoints.py` | exit 0 |
+| Tier-0 活文档禁已删符号 | `python scripts/check_active_docs.py` | exit 0 |
+| 禁止复活已删入口 | `python scripts/check_banned_resurrect.py` | exit 0 |
 
 `config/architecture-debt.json` 中登记的 common 服务端类型引用现已清空；**禁止新增**。包引用 `com.formacraft.server` 在 common 中应保持为 0。
 
@@ -57,8 +59,8 @@ flowchart LR
 - Panel 超 400 行拆分（Settings / Chat / ComponentCapture）
 - 双 JSON 库收敛（新代码优先 `common.json.JsonUtil` / Gson）；服务端硬编码中文文案迁语言文件（建造门控文案已走 lang）
 - Memory 落盘与世界修改原子性；Undo 双轨统一（见 WORLD_MUTATION_CONTRACT）
-- **PR-2**：`BuildRequestProcessor` ~269 行在 LlmPlan 预览失败时仍调用 `LlmPlanRoutingMetrics.recordStructureAfterFallback`，但已**不再**假 BuildingSpec 回退——指标名与语义不符，本轮只记账不改代码
-- **PR-2**：`check_generation_entrypoints` 符号存在性校验、`check_active_docs`、跨语言 API 矩阵
+- ~~PR-2 指标误记账~~：已改为 `recordError(..., preview_unhandled_no_structure_fallback)`；勿用修复前历史 fallback 率做迁移决策
+- PR-3+：compat handler 拆分、无消费者实现删除、Preview/Undo 存储合并
 
 ## 已落地（2026-10-31 审查整改）
 
@@ -177,11 +179,11 @@ BuildingSpec 退出迁移第一步已实施：/build 隐式/auto 请求在所有
 
 Java BuildingSpecRoutingPolicy 已删除无生产调用者的 shouldUseCompositeOrchestrator、forcesSingleBuildingSpec、注册地标 template 检测和复合关键词链，移除旧 force 标记常量及仅覆盖死入口的测试。保留当前使用的显式格式判断、意图提取、模板默认值；不再保留暗示可强制旧单体主干的死 API。
 
-主干用户意图提取从 BuildingSpecRoutingPolicy 迁至 common.model.request.RequestIntentText.resolve，编译器、预览、请求处理及三类路由指标同步改用公共请求工具。旧 intentText/userIntentText 包装删除；显式文本→最后一条聊天→requestText 的顺序与空值行为保持原实现。
+主干用户意图提取从已删除的 BuildingSpecRoutingPolicy 迁至 common.model.request.RequestIntentText.resolve，编译器、预览、请求处理及三类路由指标同步改用公共请求工具。旧 intentText/userIntentText 包装删除；显式文本→最后一条聊天→requestText 的顺序与空值行为保持原实现。
 
-Java FormaRequest 默认 outputFormat 改为 llmplan，并提供 requestsLegacyBuildingSpec 显式兼容判断；预览主干改用 DTO 判断，删除 BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview，预览器不再依赖旧策略类。保留 null/auto 主干行为及旧格式大小写/空白兼容。
+Java FormaRequest 默认 outputFormat 改为 llmplan，并提供 requestsLegacyBuildingSpec 显式兼容判断；预览主干改用 DTO 判断；BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview 已删除，预览器不再依赖旧策略类。保留 null/auto 主干行为及旧格式大小写/空白兼容。
 
-BuildingSpecRoutingPolicy 最后调用已退出：删除服务端按明清院落关键词补写 extra.template 的隐式模板路由，并删除整个旧策略类及专属测试。显式 extra.template 未改动，继续由既有生成消费者处理。生成入口清单与活文档同步删除旧类定位。
+BuildingSpecRoutingPolicy 已删除：移除服务端按明清院落关键词补写 extra.template 的隐式模板路由及专属测试。显式 extra.template 未改动，继续由既有生成消费者处理。生成入口清单与活文档同步删除旧类定位。
 
 OrchestratorClient 在 HTTP /build 响应解析后校验请求格式：非显式 buildingspec 请求收到 BuildingSpec/CompositeSpec/CitySpec 时拒绝，不再仅凭后端 kind 进入旧生成路径。LlmPlan/澄清响应及显式旧格式保持兼容。新增三类旧响应×默认/auto/llmplan 的拒绝回归。
 
@@ -213,7 +215,7 @@ AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替
 | LEGACY-011 | ACTIVE_COMPAT | `PreviewStorage`（Build 预览） | `LlmPlanPreviewBuilder` / `BuildConfirmService` / `/forma_confirm` | 长期与 Ticket 统一（PR-3+） | 双确认 UX | 见 WORLD_MUTATION | 不变量表 |
 | LEGACY-012 | ACTIVE_COMPAT | `PreviewTicket`（Patch 预览） | `PatchPreviewService` → `PreviewTicketStorage` | 同上 | 同上 | 同上 | 不变量表 |
 | LEGACY-013 | ACTIVE_COMPAT | `UndoService` vs `PatchHistoryManager` | Build 完成 → UndoService；Patch 成功 → PatchHistoryManager；择栈 `MutationHistoryFacade` | 合并存储（PR-3+） | 跨栈幽灵条目 | Memory 原子性方案 | MEMORY / WORLD_MUTATION |
-| LEGACY-014 | QUARANTINED | 指标 `recordStructureAfterFallback` 误记账 | `BuildRequestProcessor` ~L269：预览失败回调仍记 fallback，但注释与错误文案已声明**跳过假 BuildingSpec 回退** | 修正指标名/语义（PR-2） | 运维误读回退率 | 指标与代码语义对齐 | 源码对照 |
+| LEGACY-014 | MIGRATED | 指标原 `recordStructureAfterFallback` 误记账 | 原 `BuildRequestProcessor` 预览失败回调 | 现记 `recordError(..., preview_unhandled_no_structure_fallback)`；`recordStructureAfterFallback` 仅真实整栋回退时用 | 历史日志污染 | — | `LlmPlanRoutingMetricsTest` |
 | LEGACY-015 | REMOVED | `BuildingSpecRoutingPolicy` / `requestBuildingSpec` | 无生产调用者（类已删） | `requestAiPlan` + `FormaRequest.requestsLegacyBuildingSpec()` | 文档若仍引用会误导 | — | 已删；见迁移文档警告 |
 | LEGACY-016 | REMOVED | 客户端 `PromptAssembler.java` | 无 | `prompt_assembly.py` + `llm_plan_system_prompt.py` | 文档旧路径 | — | 已删 |
 

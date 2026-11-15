@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "description": "Deleted APIs that must not reappear in production Java/Python source (tests may mention them).",
+  "java_roots": ["src/main/java"],
+  "python_roots": ["python_backend/app"],
+  "banned_substrings": [
+    "BuildingSpecRoutingPolicy",
+    "requestBuildingSpec(",
+    "com.formacraft.ai.prompt.PromptAssembler",
+    "ai/prompt/PromptAssembler",
+    ".editCity(",
+    ".editBuilding("
+  ],
+  "allow_path_substrings": [
+    "/test/",
+    "\\test\\",
+    "/tests/",
+    "\\tests\\"
+  ]
+}

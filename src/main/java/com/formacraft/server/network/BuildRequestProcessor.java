@@ -266,7 +266,11 @@ public final class BuildRequestProcessor {
                                                                         return;
                                                                     }
                                                                     gateTicket.advance(BuildRequestGate.RequestState.FAILED);
-                                                                    LlmPlanRoutingMetrics.recordStructureAfterFallback((player == null ? null : player.getName().getString()), req);
+                                                                    // No structure fallback: count as preview failure, not structure_after_fallback.
+                                                                    LlmPlanRoutingMetrics.recordError(
+                                                                            (player == null ? null : player.getName().getString()),
+                                                                            req,
+                                                                            "preview_unhandled_no_structure_fallback");
                                                                     ServerPlayNetworking.send(player,
                                                                             new FormaCraftNetworking.ResponseBuildErrorPayload(
                                                                                     "LlmPlan 预览生成失败（已跳过假 BuildingSpec 回退）。请调整请求或检查后端输出。"

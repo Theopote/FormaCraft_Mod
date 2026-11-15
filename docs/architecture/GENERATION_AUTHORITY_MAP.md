@@ -1,6 +1,6 @@
 # Generation authority map
 
-> **Maintenance:** When adding a build/plan entrypoint, update [config/generation_entrypoints.json](../../config/generation_entrypoints.json) and this document. CI runs `scripts/check_generation_entrypoints.py`.
+> **Maintenance:** When adding a build/plan entrypoint, update [config/generation_entrypoints.json](../../config/generation_entrypoints.json)（含 `methods` / `symbol`）and this document. CI runs `scripts/check_generation_entrypoints.py`、`check_active_docs.py`、`check_banned_resurrect.py`.
 
 ## Design authority (target)
 

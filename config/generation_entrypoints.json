@@ -1,56 +1,68 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Authoritative generation entrypoints for CI drift checks (see docs/architecture/GENERATION_AUTHORITY_MAP.md)",
   "java": [
     {
       "id": "client_build_request",
       "class": "com.formacraft.client.network.FormaCraftClientNetworking",
-      "role": "C2S RequestBuildPayload"
+      "role": "C2S RequestBuildPayload",
+      "source_contains": ["RequestBuildPayload"]
     },
     {
       "id": "server_build_processor",
       "class": "com.formacraft.server.network.BuildRequestProcessor",
-      "role": "AiPlanResult dispatch"
+      "role": "AiPlanResult dispatch",
+      "methods": ["register", "previewBuildingSpec"],
+      "source_contains": ["requestAiPlan", "preview_unhandled_no_structure_fallback"]
     },
     {
       "id": "llm_plan_preview",
       "class": "com.formacraft.server.network.LlmPlanPreviewBuilder",
-      "role": "LlmPlan path A preview"
+      "role": "LlmPlan path A preview",
+      "methods": ["scheduleBuildPreview", "tryBuildPreview"]
     },
     {
       "id": "component_plan_compiler",
       "class": "com.formacraft.server.compiler.ComponentPlanCompiler",
-      "role": "components[] compile"
+      "role": "components[] compile",
+      "methods": ["compile", "compileWithCirculation"]
     },
     {
       "id": "plan_program_compiler",
       "class": "com.formacraft.server.compiler.PlanProgramCompiler",
-      "role": "plan_program / plan_skeleton compile"
+      "role": "plan_program / plan_skeleton compile",
+      "methods": ["compile", "compileFromPlanSkeleton"]
     },
     {
       "id": "patch_preview",
       "class": "com.formacraft.server.patch.PatchPreviewService",
-      "role": "patch mode path C"
+      "role": "patch mode path C",
+      "methods": ["issuePreview"]
     },
     {
       "id": "generation_hub",
       "class": "com.formacraft.server.generation.GenerationHub",
-      "role": "structure + component facade"
+      "role": "structure + component facade",
+      "methods": ["routeStructure", "generateComponent"]
     },
     {
       "id": "generator_router",
       "class": "com.formacraft.server.generation.structure.router.GeneratorRouter",
-      "role": "BuildingSpec structure route"
+      "role": "BuildingSpec structure route",
+      "methods": ["routeDecision"]
     },
     {
       "id": "unified_generator_router",
       "class": "com.formacraft.server.generation.component.adaptor.UnifiedGeneratorRouter",
-      "role": "component route chain"
+      "role": "component route chain",
+      "methods": ["generateResult"]
     },
     {
       "id": "orchestrator_client",
       "class": "com.formacraft.server.orchestrator.OrchestratorClient",
-      "role": "Python /build client"
+      "role": "Python /build client",
+      "methods": ["requestAiPlan", "editLegacyBuildingSpec", "editLegacyCitySpec"],
+      "source_contains": ["validateResponseForRequest"]
     }
   ],
   "python": [

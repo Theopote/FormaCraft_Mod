@@ -61,7 +61,7 @@ flowchart LR
 
 House / Tower / 地标 / 参数化构件可作为**执行器**保留（经 `UnifiedGeneratorRouter` / `GenerationHub.routeStructure`），**禁止**独立规划、预览或确认链。
 
-LlmPlan 预览失败**不再**回退假 BuildingSpec。指标误记账见审计清单 `LEGACY-014`（PR-2 修正）。
+LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhandled_no_structure_fallback`（审计 LEGACY-014 已 MIGRATED）。
 
 ---
 

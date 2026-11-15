@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "description": "Confirmed-deleted symbols that must not appear as executable guidance in Tier-0 docs (historical annotations allowed).",
+  "tier0_globs": [
+    "ARCHITECTURE.md",
+    "docs/GENERATION_PIPELINE.md",
+    "docs/DEVELOPER_START_HERE.md",
+    "docs/INDEX.md",
+    "docs/DOC_CONVENTIONS.md",
+    "docs/architecture/GENERATION_AUTHORITY_MAP.md",
+    "docs/refactoring/ARCHITECTURE_AUDIT.md",
+    "docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md",
+    "docs/MEMORY_TRANSACTION_CONTRACT.md",
+    "docs/WORLD_MUTATION_CONTRACT.md",
+    "docs/PLAN_CIRCULATION_CONTRACT.md",
+    "docs/STAIR_CIRCULATION_CONTRACT.md",
+    "docs/SHELL_FLOOR_CONTRACT.md",
+    "docs/TOWER_CIRCULATION_CONTRACT.md"
+  ],
+  "banned": [
+    {
+      "id": "BuildingSpecRoutingPolicy",
+      "patterns": ["BuildingSpecRoutingPolicy"]
+    },
+    {
+      "id": "requestBuildingSpec",
+      "patterns": ["requestBuildingSpec", "orchestrator.requestBuildingSpec"]
+    },
+    {
+      "id": "PromptAssembler_java",
+      "patterns": ["PromptAssembler.java", "ai/prompt/PromptAssembler"]
+    }
+  ],
+  "allow_line_substrings": [
+    "已删除",
+    "已删",
+    "已退出",
+    "REMOVED",
+    "历史",
+    "勿按",
+    "不得",
+    "禁止",
+    "不要",
+    "不再",
+    "警告",
+    "LEGACY-",
+    "historical",
+    "deleted",
+    "do not",
+    "must not",
+    "removed"
+  ]
+}
