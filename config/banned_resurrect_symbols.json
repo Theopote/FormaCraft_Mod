@@ -14,6 +14,7 @@
     "BlueprintPreviewRenderer",
     "BuildingSpecRoutingPolicy",
     "ComponentAssemblerRegistry",
+    "ComponentCaptureCategoryOrder",
     "ComponentVoxelizer",
     "ContinuousPlacementEngine",
     "CursorWorldInteraction",

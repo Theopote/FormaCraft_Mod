@@ -17,6 +17,7 @@
     "ComponentAnchor",
     "ComponentAssembler",
     "ComponentAssemblerRegistry",
+    "ComponentCaptureCategoryOrder",
     "ComponentExpander",
     "ComponentInstanceTransform",
     "ComponentMount",
