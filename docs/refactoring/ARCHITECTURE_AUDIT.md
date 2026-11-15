@@ -76,6 +76,10 @@ PlayerComponentExpander 和 PlayerComponentGroupExpander 改为接收存档目�
 
 规模与地形提示推断已提取至 planning_request_hints.py，ai_planner 保留兼容导入。选区优先、闭区间尺寸阈值及中英文关键词匹配顺序保持原实现；新增边界与优先级回归测试。
 
+## 后端兼容规范化拆分（2026-11-15）
+
+BuildingSpec / CompositeSpec 的六个输出规范化函数已从 ai_planner.py 迁至 legacy_spec_normalization.py。旧模块保留导入别名，现有调用方和契约冒烟入口继续可用。字段别名、默认值、样式/调色板目录校验、布局与子结构规范化及原地修改行为保持原实现；LlmPlan 规范化仍沿用原路径。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
