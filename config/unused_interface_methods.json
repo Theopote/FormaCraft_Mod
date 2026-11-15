@@ -1,0 +1,12 @@
+{
+  "_comment": [
+    "Interface methods that are declared but never invoked in production code.",
+    "Each entry is 'InterfaceName.methodName'. Only add an entry when the method",
+    "is intentionally not called yet (framework SPI, planned migration) AND the",
+    "surrounding code documents that intent. Anything else must be wired up or",
+    "deleted.",
+    "",
+    "Checked by scripts/check_unused_interface_methods.py."
+  ],
+  "allow": []
+}

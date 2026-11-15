@@ -1,36 +1,27 @@
 package com.formacraft.common.component.socket.providers;
 
 import com.formacraft.common.component.socket.Socket;
-import com.formacraft.common.component.socket.SocketProvider;
 import com.formacraft.common.component.socket.SocketQueryContext;
 import net.minecraft.world.World;
 
 import java.util.List;
 
 /**
- * ToolBasedSocketProvider（基于工具的 SocketProvider）。
+ * ToolBasedSocketProvider（基于工具的 Socket 提供者）。
  * <p>
- * 这是新的接口，使用 World + SocketQueryContext，而不是 BuildContext。
+ * 使用 World + SocketQueryContext 生成 sockets，
+ * 输入来自 SelectionTool / OutlineTool / PathTool 等工具。
  * <p>
- * 用于从 SelectionTool / OutlineTool / PathTool 等工具输入生成 sockets。
+ * 收集入口是 {@link com.formacraft.common.component.socket.SocketProviders#collect}，
+ * 而不是本接口自身——实现类只负责产出 Socket 列表。
  */
-public interface ToolBasedSocketProvider extends SocketProvider {
+public interface ToolBasedSocketProvider {
     /**
      * 提供 Socket 列表
-     * 
+     *
      * @param world 世界
      * @param ctx 查询上下文（工具/骨架输入）
      * @return Socket 列表
      */
     List<Socket> provide(World world, SocketQueryContext ctx);
-
-    /**
-     * 默认实现：适配旧接口（如果需要）
-     */
-    @Override
-    default List<Socket> provideSockets(com.formacraft.common.buildcontext.BuildContext ctx) {
-        // v1：旧接口暂不支持，返回空列表
-        // 未来可以适配 BuildContext 到 SocketQueryContext
-        return List.of();
-    }
 }

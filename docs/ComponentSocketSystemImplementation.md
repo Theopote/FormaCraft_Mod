@@ -107,16 +107,22 @@ Placement / Patch
 **关键方法**：
 - `inferAllowedSockets()` - 从 AttachmentType 推断 allowedSockets
 
-### 5. SocketProvider（插槽提供者接口）
+### 5. ToolBasedSocketProvider（插槽提供者接口）
 
-**位置**：`src/main/java/com/formacraft/common/component/socket/SocketProvider.java`
+**位置**：`src/main/java/com/formacraft/common/component/socket/providers/ToolBasedSocketProvider.java`
 
 **核心思想**：
 - Socket 不是构件定义的
 - Socket 来自"建筑骨架 / Skeleton / Geometry"
 
 **接口方法**：
-- `provideSockets(BuildContext ctx)` - 提供 Socket 列表
+- `provide(World world, SocketQueryContext ctx)` - 提供 Socket 列表
+
+> 2026-11-15 核对：原基础接口 `SocketProvider`
+> （`common/component/socket/SocketProvider.java`）及其 `provideSockets(BuildContext ctx)`
+> **已删除**——该方法生产调用者为 0，且在 `ToolBasedSocketProvider` 中的默认实现恒返回
+> `List.of()`。现行唯一生效契约是上面的 `provide(World, SocketQueryContext)`，
+> 由 `SocketProviders.collect(world, ctx)` 聚合（LEGACY-036）。
 
 ### 6. WallOpeningSocketProvider（墙体开洞插槽提供者）
 
@@ -244,7 +250,7 @@ Socket bestSocket = selectBestSocket(validSockets);
 ```
 [ 建筑骨架 / Skeleton / Geometry ]
         ↓
-SocketProvider.provideSockets()
+ToolBasedSocketProvider.provide(world, ctx)
         ↓
 [ 生成 Socket 列表（WALL_SURFACE, WALL_OPENING, EDGE_OUTER 等）]
         ↓
@@ -296,7 +302,7 @@ Component Socket System 现状：
 - ✅ **Socket** - 几何 + 语义复合体
 - ✅ **AlignmentPolicy** - 对齐策略
 - ✅ **ComponentPlacementSpec（扩展）** - 声明需要什么 Socket
-- ✅ **SocketProvider** - 插槽提供者接口
+- ✅ **ToolBasedSocketProvider** - 插槽提供者接口
 - ✅ **WallOpeningSocketProvider** - 墙体开洞插槽提供者
 - ✅ **SocketProviders** - 插槽收集入口
 - ✅ **SocketMatcher** - 合法性裁判

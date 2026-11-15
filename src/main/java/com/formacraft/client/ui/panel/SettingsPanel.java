@@ -131,7 +131,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     // 缓存的计算值（性能优化）
     private int cachedContentX = -1;
     private int cachedContentWidth = -1;
-    private String cachedTemperatureText = null;
 
     // 面板滚动（Settings 内容较多时允许滚轮上下滚动）
     private int scrollY = 0;
@@ -220,11 +219,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             toast = null;
         }
         SettingsPanelDrawSupport.drawToast(client, ctx, toast, toastUntilMs, isToastError, x, toastY);
-    }
-
-    @Override
-    public void updateCachedTemperatureText() {
-        cachedTemperatureText = String.format("%.2f", draftTemperature);
     }
 
     // =======================
@@ -1338,14 +1332,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     @Override
-    public String cachedTemperatureText() {
-        if (cachedTemperatureText == null) {
-            updateCachedTemperatureText();
-        }
-        return cachedTemperatureText;
-    }
-
-    @Override
     public boolean modelDropdownOpen() {
         return modelDropdownOpen;
     }
@@ -1628,7 +1614,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     public void applyTemperatureFromSlider(double value) {
         draftTemperature = clamp01((float) value);
         SettingsConfig.INSTANCE.temperature = draftTemperature;
-        updateCachedTemperatureText();
     }
 
     @Override
@@ -1666,7 +1651,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     public void setDraftTemperature(float temperature) {
         this.draftTemperature = clamp01(temperature);
         SettingsConfig.INSTANCE.temperature = this.draftTemperature;
-        updateCachedTemperatureText();
     }
 
     @Override

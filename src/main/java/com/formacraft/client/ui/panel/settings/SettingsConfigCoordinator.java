@@ -63,7 +63,6 @@ public final class SettingsConfigCoordinator {
         host.setDraftInteractionReach(clampReach(cfg.interactionReach));
 
         host.loadBackendSettings();
-        host.updateCachedTemperatureText();
         host.syncWidgetStateFromDraft();
     }
 

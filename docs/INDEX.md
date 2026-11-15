@@ -109,7 +109,7 @@
 | 文档 | 用途 |
 |------|------|
 | [PATH_DRIVEN_GENERATION_SYSTEM.md](PATH_DRIVEN_GENERATION_SYSTEM.md) | 路径驱动生成 |
-| [TRANSPORT_COMPONENTS_IMPLEMENTATION.md](TRANSPORT_COMPONENTS_IMPLEMENTATION.md) | 道路/桥梁构件 |
+| [archive/superseded/TRANSPORT_COMPONENTS_IMPLEMENTATION.md](archive/superseded/TRANSPORT_COMPONENTS_IMPLEMENTATION.md) | **已删除**；交通器官装配器（`GateAssembler`/`StairAssembler`/`WalkwayAssembler`）生产调用者为 0，现行楼梯走 assembly `STAIR_SYSTEM` |
 | [MEMORY_SYSTEM_IMPLEMENTATION.md](MEMORY_SYSTEM_IMPLEMENTATION.md) | Forma-Cortex Memory |
 
 ### Assembly / 文化知识

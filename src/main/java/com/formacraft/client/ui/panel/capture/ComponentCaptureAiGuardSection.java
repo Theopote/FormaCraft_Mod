@@ -29,14 +29,12 @@ public final class ComponentCaptureAiGuardSection {
             boolean forceCollapsed,
             ComponentCapturePhaseHeaders phaseHeaders,
             int phaseIndex,
-            ButtonWidget autoDetectSocketsButton,
             ButtonWidget socketContextButton,
             ButtonWidget socketPickOriginButton,
             ButtonWidget socketFacingButton,
             ButtonWidget socketAddButton,
             ButtonWidget socketPreviewButton,
             ButtonWidget socketClearButton,
-            ButtonWidget autoAnalyzeButton,
             int x,
             int y,
             int w
@@ -70,8 +68,6 @@ public final class ComponentCaptureAiGuardSection {
             String ss = "尺寸=" + st.socketW + "×" + st.socketH + "×" + st.socketD;
             y = textDrawer.draw(ctx, Text.literal("已添加: " + st.socketCount + " 个  " + so + "  " + ss), x, y, w, 0xFFAAAAAA);
             y += 4;
-
-            autoDetectSocketsButton.visible = false;
 
             boolean hasSelection = selectionController.hasValidSelection(client);
 
@@ -127,8 +123,6 @@ public final class ComponentCaptureAiGuardSection {
             socketClearButton.active = st.socketCount > 0;
             socketClearButton.render(ctx, mouseX, mouseY, 0f);
             y += LABEL_OFFSET;
-
-            autoAnalyzeButton.visible = false;
         }
 
         return y;

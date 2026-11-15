@@ -90,7 +90,7 @@ TypologyPatchBridge 将世界位置减去 worldBuildOrigin 后输出局部 patch
 
 ## 楼梯连续性（第十三批更新）
 
-第十二批发现的 StairAssembler 显式高程、地形跳级、方向与预算问题已修复，但调用链核验发现该装配器仅注册、未被主流程调用。实际 assembly STAIR_SYSTEM 已修复偶数宽度多铺、上行终点缺踏面和过陡路线重复覆盖；只接受轴向直梯，并生成逐列踏面、支撑与请求的挖空。Skeleton 活跃状态解析保留完整属性并应用 STAIR_STEP 朝向。平台连接、实体楼板开口及真实净空仍待验收，见 [楼梯契约](STAIR_CIRCULATION_CONTRACT.md)。
+第十二批发现的 StairAssembler 显式高程、地形跳级、方向与预算问题已修复，但调用链核验发现该装配器仅注册、未被主流程调用，因此该旧装配器子系统已于 2026-11-15 **已删除**（生产调用者 0，见 `docs/refactoring/ARCHITECTURE_AUDIT.md` LEGACY-035）。实际 assembly STAIR_SYSTEM 已修复偶数宽度多铺、上行终点缺踏面和过陡路线重复覆盖；只接受轴向直梯，并生成逐列踏面、支撑与请求的挖空。Skeleton 活跃状态解析保留完整属性并应用 STAIR_STEP 朝向。平台连接、实体楼板开口及真实净空仍待验收，见 [楼梯契约](STAIR_CIRCULATION_CONTRACT.md)。
 
 ## 后处理的几何保留（第十二批）
 

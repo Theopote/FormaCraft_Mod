@@ -33,8 +33,6 @@ public interface SettingsPanelRenderHost {
 
     int draftInteractionReach();
 
-    String cachedTemperatureText();
-
     boolean modelDropdownOpen();
 
     boolean baseUrlPresetDropdownOpen();
@@ -179,8 +177,6 @@ public interface SettingsPanelRenderHost {
     void setDraftSearchProvider(String provider);
 
     void syncBaseUrlPresetFromValue(String baseUrl);
-
-    void updateCachedTemperatureText();
 
     void syncWidgetStateFromDraft();
 

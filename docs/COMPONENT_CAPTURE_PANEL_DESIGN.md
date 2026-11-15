@@ -210,8 +210,6 @@ public class ComponentCapturePanel extends BasePanel {
     private ButtonWidget pickAnchorButton;
     private ButtonWidget facingButton;
     private ButtonWidget mirrorButton;
-    private ButtonWidget autoAnalyzeButton;
-    private ButtonWidget autoDetectSocketsButton;
     private ButtonWidget saveButton;
     
     // 缩略图缓存
@@ -220,11 +218,15 @@ public class ComponentCapturePanel extends BasePanel {
     // 核心方法
     private void drawThumbnailPreview(DrawContext ctx, int x, int y);
     private void regenerateThumbnail();
-    private void runAutoAnalysis();
-    private void autoDetectSockets();
     private void saveComponent();
 }
 ```
+
+> 2026-11-15 核对：设计稿中的 `autoAnalyzeButton`（智能分析）与
+> `autoDetectSocketsButton`（自动检测连接位）曾以"尚未开放"的禁用按钮存在，
+> 且在渲染时被无条件 `visible = false`——永不可见、永不可点。
+> 两者及其 `runAutoAnalysis()` / `autoDetectSockets()` 存根**已删除**（LEGACY-037）。
+> 真实生效的相邻能力是"自动修复 / 撤销修复"按钮，由构件健康检查驱动。
 
 ### 集成点
 

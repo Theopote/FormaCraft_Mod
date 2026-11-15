@@ -16,4 +16,4 @@ TowerGenerator 的原楼梯在 (+1,0)、(0,+1)、(-1,0)、(0,-1) 四个轴向位
 
 TowerCirculationTest 新增九个执行案例，覆盖不可能的楼层数、请求楼板数、相邻踏步与转角平台、朝向、最终两格空气、真实 TowerGenerator 楼板洞口与屋顶保留，以及单层/关闭楼梯行为。测试初始化真实方块注册表，但没有启动 ServerWorld；邻居更新、真实碰撞与玩家通行未验收。
 
-调用链审查确认 PlanProgramCompiler 使用 SkeletonExecutors 中注册的 SkeletonBuildService；LINEAR_PATH 默认走 LinearPathSemanticGenerator，其他类型才回退 SkeletonGeneratorRegistry。注册的 StairAssembler 并不因此成为 PlanProgram 的楼层连接入口。第十九批已改为任一骨架生成失败即拒绝整份结果；通行要求仍未接入该路径。StructurePatchBridgeTest 新增三个回归，覆盖完整状态执行、非零生成入口偏移、实际 TowerGenerator 要求与洞口，以及缺失净空拒绝；未启动真实 ServerWorld。
+调用链审查确认 PlanProgramCompiler 使用 SkeletonExecutors 中注册的 SkeletonBuildService；LINEAR_PATH 默认走 LinearPathSemanticGenerator，其他类型才回退 SkeletonGeneratorRegistry。旧 `StairAssembler` 装配器子系统生产调用者为 0，已于 2026-11-15 **已删除**，并不因此成为 PlanProgram 的楼层连接入口。第十九批已改为任一骨架生成失败即拒绝整份结果；通行要求仍未接入该路径。StructurePatchBridgeTest 新增三个回归，覆盖完整状态执行、非零生成入口偏移、实际 TowerGenerator 要求与洞口，以及缺失净空拒绝；未启动真实 ServerWorld。

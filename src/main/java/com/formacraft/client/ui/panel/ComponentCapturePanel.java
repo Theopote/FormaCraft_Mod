@@ -22,7 +22,6 @@ import com.formacraft.client.ui.panel.capture.ComponentCaptureWorldOverlay;
 import com.formacraft.client.ui.toast.HudToast;
 import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.client.ui.widget.HudTextInput;
-import com.formacraft.common.component.ComponentCategory;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.client.network.FormaCraftClientNetworking;
@@ -98,8 +97,6 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     private ButtonWidget socketClearButton;
 
     // 智能分析按钮
-    private ButtonWidget autoAnalyzeButton;
-    private ButtonWidget autoDetectSocketsButton;
     private ButtonWidget autoFixButton;
     private ButtonWidget undoAutoFixButton;
 
@@ -445,20 +442,6 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                         清空后需要重新配置""")))
                 .build();
 
-        // 智能分析按钮（尚未实现 — 保持禁用，避免假“完成”反馈）
-        autoAnalyzeButton = ButtonWidget.builder(Text.literal("🔍 智能分析（尚未开放）"), b -> runAutoAnalysis())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        智能分析（开发中）
-                        ━━━━━━━━━━━━
-                        此功能尚未实现，暂不可用。
-                        
-                        请手动配置：
-                        • 分类与标签
-                        • 文化风格 / 几何原型
-                        • 附着与方向标记""")))
-                .build();
-        
         // 自动修复按钮
         autoFixButton = ButtonWidget.builder(Text.literal("🤖 自动修复"), b -> healthCoordinator.runAutoFix(client))
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -482,16 +465,6 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                         ━━━━━━━━━━━━
                         恢复到修复前的状态
                         """)))
-                .build();
-
-        autoDetectSocketsButton = ButtonWidget.builder(Text.literal("自动检测（尚未开放）"), b -> autoDetectSockets())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        自动检测连接位（开发中）
-                        ━━━━━━━━━━━━
-                        此功能尚未实现，暂不可用。
-                        
-                        请使用下方表单手动添加连接位。""")))
                 .build();
 
         // 底部按钮
@@ -725,31 +698,10 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 anchorOutsideButton, autoAnchorButton, facingButton, mirrorButton, semanticSkinButton,
                 semanticTagOnSaveButton, semanticStyleButton, semanticPartButton, socketContextButton,
                 socketPickOriginButton, socketFacingButton, socketAddButton, socketPreviewButton, socketClearButton,
-                autoAnalyzeButton, autoDetectSocketsButton, autoFixButton, undoAutoFixButton, cancelButton, saveButton,
+                autoFixButton, undoAutoFixButton, cancelButton, saveButton,
                 boxSelectButton, pointSelectButton, clearSelectionButton, advancedOptionsButton, attachmentModeButton,
                 directionalityButton, culturalStyleButton, geometryArchetypeButton, setInsideButton, setOutsideButton,
                 setBottomButton, setTopButton);
-    }
-    
-    /**
-     * 获取分类的显示名称
-     */
-    @Override
-    public String getCategoryDisplayName(ComponentCategory category) {
-        return switch (category) {
-            case DOOR -> "门";
-            case WINDOW -> "窗";
-            case BALCONY -> "阳台";
-            case RAILING -> "栏杆";
-            case PANEL -> "面板";
-            case COLUMN -> "柱子";
-            case STAIRS -> "楼梯";
-            case BRACKET -> "斗拱";
-            case ORNAMENT -> "装饰";
-            case ARCH -> "拱券";
-            case ROOF_DETAIL -> "屋顶细节";
-            default -> "通用构件";
-        };
     }
     
     /**
@@ -987,14 +939,12 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 !isPhaseComplete(CapturePhase.SEMANTIC),
                 phaseHeaders,
                 3,
-                autoDetectSocketsButton,
                 socketContextButton,
                 socketPickOriginButton,
                 socketFacingButton,
                 socketAddButton,
                 socketPreviewButton,
                 socketClearButton,
-                autoAnalyzeButton,
                 x,
                 y,
                 w
@@ -1207,19 +1157,6 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         return advancedOptionsExpanded;
     }
 
-    @Override
-    public void setAdvancedOptionsExpanded(boolean expanded) {
-        advancedOptionsExpanded = expanded;
-    }
-
-    private void runAutoAnalysis() {
-        HudToast.show("智能分析尚未实现，请手动配置分类、标签与语义字段", true);
-    }
-
-    private void autoDetectSockets() {
-        HudToast.show("自动检测 Socket 尚未实现，请手动添加连接位", true);
-    }
-    
     private boolean canSaveWithoutHealthCheck() {
         var st = ComponentTool.INSTANCE.getState();
         if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(st) || st.isCaptureSavePending()) return false;
@@ -1366,9 +1303,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         if (clickButton(socketAddButton, click)) return true;
         if (clickButton(socketPreviewButton, click)) return true;
         if (clickButton(socketClearButton, click)) return true;
-        
-        if (clickButton(autoAnalyzeButton, click)) return true;
-        if (clickButton(autoDetectSocketsButton, click)) return true;
+
         if (clickButton(autoFixButton, click)) return true;
         if (clickButton(undoAutoFixButton, click)) return true;
         

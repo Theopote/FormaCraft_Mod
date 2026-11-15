@@ -1,3 +1,9 @@
+> **归档（ARCHIVED）**：本文描述的"交通器官装配器"（`GateAssembler` / `StairAssembler` / `WalkwayAssembler` / `SkeletonHelper`）已随整个 `server/skeleton/gen/assembler/` 子系统于 2026-11-15 **整体删除**，**不是现行接线指南**。
+> 原因：这些装配器只被 `ComponentAssemblerRegistry.registerDefaults()` 注册，`ComponentAssembler.assemble(...)` 的生产调用者为 0——即"已注册但从未被调用"的互引死脚手架。
+> 现行楼梯生成路径是 assembly 元操作 `STAIR_SYSTEM`（`AssemblyComponentEmitter` → `MetaAssemblyEngine` → `AssemblyCirculationOps.applyStairSystem`），不是骨架装配器。
+> 删除台账见 [ARCHITECTURE_AUDIT.md](../../refactoring/ARCHITECTURE_AUDIT.md) LEGACY-035；楼梯契约见 [STAIR_CIRCULATION_CONTRACT.md](../STAIR_CIRCULATION_CONTRACT.md)。
+> 保留原因：记录历史设计思路，不代表可恢复的代码位置。
+
 # 交通器官（Transport Components）实现总结
 
 ## 实现状态

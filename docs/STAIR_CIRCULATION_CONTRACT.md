@@ -18,11 +18,13 @@ support 默认开启，在每列踏面下方一格放支撑；它不延伸至地
 
 活跃 SkeletonBuildPipeline 的 SemanticBlockStateResolver 使用完整状态序列化，保留 half、shape、waterlogged、axis 等属性。SemanticPaletteResolver 将 STAIR_STEP 的水平 facing 应用到楼梯材质，缺少规则时使用石砖楼梯；非楼梯材质或竖直朝向明确拒绝。
 
-StairAssembler 目前只有注册，没有主流程调用。该旧 API 已修复显式非零 offset 的高程保留、direction 传递和 steps 预算；没有偏移时以起点地表为基准，遇到高于踏步的地形整段拒绝，避免跳级。它仍不解析 from/to 楼层端点，不自动连接平台或打开楼板。不能将这项修复解释为 Skeleton 主流程新增了层间楼梯装配。
+旧装配器 `StairAssembler` 只有注册、没有主流程调用，生产调用者为 0，已于 2026-11-15 **已删除**（连同整个 `server/skeleton/gen/assembler/` 子系统，见 `docs/refactoring/ARCHITECTURE_AUDIT.md` LEGACY-035）。它此前修复过的显式非零 offset 高程保留、direction 传递和 steps 预算等行为因此不再有任何现行实现承载。
+
+现行的楼梯生成路径是 **assembly 元操作**而非骨架装配器：`AssemblyComponentEmitter` 把 `STRUCTURE`/`STAIRS_SYSTEM`/`STAIRCASE` 归一为 `STAIR_SYSTEM`，`MetaAssemblyEngine` 调用 `AssemblyCirculationOps.applyStairSystem` 落块，`AssemblyCirculationConstraints` 捕获真实世界坐标并做通行校验。层间楼梯目前**没有**接入 Skeleton 主流程：不解析 from/to 楼层端点，不自动连接平台或打开楼板。
 
 ## 验证与下一步
 
-AssemblyCirculationOpsTest 验证精确宽度、两端踏面、升降/缓坡、旋转、支撑与挖空、非法路线及两种规划入口校验。SemanticBlockStateResolverTest 经真实 PatchExecutor 与可控方块访问验证完整属性落地；StairAssemblerTest 验证旧 API 的偏移、地形和预算。它们没有启动真实游戏世界。
+AssemblyCirculationOpsTest 验证精确宽度、两端踏面、升降/缓坡、旋转、支撑与挖空、非法路线及两种规划入口校验。SemanticBlockStateResolverTest 经真实 PatchExecutor 与可控方块访问验证完整属性落地。它们没有启动真实游戏世界。
 
 第十四批已修复 assembly SHELL_BOX 最后清空内部删除楼板的问题，并验证先主体、后楼梯的洞口与上层踏面组合，见 [箱体楼板契约](SHELL_FLOOR_CONTRACT.md)。其他生成器、自动楼层入口/平台连接、构件依赖排序以及头顶碰撞、邻居更新、存档与玩家实际通行仍待检查。楼梯不能仅靠单个部件的局部测试认定可用。
 

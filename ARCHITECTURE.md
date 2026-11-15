@@ -119,6 +119,8 @@ LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhand
 - 暗示再接第三套通用过滤主干（`PatchFilterPipeline` / `ToolPatchFilter` 设计稿已删除；现行过滤只有 `ServerPatchFilter` 与 `BuildConstraints`，共用 `MutationRegionPolicy`，见 WORLD_MUTATION_CONTRACT）。
 - 删除仍有消费者的 compat 路径（先更新审计退出清单）。
 - 新增「注册后从不渲染」的脚手架：注册表/枚举/接口齐备但无实际调用方的子系统，等同死代码（见 `common/debug/` 的历史教训）。
+- 新增「注册后从不调用」的脚手架：实现类被注册表登记，但**接口方法在生产代码中无任何调用点**（见 `server/skeleton/gen/assembler/` 的历史教训）。这类结构靠「零外部引用」扫描抓不到，因为类之间互相引用。
+- 新增永远 `visible = false` 的 UI 按钮，或只弹"此功能尚未实现"的存根处理器：永久不可见的 UI = 死代码（见构件捕获面板"智能分析/自动检测"的历史教训）。
 
 ---
 
@@ -130,6 +132,8 @@ LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhand
 - [ ] 跨端只传 common DTO
 - [ ] Panel > 400 行已拆分；可应用结果已接质量门
 - [ ] 活文档未把已删类型当作现行实现（`scripts/check_doc_dead_symbols.py`）
+- [ ] 无零消费者顶层类型（`scripts/check_dead_code.py`）
+- [ ] 无「声明但从未被调用」的接口方法（`scripts/check_unused_interface_methods.py`）
 - [ ] 若触及兼容入口：已更新 [弃用退出清单](docs/refactoring/ARCHITECTURE_AUDIT.md)
 
 ---

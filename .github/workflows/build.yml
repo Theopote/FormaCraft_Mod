@@ -82,6 +82,8 @@ jobs:
           python scripts/check_banned_resurrect.py
           python scripts/test_check_dead_code.py
           python scripts/check_dead_code.py
+          python scripts/test_check_unused_interface_methods.py
+          python scripts/check_unused_interface_methods.py
 
   python:
     name: python

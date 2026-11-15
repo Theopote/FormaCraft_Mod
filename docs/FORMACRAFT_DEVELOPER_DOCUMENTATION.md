@@ -723,13 +723,13 @@ updateMemoryFromPatch(world, tx.origin(), tx.patches());
 
 ## 八、Socket 系统（H 系列）
 
-### 8.1 SocketProvider
+### 8.1 ToolBasedSocketProvider
 
 **从世界中生成 Socket**：
 
 ```java
-public interface SocketProvider {
-    List<Socket> provideSockets(BuildContext ctx);
+public interface ToolBasedSocketProvider {
+    List<Socket> provide(World world, SocketQueryContext ctx);
 }
 ```
 
@@ -742,6 +742,8 @@ public interface SocketProvider {
 
 > 2026-11-15 核对：收集入口为 `SocketProviders.collect(world, ctx)` /
 > `collectAndSort(...)`；原 `SocketRegistry` 已删除。
+> 同批**已删除**基础接口 `SocketProvider` 及其 `provideSockets(BuildContext)`
+> ——该方法生产调用者为 0，默认实现恒返回空列表（LEGACY-036）。
 
 ### 8.2 SocketMatcher
 
@@ -772,7 +774,7 @@ public class SocketMatcher {
 
 ```java
 // Socket 提供抽象位置
-Socket socket = socketProvider.provideSockets(ctx).get(0);
+Socket socket = socketProvider.provide(world, ctx).get(0);
 
 // 解析构件局部原点与朝向
 BlockPos localOrigin = SocketPlacementResolver.resolveLocalOrigin(

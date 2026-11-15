@@ -104,9 +104,9 @@ registerBuilding 返回 UUID 关联到 UndoEntry，部分恢复和完成写入�
 
 ## 第十三批完成：实际楼梯入口与完整状态
 
-调用链确认 StairAssembler 仅注册、没有主流程调用。实际 assembly STAIR_SYSTEM 修复偶数宽度多铺、上行末端缺踏面、支撑/挖空与踏面错位；非法端点、对角/过陡/超长路径在输出前拒绝，ops 和组件图校验给出 E_STAIR_FLIGHT_INVALID。运行时限制预计输出预算。Schema 补充实际支持的 clear_h、supportMaterial。
+调用链确认旧装配器 `StairAssembler` 仅注册、没有主流程调用（该装配器子系统已于 2026-11-15 **已删除**，生产调用者 0，见 LEGACY-035）。实际 assembly STAIR_SYSTEM 修复偶数宽度多铺、上行末端缺踏面、支撑/挖空与踏面错位；非法端点、对角/过陡/超长路径在输出前拒绝，ops 和组件图校验给出 E_STAIR_FLIGHT_INVALID。运行时限制预计输出预算。Schema 补充实际支持的 clear_h、supportMaterial。
 
-活跃 Skeleton 状态解析使用完整属性序列化，STAIR_STEP 设置水平朝向并校验材质。旧 StairAssembler 保留显式非零偏移高程、传递方向，限制 steps，地形挡路整段拒绝。新增 22 个回归（assembly 15、状态落地 4、旧装配器 3），403 个测试全通过，完整 check 和 43/23/37 项资源校验通过；架构检查 20 处既有技术债、0 新增，检查器 2 个测试通过。
+活跃 Skeleton 状态解析使用完整属性序列化，STAIR_STEP 设置水平朝向并校验材质。旧 `StairAssembler` 保留显式非零偏移高程、传递方向，限制 steps，地形挡路整段拒绝。新增 22 个回归（assembly 15、状态落地 4、旧装配器 3），403 个测试全通过，完整 check 和 43/23/37 项资源校验通过；架构检查 20 处既有技术债、0 新增，检查器 2 个测试通过。
 
 没有启动真实游戏世界；楼板洞口、跨层平台、组合后净空与邻居更新仍未验收。对角梯段现在明确拒绝，需要拆为轴向梯段与平台；不能将旧装配器修复视为主流程接线。详见 [楼梯契约](../STAIR_CIRCULATION_CONTRACT.md)。
 
