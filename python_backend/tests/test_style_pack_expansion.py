@@ -51,8 +51,8 @@ class StylePackExpansionTest(unittest.TestCase):
         from app.services.archetype_detector import detect_archetype_local
         generic = detect_archetype_local('生成一座粗野主义大楼')
         self.assertIn('generic_typology', generic.reason_tags)
-        self.assertFalse(generic.qualifies_for_module_route())
-        self.assertTrue(detect_archetype_local('build a brutalist megastructure').qualifies_for_module_route())
+        self.assertFalse(generic.matches_registered_preset_identity())
+        self.assertTrue(detect_archetype_local('build a brutalist megastructure').matches_registered_preset_identity())
         from app.services.building_research_agent import _extract_subject
         self.assertEqual(_extract_subject('build an art deco tower'), 'art deco tower')
         self.assertEqual(_extract_subject('build Amsterdam museum'), 'Amsterdam museum')

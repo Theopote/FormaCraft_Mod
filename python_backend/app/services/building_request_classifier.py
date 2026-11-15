@@ -96,7 +96,7 @@ def classify_building_request_local(user_text: str) -> RequestClassification:
         from .archetype_detector import detect_archetype_local
 
         match = detect_archetype_local(text)
-        if match and match.qualifies_for_module_route():
+        if match and match.matches_registered_preset_identity():
             return RequestClassification(
                 is_specific_real_building=True,
                 building_name_normalized=subject or match.matched_alias or match.id,

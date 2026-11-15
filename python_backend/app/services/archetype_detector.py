@@ -10,7 +10,7 @@ from .landmark_alias_matcher import (
     match_archetype_aliases,
 )
 
-MODULE_ROUTE_MIN_CONFIDENCE = 0.85
+PRESET_IDENTITY_MIN_CONFIDENCE = 0.85
 
 
 @dataclass(frozen=True)
@@ -20,9 +20,9 @@ class ArchetypeMatch:
     reason_tags: Tuple[str, ...] = ()
     matched_alias: Optional[str] = None
 
-    def qualifies_for_module_route(self) -> bool:
-        """High-confidence proper-noun hit with a preset MODULE generator only."""
-        if self.confidence < MODULE_ROUTE_MIN_CONFIDENCE:
+    def matches_registered_preset_identity(self) -> bool:
+        """Identity evidence only: a confident catalog match never authorizes routing."""
+        if self.confidence < PRESET_IDENTITY_MIN_CONFIDENCE:
             return False
         if "generic_typology" in self.reason_tags:
             return False
@@ -40,7 +40,7 @@ class ArchetypeMatch:
 def detect_archetype_local(text: str) -> Optional[ArchetypeMatch]:
     """
     Stage 1: local fast matching with tiered confidence.
-    - properNounAliases → 0.9 (can trigger MODULE route)
+    - properNounAliases → 0.9 (identity evidence, not module routing)
     - genericAliases only → 0.4 (typology hint, never alone routes MODULE)
     """
     if not text:

@@ -37,17 +37,17 @@ class FamenPagodaCultureTest(unittest.TestCase):
         self.assertIn("floor_count", card.get("ratios", {}))
 
     def test_famen_archetype_research_only(self):
-        from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE
+        from app.services.archetype_detector import detect_archetype_local, PRESET_IDENTITY_MIN_CONFIDENCE
         from app.services.archetype_registry import get_archetype_def
         from app.services.building_research_agent import resolve_landmark_module_for_intent
 
         match = detect_archetype_local(self.FAMEN_PROMPT)
         self.assertIsNotNone(match)
         self.assertEqual(match.id, "famen_pagoda")
-        self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
+        self.assertGreaterEqual(match.confidence, PRESET_IDENTITY_MIN_CONFIDENCE)
         defn = get_archetype_def("famen_pagoda")
         self.assertTrue(defn.research_only)
-        self.assertFalse(match.qualifies_for_module_route())
+        self.assertFalse(match.matches_registered_preset_identity())
         self.assertIsNone(resolve_landmark_module_for_intent(self.FAMEN_PROMPT))
 
 
@@ -88,18 +88,18 @@ class FoguangTempleHallCultureTest(unittest.TestCase):
         self.assertEqual(rag.get("structuralTypologyId"), "tailiang_timber_hall")
 
     def test_foguang_archetype_research_only(self):
-        from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE
+        from app.services.archetype_detector import detect_archetype_local, PRESET_IDENTITY_MIN_CONFIDENCE
         from app.services.archetype_registry import get_archetype_def
 
         match = detect_archetype_local(self.FOGUANG_PROMPT)
         self.assertIsNotNone(match)
         self.assertEqual(match.id, "foguang_temple_hall")
-        self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
+        self.assertGreaterEqual(match.confidence, PRESET_IDENTITY_MIN_CONFIDENCE)
         defn = get_archetype_def("foguang_temple_hall")
         self.assertIsNotNone(defn)
         self.assertTrue(defn.research_only)
         self.assertEqual(defn.typology_id, "tailiang_timber_hall")
-        self.assertFalse(match.qualifies_for_module_route())
+        self.assertFalse(match.matches_registered_preset_identity())
 
 
 if __name__ == "__main__":

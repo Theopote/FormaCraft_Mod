@@ -77,7 +77,7 @@ class PrACultureFewshotTest(unittest.TestCase):
         self.assertNotIn("_module.json", blob.lower())
         self.assertTrue("禁止" in blob or "forbid" in blob.lower())
 
-    def test_golden_gate_profile_structure_only_components(self):
+    def test_golden_gate_profile_compositional_components(self):
         from app.services.building_research_agent import finalize_profile_minecraft_strategy
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
 
@@ -95,7 +95,7 @@ class PrACultureFewshotTest(unittest.TestCase):
         self.assertIn("MASS_MAIN", mc.recommended_components)
         self.assertIn("AI-designed landmark", mc.notes or "")
 
-    def test_golden_gate_research_override_forbids_mass(self):
+    def test_golden_gate_research_override_preserves_model_choice(self):
         from app.services.building_plan_stage import research_landmark_override_block
         from app.services.building_research_agent import finalize_profile_minecraft_strategy
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
@@ -151,7 +151,7 @@ class PrACultureFewshotTest(unittest.TestCase):
 class PrAResearchPromptTest(unittest.TestCase):
     TEMPLE_PROMPT = "盖一座天坛"
 
-    def test_finalize_temple_profile_typology_first(self):
+    def test_finalize_temple_profile_keeps_model_authority(self):
         profile = finalize_profile_minecraft_strategy(
             BuildingProfile(
                 query=self.TEMPLE_PROMPT,
@@ -165,7 +165,7 @@ class PrAResearchPromptTest(unittest.TestCase):
         self.assertIsNone(mc.reference_landmark)
         self.assertIn("MASS_MAIN", mc.recommended_components)
 
-    def test_format_profile_typology_routing_text(self):
+    def test_format_profile_model_designed_landmark_text(self):
         profile = finalize_profile_minecraft_strategy(
             BuildingProfile(
                 query=self.TEMPLE_PROMPT,
@@ -176,7 +176,7 @@ class PrAResearchPromptTest(unittest.TestCase):
         text = format_profile_for_prompt(profile)
         self.assertNotIn("typology:radial_terrace_hall", text)
         self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
-        self.assertIn("OPEN-WORLD RESEARCH OVERRIDE", text)
+        self.assertIn("Model-designed landmark", text)
         self.assertNotIn("famen_pagoda", text)
 
     def test_format_profile_compact_shorter_than_legacy(self):
@@ -189,10 +189,10 @@ class PrAResearchPromptTest(unittest.TestCase):
         )
         compact = format_profile_for_prompt(profile, compact_routing=True)
         legacy = format_profile_for_prompt(profile, compact_routing=False)
-        self.assertLess(len(compact), len(legacy))
-        self.assertGreater(len(legacy) - len(compact), 500)
+        self.assertEqual(compact, legacy)
+        self.assertNotIn("CRITICAL routing (typology-first)", legacy)
 
-    def test_plan_stage_override_typology_not_module(self):
+    def test_plan_stage_override_rejects_fixed_executors(self):
         profile = finalize_profile_minecraft_strategy(
             BuildingProfile(
                 query=self.TEMPLE_PROMPT,

@@ -64,7 +64,7 @@ class FamenTypologyMigrationTest(unittest.TestCase):
         self.assertEqual(match.typology_id, "dense_eaves_pagoda")
 
     def test_famen_archetype_research_only(self):
-        from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE
+        from app.services.archetype_detector import detect_archetype_local, PRESET_IDENTITY_MIN_CONFIDENCE
         from app.services.archetype_registry import get_archetype_def
         from app.services.building_research_agent import resolve_landmark_module_for_intent
 
@@ -72,13 +72,13 @@ class FamenTypologyMigrationTest(unittest.TestCase):
         self.assertIsNotNone(match)
         assert match is not None
         self.assertEqual(match.id, "famen_pagoda")
-        self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
+        self.assertGreaterEqual(match.confidence, PRESET_IDENTITY_MIN_CONFIDENCE)
         defn = get_archetype_def("famen_pagoda")
         self.assertIsNotNone(defn)
         assert defn is not None
         self.assertTrue(defn.research_only)
         self.assertEqual(defn.typology_id, "dense_eaves_pagoda")
-        self.assertFalse(match.qualifies_for_module_route())
+        self.assertFalse(match.matches_registered_preset_identity())
         self.assertIsNone(resolve_landmark_module_for_intent(self.FAMEN_PROMPT))
 
     def test_famen_profile_typology_strategy(self):
@@ -167,7 +167,7 @@ class DayantaTypologyMigrationTest(unittest.TestCase):
         self.assertEqual(typology_for_archetype("giant_wild_goose_pagoda"), "dense_eaves_pagoda")
 
     def test_dayanta_archetype_research_only(self):
-        from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE
+        from app.services.archetype_detector import detect_archetype_local, PRESET_IDENTITY_MIN_CONFIDENCE
         from app.services.archetype_registry import get_archetype_def
         from app.services.building_research_agent import resolve_landmark_module_for_intent
 
@@ -175,13 +175,13 @@ class DayantaTypologyMigrationTest(unittest.TestCase):
         self.assertIsNotNone(match)
         assert match is not None
         self.assertEqual(match.id, "giant_wild_goose_pagoda")
-        self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
+        self.assertGreaterEqual(match.confidence, PRESET_IDENTITY_MIN_CONFIDENCE)
         defn = get_archetype_def("giant_wild_goose_pagoda")
         self.assertIsNotNone(defn)
         assert defn is not None
         self.assertTrue(defn.research_only)
         self.assertEqual(defn.typology_id, "dense_eaves_pagoda")
-        self.assertFalse(match.qualifies_for_module_route())
+        self.assertFalse(match.matches_registered_preset_identity())
         self.assertIsNone(resolve_landmark_module_for_intent(self.DAYANTA_PROMPT))
 
     def test_dayanta_profile_typology_strategy(self):
@@ -235,7 +235,7 @@ class TempleTypologyMigrationTest(unittest.TestCase):
         self.assertEqual(match.reference_landmark_id, "temple_of_heaven")
 
     def test_temple_archetype_research_only(self):
-        from app.services.archetype_detector import detect_archetype_local, MODULE_ROUTE_MIN_CONFIDENCE
+        from app.services.archetype_detector import detect_archetype_local, PRESET_IDENTITY_MIN_CONFIDENCE
         from app.services.archetype_registry import get_archetype_def
         from app.services.building_research_agent import resolve_landmark_module_for_intent
 
@@ -243,11 +243,11 @@ class TempleTypologyMigrationTest(unittest.TestCase):
         self.assertIsNotNone(match)
         assert match is not None
         self.assertEqual(match.id, "temple_of_heaven")
-        self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
+        self.assertGreaterEqual(match.confidence, PRESET_IDENTITY_MIN_CONFIDENCE)
         defn = get_archetype_def("temple_of_heaven")
         self.assertTrue(defn.research_only)
         self.assertEqual(defn.typology_id, "radial_terrace_hall")
-        self.assertFalse(match.qualifies_for_module_route())
+        self.assertFalse(match.matches_registered_preset_identity())
         self.assertIsNone(resolve_landmark_module_for_intent(self.TEMPLE_PROMPT))
 
     def test_temple_profile_typology_strategy(self):

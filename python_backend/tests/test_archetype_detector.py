@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from app.services.archetype_detector import (
-    MODULE_ROUTE_MIN_CONFIDENCE,
+    PRESET_IDENTITY_MIN_CONFIDENCE,
     detect_archetype_local,
 )
 from app.models.building_profile import BuildingProfile
@@ -63,22 +63,22 @@ class ArchetypeDetectorTest(unittest.TestCase):
     def test_sagrada_does_not_route_gothic_cathedral(self):
         match = detect_archetype_local("生成圣家族大教堂")
         if match is not None:
-            self.assertFalse(match.qualifies_for_module_route())
+            self.assertFalse(match.matches_registered_preset_identity())
         self.assertIsNone(resolve_landmark_module_for_intent("生成圣家族大教堂"))
 
     def test_explicit_gothic_cathedral_detects_archetype_not_module_route(self):
         match = detect_archetype_local("哥特大教堂")
         self.assertIsNotNone(match)
         self.assertEqual(match.id, "gothic_cathedral")
-        self.assertGreaterEqual(match.confidence, MODULE_ROUTE_MIN_CONFIDENCE)
-        self.assertFalse(match.qualifies_for_module_route())
+        self.assertGreaterEqual(match.confidence, PRESET_IDENTITY_MIN_CONFIDENCE)
+        self.assertFalse(match.matches_registered_preset_identity())
         self.assertIsNone(resolve_landmark_module_for_intent("哥特大教堂"))
 
     def test_generic_cathedral_only_typology_hint(self):
         match = detect_archetype_local("生成一个大教堂")
         if match is not None:
             self.assertEqual(match.confidence, GENERIC_TYPOLOGY_CONFIDENCE)
-            self.assertFalse(match.qualifies_for_module_route())
+            self.assertFalse(match.matches_registered_preset_identity())
         self.assertIsNone(resolve_landmark_module_for_intent("生成一个大教堂"))
 
     def test_disney_castle_does_not_route_castle_compound(self):
@@ -157,7 +157,7 @@ class BroadTypologyAliasTest(unittest.TestCase):
         match = detect_archetype_local("江南水乡")
         self.assertIsNotNone(match)
         self.assertIn("generic_typology", match.reason_tags)
-        self.assertFalse(match.qualifies_for_module_route())
+        self.assertFalse(match.matches_registered_preset_identity())
         self.assertIsNone(resolve_landmark_module_for_intent("江南水乡"))
 
     def test_himeji_not_generic_japanese_castle_module(self):
@@ -172,7 +172,7 @@ class BroadTypologyAliasTest(unittest.TestCase):
     def test_generic_shrine_typology_low_confidence(self):
         match = detect_archetype_local("帮我建一个神社")
         if match is not None:
-            self.assertFalse(match.qualifies_for_module_route())
+            self.assertFalse(match.matches_registered_preset_identity())
 
     def test_disney_castle_research_not_medieval_module(self):
         self.assertIsNone(resolve_landmark_module_for_intent("迪士尼城堡"))

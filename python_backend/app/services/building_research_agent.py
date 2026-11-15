@@ -445,7 +445,7 @@ def _compute_fidelity_message(
                 f"识别为「{name}」，目录无精确模板，已使用近似风格模块 {resolved_module}（保真度：低）",
             )
         match = detect_archetype_local(user_text)
-        if match and match.qualifies_for_module_route():
+        if match and match.matches_registered_preset_identity():
             return (
                 "preset_module",
                 f"识别为预置地标「{resolved_module}」，使用固定模板生成（保真度：取决于模块与真实建筑吻合度）",
@@ -998,7 +998,15 @@ def format_profile_for_prompt(
         "Profile synthesized from research. Use for LlmPlan generation.",
         "",
     ]
-    if compact_routing:
+    if profile.minecraft_strategy.model_designed_landmark:
+        lines.extend([
+            "Model-designed landmark: research supplies evidence, not a fixed execution recipe.",
+            "Independently design massing, layout, proportions, materials and distinctive details.",
+            "Do not substitute landmark MODULE or whole-building typology presets for your plan.",
+            "Use supported components/FBD; report unsupported geometry explicitly.",
+            "",
+        ])
+    elif compact_routing:
         lines.extend([
             f"Routing summary: {profile_routing_summary(profile)}",
             "Full routing contract: OPEN-WORLD RESEARCH OVERRIDE in system prompt.",

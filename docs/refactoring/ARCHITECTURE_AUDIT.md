@@ -218,6 +218,8 @@ OrchestratorClient 的 editCity/editBuilding 旧名称删除，改为 editLegacy
 
 普通命名地标的 profile 清除强制 landmark_module / structural_typology / reference_landmark 路由，保留证据与特征；仅 preset:<id> 选择固定兼容模块。模型自主模式隔离含固定路由的文化 RAG，提示词要求自主体量与布局。规范化前后检查固定模块/整栋 typology，违规返回能力缺口；不静默改成同一固定生成器。回归验证不同主体尺寸可保留、旧 MODULE 不经 typology 替换、显式预设兼容。尚未完成真实多模型与游戏建筑质量验收，通用类型 typology 仍是后续迁移项。
 
+地标自主规划清理：format_profile_for_prompt 在两种格式下均使用自主设计说明，不再携带旧 typology-first 指令。识别器方法改名 matches_registered_preset_identity，阈值改为 PRESET_IDENTITY_MIN_CONFIDENCE，明确其只提供身份匹配证据，不授权模板路由；旧方法/常量名删除，调用与测试同步更新。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
