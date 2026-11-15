@@ -25,9 +25,9 @@ public class FormaRequest {
      * 可选：输出格式（"llmplan" | "buildingspec" | "auto"）
      * - "llmplan": 强制使用 LlmPlan 格式
      * - "buildingspec": 强制使用 BuildingSpec 格式
-     * - "auto": 自动决定（默认，基于 promptMode 和 requestText）
+     * - "auto" / null：统一使用 LlmPlan 主干
      */
-    private String outputFormat;
+    private String outputFormat = "llmplan";
     private BlockPos playerPos;
     private String facing;
     private String dimension;
@@ -315,6 +315,11 @@ public class FormaRequest {
 
     public void setGoogleCseCx(String googleCseCx) {
         this.googleCseCx = googleCseCx;
+    }
+
+    /** Explicit opt-in for the frozen whole-spec compatibility path. */
+    public boolean requestsLegacyBuildingSpec() {
+        return outputFormat != null && "buildingspec".equalsIgnoreCase(outputFormat.trim());
     }
 
     public String getOutputFormat() {

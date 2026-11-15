@@ -7,7 +7,6 @@ import com.formacraft.server.compiler.ComponentPlanCompiler;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.GlobalConstraints;
-import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.network.LlmPlanTerrainBounds;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
@@ -255,7 +254,7 @@ public final class LlmPlanPreviewBuilder {
      */
     static boolean canOffThreadComponentCompile(LlmPlan plan, FormaRequest req) {
         if (plan == null || plan.hasCapabilityGap()) return false;
-        if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req)) return false;
+        if ((req != null && req.requestsLegacyBuildingSpec())) return false;
         boolean patchRequest = req != null && req.getPromptMode() != null
                 && !"BUILD".equalsIgnoreCase(req.getPromptMode().trim());
         if (patchRequest) return false;
@@ -346,7 +345,7 @@ public final class LlmPlanPreviewBuilder {
                     llmPlan.playerFidelityNoticeZh().trim()));
         }
 
-        if (BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req)) {
+        if ((req != null && req.requestsLegacyBuildingSpec())) {
             LlmPlanRoutingMetrics.recordFallback(FallbackReason.ROUTING_POLICY, (player == null ? null : player.getName().getString()), req);
             return false;
         }

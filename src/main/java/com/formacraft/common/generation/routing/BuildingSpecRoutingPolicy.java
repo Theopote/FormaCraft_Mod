@@ -25,22 +25,6 @@ public final class BuildingSpecRoutingPolicy {
     private BuildingSpecRoutingPolicy() {}
 
     /**
-     * 收到 LlmPlan 后是否跳过构件预览，直接走 {@code GenerationHub.routeStructure()}。
-     * <p>
-     * P1：不再凭关键词（如「四合院」）跳过；仅 {@code outputFormat=buildingspec} 时跳过。
-     */
-    public static boolean shouldSkipLlmPlanPreview(FormaRequest req) {
-        if (req == null) {
-            return false;
-        }
-        String fmt = req.getOutputFormat();
-        if (fmt != null && "buildingspec".equalsIgnoreCase(fmt.trim())) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
      * 在整栋生成前为 {@link BuildingSpec} 写入路由提示（不覆盖 LLM / 用户已显式设置的字段）。
      * <p>
      * 仅写入 {@code extra.template} 提示，不再自动设置旧 force 标记。

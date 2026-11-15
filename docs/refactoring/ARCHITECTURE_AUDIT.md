@@ -142,6 +142,8 @@ Java BuildingSpecRoutingPolicy 已删除无生产调用者的 shouldUseComposite
 
 主干用户意图提取从 BuildingSpecRoutingPolicy 迁至 common.model.request.RequestIntentText.resolve，编译器、预览、请求处理及三类路由指标同步改用公共请求工具。旧 intentText/userIntentText 包装删除；显式文本→最后一条聊天→requestText 的顺序与空值行为保持原实现。
 
+Java FormaRequest 默认 outputFormat 改为 llmplan，并提供 requestsLegacyBuildingSpec 显式兼容判断；预览主干改用 DTO 判断，删除 BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview，预览器不再依赖旧策略类。保留 null/auto 主干行为及旧格式大小写/空白兼容。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

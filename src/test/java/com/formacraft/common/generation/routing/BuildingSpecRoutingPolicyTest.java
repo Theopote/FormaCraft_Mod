@@ -12,19 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BuildingSpecRoutingPolicyTest {
 
     @Test
-    void shouldSkipLlmPlanPreview_onlyWhenOutputFormatIsBuildingSpec() {
-        FormaRequest req = new FormaRequest();
-        req.setUserMessage("建一座四合院");
-        assertFalse(BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req));
-
-        req.setOutputFormat("buildingspec");
-        assertTrue(BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req));
-
-        req.setOutputFormat("llmplan");
-        assertFalse(BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview(req));
-    }
-
-    @Test
     void isMingQingCourtyardIntent_requiresPeriodAndCourtyardTerms() {
         assertFalse(BuildingSpecRoutingPolicy.isMingQingCourtyardIntent("build a courtyard"));
         assertFalse(BuildingSpecRoutingPolicy.isMingQingCourtyardIntent("ming dynasty temple"));
