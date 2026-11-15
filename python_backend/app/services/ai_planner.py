@@ -73,9 +73,7 @@ _LLM_CALL_TIMEOUT_COMPOSITE_SEC = float(os.getenv("LLM_CALL_TIMEOUT_COMPOSITE_SE
 _LLM_CALL_TIMEOUT_CITY_SEC = float(os.getenv("LLM_CALL_TIMEOUT_CITY_SEC", "600"))
 
 # ---- Phase 6 延迟治理开关 ----
-# 参考资料联网搜索：已由 BuildingResearchAgent 接管（PR-1）。
-# ARCHITECTURE_SEARCH 保留兼容：off=关闭研究，其他值=开启（具体模式见 BUILDING_RESEARCH_MODE）。
-_ARCHITECTURE_SEARCH_MODE = (os.getenv("ARCHITECTURE_SEARCH") or "landmark").strip().lower()
+# 研究开关与旧 ARCHITECTURE_SEARCH 兼容策略由 BuildingResearchAgent 统一解析。
 # 可选：llmplan 步骤强制使用的快模型（覆盖客户端 model，用于速度/质量对比）。为空则不覆盖。
 _LLMPLAN_MODEL_OVERRIDE = (os.getenv("LLMPLAN_MODEL") or "").strip()
 # 已知不支持严格 json_schema 的 provider：auto 模式下直接走 json_object，避免必失的首次尝试
@@ -1972,7 +1970,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
     building_profile = None
     research_user_text = _research_user_text(req, user_prompt)
 
-    if _ARCHITECTURE_SEARCH_MODE != "off":
+    if research_user_text:
         _t_search = time.monotonic()
         try:
             from .building_research_agent import (

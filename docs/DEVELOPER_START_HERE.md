@@ -46,7 +46,7 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 
 `planning_request_hints.py` 保存规划请求的规模、地形提示推断。`ai_planner.py` 仍保留迁移函数的导入别名，以支持已有调用与测试；这些别名不代表另一份实现。删除兼容入口前须核对 `build.py` 的实际路由和消费者。
 
-联网研究由 `building_research_agent.py` 管理，配置使用 `BUILDING_RESEARCH`、`BUILDING_RESEARCH_MODE`、`BUILDING_RESEARCH_TIMEOUT_SEC`。旧 `ARCHITECTURE_SEARCH` 仅保留兼容开关语义，旧 `landmark/all` 不再选择研究模式，`ARCHITECTURE_SEARCH_TIMEOUT_SEC` 已无作用。
+联网研究由 `building_research_agent.py` 管理，配置使用 `BUILDING_RESEARCH`、`BUILDING_RESEARCH_MODE`、`BUILDING_RESEARCH_TIMEOUT_SEC`。明确设置的 `BUILDING_RESEARCH=on/off` 优先于旧开关；未明确设置时才参考 `ARCHITECTURE_SEARCH=off`。旧 `landmark/all` 不再选择研究模式，`ARCHITECTURE_SEARCH_TIMEOUT_SEC` 已无作用。
 
 LLM 客户端创建与 provider、模型、密钥解析统一由 `services/llm_client.py` 负责；规划、兼容编辑和历史摘要均使用该工厂。新增调用应复用此入口，不恢复路由内的 OpenAI 专用客户端或独立环境变量解析。
 

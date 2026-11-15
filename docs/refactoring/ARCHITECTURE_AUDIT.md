@@ -94,6 +94,8 @@ BuildingSpec 的基因补全、材质语义映射及默认构件参数已迁至 
 
 兼容 ai_editor 的模型参数桥接已改为显式 SimpleNamespace，修复临时类体中 model = model 引发 NameError、导致真实客户端调用前即返回原 spec 的问题。模型解析仍委托 llm_client；新编辑能力继续走 LlmPlan patch。回归覆盖城市/单体编辑成功、无客户端、无效响应及 provider 默认模型解析。
 
+研究启用策略现统一由 building_research_agent.is_building_research_enabled 解析。规划器移除启动时缓存的 _ARCHITECTURE_SEARCH_MODE 外层门控，修复 BUILDING_RESEARCH=on 仍被旧 ARCHITECTURE_SEARCH=off 提前拦截的问题；显式 off 仍关闭研究，未显式设置时保留旧开关回退。回归覆盖配置优先级及真实规划入口到研究阶段的调用。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
