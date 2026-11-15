@@ -120,6 +120,12 @@ research_building_context 仅剩测试调用，已删除。对应回归改为覆
 
 _fill_component_params 迁至 llm_plan_component_defaults.py，规划器保留实际调用导入。样式目录、style pack、用户 style pack 及复合请求行为测试改为直接引用职责模块，参数补全函数体保持原实现；未改动样式默认值与显式参数优先级。
 
+LlmPlan 输出规范化主流程与最小角锚点识别迁至 llm_plan_normalization.py；规划器仅保留实际调用导入，行为测试直接引用职责模块。用户合同、能力修复及细节补全顺序不变。
+
+规划器拆分收尾：删除未使用的 List/Union 导入与迁移遗留空段，修正“LlmPlan 原始 JSON 直接返回”“语义规划不等待”等过时说明，显式标记三个 spec 兼容入口。本轮以 Git 索引版本补做上一批规范化函数 AST 对比，两个函数一致；HEAD 仍不可读取，未修改 Git 历史或索引。
+
+语义空间规划提示词构造迁至 semantic_plan_prompts.py，模型调用与 SemanticSpatialPlan 校验保留在原入口。原提示词文本与上下文构造顺序保留，新增选区、规模、地形及真实入口发送消息回归。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

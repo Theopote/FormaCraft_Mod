@@ -90,3 +90,7 @@ LlmPlan 构件类型别名、features 表示归一和未转义请求字符串修
 解释器接口及 TypologyInterpreterRegistry 位于 server.generation.typology，不再由 common 持有服务端执行契约。游戏启动由 `FormacraftMod.onInitialize` 调用 `server.init.TypologySystemInitializer.initialize()`；直接运行解释器注册测试时显式初始化。自定义解释器可通过 registry.register 注册，重复初始化不会覆盖已有注册。
 
 模组入口的静态字段不能访问活注册表；RegistryKey 使用 `RegistryKeys.ITEM` 构建。方块注册和世界访问应在运行时生命周期内完成。普通 JUnit 不能代替 Fabric 加载环境，涉及真实 Minecraft 注册表的失败需单独核查。当前剩余回归见 [回归清单](refactoring/REGRESSION_BASELINE.md)。
+
+LlmPlan 输出规范化主流程位于 `services/llm_plan_normalization.py`，按现有顺序组合布局、尺寸、用户合同、能力修复与细节补全。`ai_planner.py` 负责模型调用编排，不另写一套输出修复。
+
+现有语义空间规划阶段的提示词由 `services/semantic_plan_prompts.py` 构造；城市/复合兼容入口使用该阶段，不能把它扩展为第二条默认生成主干。

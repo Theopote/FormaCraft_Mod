@@ -254,7 +254,7 @@ class TypologyPlanRepairTest(unittest.TestCase):
         from unittest.mock import Mock
 
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         from app.services.typology_plan_repair import _sanitize_landmark_modules
 
         profile = BuildingProfile(

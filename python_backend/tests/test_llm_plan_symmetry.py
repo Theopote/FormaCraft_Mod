@@ -15,7 +15,7 @@ def _minimal_mass() -> dict:
 
 class TestGlobalSymmetryNormalize(unittest.TestCase):
     def _normalize(self, plan: dict, req=None, profile=None) -> dict:
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
 
         return _normalize_llm_plan_output(plan, req=req, building_profile=profile)
 

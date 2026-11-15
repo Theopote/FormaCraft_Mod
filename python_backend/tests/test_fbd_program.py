@@ -45,7 +45,7 @@ class FbdProgramTest(unittest.TestCase):
             validate_llm_plan_dict(p)
 
     def test_full_llmplan_normalization_preserves_the_program_ast(self):
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         p = self.plan()
         original = deepcopy(p['components'][0]['params']['fbd_program'])
         normalized = _normalize_llm_plan_output(deepcopy(p), None)
@@ -124,7 +124,7 @@ class FbdProgramTest(unittest.TestCase):
         self.assertIn('fbd_program', result['components'][0]['params'])
 
     def test_program_normalization_never_clamps_envelope_or_adds_semantic_geometry(self):
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         p = self.plan()
         req = SimpleNamespace(userMessage='请使用 FBD 建造两座小屋，一座 FLAT 一座 GABLE 坡屋顶', requestText='')
         with patch('app.services.building_contract.apply_building_contract', side_effect=AssertionError('legacy contract')):

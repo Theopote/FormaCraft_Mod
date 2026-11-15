@@ -8,7 +8,7 @@ class TestLlmPlanRepair(unittest.TestCase):
         from unittest.mock import Mock
 
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy, ProfileScaleHints
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         from app.services.llm_plan_repair import repair_llm_plan_validation
 
         profile = BuildingProfile(

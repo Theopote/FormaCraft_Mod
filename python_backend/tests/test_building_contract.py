@@ -86,7 +86,7 @@ class BuildingContractTest(unittest.TestCase):
         reqs = result['proportion_hints']['building_contract']['requirements']
         self.assertEqual(['building_1', 'building_2'], [r['scope'] for r in reqs])
         self.assertEqual([['first'], ['second']], [r['target_components'] for r in reqs])
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         from app.models.llm_plan import validate_llm_plan_dict
         plan = {'mode': 'build', 'style_profile': 'DEFAULT', 'anchor': {'x': 0, 'y': 64, 'z': 0},
                 'components': [second, first]}
@@ -303,7 +303,7 @@ class BuildingContractTest(unittest.TestCase):
         self.assertEqual(req.userMessage, request_text(req))
 
     def test_contract_survives_existing_plan_normalization_and_schema(self):
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         from app.models.llm_plan import validate_llm_plan_dict
         raw = {'mode': 'build', 'style_profile': 'DEFAULT', 'anchor': {'x': 0, 'y': 64, 'z': 0},
                'components': [mass()]}

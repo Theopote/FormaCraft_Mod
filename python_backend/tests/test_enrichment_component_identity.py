@@ -66,7 +66,7 @@ class EnrichmentIdentityTest(unittest.TestCase):
 
     def test_normalizer_preserves_exact_roof_target_through_enrichment(self):
         from app.models.building_profile import BuildingProfile, StyleSpec, StyleFeatureEvidence
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         profile = BuildingProfile(style_specs=[StyleSpec(requested_name="Example", scope="mass_a",
             features=[StyleFeatureEvidence(feature="flat roof", scope="roof_a", confidence=0.9,
                 source_urls=["https://museum.example/reference"])])])

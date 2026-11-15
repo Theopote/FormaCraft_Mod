@@ -247,7 +247,7 @@ class CompoundRequestRegressions(unittest.TestCase):
                     stair = next(c for c in result['components'] if c['params']['component_id']=='exterior_stair')
                     self.assertEqual(28,stair['relative_position']['x'])
     def test_named_residence_floors_are_not_inferred_on_other_bodies(self):
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         raw = {'mode':'build','style_profile':'DEFAULT','anchor':{'x':0,'y':64,'z':0},
                'components':[{'component_type':'MASS_MAIN','relative_position':{'x':0,'y':0,'z':0},
                               'dimensions':{'width':23,'depth':11,'height':12},
@@ -299,7 +299,7 @@ class CompoundRequestRegressions(unittest.TestCase):
         self.assertEqual('E_BUILDING_CONTRACT', result['capability_gap']['code'])
 
     def test_optional_slot_facing_does_not_replace_compound_with_profile_box(self):
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         from app.services.llm_plan_repair import repair_llm_plan_validation
         from app.models.building_profile import BuildingProfile
         raw = json.loads((FIXTURES / 'oct17_new_6.json').read_text(encoding='utf-8'))

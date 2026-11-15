@@ -85,7 +85,7 @@ class CompositionalTypologyTest(unittest.TestCase):
                 evaluate_plan_profile_alignment(repaired, self.profile(entry))))
 
     def test_normalizer_keeps_executable_components_and_typology_hints(self):
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         for entry in self.entries:
             for name in entry['plans']:
                 with self.subTest(fixture=name):

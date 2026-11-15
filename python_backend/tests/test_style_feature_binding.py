@@ -86,7 +86,7 @@ class StyleFeatureBindingTest(unittest.TestCase):
         self.assertEqual(self.report(result)["status"], "user_override")
 
     def test_final_normalizer_emits_parameter_report(self):
-        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
         plan = self.plan()
         for component in plan["components"]:
             component["dimensions"] = {"width": 9, "depth": 7, "height": 4}
