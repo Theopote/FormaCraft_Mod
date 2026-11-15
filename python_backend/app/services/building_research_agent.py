@@ -411,26 +411,19 @@ def _enrich_profile_from_user_text(profile: BuildingProfile, user_text: str) -> 
 
 def resolve_landmark_module_for_intent(user_text: str) -> Optional[str]:
     """
-    Return a preset landmark module id only when user intent explicitly matches
-    a registered archetype proper-noun alias (not generic typology alone).
+    Return a fixed compatibility module only for explicit preset:<registered_id>.
+    Landmark names alone are research evidence, not executor selection.
     """
     text = (user_text or "").strip()
-    if not text:
+    import re
+    explicit = re.search(r"(?:^|\s)preset:([a-z0-9_]+)(?=$|\s|[,.，。])", text.lower())
+    if not explicit:
         return None
-    try:
-        from .archetype_detector import detect_archetype_local
-
-        match = detect_archetype_local(text)
-        if match is None or not match.qualifies_for_module_route():
-            return None
-        from .archetype_registry import get_archetype_def
-
-        defn = get_archetype_def(match.id)
-        if defn is None or defn.research_only or not defn.generator_id:
-            return None
-        return match.id
-    except Exception:
-        return None
+    from .archetype_registry import get_archetype_def
+    definition = get_archetype_def(explicit.group(1))
+    if definition and not definition.research_only and definition.generator_id:
+        return definition.id
+    return None
 
 
 def _compute_fidelity_message(
@@ -517,7 +510,8 @@ def finalize_profile_minecraft_strategy(
     """
     Authoritative minecraft_strategy after research:
     - structural_typology resolved → typology-first STRUCTURE; landmark_module=null
-    - non-migrated preset landmark (MODULE whitelist) → landmark_module + MODULE
+    - explicit preset:<id> compatibility → landmark_module + MODULE
+    - named landmarks → model-designed composition, no forced whole-building typology
     - everything else → landmark_module=null + compositional components
     """
     if classification is not None:
@@ -536,11 +530,20 @@ def finalize_profile_minecraft_strategy(
             )
 
     mc = profile.minecraft_strategy.model_copy()
+    from .building_request_classifier import classify_building_request_local
+    from .archetype_detector import detect_archetype_local
+    match = detect_archetype_local(user_text)
+    identified = classification or profile.request_classification or classify_building_request_local(user_text)
+    model_designed = not resolve_landmark_module_for_intent(user_text) and (
+        identified.is_specific_real_building or (match is not None and "generic_typology" not in match.reason_tags))
+    mc.model_designed_landmark = bool(model_designed)
     typology_id = resolve_structural_typology_for_intent(user_text)
+    if model_designed:
+        typology_id = None
     resolved = resolve_landmark_module_for_intent(user_text)
     from .typology_registry import is_compositional_typology
     # An authored style card must not replace an explicitly requested preset.
-    if resolved and is_compositional_typology(typology_id):
+    if resolved:
         typology_id = None
     if typology_id:
         from .typology_registry import get_typology
@@ -616,6 +619,14 @@ def finalize_profile_minecraft_strategy(
         profile = enrich_profile_architectural_detail(profile, user_text)
     except Exception as exc:
         logger.warning("Profile architectural enrichment skipped: %s", exc)
+    if model_designed:
+        mc = profile.minecraft_strategy.model_copy(update={
+            "model_designed_landmark": True, "landmark_module": None,
+            "structural_typology": None, "reference_landmark": None,
+            "recommended_components": ["MASS_MAIN", "MASS_SECONDARY", "ROOF", "FACADE_WINDOWS", "ENTRANCE"],
+            "notes": "AI-designed landmark: research is evidence, not a fixed generator instruction. Choose layout, massing, proportions and details independently.",
+        })
+        profile = profile.model_copy(update={"minecraft_strategy": mc})
     return profile
 
 

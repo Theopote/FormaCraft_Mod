@@ -105,7 +105,7 @@ class CompositionalTypologyTest(unittest.TestCase):
     def test_generic_style_card_cannot_override_an_explicit_preset(self):
         profile = BuildingProfile(minecraft_strategy=ProfileMinecraftStrategy(
             structural_typology='concrete_civic_block', recommended_components=['MASS_MAIN']))
-        result = finalize_profile_minecraft_strategy(profile, 'build a brutalist megastructure')
+        result = finalize_profile_minecraft_strategy(profile, 'build a brutalist megastructure preset:brutalist_megastructure')
         self.assertEqual(result.minecraft_strategy.landmark_module, 'brutalist_megastructure')
         self.assertIsNone(result.minecraft_strategy.structural_typology)
         self.assertIn('MODULE', result.minecraft_strategy.recommended_components)

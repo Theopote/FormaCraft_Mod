@@ -41,6 +41,24 @@ support 默认开启，在每列踏面下方一格放支撑；它不延伸至地
 
 **结论**：`StairAssembler` 的三条历史修复在现行体系中**均有等价覆盖**，无需移植；真正未被承载的是**地形相交拒绝**与**隐式入口解析**这两项能力。前者已由 `BareStairFitCompiler` 在构件层部分补位（平移而非拒绝），后者是现行设计的有意选择（楼梯必须显式声明端点）。两者都不应通过复活 `StairAssembler` 来解决。
 
+### 两项能力空白的处置方向（2026-11-15 设计结论，不实现）
+
+用户 P1 结论明确要求：**不恢复 `StairAssembler`**，把这两项当作"生成能力设计问题"而不是"最近删除造成的回归"。处置方向记录如下，供后续实现时对齐，**本轮不写实现代码**。
+
+**① 楼梯与真实地形的相交检查**
+
+- **不在楼梯生成阶段做**。现行 `AssemblyCirculationOps.applyStairSystem` 是纯几何的：它只消费 from/to 端点，算宽度偏移、支撑、挖空与操作数预算，全程不读世界高度——`StraightStairComponentGenerator` 传进来的 `ctx` 甚至是 `null`。把地形查询塞回生成阶段，会让楼梯算子重新依赖 `ServerWorld`，破坏它"可在无世界上下文中做纯几何计算"的可测性与复用性。
+- **放在最终预览校验层**。这与仓库既有的分层一致：`AssemblyCirculationConstraints` 已经在 assembly 收尾时按**真实世界坐标**复查占用/净空冲突，`BareStairFitCompiler` 已在构件层做端点平移。地形相交属于同一类"生成完成后、写入世界前"的空间合法性检查，应落在同一条链路上，而不是在梯段算子内部。
+- **判据是"踏面低于地表"**，与旧 `StairAssembler` 的 `ctx.getSurfaceY(pos.x, pos.z) > pos.y` 语义一致；但**失败动作应是拒绝或修复，而不是静默平移**——平移是 `BareStairFitCompiler` 的既有职责（把梯段塞进宿主 MASS_MAIN 的可行区间），与"地形不允许这条梯"是两种不同语义，混用会让契约含糊。
+- **依赖缺口**：地形查询需要世界上下文，而当前预览校验链是否持有 `ServerWorld` 需要在实现时确认；若不持有，需要先决定"校验在客户端预览还是服务端写入前"落点，再决定数据来源。
+
+**② 从骨架入口自动推导楼梯起点**
+
+- **保持显式端点契约为默认**。现行 `StraightStairComponentGenerator` 在缺少 from/to 时直接抛错（"Straight stairs require explicit from/to endpoints"），只有 `stair:straight_single_run` + `ascends_from_` 特征的历史兼容分支才合成端点。这是**有意的设计选择**：端点由规划期决定，生成期只负责落实。
+- **"自动推导"属于规划期，不属于装配期**。若要支持"楼梯自动接到骨架入口"，正确的落点是**从骨架门位（gate）推导规划期的楼梯起点约束**（即在 LlmPlan / PlanProgram 阶段补一条 `from` 约束），而不是在生成期回头去查骨架。放错阶段会导致"生成器知道骨架、规划器不知道"的双向依赖。
+- **不得复活 `SkeletonHelper.getStairStart`**。该 helper 随整个 `assembler/` 包删除（LEGACY-035），复活它等于重建一套没人知道何时调用的骨架装配器，与本轮迁移目标相反。
+- **实施前置条件**：需要先明确"门位 → 楼梯起点"的选取规则（选哪个 gate、朝哪个方向起步、层间如何选层），这是一个**独立的规划契约**，不随本次清理一并落地。
+
 现行的楼梯生成路径是 **assembly 元操作**而非骨架装配器：`AssemblyComponentEmitter` 把 `STRUCTURE`/`STAIRS_SYSTEM`/`STAIRCASE` 归一为 `STAIR_SYSTEM`，`MetaAssemblyEngine` 调用 `AssemblyCirculationOps.applyStairSystem` 落块，`AssemblyCirculationConstraints` 捕获真实世界坐标并做通行校验。层间楼梯目前**没有**接入 Skeleton 主流程：不解析 from/to 楼层端点，不自动连接平台或打开楼板。
 
 ## 验证与下一步

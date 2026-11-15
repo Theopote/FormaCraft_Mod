@@ -165,7 +165,7 @@ class BroadTypologyAliasTest(unittest.TestCase):
 
     def test_japanese_castle_keep_template_still_routes(self):
         self.assertEqual(
-            resolve_landmark_module_for_intent("日本城堡"),
+            resolve_landmark_module_for_intent("preset:japanese_castle_keep"),
             "japanese_castle_keep",
         )
 

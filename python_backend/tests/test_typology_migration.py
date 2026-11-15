@@ -87,10 +87,10 @@ class FamenTypologyMigrationTest(unittest.TestCase):
 
         profile = finalize_profile_minecraft_strategy(BuildingProfile(), self.FAMEN_PROMPT)
         mc = profile.minecraft_strategy
-        self.assertEqual(mc.structural_typology, "dense_eaves_pagoda")
-        self.assertEqual(mc.reference_landmark, "famen_pagoda")
+        self.assertTrue(mc.model_designed_landmark)
+        self.assertIsNone(mc.structural_typology)
+        self.assertIsNone(mc.reference_landmark)
         self.assertIsNone(mc.landmark_module)
-        self.assertEqual(mc.skeleton_type, "VERTICAL_STACK")
 
     def test_famen_proportion_typology_field(self):
         from app.services.proportion_retriever import retrieve_proportion_card
@@ -126,10 +126,10 @@ class FoguangTypologyMigrationTest(unittest.TestCase):
 
         profile = finalize_profile_minecraft_strategy(BuildingProfile(), self.FOGUANG_PROMPT)
         mc = profile.minecraft_strategy
-        self.assertEqual(mc.structural_typology, "tailiang_timber_hall")
-        self.assertEqual(mc.reference_landmark, "foguang_temple_hall")
+        self.assertTrue(mc.model_designed_landmark)
+        self.assertIsNone(mc.structural_typology)
+        self.assertIsNone(mc.reference_landmark)
         self.assertIsNone(mc.landmark_module)
-        self.assertEqual(mc.skeleton_type, "GRID_BAY")
 
     def test_foguang_proportion_typology_field(self):
         from app.services.proportion_retriever import retrieve_proportion_card
@@ -190,10 +190,10 @@ class DayantaTypologyMigrationTest(unittest.TestCase):
 
         profile = finalize_profile_minecraft_strategy(BuildingProfile(), self.DAYANTA_PROMPT)
         mc = profile.minecraft_strategy
-        self.assertEqual(mc.structural_typology, "dense_eaves_pagoda")
-        self.assertEqual(mc.reference_landmark, "giant_wild_goose_pagoda")
+        self.assertTrue(mc.model_designed_landmark)
+        self.assertIsNone(mc.structural_typology)
+        self.assertIsNone(mc.reference_landmark)
         self.assertIsNone(mc.landmark_module)
-        self.assertEqual(mc.skeleton_type, "VERTICAL_STACK")
 
     def test_dayanta_proportion_typology_field(self):
         from app.services.proportion_retriever import retrieve_proportion_card
@@ -256,10 +256,10 @@ class TempleTypologyMigrationTest(unittest.TestCase):
 
         profile = finalize_profile_minecraft_strategy(BuildingProfile(), self.TEMPLE_PROMPT)
         mc = profile.minecraft_strategy
-        self.assertEqual(mc.structural_typology, "radial_terrace_hall")
-        self.assertEqual(mc.reference_landmark, "temple_of_heaven")
+        self.assertTrue(mc.model_designed_landmark)
+        self.assertIsNone(mc.structural_typology)
+        self.assertIsNone(mc.reference_landmark)
         self.assertIsNone(mc.landmark_module)
-        self.assertEqual(mc.skeleton_type, "RADIAL_RING")
 
     def test_temple_proportion_typology_field(self):
         from app.services.proportion_retriever import retrieve_proportion_card

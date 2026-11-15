@@ -104,3 +104,5 @@ BuildingSpec、CitySpec、CompositeSpec 兼容入口的系统提示词统一在 
 后端 BuildRequest 与 FormaRequestAdapter 默认 outputFormat 为 llmplan；合法取值为 llmplan、auto、buildingspec（兼容），显式 null 仍走默认主干。未知字符串按无效请求处理。
 
 旧整份规格编辑的 Java API 明确命名为 `editLegacyCitySpec` / `editLegacyBuildingSpec`。剩余消费者为 `/forma_edit_city`、`/forma_edit_building` 命令和显式 buildingspec 的聊天编辑分支；新编辑调用 `requestAiPlan`，不新增旧编辑 API 消费者。
+
+地标默认走模型自主组合：`model_designed_landmark` 标记由研究阶段确定，普通地标名称不再强制 MODULE/整栋 typology。本地固定路由 RAG 不注入该模式；原始输出及规范化末尾拒绝固定执行器，返回 FIXED_LANDMARK_PRESET_DISALLOWED 能力缺口。仅用户显式 `preset:<id>` 保留固定模块兼容选择。研究证据和参考特征可用，不能据此替换模型布局。

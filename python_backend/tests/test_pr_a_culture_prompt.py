@@ -89,11 +89,11 @@ class PrACultureFewshotTest(unittest.TestCase):
             "在锚点位置生成金门大桥",
         )
         mc = profile.minecraft_strategy
-        self.assertEqual(mc.structural_typology, "suspension_bridge")
-        self.assertEqual(mc.reference_landmark, "golden_gate_bridge")
-        self.assertEqual(mc.recommended_components, ["STRUCTURE"])
-        self.assertNotIn("MASS_MAIN", mc.recommended_components)
-        self.assertIn("FORBID", mc.notes or "")
+        self.assertIsNone(mc.structural_typology)
+        self.assertIsNone(mc.reference_landmark)
+        self.assertTrue(mc.model_designed_landmark)
+        self.assertIn("MASS_MAIN", mc.recommended_components)
+        self.assertIn("AI-designed landmark", mc.notes or "")
 
     def test_golden_gate_research_override_forbids_mass(self):
         from app.services.building_plan_stage import research_landmark_override_block
@@ -108,8 +108,8 @@ class PrACultureFewshotTest(unittest.TestCase):
             "在锚点位置生成金门大桥",
         )
         block = research_landmark_override_block(profile)
-        self.assertIn("MASS_MAIN", block)
-        self.assertIn("span_to_tower_height", block)
+        self.assertIn("Design this landmark yourself", block)
+        self.assertNotIn("span_to_tower_height", block)
 
     def test_gothic_cathedral_typology_fewshot(self):
         from app.services.keyword_culture_retriever import retrieve
@@ -160,10 +160,10 @@ class PrAResearchPromptTest(unittest.TestCase):
             self.TEMPLE_PROMPT,
         )
         mc = profile.minecraft_strategy
-        self.assertEqual(mc.structural_typology, "radial_terrace_hall")
+        self.assertIsNone(mc.structural_typology)
         self.assertIsNone(mc.landmark_module)
-        self.assertEqual(mc.reference_landmark, "temple_of_heaven")
-        self.assertIn("STRUCTURE", mc.recommended_components)
+        self.assertIsNone(mc.reference_landmark)
+        self.assertIn("MASS_MAIN", mc.recommended_components)
 
     def test_format_profile_typology_routing_text(self):
         profile = finalize_profile_minecraft_strategy(
@@ -174,8 +174,8 @@ class PrAResearchPromptTest(unittest.TestCase):
             self.TEMPLE_PROMPT,
         )
         text = format_profile_for_prompt(profile)
-        self.assertIn("typology:radial_terrace_hall", text)
-        self.assertIn("temple_of_heaven", text)
+        self.assertNotIn("typology:radial_terrace_hall", text)
+        self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
         self.assertIn("OPEN-WORLD RESEARCH OVERRIDE", text)
         self.assertNotIn("famen_pagoda", text)
 
@@ -201,8 +201,8 @@ class PrAResearchPromptTest(unittest.TestCase):
             self.TEMPLE_PROMPT,
         )
         block = research_landmark_override_block(profile)
-        self.assertIn("typology:radial_terrace_hall", block)
-        self.assertIn("Do NOT output MODULE", block)
+        self.assertIn("Design this landmark yourself", block)
+        self.assertIn("Do not call MODULE", block)
         self.assertNotIn('landmark_module = "temple_of_heaven"', block)
 
 

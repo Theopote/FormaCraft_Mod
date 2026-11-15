@@ -1,5 +1,6 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,10 +10,7 @@ from .routes import build, edit, blueprint, history, models, search, fbd_repair
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="FormaCraft Orchestrator", version="0.1.0")
 
-
-@app.on_event("startup")
 def _verify_capability_catalog() -> None:
     """Fail fast when the authoritative capability catalog is missing.
 
@@ -54,6 +52,15 @@ def _verify_capability_catalog() -> None:
             catalog.get("version"),
             len(catalog.get("component_types") or {}),
         )
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    _verify_capability_catalog()
+    yield
+
+
+app = FastAPI(title="FormaCraft Orchestrator", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/")

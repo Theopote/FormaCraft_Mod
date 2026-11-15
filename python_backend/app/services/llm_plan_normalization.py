@@ -30,6 +30,10 @@ def _normalize_llm_plan_output(
 ) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         return raw
+    from .landmark_design_policy import reject_fixed_landmark_plan
+    rejected = reject_fixed_landmark_plan(raw, building_profile)
+    if rejected is not None:
+        return rejected
     from .fbd_capabilities import is_fbd_only_plan
     if is_fbd_only_plan(raw):
         # Legacy enrichment changes geometry/authority and cannot inspect program bodies.
@@ -303,4 +307,4 @@ def _normalize_llm_plan_output(
         plan = apply_style_feature_defaults(plan, building_profile)
         feature_report = plan["proportion_hints"]["style_feature_report"]
         logger.info("Style feature parameter verification: %s", feature_report)
-    return plan
+    return reject_fixed_landmark_plan(plan, building_profile) or plan

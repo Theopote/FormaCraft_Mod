@@ -89,15 +89,6 @@ public interface SettingsPanelRenderHost {
 
     // ---- 输入交互（供 SettingsInputController 使用）----
 
-    /** 内容区左起始 X（考虑缓存与内边距）。 */
-    int contentStartX();
-
-    /** 内容区可用宽度（已减两侧内边距）。 */
-    int contentWidth();
-
-    /** 内容区顶部 Y（首个分组标题的绘制起点）。 */
-    int contentTopY();
-
     boolean isMouseOver(double mouseX, double mouseY);
 
     int scrollY();
@@ -107,10 +98,6 @@ public interface SettingsPanelRenderHost {
     int maxScrollY();
 
     void setDraftModel(String model);
-
-    net.minecraft.client.gui.widget.SliderWidget activeSlider();
-
-    void setActiveSlider(net.minecraft.client.gui.widget.SliderWidget slider);
 
     // ---- 滑条数值回写（供 SettingsSliders 使用）----
 

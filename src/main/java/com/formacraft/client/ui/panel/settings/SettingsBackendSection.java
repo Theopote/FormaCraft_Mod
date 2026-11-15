@@ -42,7 +42,7 @@ public final class SettingsBackendSection {
                     }));
         });
         start = button("启动已保存配置", () -> BackendAutoStarter.startAsync(SettingsConfig.INSTANCE));
-        stop = button("停止", () -> BackendAutoStarter.stopAsync());
+        stop = button("停止", BackendAutoStarter::stopAsync);
         check = button("检查状态", () -> BackendAutoStarter.checkAsync(host.orchestratorInput().getText()));
         auto = button("", () -> autoStart = !autoStart);
         details = button("查看后端状态详情…", () -> host.openDetails(BackendAutoStarter.getStatus() + "\n\n" + packStatus

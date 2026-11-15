@@ -342,7 +342,7 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
         for msg in req.chatHistory[-8:]:
             parts.append(f"  {msg}")
 
-    if _LLMPLAN_INJECT_CULTURE_RAG:
+    if _LLMPLAN_INJECT_CULTURE_RAG and not getattr(getattr(building_profile, "minecraft_strategy", None), "model_designed_landmark", False):
         try:
             from app.services.keyword_culture_retriever import (
                 retrieve_budgeted as _culture_retrieve,

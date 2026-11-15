@@ -10,6 +10,7 @@ import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /** The rendered controls are the source of truth for hit testing, focus and scrolling. */
 public final class SettingsUiBindings {
@@ -33,7 +34,7 @@ public final class SettingsUiBindings {
         for (var input : knownInputs) if (regions.stream().noneMatch(r -> r.input == input)) input.setFocused(false);
     }
     public void blur() { knownInputs.forEach(i -> i.setFocused(false)); dragging = null; }
-    public List<HudTextInput> inputs() { return regions.stream().map(Region::input).filter(i -> i != null).toList(); }
+    public List<HudTextInput> inputs() { return regions.stream().map(Region::input).filter(Objects::nonNull).toList(); }
     public HudTextInput focused() { return knownInputs.stream().filter(HudTextInput::isFocused).findFirst().orElse(null); }
     private boolean accepts(Region r, double mx, double my) { return r.contains(mx, my) && (r.fixed || my >= top && my < bottom); }
 

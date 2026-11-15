@@ -342,6 +342,8 @@ def _sanitize_landmark_modules(
     req: Optional[BuildRequest],
     building_profile: Optional[Any] = None,
 ) -> None:
+    if getattr(getattr(building_profile, "minecraft_strategy", None), "model_designed_landmark", False):
+        return
     stid: Optional[str] = None
     ref_lm: Optional[str] = None
     if building_profile is not None:

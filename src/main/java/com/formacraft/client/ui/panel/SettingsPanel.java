@@ -96,7 +96,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     ButtonWidget testSearchKeyButton;
     private SettingsSliders.Temperature temperatureSlider;
     private SettingsSliders.InteractionReach interactionReachSlider;
-    private SliderWidget activeSlider = null; // 只允许同时操作一个滑条
 
     // 地址预设只负责显式填充；输入框始终允许编辑。
     // 统一来源：SettingsBaseUrlPresets.CATALOG —— 选中预设时会同时写好 provider + baseUrl。
@@ -1228,21 +1227,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     // ---- 输入交互（SettingsInputController）----
 
     @Override
-    public int contentStartX() {
-        return panelX + CONTENT_PADDING;
-    }
-
-    @Override
-    public int contentWidth() {
-        return panelWidth - CONTENT_PADDING * 2;
-    }
-
-    @Override
-    public int contentTopY() {
-        return getContentY();
-    }
-
-    @Override
     public boolean isInteractiveArea(double mouseX, double mouseY) {
         return visible && (choices.isOpen() || details.isOpen() || super.isInteractiveArea(mouseX, mouseY));
     }
@@ -1270,16 +1254,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public void setDraftModel(String model) {
         this.draftModel = model;
-    }
-
-    @Override
-    public SliderWidget activeSlider() {
-        return activeSlider;
-    }
-
-    @Override
-    public void setActiveSlider(SliderWidget slider) {
-        this.activeSlider = slider;
     }
 
     @Override

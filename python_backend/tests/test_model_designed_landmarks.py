@@ -1,0 +1,73 @@
+from copy import deepcopy
+
+import pytest
+
+from app.models.building_profile import BuildingProfile
+from app.services.building_research_agent import finalize_profile_minecraft_strategy, resolve_landmark_module_for_intent
+from app.services.building_plan_stage import research_landmark_override_block
+from app.services.landmark_design_policy import reject_fixed_landmark_plan
+
+
+@pytest.mark.parametrize("name", ["Eiffel Tower", "天坛", "悉尼歌剧院"])
+def test_landmark_name_is_evidence_not_executor(name):
+    profile = finalize_profile_minecraft_strategy(BuildingProfile(query=name), name)
+    strategy = profile.minecraft_strategy
+    assert strategy.model_designed_landmark
+    assert strategy.landmark_module is None
+    assert strategy.structural_typology is None
+    assert resolve_landmark_module_for_intent(name) is None
+    assert "Design this landmark yourself" in research_landmark_override_block(profile)
+
+
+def test_explicit_preset_compatibility():
+    assert resolve_landmark_module_for_intent("preset:eiffel_tower") == "eiffel_tower"
+    profile = finalize_profile_minecraft_strategy(BuildingProfile(query="Eiffel Tower"), "preset:eiffel_tower")
+    assert not profile.minecraft_strategy.model_designed_landmark
+    assert (profile.minecraft_strategy.landmark_module == "eiffel_tower"
+            or profile.minecraft_strategy.reference_landmark == "eiffel_tower")
+
+
+def test_two_model_designs_are_not_replaced_by_a_shared_template():
+    profile = BuildingProfile(query="Eiffel Tower")
+    profile.minecraft_strategy.model_designed_landmark = True
+    for width in (12, 23):
+        plan = {"components": [{"component_type": "MASS_MAIN", "dimensions": {"width": width}}]}
+        original = deepcopy(plan)
+        assert reject_fixed_landmark_plan(plan, profile) is None
+        assert plan == original
+
+
+def test_normalization_preserves_different_model_massing():
+    from app.services.llm_plan_normalization import _normalize_llm_plan_output
+
+    profile = BuildingProfile(query="landmark")
+    profile.minecraft_strategy.model_designed_landmark = True
+    for width in (12, 23):
+        plan = {"mode": "build", "style_profile": "DEFAULT", "anchor": {"x": 0, "y": 64, "z": 0},
+                "components": [{"component_type": "MASS_MAIN", "relative_position": {"x": 0, "y": 0, "z": 0},
+                                "dimensions": {"width": width, "depth": 8, "height": 12},
+                                "features": [], "params": {"component_id": "model_mass", "plan_type": "none"}}]}
+        result = _normalize_llm_plan_output(plan, None, building_profile=profile)
+        assert result.get("plan_status") != "capability_gap"
+        mass = next(c for c in result["components"] if c["params"].get("component_id") == "model_mass")
+        assert mass["dimensions"]["width"] == width
+
+
+def test_normalization_rejects_fixed_plan_before_typology_replacement():
+    from app.services.llm_plan_normalization import _normalize_llm_plan_output
+
+    profile = BuildingProfile(query="temple")
+    profile.minecraft_strategy.model_designed_landmark = True
+    result = _normalize_llm_plan_output({"components": [{"component_type": "MODULE",
+        "features": ["landmark:temple_of_heaven"]}]}, None, building_profile=profile)
+    assert result["capability_gap"]["code"] == "FIXED_LANDMARK_PRESET_DISALLOWED"
+
+
+@pytest.mark.parametrize("component", [{"component_type": "MODULE"},
+    {"component_type": "STRUCTURE", "features": ["typology:radial_terrace_hall"]}])
+def test_fixed_executor_becomes_explicit_gap(component):
+    profile = BuildingProfile(query="landmark")
+    profile.minecraft_strategy.model_designed_landmark = True
+    result = reject_fixed_landmark_plan({"components": [component]}, profile)
+    assert result["plan_status"] == "capability_gap"
+    assert result["components"] == []

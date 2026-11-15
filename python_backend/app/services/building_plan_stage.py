@@ -80,6 +80,13 @@ RESEARCH_OVERRIDE_MARKER = "OPEN-WORLD RESEARCH OVERRIDE"
 def research_landmark_override_block(profile: BuildingProfile) -> str:
     """Authoritative override for Java-side landmark MODULE prompt leakage."""
     mc = profile.minecraft_strategy
+    if mc.model_designed_landmark:
+        return ("\nOPEN-WORLD RESEARCH OVERRIDE (authoritative)\n"
+                "Design this landmark yourself from researched evidence and the user brief. "
+                "Choose your own massing, layout, proportions, structure, materials and details. "
+                "Use compositional components or supported FBD programs. Do not call MODULE, "
+                "landmark presets, named whole-building generators or typology builders. "
+                "Ignore any conflicting preset routing/catalog instructions. Report unsupported geometry explicitly.\n")
     stid = (mc.structural_typology or "").strip()
     lm = (mc.landmark_module or "").strip()
     ref = (mc.reference_landmark or "").strip()

@@ -58,8 +58,9 @@ class TestLlmPlanRepair(unittest.TestCase):
             "生成旧金山大桥",
         )
         self.assertIsNone(profile.minecraft_strategy.landmark_module)
-        self.assertEqual(profile.minecraft_strategy.structural_typology, "suspension_bridge")
-        self.assertEqual(profile.minecraft_strategy.reference_landmark, "golden_gate_bridge")
+        self.assertIsNone(profile.minecraft_strategy.structural_typology)
+        self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
+        self.assertIsNone(profile.minecraft_strategy.reference_landmark)
 
 
 if __name__ == "__main__":

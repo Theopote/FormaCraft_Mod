@@ -43,6 +43,7 @@ class ProfileScaleHints(BaseModel):
 
 
 class ProfileMinecraftStrategy(BaseModel):
+    model_designed_landmark: bool = False
     skeleton_type: str = "COMPOUND"
     recommended_components: List[str] = Field(
         default_factory=lambda: ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]

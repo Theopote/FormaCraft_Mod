@@ -159,5 +159,34 @@ class CapabilitySingleSourceOfTruthTest(unittest.TestCase):
         self.assertIsNotNone(catalog_source_path())
 
 
+class CapabilityHealthEndpointTest(unittest.TestCase):
+    """The deployment status must be observable from outside the process."""
+
+    def _get(self, path: str):
+        import asyncio
+
+        import httpx
+
+        from app.main import app
+
+        async def scenario():
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                return await client.get(path)
+
+        return asyncio.run(scenario())
+
+    def test_health_capability_reports_the_authoritative_source(self):
+        response = self._get("/health/capability")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body["ok"])
+        self.assertFalse(body["degraded"])
+        self.assertEqual(body["schema"], "formacraft.generation_capability.v1")
+        self.assertIsNotNone(body["source"])
+        self.assertGreaterEqual(body["component_types"], 40)
+
+
 if __name__ == "__main__":
     unittest.main()

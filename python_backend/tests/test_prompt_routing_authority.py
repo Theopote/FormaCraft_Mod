@@ -86,8 +86,8 @@ class PromptRoutingAuthorityTest(unittest.TestCase):
         with_profile = _llm_plan_context_block(_Req(), profile)
         without_profile = _llm_plan_context_block(_Req(), None)
         self.assertNotIn("LandmarkModuleRouting(JSON)", with_profile)
-        self.assertIn("ResearchRouting(JSON)", with_profile)
-        self.assertIn("suspension_bridge", with_profile)
+        self.assertNotIn("You MUST", with_profile)
+        self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
         self.assertIn("LandmarkModuleRouting(JSON)", without_profile)
 
 
