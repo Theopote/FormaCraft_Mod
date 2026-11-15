@@ -34,7 +34,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     private static final FcaLog LOG = FcaLog.of("SettingsPanel");
 
-
     // Toast 持续时间（毫秒）
     private static final long TOAST_DURATION_MS = 2500L;
 
@@ -42,6 +41,11 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     // 输入组件（HUD 模式，不依赖 Screen）
     private final SettingsBackendSection backendSection = new SettingsBackendSection(this);
+    private final SettingsChoicePanel choices = new SettingsChoicePanel();
+    private long connectionRevision;
+    private record ConnectionIdentity(String backend, String key, String provider, String baseUrl) {}
+    private ConnectionIdentity connectionIdentity;
+    private boolean modelNeedsConfirmation;
     private final HudTextInput orchestratorInput = new HudTextInput();
     private final HudTextInput apiKeyInput = new HudTextInput();
     private final HudTextInput llmBaseUrlInput = new HudTextInput();
@@ -70,13 +74,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private long toastUntilMs = 0L;
     private boolean isToastError = false;
 
-    // 焦点管理（用于Tab切换）
-    private int currentFocusIndex = 0; // 0=orchestrator, 1=apiKey, 2=llmBaseUrl
-    private static final int FOCUS_ORCHESTRATOR = 0;
-    private static final int FOCUS_API_KEY = 1;
-    private static final int FOCUS_LLM_BASEURL = 2;
-    private static final int FOCUS_MODEL = 3;
-
     // 原版风格控件（参考 Pushdozer：ButtonWidget / SliderWidget）
     private ButtonWidget showHideButton;
     private ButtonWidget pasteButton;
@@ -85,18 +82,17 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private ButtonWidget cancelButton;
     private ButtonWidget resetButton;
     private ButtonWidget detectModelButton;
-    private ButtonWidget autoModelButton;
+    private ButtonWidget modelChoicesButton;
     private ButtonWidget llmProviderButton;
     private ButtonWidget llmBaseUrlPresetButton;
     private ButtonWidget debugWarningsButton;
     ButtonWidget searchProviderButton;
     ButtonWidget testSearchKeyButton;
-    private List<ButtonWidget> llmBaseUrlPresetOptionButtons;
     private SettingsSliders.Temperature temperatureSlider;
     private SettingsSliders.InteractionReach interactionReachSlider;
     private SliderWidget activeSlider = null; // 只允许同时操作一个滑条
 
-    // LLM Base URL：预设下拉（避免输入错误；需要特殊服务时选择“自定义”）。
+    // 地址预设只负责显式填充；输入框始终允许编辑。
     // 统一来源：SettingsBaseUrlPresets.CATALOG —— 选中预设时会同时写好 provider + baseUrl。
     private record BaseUrlPreset(String id, String label, String url, String provider, boolean local) {}
     private static final List<BaseUrlPreset> BASE_URL_PRESETS = buildPresetsFromCatalog();
@@ -109,13 +105,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         return List.copyOf(out);
     }
     private int baseUrlPresetIndex = 0;
-    private boolean baseUrlPresetDropdownOpen = false;
-
-    // 下拉 overlay 渲染：确保永远在最上层（避免被后续控件盖住）
-    private boolean pendingBaseUrlDropdownOverlay = false;
-    private int pendingBaseUrlDropdownX = 0;
-    private int pendingBaseUrlDropdownY = 0;
-    private int pendingBaseUrlDropdownW = 0;
 
     // 模型探测（HTTP）
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -139,12 +128,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     // 模型选择：候选列表（来自 /models）
     private List<String> availableModels = new ArrayList<>();
     private long availableModelsUpdatedAtMs = 0L;
-    private boolean modelDropdownOpen = false;
-    private boolean pendingModelDropdownOverlay = false;
-    private int pendingModelDropdownX = 0;
-    private int pendingModelDropdownY = 0;
-    private int pendingModelDropdownW = 0;
-    private List<ButtonWidget> modelOptionButtons = new ArrayList<>();
 
     public SettingsPanel() {
         loadFromConfig();
@@ -152,7 +135,16 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     private void loadFromConfig() {
+        choices.close();
+        connectionRevision++;
         SettingsConfigCoordinator.load(this);
+        connectionIdentity = currentConnectionIdentity();
+        detectingModel = false;
+        validatingKey = false;
+        if (testKeyButton != null) testKeyButton.setMessage(Text.literal("校验 Key"));
+        availableModels = new ArrayList<>();
+        availableModelsUpdatedAtMs = 0L;
+        modelNeedsConfirmation = false;
     }
 
     private static float clamp01(float v) {
@@ -168,6 +160,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     protected void drawContents(DrawContext ctx) {
         ensureWidgets();
+        syncConnectionIdentity();
         // 缓存计算值（性能优化）
         if (cachedContentX < 0 || cachedContentWidth != panelWidth) {
             cachedContentX = panelX + CONTENT_PADDING;
@@ -186,9 +179,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         int sy1 = panelY + panelHeight - 1;
         if (sx1 > sx0 && sy1 > sy0) ctx.enableScissor(sx0, sy0, sx1, sy1);
         try {
-            // 每帧重置 overlay 申请（由 drawLlmBaseUrlField 触发）
-            pendingBaseUrlDropdownOverlay = false;
-            pendingModelDropdownOverlay = false;
 
             y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("LLM 与后端"), x, y, w);
             y = SettingsConnectionSection.drawSection(this, ctx, x, y, w);
@@ -200,7 +190,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             y = SettingsActionsSection.drawSection(this, ctx, x, y, w);
             y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("本机后端服务"), x, y, w);
             y = backendSection.draw(ctx,x,y,w);
-            SettingsConnectionSection.renderOverlays(this, ctx);
 
             // 计算最大滚动（基于未滚动起点）
             int contentTop = getContentY() + CONTENT_PADDING;
@@ -219,6 +208,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             toast = null;
         }
         SettingsPanelDrawSupport.drawToast(client, ctx, toast, toastUntilMs, isToastError, x, toastY);
+        choices.render(ctx, client, panelX + panelWidth, getContentY());
     }
 
     // =======================
@@ -227,8 +217,9 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (choices.isOpen()) { choices.click(mouseX, mouseY, button); return true; }
         if (super.mouseClicked(mouseX, mouseY, button)) return true; // 处理顶部 Tab 切换
-        if (!modelDropdownOpen && !baseUrlPresetDropdownOpen && isMouseOver(mouseX,mouseY)
+        if (isMouseOver(mouseX,mouseY)
                 && mouseY >= getContentY() && mouseY < panelY+panelHeight
                 && backendSection.click(mouseX,mouseY,button)) {
             for (var input : List.of(orchestratorInput,apiKeyInput,llmBaseUrlInput,modelInput,searchApiKeyInput,googleCseCxInput)) input.setFocused(false);
@@ -250,11 +241,17 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public void mouseScrolled(double mouseX, double mouseY, double amount) {
+        if (choices.isOpen()) { choices.scroll(amount); return; }
         SettingsInputController.handleScroll(this, mouseX, mouseY, amount);
     }
 
     @Override
     protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
+        if (choices.isOpen()) {
+            String option = choices.hoveredLabel(mouseX, mouseY);
+            if (option != null) drawTooltipCompat(ctx, List.of(Text.literal(option)), (int) mouseX, (int) mouseY);
+            return true;
+        }
         String backendTip = backendSection.tooltip(mouseX,mouseY);
         if (backendTip != null && isMouseOver(mouseX,mouseY)) {
             drawTooltipCompat(ctx, java.util.Arrays.stream(backendTip.split("\\n")).map(Text::literal).map(t -> (Text)t).toList(),(int)mouseX,(int)mouseY);
@@ -301,10 +298,10 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             );
             return true;
         }
-        if (autoModelButton != null && autoModelButton.isMouseOver(mouseX, mouseY)) {
+        if (modelChoicesButton != null && modelChoicesButton.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(
                     ctx,
-                    java.util.List.of(Text.literal("清空模型（留空=自动）")),
+                    java.util.List.of(Text.literal("打开完整模型列表，也可手动填写模型 ID（留空=自动）")),
                     (int) mouseX,
                     (int) mouseY
             );
@@ -314,7 +311,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             String p = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim();
             drawTooltipCompat(
                     ctx,
-                    java.util.List.of(Text.literal("LLM Provider（切换）"), Text.literal("当前：" + p)),
+                    java.util.List.of(Text.literal("LLM Provider（选择）"), Text.literal("当前：" + p)),
                     (int) mouseX,
                     (int) mouseY
             );
@@ -323,10 +320,10 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         if (llmBaseUrlPresetButton != null && llmBaseUrlPresetButton.isMouseOver(mouseX, mouseY)) {
             BaseUrlPreset p = getSelectedBaseUrlPreset();
             String name = (p == null) ? "自动" : p.label;
-            String u = (p == null) ? "" : (p.url == null ? "(自定义输入)" : (p.url.isBlank() ? "(自动)" : p.url));
+            String u = llmBaseUrlInput.getText().isBlank() ? "(自动)" : llmBaseUrlInput.getText();
             drawTooltipCompat(
                     ctx,
-                    java.util.List.of(Text.literal("LLM Base URL（预设下拉）"), Text.literal("当前：" + name), Text.literal("URL: " + u)),
+                    java.util.List.of(Text.literal("LLM Base URL（选择预设）"), Text.literal("当前：" + name), Text.literal("URL: " + u)),
                     (int) mouseX,
                     (int) mouseY
             );
@@ -377,6 +374,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     // =======================
 
     private void initWidgets() {
+        llmBaseUrlInput.setPlaceholder("https://服务地址/v1");
         // API Key：Show/Hide
         showHideButton = ButtonWidget.builder(getShowHideText(), b -> toggleHideKey())
                 .dimensions(0, 0, SHOW_HIDE_BUTTON_WIDTH, INPUT_HEIGHT)
@@ -404,25 +402,17 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 .tooltip(Tooltip.of(Text.literal("刷新模型列表（调用后端 /models；失败时仍可手动输入模型名）")))
                 .build();
 
-        autoModelButton = ButtonWidget.builder(Text.literal("自动"), b -> {
-                    draftModel = "";
-                    modelInput.setText("");
-                    modelDropdownOpen = false;
-                    hideModelOptionButtons();
-                    showToast("模型=自动（留空）", false);
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("清空模型设置（让后端/Provider 自动选择默认模型）")))
-                .build();
+        modelChoicesButton = ButtonWidget.builder(Text.literal("选择 / 输入…"), b -> openModels())
+                .dimensions(0, 0, 0, BUTTON_HEIGHT).build();
 
-        llmProviderButton = ButtonWidget.builder(getLlmProviderButtonText(), b -> cycleLlmProvider())
+        llmProviderButton = ButtonWidget.builder(getLlmProviderButtonText(), b -> openProviders())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("选择 LLM Provider（DeepSeek 优先；其它 OpenAI-compatible 也可用）")))
                 .build();
 
-        llmBaseUrlPresetButton = ButtonWidget.builder(getBaseUrlPresetButtonText(), b -> toggleBaseUrlPresetDropdown())
+        llmBaseUrlPresetButton = ButtonWidget.builder(getBaseUrlPresetButtonText(), b -> openBaseUrlPresets())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("选择主流 LLM Base URL 预设（避免输入错误）；选“自定义”可手动输入")))
+                .tooltip(Tooltip.of(Text.literal("选择 Base URL 预设；下方地址始终可手动编辑")))
                 .build();
 
         debugWarningsButton = ButtonWidget.builder(getDebugWarningsButtonText(), b -> toggleDebugWarnings())
@@ -430,7 +420,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 .tooltip(Tooltip.of(Text.literal("调试：将后端 debugWarnings 追加显示到聊天面板（便于调 prompt / 纠错链路）")))
                 .build();
 
-        searchProviderButton = ButtonWidget.builder(getSearchProviderButtonText(), b -> cycleSearchProvider())
+        searchProviderButton = ButtonWidget.builder(getSearchProviderButtonText(), b -> openSearchProviders())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("建筑研究联网搜索：选择搜索引擎或 API")))
                 .build();
@@ -439,31 +429,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("调用后端 /search/validate 探测当前搜索引擎配置")))
                 .build();
-
-        // BaseURL 下拉选项（按钮形式，避免自绘命中不准）
-        llmBaseUrlPresetOptionButtons = new ArrayList<>();
-        for (int i = 0; i < BASE_URL_PRESETS.size(); i++) {
-            final int idx = i;
-            ButtonWidget opt = ButtonWidget.builder(Text.empty(), b -> applyBaseUrlPreset(idx))
-                    .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                    .build();
-            opt.visible = false;
-            opt.active = true;
-            llmBaseUrlPresetOptionButtons.add(opt);
-        }
-
-        // Model 下拉选项（按钮形式；数量动态，但我们预先创建一组上限）
-        modelOptionButtons = new ArrayList<>();
-        int maxModelOptions = 12;
-        for (int i = 0; i < maxModelOptions; i++) {
-            final int idx = i;
-            ButtonWidget opt = ButtonWidget.builder(Text.empty(), b -> applyModelOption(idx))
-                    .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                    .build();
-            opt.visible = false;
-            opt.active = true;
-            modelOptionButtons.add(opt);
-        }
 
         // Sliders（用原版 SliderWidget 渲染）
         temperatureSlider = new SettingsSliders.Temperature(this, 0, 0, 0, INPUT_HEIGHT, Text.empty(), clamp01(draftTemperature));
@@ -518,93 +483,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         showToast("DebugWarnings=" + (draftShowDebugWarnings ? "ON" : "OFF"), false);
     }
 
-    @Override
-    public void hideModelOptionButtons() {
-        if (modelOptionButtons == null) return;
-        for (ButtonWidget b : modelOptionButtons) {
-            b.visible = false;
-        }
-    }
-
-    private List<String> getFilteredModels() {
-        if (availableModels == null || availableModels.isEmpty()) return java.util.Collections.emptyList();
-        String q = modelInput.getText() == null ? "" : modelInput.getText().trim().toLowerCase();
-        if (q.isEmpty()) return availableModels;
-        List<String> out = new ArrayList<>();
-        for (String m : availableModels) {
-            if (m == null) continue;
-            String t = m.trim();
-            if (t.isEmpty()) continue;
-            if (t.toLowerCase().contains(q)) out.add(t);
-        }
-        return out;
-    }
-
-    @Override
-    public void layoutModelOptionButtons(int x, int y0, int w) {
-        ensureWidgets();
-        if (modelOptionButtons == null) return;
-
-        List<String> items = getFilteredModels();
-        int n = Math.min(items.size(), modelOptionButtons.size());
-        String cur = (modelInput.getText() == null) ? "" : modelInput.getText().trim();
-        for (int i = 0; i < modelOptionButtons.size(); i++) {
-            ButtonWidget b = modelOptionButtons.get(i);
-            if (i >= n) {
-                b.visible = false;
-                continue;
-            }
-            String it = items.get(i);
-            String prefix = (!cur.isBlank() && cur.equals(it)) ? "▶ " : "";
-            b.setMessage(Text.literal(prefix + it));
-            b.setPosition(x, y0 + i * BUTTON_HEIGHT);
-            b.setWidth(w);
-            b.visible = true;
-            b.active = true;
-        }
-    }
-
-    private void applyModelOption(int optionIndex) {
-        List<String> items = getFilteredModels();
-        if (optionIndex < 0 || optionIndex >= items.size()) return;
-        String picked = items.get(optionIndex);
-        if (picked == null) return;
-        String v = picked.trim();
-        modelInput.setText(v);
-        draftModel = v;
-        modelDropdownOpen = false;
-        hideModelOptionButtons();
-        showToast("模型=" + v, false);
-    }
-
-    @Override
-    public void hideBaseUrlPresetButtons() {
-        if (llmBaseUrlPresetOptionButtons == null) return;
-        for (ButtonWidget b : llmBaseUrlPresetOptionButtons) {
-            b.visible = false;
-        }
-    }
-
-    @Override
-    public void layoutBaseUrlPresetButtons(int x, int y0, int w) {
-        ensureWidgets();
-        if (llmBaseUrlPresetOptionButtons == null) return;
-
-        for (int i = 0; i < llmBaseUrlPresetOptionButtons.size(); i++) {
-            ButtonWidget b = llmBaseUrlPresetOptionButtons.get(i);
-            BaseUrlPreset it = BASE_URL_PRESETS.get(i);
-
-            // 下拉选项仅显示“名称”，不拼接 URL（URL 已在 tooltip 中提供，避免过长遮挡）
-            String label = (i == baseUrlPresetIndex ? "▶ " : "") + it.label;
-
-            b.setMessage(Text.literal(label));
-            b.setPosition(x, y0 + i * BUTTON_HEIGHT);
-            b.setWidth(w);
-            b.visible = true;
-            b.active = true;
-        }
-    }
-
     private Text getDetectModelButtonText() {
         if (detectingModel) {
             return Text.literal("刷新中...");
@@ -618,48 +496,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         return Text.literal("Provider（当前：" + p + "）");
     }
 
-    private void cycleLlmProvider() {
-        // 与预设目录联动：循环遍历目录中「带 provider」的条目（跳过 custom），
-        // 每次同时写好 provider + baseUrl，并同步预设下拉的选中项。
-        List<BaseUrlPreset> cycle = new ArrayList<>();
-        for (BaseUrlPreset p : BASE_URL_PRESETS) {
-            if (p.provider != null && !p.provider.isBlank()) {
-                cycle.add(p);
-            }
-        }
-        if (cycle.isEmpty()) return;
-
-        String cur = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim().toLowerCase();
-        int idx = -1;
-        for (int i = 0; i < cycle.size(); i++) {
-            if (cycle.get(i).provider.equalsIgnoreCase(cur)) {
-                idx = i;
-                break;
-            }
-        }
-        BaseUrlPreset next = cycle.get((idx + 1) % cycle.size());
-        draftLlmProvider = next.provider;
-
-        // "auto" 不锁定 baseUrl（交给后端/Provider 决定）；其余供应商写入其默认端点。
-        if ("auto".equalsIgnoreCase(next.provider)) {
-            draftLlmBaseUrl = "";
-        } else if (next.url != null) {
-            draftLlmBaseUrl = next.url;
-        }
-        llmBaseUrlInput.setText(draftLlmBaseUrl != null ? draftLlmBaseUrl : "");
-        syncBaseUrlPresetFromValue(draftLlmBaseUrl);
-
-        if (llmProviderButton != null) llmProviderButton.setMessage(getLlmProviderButtonText());
-        if (llmBaseUrlPresetButton != null) llmBaseUrlPresetButton.setMessage(getBaseUrlPresetButtonText());
-        // Provider 切换后，旧的模型列表很可能不适用：清空缓存，等用户点击“刷新模型列表”
-        availableModels = new ArrayList<>();
-        availableModelsUpdatedAtMs = 0L;
-        modelDropdownOpen = false;
-        hideModelOptionButtons();
-        showToast(next.local ? ("LLM Provider: " + next.provider + "（本地，API Key 可留空）")
-                : ("LLM Provider: " + next.provider), false);
-    }
-
     private Text getSearchProviderButtonText() {
         String p = (draftSearchProvider == null || draftSearchProvider.isBlank()) ? "auto" : draftSearchProvider.trim();
         for (SettingsSearchProviders.Entry e : SettingsSearchProviders.CYCLE) {
@@ -668,22 +504,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             }
         }
         return Text.literal("搜索：" + p);
-    }
-
-    private void cycleSearchProvider() {
-        List<SettingsSearchProviders.Entry> cycle = SettingsSearchProviders.CYCLE;
-        String cur = (draftSearchProvider == null || draftSearchProvider.isBlank()) ? "auto" : draftSearchProvider.trim().toLowerCase();
-        int idx = -1;
-        for (int i = 0; i < cycle.size(); i++) {
-            if (cycle.get(i).id().equalsIgnoreCase(cur)) {
-                idx = i;
-                break;
-            }
-        }
-        SettingsSearchProviders.Entry next = cycle.get((idx + 1) % cycle.size());
-        draftSearchProvider = next.id();
-        if (searchProviderButton != null) searchProviderButton.setMessage(getSearchProviderButtonText());
-        showToast("搜索引擎: " + next.label(), false);
     }
 
     private void startValidateSearchKey() {
@@ -793,24 +613,16 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         return Text.literal("预设：" + name);
     }
 
-    private void toggleBaseUrlPresetDropdown() {
-        baseUrlPresetDropdownOpen = !baseUrlPresetDropdownOpen;
-        if (!baseUrlPresetDropdownOpen) {
-            hideBaseUrlPresetButtons();
-        }
-    }
-
     private void applyBaseUrlPreset(int idx) {
         if (idx < 0 || idx >= BASE_URL_PRESETS.size()) return;
+        ConnectionIdentity before = currentConnectionIdentity();
         baseUrlPresetIndex = idx;
-        baseUrlPresetDropdownOpen = false;
-        hideBaseUrlPresetButtons();
 
         BaseUrlPreset p = BASE_URL_PRESETS.get(idx);
         if (p.url == null) {
-            // custom: keep input as-is; allow editing。不覆盖 provider（用户自定端点自行决定）。
+            draftLlmProvider = "openai";
+            // A custom endpoint uses the OpenAI-compatible adapter and retains its address.
             llmBaseUrlInput.setFocused(true);
-            currentFocusIndex = FOCUS_LLM_BASEURL;
         } else {
             draftLlmBaseUrl = p.url;
             llmBaseUrlInput.setText(p.url);
@@ -822,15 +634,13 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             }
         }
 
+        if (!before.equals(currentConnectionIdentity())) syncConnectionIdentity();
+        if (llmProviderButton != null) llmProviderButton.setMessage(getLlmProviderButtonText());
         if (llmBaseUrlPresetButton != null) llmBaseUrlPresetButton.setMessage(getBaseUrlPresetButtonText());
         if (p.local) {
             showToast("本地供应商：API Key 可留空", false);
         }
-        // Base URL 切换后，模型列表很可能不适用：清空缓存，等用户点击“刷新模型列表”
-        availableModels = new ArrayList<>();
-        availableModelsUpdatedAtMs = 0L;
-        modelDropdownOpen = false;
-        hideModelOptionButtons();
+
     }
 
     @Override
@@ -866,8 +676,80 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         }
     }
 
+    private ConnectionIdentity currentConnectionIdentity() {
+        return new ConnectionIdentity(orchestratorInput.getText().trim(), apiKeyInput.getText().trim(),
+                draftLlmProvider == null ? "auto" : draftLlmProvider, llmBaseUrlInput.getText().trim());
+    }
+
+    private void syncConnectionIdentity() {
+        ConnectionIdentity next = currentConnectionIdentity();
+        if (next.equals(connectionIdentity)) return;
+        boolean changed = connectionIdentity != null;
+        connectionIdentity = next;
+        connectionRevision++;
+        detectingModel = false;
+        validatingKey = false;
+        if (testKeyButton != null) testKeyButton.setMessage(Text.literal("校验 Key"));
+        availableModels = new ArrayList<>();
+        availableModelsUpdatedAtMs = 0L;
+        if (changed && !modelInput.getText().isBlank()) modelNeedsConfirmation = true;
+        syncBaseUrlPresetFromValue(llmBaseUrlInput.getText());
+    }
+
+    @Override public boolean modelNeedsConfirmation() { return modelNeedsConfirmation; }
+
+    private void blurInputs() {
+        backendSection.blur();
+        for (var input : List.of(orchestratorInput, apiKeyInput, llmBaseUrlInput, modelInput, searchApiKeyInput, googleCseCxInput)) input.setFocused(false);
+    }
+
+    private void openModels() {
+        syncConnectionIdentity();
+        blurInputs();
+        choices.open("选择或输入模型 ID", availableModels.stream()
+                .map(m -> new SettingsChoicePanel.Option(m, m)).toList(), modelInput.getText(), true, value -> {
+            modelInput.setText(value);
+            draftModel = value;
+            modelNeedsConfirmation = false;
+        });
+    }
+
+    private void openProviders() {
+        blurInputs();
+        var options = new ArrayList<SettingsChoicePanel.Option>();
+        options.add(new SettingsChoicePanel.Option("openai", "自定义 / OpenAI 兼容"));
+        for (var p : BASE_URL_PRESETS) if (p.provider != null)
+            options.add(new SettingsChoicePanel.Option(p.provider, p.label));
+        choices.open("选择供应商（保留当前 URL）", options, draftLlmProvider, false, value -> {
+            draftLlmProvider = value;
+            llmProviderButton.setMessage(getLlmProviderButtonText());
+            syncConnectionIdentity();
+        });
+    }
+
+    private void openBaseUrlPresets() {
+        blurInputs();
+        var options = new ArrayList<SettingsChoicePanel.Option>();
+        for (var p : BASE_URL_PRESETS) options.add(new SettingsChoicePanel.Option(p.id, p.label));
+        choices.open("填入地址预设", options, getSelectedBaseUrlPreset().id, false, value -> {
+            for (int i = 0; i < BASE_URL_PRESETS.size(); i++) if (BASE_URL_PRESETS.get(i).id.equals(value)) { applyBaseUrlPreset(i); break; }
+        });
+    }
+
+    private void openSearchProviders() {
+        blurInputs();
+        choices.open("选择搜索引擎", SettingsSearchProviders.CYCLE.stream()
+                .map(p -> new SettingsChoicePanel.Option(p.id(), p.label())).toList(), draftSearchProvider, false, value -> {
+            draftSearchProvider = value;
+            searchProviderButton.setMessage(getSearchProviderButtonText());
+        });
+    }
+
     private void startDetectModel() {
+        syncConnectionIdentity();
         if (detectingModel) return;
+        long revision = connectionRevision;
+        ConnectionIdentity identity = currentConnectionIdentity();
         detectingModel = true;
         if (detectModelButton != null) {
             detectModelButton.setMessage(getDetectModelButtonText());
@@ -883,7 +765,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         String llmBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
         if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
             detectingModel = false;
-            showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
+            showToast("Base URL 无效：请填写 HTTP(S) 服务地址（不含查询参数或片段）", true);
             if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
             return;
         }
@@ -915,6 +797,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             var r = SettingsHttpProbe.get(httpClient, finalUrl, apiKey, Duration.ofSeconds(12));
             return new DetectResponse(r.status(), r.body());
         }).thenAccept(resp -> client.execute(() -> {
+            if (revision != connectionRevision || !identity.equals(currentConnectionIdentity())) return;
             detectingModel = false;
             if (resp == null) {
                 showToast("刷新失败：未知错误（resp=null）", true);
@@ -953,6 +836,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             List<String> models = SettingsModelCatalog.parseModelsList(resp.body);
             availableModels = (models == null) ? new ArrayList<>() : new ArrayList<>(models);
             availableModelsUpdatedAtMs = System.currentTimeMillis();
+            if (choices.isEditingValue()) choices.updateOptions(availableModels.stream()
+                    .map(m -> new SettingsChoicePanel.Option(m, m)).toList());
 
             boolean remoteOk = SettingsModelCatalog.readRemoteModelsOk(resp.body);
             String modelsSource = SettingsModelCatalog.readModelsSource(resp.body);
@@ -973,17 +858,15 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 showToast(tip, false);
             }
 
-            // 如果输入框聚焦且有候选，自动展开下拉
-            if (modelInput.isFocused() && !availableModels.isEmpty()) {
-                modelDropdownOpen = true;
-            }
-
             if (detectModelButton != null) detectModelButton.setMessage(getDetectModelButtonText());
         }));
     }
 
     private void startValidateKey() {
+        syncConnectionIdentity();
         if (validatingKey) return;
+        long revision = connectionRevision;
+        ConnectionIdentity identity = currentConnectionIdentity();
         validatingKey = true;
         if (testKeyButton != null) {
             testKeyButton.setMessage(Text.literal("校验中..."));
@@ -1004,7 +887,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
         if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
             validatingKey = false;
-            showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
+            showToast("Base URL 无效：请填写 HTTP(S) 服务地址（不含查询参数或片段）", true);
             if (testKeyButton != null) {
                 testKeyButton.setMessage(Text.literal("校验 Key"));
                 testKeyButton.active = true;
@@ -1034,6 +917,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             var r = SettingsHttpProbe.get(httpClient, finalUrl, apiKey, Duration.ofSeconds(10));
             return new DetectResponse(r.status(), r.body());
         }).thenAccept(resp -> client.execute(() -> {
+            if (revision != connectionRevision || !identity.equals(currentConnectionIdentity())) return;
             validatingKey = false;
             if (testKeyButton != null) {
                 testKeyButton.setMessage(Text.literal("校验 Key"));
@@ -1171,7 +1055,19 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
      * 保存设置（带验证）
      */
     private boolean saveSettings() {
-        return SettingsConfigCoordinator.save(this);
+        syncConnectionIdentity();
+        if (modelNeedsConfirmation) {
+            showToast("连接已更改，请确认或重新填写 Model 后再保存", true);
+            openModels();
+            return false;
+        }
+        boolean saved = SettingsConfigCoordinator.save(this);
+        if (saved) {
+            connectionRevision++;
+            connectionIdentity = currentConnectionIdentity();
+            detectingModel = false;
+        }
+        return saved;
     }
 
     @Override
@@ -1192,15 +1088,17 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public void charTyped(char chr) {
+        syncConnectionIdentity();
+        if (choices.isOpen()) { choices.charTyped(chr); return; }
         if (backendSection.focused()) { backendSection.charTyped(chr); return; }
         if (orchestratorInput.isFocused()) orchestratorInput.charTyped(chr);
         if (apiKeyInput.isFocused()) apiKeyInput.charTyped(chr);
-        BaseUrlPreset p = getSelectedBaseUrlPreset();
-        if (p != null && p.url == null && llmBaseUrlInput.isFocused()) llmBaseUrlInput.charTyped(chr);
+        if (llmBaseUrlInput.isFocused()) llmBaseUrlInput.charTyped(chr);
         if (modelInput.isFocused()) {
             modelInput.charTyped(chr);
             draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
-            if (!availableModels.isEmpty()) modelDropdownOpen = true;
+            modelNeedsConfirmation = false;
+
         }
         if (searchApiKeyInput.isFocused()) searchApiKeyInput.charTyped(chr);
         if (googleCseCxInput.isFocused()) googleCseCxInput.charTyped(chr);
@@ -1214,6 +1112,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public void keyPressed(int keyCode, int scanCode, int modifiers) {
+        syncConnectionIdentity();
+        if (choices.isOpen()) { choices.keyPressed(keyCode, modifiers); return; }
         if (backendSection.focused()) {
             backendSection.keyPressed(keyCode,modifiers);
             if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_TAB) backendSection.blur();
@@ -1222,42 +1122,23 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         // 关键：要拿到 modifiers，才能支持 Ctrl+V / Shift 选区 等
         if (orchestratorInput.isFocused()) orchestratorInput.keyPressed(keyCode, modifiers);
         if (apiKeyInput.isFocused()) apiKeyInput.keyPressed(keyCode, modifiers);
-        BaseUrlPreset p = getSelectedBaseUrlPreset();
-        if (p != null && p.url == null && llmBaseUrlInput.isFocused()) llmBaseUrlInput.keyPressed(keyCode, modifiers);
+        if (llmBaseUrlInput.isFocused()) llmBaseUrlInput.keyPressed(keyCode, modifiers);
         if (modelInput.isFocused()) {
+            String previous = modelInput.getText();
             modelInput.keyPressed(keyCode, modifiers);
-            draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
-            if (!availableModels.isEmpty()) modelDropdownOpen = true;
+            draftModel = modelInput.getText().trim();
+            if (!previous.equals(modelInput.getText())) modelNeedsConfirmation = false;
+
         }
         if (searchApiKeyInput.isFocused()) searchApiKeyInput.keyPressed(keyCode, modifiers);
         if (googleCseCxInput.isFocused()) googleCseCxInput.keyPressed(keyCode, modifiers);
 
-        // ESC：收起模型下拉（避免挡住操作）
-        if (keyCode == GLFW.GLFW_KEY_ESCAPE && modelDropdownOpen) {
-            modelDropdownOpen = false;
-            hideModelOptionButtons();
-            return;
-        }
-
-        // Tab: 切换焦点
         if (keyCode == GLFW.GLFW_KEY_TAB) {
-            boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
-            boolean baseUrlCustom = (getSelectedBaseUrlPreset() != null && getSelectedBaseUrlPreset().url == null);
-            int count = baseUrlCustom ? 4 : 3; // Orchestrator, API, (BaseURL?), Model
-            currentFocusIndex = shift ? (currentFocusIndex + count - 1) % count : (currentFocusIndex + 1) % count;
-
-            orchestratorInput.setFocused(currentFocusIndex == FOCUS_ORCHESTRATOR);
-            apiKeyInput.setFocused(currentFocusIndex == FOCUS_API_KEY);
-            llmBaseUrlInput.setFocused(baseUrlCustom && currentFocusIndex == FOCUS_LLM_BASEURL);
-            // 非自定义 BaseURL 时，“Model”占用 index=2（复用 FOCUS_LLM_BASEURL 这个数值）
-            modelInput.setFocused(baseUrlCustom ? (currentFocusIndex == FOCUS_MODEL) : (currentFocusIndex == FOCUS_LLM_BASEURL));
-
-            if (!modelInput.isFocused()) {
-                modelDropdownOpen = false;
-                hideModelOptionButtons();
-            } else if (!availableModels.isEmpty()) {
-                modelDropdownOpen = true;
-            }
+            var inputs = List.of(orchestratorInput, apiKeyInput, llmBaseUrlInput, modelInput, searchApiKeyInput, googleCseCxInput);
+            int focused = -1;
+            for (int i = 0; i < inputs.size(); i++) if (inputs.get(i).isFocused()) focused = i;
+            int next = Math.floorMod(focused + ((modifiers & GLFW.GLFW_MOD_SHIFT) != 0 ? -1 : 1), inputs.size());
+            for (int i = 0; i < inputs.size(); i++) inputs.get(i).setFocused(i == next);
             return;
         }
 
@@ -1269,9 +1150,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public boolean wantsKeyboardInput() {
-        BaseUrlPreset p = getSelectedBaseUrlPreset();
-        boolean baseUrlFocused = (p != null && p.url() == null && llmBaseUrlInput.isFocused());
-        return backendSection.focused() || apiKeyInput.isFocused() || orchestratorInput.isFocused() || baseUrlFocused || modelInput.isFocused();
+        boolean baseUrlFocused = llmBaseUrlInput.isFocused();
+        return choices.isOpen() || searchApiKeyInput.isFocused() || googleCseCxInput.isFocused() || backendSection.focused() || apiKeyInput.isFocused() || orchestratorInput.isFocused() || baseUrlFocused || modelInput.isFocused();
     }
 
     @Override public void loadBackendSettings() { backendSection.load(); }
@@ -1332,16 +1212,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     @Override
-    public boolean modelDropdownOpen() {
-        return modelDropdownOpen;
-    }
-
-    @Override
-    public boolean baseUrlPresetDropdownOpen() {
-        return baseUrlPresetDropdownOpen;
-    }
-
-    @Override
     public ButtonWidget showHideButton() {
         return showHideButton;
     }
@@ -1362,8 +1232,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     @Override
-    public ButtonWidget autoModelButton() {
-        return autoModelButton;
+    public ButtonWidget modelChoicesButton() {
+        return modelChoicesButton;
     }
 
     @Override
@@ -1452,16 +1322,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     @Override
-    public List<ButtonWidget> llmBaseUrlPresetOptionButtons() {
-        return llmBaseUrlPresetOptionButtons;
-    }
-
-    @Override
-    public List<ButtonWidget> modelOptionButtons() {
-        return modelOptionButtons;
-    }
-
-    @Override
     public Text detectModelButtonText() {
         return getDetectModelButtonText();
     }
@@ -1479,68 +1339,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public Text debugWarningsButtonText() {
         return getDebugWarningsButtonText();
-    }
-
-    @Override
-    public SettingsBaseUrlPresets.Preset selectedBaseUrlPreset() {
-        BaseUrlPreset p = getSelectedBaseUrlPreset();
-        return p == null ? null : new SettingsBaseUrlPresets.Preset(p.id(), p.label(), p.url());
-    }
-
-    @Override
-    public void setPendingModelDropdownOverlay(boolean pending, int x, int y, int w) {
-        pendingModelDropdownOverlay = pending;
-        pendingModelDropdownX = x;
-        pendingModelDropdownY = y;
-        pendingModelDropdownW = w;
-    }
-
-    @Override
-    public void setPendingBaseUrlDropdownOverlay(boolean pending, int x, int y, int w) {
-        pendingBaseUrlDropdownOverlay = pending;
-        pendingBaseUrlDropdownX = x;
-        pendingBaseUrlDropdownY = y;
-        pendingBaseUrlDropdownW = w;
-    }
-
-    @Override
-    public boolean pendingModelDropdownOverlay() {
-        return pendingModelDropdownOverlay;
-    }
-
-    @Override
-    public int pendingModelDropdownX() {
-        return pendingModelDropdownX;
-    }
-
-    @Override
-    public int pendingModelDropdownY() {
-        return pendingModelDropdownY;
-    }
-
-    @Override
-    public int pendingModelDropdownW() {
-        return pendingModelDropdownW;
-    }
-
-    @Override
-    public boolean pendingBaseUrlDropdownOverlay() {
-        return pendingBaseUrlDropdownOverlay;
-    }
-
-    @Override
-    public int pendingBaseUrlDropdownX() {
-        return pendingBaseUrlDropdownX;
-    }
-
-    @Override
-    public int pendingBaseUrlDropdownY() {
-        return pendingBaseUrlDropdownY;
-    }
-
-    @Override
-    public int pendingBaseUrlDropdownW() {
-        return pendingBaseUrlDropdownW;
     }
 
     // ---- 输入交互（SettingsInputController）----
@@ -1561,8 +1359,13 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     @Override
+    public boolean isInteractiveArea(double mouseX, double mouseY) {
+        return visible && (choices.isOpen() || super.isInteractiveArea(mouseX, mouseY));
+    }
+
+    @Override
     public boolean isMouseOver(double mouseX, double mouseY) {
-        return super.isMouseOver(mouseX, mouseY);
+        return super.isMouseOver(mouseX, mouseY) || choices.contains(mouseX, mouseY);
     }
 
     @Override
@@ -1578,21 +1381,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public int maxScrollY() {
         return maxScrollY;
-    }
-
-    @Override
-    public void setModelDropdownOpen(boolean open) {
-        this.modelDropdownOpen = open;
-    }
-
-    @Override
-    public void setBaseUrlPresetDropdownOpen(boolean open) {
-        this.baseUrlPresetDropdownOpen = open;
-    }
-
-    @Override
-    public boolean availableModelsEmpty() {
-        return availableModels == null || availableModels.isEmpty();
     }
 
     @Override

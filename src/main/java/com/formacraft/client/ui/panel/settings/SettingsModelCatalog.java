@@ -41,7 +41,7 @@ public final class SettingsModelCatalog {
         String v = input.trim();
         if (v.isEmpty()) return "";
 
-        if (!v.startsWith("http://") && !v.startsWith("https://")) {
+        if (!v.contains("://")) {
             v = "https://" + v;
         }
 
@@ -50,14 +50,12 @@ public final class SettingsModelCatalog {
         try {
             URI uri = new URI(v);
             String scheme = uri.getScheme();
-            if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) return null;
+            if (scheme == null || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) return null;
 
             String host = uri.getHost();
             if (host == null || host.isBlank()) return null;
-            boolean hostOk = "localhost".equalsIgnoreCase(host)
-                    || host.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")
-                    || host.contains(".");
-            if (!hostOk) return null;
+            if (uri.getUserInfo() != null || uri.getQuery() != null || uri.getFragment() != null) return null;
+            if (uri.getPort() > 65535) return null;
 
             String rest = v.substring((scheme + "://").length());
             if (rest.contains("://")) return null;

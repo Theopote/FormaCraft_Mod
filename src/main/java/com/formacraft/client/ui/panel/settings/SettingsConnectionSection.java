@@ -1,7 +1,6 @@
 package com.formacraft.client.ui.panel.settings;
 
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
 import static com.formacraft.client.ui.panel.settings.SettingsPanelDrawSupport.drawSmallLabel;
@@ -64,14 +63,9 @@ public final class SettingsConnectionSection {
         return nextLabelAfterRow(y);
     }
 
-    public static void renderOverlays(SettingsPanelRenderHost host, DrawContext ctx) {
-        renderModelDropdownOverlay(host, ctx);
-        renderBaseUrlDropdownOverlay(host, ctx);
-    }
-
     private static int drawModelField(SettingsPanelRenderHost host, DrawContext ctx, int x, int y, int w) {
         var client = host.client();
-        drawSmallLabel(client, ctx, Text.translatable("formacraft.settings.model"), x, y);
+        drawSmallLabel(client, ctx, host.modelNeedsConfirmation() ? Text.literal("Model（需确认）") : Text.translatable("formacraft.settings.model"), x, y);
         y += LABEL_OFFSET;
         host.modelInput().render(ctx, x, y, w, INPUT_HEIGHT);
         if (!host.modelInput().isFocused()) {
@@ -90,16 +84,11 @@ public final class SettingsConnectionSection {
         host.detectModelButton().visible = true;
         host.detectModelButton().active = !host.detectingModel();
         host.detectModelButton().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-        host.autoModelButton().setPosition(x + btnW1 + gap, y);
-        host.autoModelButton().setWidth(btnW2);
-        host.autoModelButton().visible = true;
-        host.autoModelButton().active = true;
-        host.autoModelButton().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-        if (host.modelDropdownOpen()) {
-            host.setPendingModelDropdownOverlay(true, x, y - LABEL_OFFSET + INPUT_HEIGHT, w);
-        } else {
-            host.hideModelOptionButtons();
-        }
+        host.modelChoicesButton().setPosition(x + btnW1 + gap, y);
+        host.modelChoicesButton().setWidth(btnW2);
+        host.modelChoicesButton().visible = true;
+        host.modelChoicesButton().active = true;
+        host.modelChoicesButton().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
         return y;
     }
 
@@ -114,57 +103,8 @@ public final class SettingsConnectionSection {
         host.llmBaseUrlPresetButton().active = true;
         host.llmBaseUrlPresetButton().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
         y += LABEL_OFFSET;
-        SettingsBaseUrlPresets.Preset preset = host.selectedBaseUrlPreset();
-        if (preset != null && preset.url() == null) {
-            host.llmBaseUrlInput().render(ctx, x, y, w, INPUT_HEIGHT);
-        } else {
-            if (preset == null || preset.url().isBlank()) {
-                ctx.drawTextWithShadow(client.textRenderer, Text.literal("自动：由 Provider/后端决定"), x, y + 4, COLOR_GRAY);
-            }
-            host.llmBaseUrlInput().setFocused(false);
-        }
-        if (host.baseUrlPresetDropdownOpen()) {
-            int presetBtnTopY = y - LABEL_OFFSET;
-            host.setPendingBaseUrlDropdownOverlay(true, x, presetBtnTopY + BUTTON_HEIGHT, w);
-        } else {
-            host.hideBaseUrlPresetButtons();
-        }
+        host.llmBaseUrlInput().render(ctx, x, y, w, INPUT_HEIGHT);
         return y;
     }
 
-    private static void renderModelDropdownOverlay(SettingsPanelRenderHost host, DrawContext ctx) {
-        if (!host.modelDropdownOpen()) {
-            host.hideModelOptionButtons();
-            return;
-        }
-        if (!host.pendingModelDropdownOverlay()) {
-            host.hideModelOptionButtons();
-            return;
-        }
-        host.layoutModelOptionButtons(host.pendingModelDropdownX(), host.pendingModelDropdownY(), host.pendingModelDropdownW());
-        var client = host.client();
-        for (ButtonWidget b : host.modelOptionButtons()) {
-            if (b.visible) {
-                b.render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-            }
-        }
-    }
-
-    private static void renderBaseUrlDropdownOverlay(SettingsPanelRenderHost host, DrawContext ctx) {
-        if (!host.baseUrlPresetDropdownOpen()) {
-            host.hideBaseUrlPresetButtons();
-            return;
-        }
-        if (!host.pendingBaseUrlDropdownOverlay()) {
-            host.hideBaseUrlPresetButtons();
-            return;
-        }
-        host.layoutBaseUrlPresetButtons(host.pendingBaseUrlDropdownX(), host.pendingBaseUrlDropdownY(), host.pendingBaseUrlDropdownW());
-        var client = host.client();
-        for (ButtonWidget b : host.llmBaseUrlPresetOptionButtons()) {
-            if (b.visible) {
-                b.render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-            }
-        }
-    }
 }

@@ -6,7 +6,6 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.text.Text;
 
-import java.util.List;
 
 /** Draw-time callbacks from section classes back to {@link com.formacraft.client.ui.panel.SettingsPanel}. */
 public interface SettingsPanelRenderHost {
@@ -27,15 +26,13 @@ public interface SettingsPanelRenderHost {
 
     boolean hideKey();
 
+    boolean modelNeedsConfirmation();
+
     boolean detectingModel();
 
     boolean draftShowDebugWarnings();
 
     int draftInteractionReach();
-
-    boolean modelDropdownOpen();
-
-    boolean baseUrlPresetDropdownOpen();
 
     ButtonWidget showHideButton();
 
@@ -45,7 +42,7 @@ public interface SettingsPanelRenderHost {
 
     ButtonWidget detectModelButton();
 
-    ButtonWidget autoModelButton();
+    ButtonWidget modelChoicesButton();
 
     ButtonWidget llmProviderButton();
 
@@ -69,10 +66,6 @@ public interface SettingsPanelRenderHost {
 
     ButtonWidget resetButton();
 
-    List<ButtonWidget> llmBaseUrlPresetOptionButtons();
-
-    List<ButtonWidget> modelOptionButtons();
-
     Text detectModelButtonText();
 
     Text llmProviderButtonText();
@@ -88,36 +81,6 @@ public interface SettingsPanelRenderHost {
     Text testSearchKeyButtonText();
 
     boolean validatingSearchKey();
-
-    SettingsBaseUrlPresets.Preset selectedBaseUrlPreset();
-
-    void setPendingModelDropdownOverlay(boolean pending, int x, int y, int w);
-
-    void setPendingBaseUrlDropdownOverlay(boolean pending, int x, int y, int w);
-
-    void hideModelOptionButtons();
-
-    void hideBaseUrlPresetButtons();
-
-    void layoutModelOptionButtons(int x, int y, int w);
-
-    void layoutBaseUrlPresetButtons(int x, int y, int w);
-
-    boolean pendingModelDropdownOverlay();
-
-    int pendingModelDropdownX();
-
-    int pendingModelDropdownY();
-
-    int pendingModelDropdownW();
-
-    boolean pendingBaseUrlDropdownOverlay();
-
-    int pendingBaseUrlDropdownX();
-
-    int pendingBaseUrlDropdownY();
-
-    int pendingBaseUrlDropdownW();
 
     // ---- 输入交互（供 SettingsInputController 使用）----
 
@@ -137,12 +100,6 @@ public interface SettingsPanelRenderHost {
     void setScrollY(int scrollY);
 
     int maxScrollY();
-
-    void setModelDropdownOpen(boolean open);
-
-    void setBaseUrlPresetDropdownOpen(boolean open);
-
-    boolean availableModelsEmpty();
 
     void setDraftModel(String model);
 

@@ -69,8 +69,7 @@ public final class SettingsInputController {
             host.modelInput().setFocused(false);
             host.searchApiKeyInput().setFocused(false);
             host.googleCseCxInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             HudClickSupport.clearPending();
             host.setActiveSlider(null);
             return false;
@@ -83,63 +82,6 @@ public final class SettingsInputController {
 
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
-        // 优先处理 overlay 下拉（它们渲染在最上层，必须先命中，避免被下层输入框吞掉点击）
-        if (host.baseUrlPresetDropdownOpen() && host.pendingBaseUrlDropdownOverlay()) {
-            int dx = host.pendingBaseUrlDropdownX();
-            int dy = host.pendingBaseUrlDropdownY();
-            int dw = host.pendingBaseUrlDropdownW();
-            host.layoutBaseUrlPresetButtons(dx, dy, dw);
-
-            boolean clickedAny = false;
-            int visibleCount = 0;
-            for (ButtonWidget opt : host.llmBaseUrlPresetOptionButtons()) {
-                if (opt != null && opt.visible) {
-                    visibleCount++;
-                    if (clickButton(opt, click)) {
-                        clickedAny = true;
-                        break;
-                    }
-                }
-            }
-            if (clickedAny) return true;
-
-            int listH = visibleCount * BUTTON_HEIGHT;
-            boolean insideList = (mouseX >= dx && mouseX <= dx + dw && mouseY >= dy && mouseY <= dy + listH);
-            if (!insideList) {
-                host.setBaseUrlPresetDropdownOpen(false);
-                host.hideBaseUrlPresetButtons();
-            }
-            return true;
-        }
-
-        if (host.modelDropdownOpen() && host.pendingModelDropdownOverlay()) {
-            int dx = host.pendingModelDropdownX();
-            int dy = host.pendingModelDropdownY();
-            int dw = host.pendingModelDropdownW();
-            host.layoutModelOptionButtons(dx, dy, dw);
-
-            boolean clickedAny = false;
-            int visibleCount = 0;
-            for (ButtonWidget opt : host.modelOptionButtons()) {
-                if (opt != null && opt.visible) {
-                    visibleCount++;
-                    if (clickButton(opt, click)) {
-                        clickedAny = true;
-                        break;
-                    }
-                }
-            }
-            if (clickedAny) return true;
-
-            int listH = visibleCount * BUTTON_HEIGHT;
-            boolean insideList = (mouseX >= dx && mouseX <= dx + dw && mouseY >= dy && mouseY <= dy + listH);
-            if (!insideList) {
-                host.setModelDropdownOpen(false);
-                host.hideModelOptionButtons();
-            }
-            return true;
-        }
-
         // =========== Orchestrator 区域 ============
         int orchLabelY = y;
         int orchY = orchLabelY + LABEL_OFFSET;
@@ -147,8 +89,7 @@ public final class SettingsInputController {
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -171,8 +112,7 @@ public final class SettingsInputController {
         host.showHideButton().setWidth(apiBtnW);
         if (clickButton(host.showHideButton(), click)) {
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -181,8 +121,7 @@ public final class SettingsInputController {
         host.pasteButton().setWidth(apiBtnW);
         if (clickButton(host.pasteButton(), click)) {
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -191,8 +130,7 @@ public final class SettingsInputController {
         host.testKeyButton().setWidth(apiBtnW3);
         if (clickButton(host.testKeyButton(), click)) {
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -201,8 +139,7 @@ public final class SettingsInputController {
             host.orchestratorInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -219,8 +156,7 @@ public final class SettingsInputController {
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -238,106 +174,28 @@ public final class SettingsInputController {
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
-        // 下拉展开：命中选项
-        if (host.baseUrlPresetDropdownOpen()) {
-            // 展开应紧贴预设按钮下方（与渲染 overlay 一致）
-            int listY0 = llmBaseUrlPresetY + BUTTON_HEIGHT;
-            host.layoutBaseUrlPresetButtons(x, listY0, w);
-
-            boolean clickedAny = false;
-            for (ButtonWidget opt : host.llmBaseUrlPresetOptionButtons()) {
-                if (opt != null && opt.visible && clickButton(opt, click)) {
-                    clickedAny = true;
-                    break;
-                }
-            }
-            if (clickedAny) {
-                return true;
-            }
-
-            int listH = host.llmBaseUrlPresetOptionButtons().size() * BUTTON_HEIGHT;
-            boolean insideList = (mouseX >= x && mouseX <= x + w && mouseY >= listY0 && mouseY <= listY0 + listH);
-            if (!insideList) {
-                // 点击列表外：收起（并吞掉点击，避免“穿透”点到下面控件）
-                host.setBaseUrlPresetDropdownOpen(false);
-                host.hideBaseUrlPresetButtons();
-                host.modelInput().setFocused(false);
-                host.setModelDropdownOpen(false);
-                host.hideModelOptionButtons();
-                return true;
-            }
-
-            // 点在列表区域但没点到按钮：吞掉（避免误触其它控件）
+        if (host.llmBaseUrlInput().mouseClicked(mouseX, mouseY, x, llmBaseUrlThirdLineY, w, INPUT_HEIGHT)) {
+            host.orchestratorInput().setFocused(false);
+            host.apiKeyInput().setFocused(false);
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
             return true;
         }
 
-        // 第三行：只有自定义时才允许点输入框
-        SettingsBaseUrlPresets.Preset p = host.selectedBaseUrlPreset();
-        if (p != null && p.url() == null) {
-            if (host.llmBaseUrlInput().mouseClicked(mouseX, mouseY, x, llmBaseUrlThirdLineY, w, INPUT_HEIGHT)) {
-                host.orchestratorInput().setFocused(false);
-                host.apiKeyInput().setFocused(false);
-                host.modelInput().setFocused(false);
-                host.setModelDropdownOpen(false);
-                host.hideModelOptionButtons();
-                return true;
-            }
-        } else {
-            host.llmBaseUrlInput().setFocused(false);
-        }
-
-        // =========== Model（输入 + 刷新 + 自动） ============
+        // =========== Model（输入 + 刷新 + 选择） ============
         y = afterThreeRowField(llmBaseUrlLabelY);
         int modelLabelY = y;
         int modelInputY = modelLabelY + LABEL_OFFSET;
         int modelBtnY = modelLabelY + LABEL_OFFSET * 2;
-
-        // 下拉展开：命中选项（优先处理，避免“穿透”）
-        if (host.modelDropdownOpen()) {
-            int listY0 = modelInputY + INPUT_HEIGHT;
-            host.layoutModelOptionButtons(x, listY0, w);
-
-            boolean clickedAny = false;
-            int visibleCount = 0;
-            for (ButtonWidget opt : host.modelOptionButtons()) {
-                if (opt != null && opt.visible) {
-                    visibleCount++;
-                    if (clickButton(opt, click)) {
-                        clickedAny = true;
-                        break;
-                    }
-                }
-            }
-            if (clickedAny) return true;
-
-            int listH = visibleCount * BUTTON_HEIGHT;
-            boolean insideList = (mouseX >= x && mouseX <= x + w && mouseY >= listY0 && mouseY <= listY0 + listH);
-            boolean insideInput = (mouseX >= x && mouseX <= x + w && mouseY >= modelInputY && mouseY <= modelInputY + INPUT_HEIGHT);
-            if (!insideList && !insideInput) {
-                // 点击列表外：收起并吞掉点击，避免“穿透”
-                host.setModelDropdownOpen(false);
-                host.hideModelOptionButtons();
-                return true;
-            }
-            // 点在列表区域但没点到按钮：吞掉
-            if (insideList) return true;
-        }
 
         // 点击模型输入框
         if (host.modelInput().mouseClicked(mouseX, mouseY, x, modelInputY, w, INPUT_HEIGHT)) {
             host.orchestratorInput().setFocused(false);
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
-            // 输入框聚焦时，如果有候选则展开
-            host.setModelDropdownOpen(!host.availableModelsEmpty());
             host.setDraftModel(host.modelInput().getText() == null ? "" : host.modelInput().getText().trim());
             return true;
         }
@@ -353,20 +211,18 @@ public final class SettingsInputController {
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
-        host.autoModelButton().setPosition(x + modelBtnW1 + gap2, modelBtnY);
-        host.autoModelButton().setWidth(modelBtnW2);
-        if (clickButton(host.autoModelButton(), click)) {
+        host.modelChoicesButton().setPosition(x + modelBtnW1 + gap2, modelBtnY);
+        host.modelChoicesButton().setWidth(modelBtnW2);
+        if (clickButton(host.modelChoicesButton(), click)) {
             host.orchestratorInput().setFocused(false);
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -385,8 +241,7 @@ public final class SettingsInputController {
             host.modelInput().setFocused(false);
             host.searchApiKeyInput().setFocused(false);
             host.googleCseCxInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -398,8 +253,7 @@ public final class SettingsInputController {
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
             host.googleCseCxInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -413,8 +267,7 @@ public final class SettingsInputController {
             host.modelInput().setFocused(false);
             host.searchApiKeyInput().setFocused(false);
             host.googleCseCxInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -427,8 +280,7 @@ public final class SettingsInputController {
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
             host.searchApiKeyInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -444,8 +296,7 @@ public final class SettingsInputController {
             host.apiKeyInput().setFocused(false);
             host.llmBaseUrlInput().setFocused(false);
             host.modelInput().setFocused(false);
-            host.setModelDropdownOpen(false);
-            host.hideModelOptionButtons();
+
             return true;
         }
 
@@ -545,11 +396,8 @@ public final class SettingsInputController {
         int providerLabelY = y;
         y = afterTwoRowField(providerLabelY);
         int llmBaseUrlLabelY = y;
-        SettingsBaseUrlPresets.Preset p = host.selectedBaseUrlPreset();
-        if (p != null && p.url() == null) {
-            if (host.llmBaseUrlInput().mouseScrolled(mouseX, mouseY, amount, x, llmBaseUrlLabelY + LABEL_OFFSET * 2, w, INPUT_HEIGHT)) {
-                return;
-            }
+        if (host.llmBaseUrlInput().mouseScrolled(mouseX, mouseY, amount, x, llmBaseUrlLabelY + LABEL_OFFSET * 2, w, INPUT_HEIGHT)) {
+            return;
         }
 
         y = afterThreeRowField(llmBaseUrlLabelY);

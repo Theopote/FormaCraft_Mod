@@ -2,7 +2,7 @@ package com.formacraft.client.ui.panel.settings;
 
 import java.util.List;
 
-/** Search engine provider presets for the settings panel cycle button. */
+/** Search engine provider presets for the settings chooser. */
 public final class SettingsSearchProviders {
     public record Entry(String id, String label) {}
 

@@ -42,14 +42,8 @@ public final class SettingsConfigCoordinator {
 
         String rawBaseUrl = cfg.llmBaseUrl != null ? cfg.llmBaseUrl.trim() : "";
         String sanitizedBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(rawBaseUrl);
-        // 如果配置里是明显错误的 baseUrl（例如 https://ps://...），自动清空并保存，避免反复踩坑
-        if (sanitizedBaseUrl == null) {
-            sanitizedBaseUrl = "";
-            if (cfg.llmBaseUrl != null && !cfg.llmBaseUrl.isBlank()) {
-                SettingsConfig.INSTANCE.llmBaseUrl = "";
-                SettingsConfig.save();
-            }
-        }
+        // Keep invalid saved text editable; opening settings must never erase a user's endpoint.
+        if (sanitizedBaseUrl == null) sanitizedBaseUrl = rawBaseUrl;
         host.setDraftLlmBaseUrl(sanitizedBaseUrl);
         host.llmBaseUrlInput().setText(sanitizedBaseUrl);
         host.syncBaseUrlPresetFromValue(sanitizedBaseUrl);
@@ -68,12 +62,12 @@ public final class SettingsConfigCoordinator {
 
     /** 校验并保存草稿态到磁盘；成功后重新载入以确保一致。返回是否保存成功。 */
     public static boolean save(SettingsPanelRenderHost host) {
-        String apiKey = host.apiKeyInput().getText();
+        String apiKey = host.apiKeyInput().getText().trim();
         String endpoint = sanitizeEndpoint(host.orchestratorInput().getText());
         String llmBaseUrlRaw = host.llmBaseUrlInput().getText() != null ? host.llmBaseUrlInput().getText().trim() : "";
         String llmBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
         if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
-            host.showToast("LLM Base URL 无效：必须以 http:// 或 https:// 开头", true);
+            host.showToast("Base URL 无效：请填写 HTTP(S) 服务地址（不含查询参数或片段）", true);
             return false;
         }
         String draftProvider = host.draftLlmProvider();
@@ -82,14 +76,8 @@ public final class SettingsConfigCoordinator {
         String model = host.modelInput().getText() == null ? "" : host.modelInput().getText().trim();
         host.setDraftModel(model);
 
-        // 验证 API Key：云端供应商通常需要；本地供应商（Ollama/LM Studio/vLLM/llama.cpp）可不填
-        boolean requiresKey = !SettingsBaseUrlPresets.isLocalProvider(provider);
-        if (!requiresKey && (apiKey == null || apiKey.trim().isEmpty())) {
-            // ok，本地 provider 允许空 key
-        } else if (requiresKey && !isValidApiKey(apiKey)) {
-            host.showToast(Text.translatable("formacraft.settings.error.api_key_empty").getString(), true);
-            return false;
-        }
+        // Key requirements belong to the endpoint. Custom servers may use short keys,
+        // no authentication, or credentials configured on the backend.
 
         if (!host.saveBackendSettings()) return false;
 
@@ -155,11 +143,4 @@ public final class SettingsConfigCoordinator {
         return v;
     }
 
-    private static boolean isValidApiKey(String apiKey) {
-        if (apiKey == null || apiKey.trim().isEmpty()) {
-            return false;
-        }
-        String trimmed = apiKey.trim();
-        return trimmed.length() >= 10 && trimmed.length() <= 256;
-    }
 }
