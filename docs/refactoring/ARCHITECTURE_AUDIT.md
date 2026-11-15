@@ -66,7 +66,9 @@ flowchart LR
 - ~~PR-5b 无消费者删除~~：PathCluster K1 死路径 + 未注册/未接线孤类（LEGACY-019/020）
 - ~~PR-5c 无消费者删除~~：未接线 socket/client/skeleton 脚手架（LEGACY-021）
 - ~~PR-5d 无消费者删除~~：PathCluster 整图级联 + continuous 包 + ToolConstraint 级联孤类（LEGACY-022）
-- 后续：残余 REMOVABLE（有测试/Python 引用的另核）；Preview/Undo 存储合并（需 Memory 原子）
+- ~~P1-1 `/build` 跨语言请求形状误判~~：嵌套请求不再被降级为扁平格式（LEGACY-023）
+- ~~P1-2 旧编辑事务与门禁边界~~：预览失败不覆盖旧规格，门禁覆盖预览全过程（LEGACY-024）
+- 后续：残余 REMOVABLE（有测试/Python 引用的另核）；Preview/Undo 存储合并（需 Memory 原子）；`check_generation_entrypoints` 定位为轻量静态守卫（需集成测试保证端点可运行）
 
 ## 已落地（2026-10-31 审查整改）
 
@@ -203,25 +205,25 @@ AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替
 
 ## 弃用退出清单（唯一迁移台账）
 
-> 本表是兼容路径退出的**唯一台账**；不另开 FIX_COMPLETE。状态枚举：`CANONICAL` / `ACTIVE_COMPAT` / `QUARANTINED` / `MIGRATED` / `REMOVABLE` / `REMOVED`。  
-> 证据日期：2026-11-15，对照 `810e0c64`。行号以当时源码为准，变更后以 grep 复核。
+> 本表是兼容路径退化的**唯一台账**；不另开 FIX_COMPLETE。状态枚举：`CANONICAL` / `ACTIVE_COMPAT` / `QUARANTINED` / `MIGRATED` / `REMOVABLE` / `REMOVED`。  
+> 证据日期：2026-11-15，对照 `0ae88eb`。行号以该提交源码为准；变更后请以 grep 复核（行号是定位提示，不是契约）。
 
 | ID | 状态 | 入口与用途 | 实际消费者（证据） | 替代路径 | 行为风险 | 删除前条件 | 证明 |
 |---|---|---|---|---|---|---|---|
-| LEGACY-001 | CANONICAL | `POST /build` → `generate_llm_plan` | `build.py` `_generate_response` 默认与 `outputFormat=llmplan`（约 L80–97）；`OrchestratorClient.requestAiPlan` → `/build`；Chat 默认 `FormaRequest` `outputFormat=llmplan` | — | — | — | 生产默认 |
-| LEGACY-002 | ACTIVE_COMPAT | `POST /build` 显式 `outputFormat=buildingspec` → city / composite / building | `build.py` L85–91：`generate_city_spec` / `generate_composite_spec` / `generate_building_spec`；`ai_planner.py` L155 / L209 / L760 | LlmPlan components / MODULE landmark | 隐式再接旧格式会复活双主干 | 仓库与运行时无显式 buildingspec 生产发送；蓝图/命令消费者已迁 | 路由回归 + 入口清单 |
-| LEGACY-003 | CANONICAL | Java `requestAiPlan` → `AiPlanResult.LlmPlan` → `LlmPlanPreviewBuilder` | `BuildRequestProcessor` ~L217；`OrchestratorClient.requestAiPlan` L242+ | — | — | — | 主干 |
+| LEGACY-001 | CANONICAL | `POST /build` → `generate_llm_plan` | `build.py` `_generate_response`（canonical 分支 ~L87 / L100）；`OrchestratorClient.requestAiPlan` → `/build`；Chat 默认 `FormaRequest` `outputFormat=llmplan` | — | — | — | 生产默认 |
+| LEGACY-002 | ACTIVE_COMPAT | `POST /build` 显式 `outputFormat=buildingspec` → city / composite / building | `build.py` ~L91–94：`generate_city_spec` / `generate_composite_spec` / `generate_building_spec` | LlmPlan components / MODULE landmark | 隐式再接旧格式会复活双主干 | 仓库与运行时无显式 buildingspec 生产发送；蓝图/命令消费者已迁 | 路由回归 + 入口清单 |
+| LEGACY-003 | CANONICAL | Java `requestAiPlan` → `AiPlanResult.LlmPlan` → `LlmPlanPreviewBuilder` | `BuildRequestProcessor` ~L170 `scheduleBuildPreview`；`OrchestratorClient.requestAiPlan` ~L242 | — | — | — | 主干 |
 | LEGACY-004 | ACTIVE_COMPAT | Java `AiPlanResult.BuildingSpec/Composite/City` 预览 | `LegacySpecPreviewHandler.tryHandle`（自 `BuildRequestProcessor` 拆出，PR-3）；仅后端返回对应 kind（显式旧格式） | LlmPlan 预览 | Orchestrator 对非显式请求拒收旧 kind | 无显式旧格式请求 | 契约测试 + 入口清单 |
 | LEGACY-005 | CANONICAL | `ComponentPlanCompiler` / `PlanProgramCompiler` | `LlmPlanPreviewBuilder` 编译分支；入口登记于 `config/generation_entrypoints.json` | — | — | — | 主干编译 |
 | LEGACY-006 | CANONICAL | `UnifiedGeneratorRouter` / `GenerationHub.routeStructure`（执行器门面） | CPC → UGR；compat 预览 / CityBuilder / landmark adaptor 调 `routeStructure`；**不合并** StructureGenerator 上帝类 | 地标作执行器 | 静默 house/tower 回退已禁 | — | GenerationHub 契约 |
-| LEGACY-007 | ACTIVE_COMPAT | `OrchestratorClient.editLegacyBuildingSpec` → `POST /edit/building` | `FormaCraftCommands` `forma_edit_building`；`LegacyBuildingEditHandler.tryStart`（Chat 显式 buildingspec） | `/build` LlmPlan `mode=patch` | 新编辑误接旧 API | 命令与显式 buildingspec 聊天分支清零 | OpenAPI deprecated |
-| LEGACY-008 | ACTIVE_COMPAT | `OrchestratorClient.editLegacyCitySpec` → `POST /edit/city` | `FormaCraftCommands` `forma_edit_city` ~L216–254；`python_backend/app/routes/edit.py` L12+ | LlmPlan patch | 同上 | 命令清零 | OpenAPI deprecated |
+| LEGACY-007 | ACTIVE_COMPAT | `OrchestratorClient.editLegacyBuildingSpec` → `POST /edit/building` | `FormaCraftCommands` `forma_edit_building`（~L290）；`LegacyBuildingEditHandler.tryStart`（`BuildRequestProcessor` ~L96） | `/build` LlmPlan `mode=patch` | 新编辑误接旧 API | 命令与显式 buildingspec 聊天分支清零 | OpenAPI deprecated + `LegacyEditPreviewScopeTest` |
+| LEGACY-008 | ACTIVE_COMPAT | `OrchestratorClient.editLegacyCitySpec` → `POST /edit/city` | `FormaCraftCommands` `forma_edit_city` ~L216；`python_backend/app/routes/edit.py` `edit_city_endpoint` ~L13 | LlmPlan patch | 同上 | 命令清零 | OpenAPI deprecated |
 | LEGACY-009 | ACTIVE_COMPAT | 蓝图存档 BuildingSpec / CitySpec / CompositeSpec | `FormaCraftCommands` save/load；`BlueprintStorage`；codec 夹具 `BlueprintCodecRoundTripTest` | 未来 LlmPlan 存档格式（未定） | 删读写会破坏既有蓝图 | 迁移工具 + 玩家存档兼容策略 | round-trip 测试 |
-| LEGACY-010 | ACTIVE_COMPAT | Python `legacy_spec_*` + `ai_planner` 兼容 import | 生产：`ai_planner` 自身编排仍 import `legacy_spec_fallbacks/genome/normalization`（L17–23）；`llm_plan_normalization` 复用 `_deep_merge`；`assembly_plan_repair` / `fbd_repair` 调 `ai_planner` 门面；测试与 eval 仍 patch `ai_planner` | 职责模块直导 | 删 re-export 会断测试补丁点 | 调用方改直导后再删 facade 别名 | import 图 |
+| LEGACY-010 | ACTIVE_COMPAT | Python `legacy_spec_*` + `ai_planner` 兼容 import | 生产：`ai_planner` 自身编排仍 import `legacy_spec_fallbacks/genome/normalization`（~L20–26）；`llm_plan_normalization` 复用 `_deep_merge`；`assembly_plan_repair` / `fbd_repair` 调 `ai_planner` 门面；测试与 eval 仍 patch `ai_planner` | 职责模块直导 | 删 re-export 会断测试补丁点 | 调用方改直导后再删 facade 别名 | import 图 |
 | LEGACY-011 | ACTIVE_COMPAT | `PreviewStorage`（Build 预览） | `LlmPlanPreviewBuilder` / `BuildConfirmService` / `/forma_confirm` | 与 Ticket **语义已冻结**（[PREVIEW_UNDO_INVARIANTS](../PREVIEW_UNDO_INVARIANTS.md)）；存储合并延后 | 双确认 UX | Memory 原子 + UX 统一后再合并 | `PreviewUndoParityTest` + Confirm 单测 |
 | LEGACY-012 | ACTIVE_COMPAT | `PreviewTicket`（Patch 预览） | `PatchPreviewService` → `PreviewTicketStorage` | 同上 | 同上 | 同上 | `PreviewTicketStorageTest` |
 | LEGACY-013 | ACTIVE_COMPAT | `UndoService` vs `PatchHistoryManager` | Build → UndoService；Patch → PatchHistoryManager；择栈 `MutationHistoryFacade`（丢幽灵账本） | 合并存储延后；真相源=成功事务方块差异 | 跨栈幽灵 / Memory 非原子 | Memory 原子方案落地 | MEMORY / PREVIEW_UNDO_INVARIANTS |
-| LEGACY-014 | MIGRATED | 指标原 `recordStructureAfterFallback` 误记账 | 原 `BuildRequestProcessor` 预览失败回调 | 现记 `recordError(..., preview_unhandled_no_structure_fallback)`；`recordStructureAfterFallback` 仅真实整栋回退时用 | 历史日志污染 | — | `LlmPlanRoutingMetricsTest` |
+| LEGACY-014 | MIGRATED | 预览失败指标语义（误记账已纠正） | `BuildRequestProcessor` 预览失败回调 | 预览失败统一记 `recordError(..., preview_unhandled_no_structure_fallback)`；**旧回退 API 已删除**（`recordStructureAfterFallback` / `recordFallback` / `FallbackReason`，见 LEGACY-018），当前**不存在**受支持的整栋回退事件 | 历史日志仍含旧字段 | — | `LlmPlanRoutingMetricsTest` |
 | LEGACY-015 | REMOVED | `BuildingSpecRoutingPolicy` / `requestBuildingSpec` | 无生产调用者（类已删） | `requestAiPlan` + `FormaRequest.requestsLegacyBuildingSpec()` | 文档若仍引用会误导 | — | 已删；见迁移文档警告 |
 | LEGACY-016 | REMOVED | 客户端 `PromptAssembler.java` | 无 | `prompt_assembly.py` + `llm_plan_system_prompt.py` | 文档旧路径 | — | 已删 |
 | LEGACY-017 | REMOVED | `MassAssembly*` 孤儿子图（Example/Builder/MassTo*Deriver/Relationship/Definition/Prototype） | 删除前仅示例自引用；生产路径用 `BuildingMassComposition` + `BuildingMassPipeline` | BuildingMass 集成路径 | 勿整包删 `common.mass` | 入口消费者为 0；`PlanDomainValidator` **保留**（Pipeline 仍用） | PR-5 删除 + compile |
@@ -230,6 +232,9 @@ AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替
 | LEGACY-020 | REMOVED | 未注册/未接线孤类：`RectangularHouseGenerator`、`WindowAspectConflictRepair`、`DesignFidelityValidator`、`BuildingEditPlan`、`ContinuousPlacementIntegration`、`PatchDiffGenerator`、`ConversationSummaryService`、`OutlineAttachmentContext`、`VerticalStackInterpreter`、`SkeletonPlanConverter`、`BlockUtils`、`FormaJson` | 生产调用者 0（`house` 注册的是 `HouseGenerator`；VerticalStack 生产走 `VerticalStackGenerator` 简柱） | 现网对应实现 / 无需替代 | 勿误删仍接线的 socket 生产路径 | 入口消费者为 0 | PR-5b 删除 + compile |
 | LEGACY-021 | REMOVED | 未接线脚手架：`SocketRegistry`/`WallSocketProvider`/`AttachTransform`/`ComponentMount`/`SocketSpecAdapter`/`PlacementContextAdapter`/`SocketAnchorResolver`/`SocketAwareTool`、`SkeletonComponentRules`/`SkeletonSemantics`/`SemanticResolver`、`SemanticLabelContext`/`SemanticLabelQueryAdapter`、`ToolConstraintBuilder`/`ToolLayoutConstraints`、`CursorWorldInteraction` | 生产调用者 0；`register()`/`initialize()` 未被入口调用 | 仍活：`SocketProviders`/`SocketHighlighter`/`SelectionContext`/`ComponentPreset`/`LayoutSite` | 勿整包删 `component.socket` | 入口消费者为 0 | PR-5c 删除 + compile |
 | LEGACY-022 | REMOVED | PathCluster 整图级联（`PathStreetLayoutBuilder`/`PathClusterLayout`/`ZonedSlot`/`Street*`/`zoning.*`）、`socket.continuous.*`、ToolConstraint 级联（`Outline/ProtectedZone/SymmetryContext`、footprint/nobuild）、以及 `ComponentPlan`/`ComponentVariantAdapter`/`WeightedPicker`/`VerticalStackSkeleton`/`VerticalStackPlan`/`LayoutConstraints`/`ToolSnapshot`/`ComponentAnchor`/`ComponentInstanceTransform` | 生产调用者 0（级联自 PR-5b/c） | 仍活：路径生成器族、`GeometryConstraintPipeline`/symmetry、`ComponentPreset`/`LayoutSite`、`VerticalStackGenerator` | 勿删仍接线的 path/socket/geometry symmetry | 入口消费者为 0 | PR-5d 删除 + compile |
+| LEGACY-023 | MIGRATED | `/build` 请求形状判定（跨语言契约） | `request_adapter.py` `FormaRequestAdapter`；`build.py` `build_endpoint` | 形状判定改为**显式**：`player`/`world` 字典存在 → 嵌套格式；否则 → Java 扁平格式。旧判定（仅凭 `requestText` 非空即扁平）会丢弃嵌套的 `player.facing`/`world.dimension`/`selection`/`path` | 误判已修 | 嵌套与扁平必须产出同一规划上下文 | `test_build_request_shape_parity.py`（真实 `/build` HTTP 入口） |
+| LEGACY-024 | MIGRATED | 旧 BuildingSpec 编辑的事务与门禁边界 | `LegacyBuildingEditHandler.tryStart`；`LegacyEditPreviewScope` | 顺序改为「接收结果 → 解析 → 路由生成器 → 生成预览 → **预览成功后**写回规格仓库 → 释放门禁」；解析失败/无生成器/预览失败均保留玩家原规格；门禁在预览流程结束（含失败）后才释放 | 数据损坏风险已修 | — | `LegacyEditPreviewScopeTest` |
 
 **退出决策规则**：状态 ≠ `REMOVABLE`/`REMOVED` 时禁止删实现；`ACTIVE_COMPAT` 禁止扩展为新功能默认入口；消费者证据过期时先更新本表再改代码。  
-**PR-5 明确不删**：`CityBuilder`、`StructureGenerator` 族、`UndoService`、`PatchHistoryManager`、仍接线的 `BuildingMass*` / `BuildingMassPipeline`。
+**PR-5 明确不删**：`CityBuilder`、`StructureGenerator` 族、`UndoService`、`PatchHistoryManager`、仍接线的 `BuildingMass*` / `BuildingMassPipeline`。  
+**静态守卫定位**：`scripts/check_generation_entrypoints.py` 是**轻量静态守卫**（Python 只验证顶层符号存在，Java 只验证方法名文本），不等于路由验证器；端点可运行性由集成测试保证（见 `test_build_request_shape_parity.py`）。

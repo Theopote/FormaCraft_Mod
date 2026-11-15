@@ -1,7 +1,6 @@
 package com.formacraft.server.network.compat;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.network.FormaCraftNetworking;
@@ -68,10 +67,12 @@ public final class LegacyBuildingEditHandler {
             ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(errorMsg));
             return true;
         }
+
+        // 门禁覆盖“后端编排 + 解析 + 生成 + 预览交付”全过程，仅在结束时释放。
+        final LegacyEditPreviewScope scope = new LegacyEditPreviewScope(() -> BuildRequestGate.release(gateTicket));
         asyncStarted[0] = true;
         orchestrator.editLegacyBuildingSpec(buildingId, currentJson, req.getRequestText())
                 .orTimeout(605, TimeUnit.SECONDS)
-                .whenComplete((r, e) -> BuildRequestGate.release(gateTicket))
                 .exceptionally(ex -> {
                     hbAlive.set(false);
                     FormacraftMod.LOGGER.error("Orchestrator edit building request failed", ex);
@@ -81,21 +82,44 @@ public final class LegacyBuildingEditHandler {
                     return null;
                 })
                 .thenAccept(updatedJson -> {
-                    if (updatedJson == null) return;
+                    if (updatedJson == null) {
+                        scope.release();
+                        return;
+                    }
 
                     server.execute(() -> {
-                        hbPhase.set("已收到 AI 结果，正在生成更新后的预览");
-                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
-                                "已收到 AI 结果，正在生成更新后的预览…"));
-                        com.formacraft.server.state.PlayerSpecRepository.setBuildingSpec(player, buildingId, updatedJson);
+                        try {
+                            hbPhase.set("已收到 AI 结果，正在生成更新后的预览");
+                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(
+                                    "已收到 AI 结果，正在生成更新后的预览…"));
 
-                        BuildingSpec updated = JsonUtil.fromJson(updatedJson, BuildingSpec.class);
-                        if (updated == null) return;
+                            // 先解析；无效 BuildingSpec 不覆盖玩家原有规格。
+                            BuildingSpec updated = LegacyEditPreviewScope.parseSpec(updatedJson);
+                            if (updated == null) {
+                                hbAlive.set(false);
+                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                        "编辑结果不是有效的 BuildingSpec，已保留原有建筑规格。"));
+                                return;
+                            }
 
-                        BlockPos origin = req.getPlayerPos();
-                        if (origin != null && player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld) {
+                            BlockPos origin = req.getPlayerPos();
+                            if (origin == null || !(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld serverWorld)) {
+                                hbAlive.set(false);
+                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                        "缺少玩家位置或世界上下文，已保留原有建筑规格。"));
+                                return;
+                            }
+
+                            // 先解析生成器；无生成器时给出明确错误，不覆盖规格。
                             com.formacraft.server.generation.structure.StructureGenerator generator =
                                     com.formacraft.server.generation.GenerationHub.routeStructure(updated);
+                            if (generator == null) {
+                                hbAlive.set(false);
+                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                        "编辑结果无法路由到生成器（UNSUPPORTED），已保留原有建筑规格。"));
+                                return;
+                            }
+
                             final com.formacraft.server.build.BuildReportContext.Reported<StructureGenerationResult> reported =
                                     com.formacraft.server.build.BuildReportContext.withNewReportReported(() ->
                                             BuildConstraintContext.withRequest(req, () -> StructureGenerationResult.capture(
@@ -108,7 +132,7 @@ public final class LegacyBuildingEditHandler {
                                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(terrainSummary));
                             }
 
-                            com.formacraft.server.build.BuildPreviewDelivery.deliver(
+                            boolean delivered = com.formacraft.server.build.BuildPreviewDelivery.deliver(
                                     player,
                                     req,
                                     generated,
@@ -124,9 +148,25 @@ public final class LegacyBuildingEditHandler {
                                         }
                                     }
                             );
-                        }
 
-                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(updated));
+                            if (delivered) {
+                                scope.markPreviewDelivered();
+                                // 仅在预览交付成功后写回规格仓库。
+                                LegacyEditPreviewScope.commitSpec(
+                                        player.getUuid(), buildingId, updatedJson, true);
+                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(updated));
+                            } else {
+                                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                        "预览生成失败，已保留原有建筑规格。"));
+                            }
+                        } catch (Throwable t) {
+                            hbAlive.set(false);
+                            FormacraftMod.LOGGER.error("Legacy building edit preview failed", t);
+                            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                    "生成预览时发生内部错误，已保留原有建筑规格。"));
+                        } finally {
+                            scope.release();
+                        }
                     });
                 });
         return true;
