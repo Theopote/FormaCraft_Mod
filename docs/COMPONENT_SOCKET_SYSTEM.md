@@ -259,39 +259,24 @@ List<BlockPatch> patches = ComponentVariantCompiler.compile(
 );
 ```
 
-### 3. SocketAwareTool（工具接口）
+### 3. Socket 高亮（现行实现，非 SocketAwareTool）
+
+> 2026-11-15 核对：`SocketAwareTool` 接口**已删除**，无生产调用者。
+> 现行高亮由 `ComponentTool` 直接调用 `SocketHighlighter` 完成，无需工具侧实现接口。
+
+**现行调用点**：`src/main/java/com/formacraft/client/tool/ComponentTool.java`
 
 ```java
-public interface SocketAwareTool {
-    /**
-     * 获取当前激活的组件原型（用于 Socket 匹配）。
-     */
-    ComponentPrototype getActivePrototype();
-
-    /**
-     * 是否启用 Socket 高亮（可选）。
-     */
-    default boolean isSocketHighlightEnabled() {
-        return true;
-    }
-}
+// ComponentTool 内部：高亮合法 socket 位置
+List<SocketMatchResult> results = SocketHighlighter.getValidSockets(...);
+SocketHighlighter.renderHighlights(ctx, results);
 ```
 
 **渲染高亮（伪代码）**：
 
 ```java
-if (tool instanceof SocketAwareTool sat) {
-    ComponentPrototype proto = sat.getActivePrototype();
-    if (proto != null && proto.sockets != null) {
-        for (ComponentSocket consumer : proto.sockets) {
-            if (consumer.role == SocketRole.CONSUMER) {
-                List<SocketPlacement> providers = SocketFinder.findProviders(...);
-                for (SocketPlacement p : providers) {
-                    renderSocketHighlight(p, canMatch ? GREEN : RED);
-                }
-            }
-        }
-    }
+for (SocketMatchResult result : results) {
+    renderSocketHighlight(result.placement(), result.matched() ? GREEN : RED);
 }
 ```
 
@@ -403,9 +388,10 @@ if (tool instanceof SocketAwareTool sat) {
 - SizeConstraint（尺寸约束）
 - SocketMatcher（匹配算法 + 评分）
 - SocketPlacement（输出结构）
-- SocketFinder（接口骨架，v2 补齐实现）
+- SocketFinder（排序入口 `sortByScore`）
 - ComponentPrototype.sockets（字段集成）
-- SocketAwareTool（工具接口）
+
+> 2026-11-15 核对：`SocketAwareTool` 接口已删除（无调用者）；Socket 高亮由 `ComponentTool` 直接调用 `SocketHighlighter`。
 
 ### 🔧 v2 扩展
 

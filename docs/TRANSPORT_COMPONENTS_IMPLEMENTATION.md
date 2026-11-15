@@ -119,6 +119,11 @@
 
 ## 完整示例
 
+> 2026-11-15 核对：原示例中的 `ComponentPlan`（`common/component/ComponentPlan.java`）
+> **已删除**，无生产调用者。现行构件描述使用 `ComponentSpec`
+> （`common/component/ComponentSpec.java`，字段为 `type` / `offset*` / `width` / `depth` / `height` / `params` / `tags`）。
+> 构件列表由 LlmPlan 的 `components[]` 承载，编译入口是 `ComponentPlanCompiler`。
+
 ### 示例 1：城堡（带门和台阶）
 
 ```java
@@ -126,20 +131,20 @@ ExecutableSkeletonPlan skeleton = new ExecutableSkeletonPlan(SkeletonType.GRID)
     .put("width", 30)
     .put("depth", 30);
 
-ComponentPlan components = new ComponentPlan()
+List<ComponentSpec> components = List.of(
     // 围墙
-    .add(new ComponentSpec(ComponentType.ENCLOSING_WALL).size(0, 0, 8))
+    new ComponentSpec(ComponentType.ENCLOSING_WALL).offset(0, 0, 8),
     // 南门
-    .add(new ComponentSpec(ComponentType.GATE)
+    new ComponentSpec(ComponentType.GATE)
         .param("width", 4)
         .param("height", 5)
-        .param("position", "south"))
+        .param("position", "south"),
     // 门前台阶
-    .add(new ComponentSpec(ComponentType.STAIR)
+    new ComponentSpec(ComponentType.STAIR)
         .param("direction", "north")
-        .param("steps", 5))
+        .param("steps", 5),
     // 城墙巡逻道
-    .add(new ComponentSpec(ComponentType.WALKWAY)
+    new ComponentSpec(ComponentType.WALKWAY)
         .param("width", 2)
         .param("connect", "tower_to_tower"));
 ```
@@ -150,20 +155,20 @@ ComponentPlan components = new ComponentPlan()
 ExecutableSkeletonPlan skeleton = new ExecutableSkeletonPlan(SkeletonType.RADIAL_RING)
     .put("radius", 20);
 
-ComponentPlan components = new ComponentPlan()
+List<ComponentSpec> components = List.of(
     // 外墙
-    .add(new ComponentSpec(ComponentType.ENCLOSING_WALL).size(0, 0, 12))
+    new ComponentSpec(ComponentType.ENCLOSING_WALL).offset(0, 0, 12),
     // 中庭
-    .add(new ComponentSpec(ComponentType.COURTYARD)
+    new ComponentSpec(ComponentType.COURTYARD)
         .param("shape", "circle")
-        .param("radius", 8))
+        .param("radius", 8),
     // 中庭入口（从外墙到中庭）
-    .add(new ComponentSpec(ComponentType.GATE)
+    new ComponentSpec(ComponentType.GATE)
         .param("width", 3)
         .param("height", 4)
-        .param("position", "auto"))
+        .param("position", "auto"),
     // 连接门到中庭的步道
-    .add(new ComponentSpec(ComponentType.WALKWAY)
+    new ComponentSpec(ComponentType.WALKWAY)
         .param("width", 2)
         .param("connect", "gate_to_keep"));
 ```
@@ -175,15 +180,15 @@ ExecutableSkeletonPlan skeleton = new ExecutableSkeletonPlan(SkeletonType.TERRAC
     .put("levels", 4)
     .put("conformTerrain", true);
 
-ComponentPlan components = new ComponentPlan()
+List<ComponentSpec> components = List.of(
     // 台地结构
-    .add(new ComponentSpec(ComponentType.FOUNDATION))
+    new ComponentSpec(ComponentType.FOUNDATION),
     // 连接各层的楼梯
-    .add(new ComponentSpec(ComponentType.STAIR)
+    new ComponentSpec(ComponentType.STAIR)
         .param("direction", "north")
-        .param("steps", 8))
+        .param("steps", 8),
     // 层间步道
-    .add(new ComponentSpec(ComponentType.WALKWAY)
+    new ComponentSpec(ComponentType.WALKWAY)
         .param("width", 2));
 ```
 

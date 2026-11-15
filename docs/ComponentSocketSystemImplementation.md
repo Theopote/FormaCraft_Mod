@@ -118,49 +118,33 @@ Placement / Patch
 **接口方法**：
 - `provideSockets(BuildContext ctx)` - 提供 Socket 列表
 
-### 6. WallSocketProvider（墙体插槽提供者）
+### 6. WallOpeningSocketProvider（墙体开洞插槽提供者）
 
-**位置**：`src/main/java/com/formacraft/common/component/socket/WallSocketProvider.java`
+> 2026-11-15 核对：原 `WallSocketProvider`（`common/component/socket/WallSocketProvider.java`）
+> **已删除**，无生产调用者。现行墙体开洞插槽由 `WallOpeningSocketProvider` 提供。
+
+**位置**：`src/main/java/com/formacraft/common/component/socket/WallOpeningSocketProvider.java`
 
 **核心功能**：
-- 从建筑骨架 / Skeleton / Geometry 中提取墙体的 Socket
-- 生成 `WALL_SURFACE` 和 `WALL_OPENING` Socket
+- 从建筑骨架 / Skeleton / Geometry 中提取墙体的开洞 Socket
+- 生成 `WALL_OPENING` Socket
 
-**示例实现**：
+### 7. SocketProviders（插槽收集入口）
+
+> 2026-11-15 核对：原 `SocketRegistry`（`common/component/socket/SocketRegistry.java`）
+> **已删除**（其 `initialize()` 未被任何入口调用）。现行收集入口是 `SocketProviders`。
+
+**位置**：`src/main/java/com/formacraft/common/component/socket/SocketProviders.java`
+
+**核心功能**：
+- 汇总所有已注册的 `SocketProvider`
+- 提供 `collect(world, ctx)` 与 `collectAndSort(...)` 两个收集入口
+
+**现行用法**：
 ```java
-// 从 BuildContext 中获取墙体段
-for (WallSegment wall : ctx.getWalls()) {
-    // 墙面 Socket
-    sockets.add(new Socket(
-        SocketType.WALL_SURFACE,
-        wall.getSurfaceBox(),
-        wall.getNormal(),
-        wall.getSemanticContext()
-    ));
-
-    // 墙洞 Socket（如果有）
-    if (wall.hasOpening()) {
-        sockets.add(new Socket(
-            SocketType.WALL_OPENING,
-            wall.getOpeningBox(),
-            wall.getNormal(),
-            wall.getSemanticContext()
-        ));
-    }
-}
+// 收集并排序
+List<Socket> sockets = SocketProviders.collectAndSort(world, ctx);
 ```
-
-### 7. SocketRegistry（插槽注册表）
-
-**位置**：`src/main/java/com/formacraft/common/component/socket/SocketRegistry.java`
-
-**核心功能**：
-- 管理所有 SocketProvider
-- 自动合并所有 Socket
-- 提供 `getAllSockets(BuildContext ctx)` 方法
-
-**初始化**：
-- `initialize()` - 注册默认的 SocketProvider（WallSocketProvider）
 
 ### 8. SocketMatcher（插槽匹配器）
 
@@ -182,11 +166,12 @@ for (WallSegment wall : ctx.getWalls()) {
 - `match(ComponentVariant, List<Socket>)` - 匹配构件变体与 Socket
 - `match(ComponentPlacementSpec, List<Socket>)` - 匹配构件放置规格与 Socket
 
-### 9. SocketSpecAdapter（插槽规格适配器）
+### 9. SocketSpecAdapter（插槽规格适配器）—— 已删除
 
-**位置**：`src/main/java/com/formacraft/common/component/socket/SocketSpecAdapter.java`
+> 2026-11-15 核对：原 `SocketSpecAdapter`（`common/component/socket/SocketSpecAdapter.java`）
+> **已删除**，无生产调用者。插槽需求推断尚未重新接线。
 
-**核心功能**：
+**原职责**（历史）：
 - 从 AttachmentSpec 和 ComponentPlacementSpec 推断 Socket 需求
 - 自动填充 `allowedSockets` 字段
 
@@ -201,20 +186,16 @@ for (WallSegment wall : ctx.getWalls()) {
 
 **行为**：
 - 玩家选中一个 Component
-- 系统：扫描世界 → SocketProvider → SocketMatcher 过滤 → 高亮合法 socket 区域
+- 系统：扫描世界 → SocketProviders → SocketMatcher 过滤 → 高亮合法 socket 区域
 
-### 11. PromptAssembler 集成
+### 11. Prompt 集成
 
-**位置**：`src/main/java/com/formacraft/client/ai/prompt/PromptAssembler.java`
+> 2026-11-15 核对：客户端 `PromptAssembler` **已删除**。Socket 相关约束现在由后端
+> `python_backend/app/services/prompt_assembly.py` 组装进提示词。
 
 **核心功能**：
 - Socket System Prompt（AI 看到约束）
 - AI 不需要知道 socket，但需要知道限制结果
-
-**关键说明**：
-- AI 不需要知道 socket
-- 但需要知道限制结果
-- PromptAssembler 自动生成约束信息
 
 ## 📊 使用示例
 
@@ -237,8 +218,8 @@ SocketHighlighter.renderHighlights(client, validSockets);
 ### 示例 2：SocketMatcher 匹配
 
 ```java
-// 获取所有 Socket
-List<Socket> allSockets = SocketRegistry.getAllSockets(ctx);
+// 获取所有 Socket（现行入口）
+List<Socket> allSockets = SocketProviders.collect(world, ctx);
 
 // 匹配构件与 Socket
 ComponentVariant variant = VariantGenerator.generate(component, query, random);
@@ -248,18 +229,14 @@ List<Socket> validSockets = SocketMatcher.match(variant, allSockets);
 Socket bestSocket = selectBestSocket(validSockets);
 ```
 
-### 示例 3：从 AttachmentSpec 推断 Socket
+### 示例 3：从 AttachmentSpec 推断 Socket —— 当前未接线
+
+> 2026-11-15 核对：`SocketSpecAdapter` 已删除，`inferSocketTypes(attachment)` **无现行替代实现**。
+> 插槽需求推断需要重新接线；在此之前不得依赖本文示例。
 
 ```java
-// 构件的 AttachmentSpec
-AttachmentSpec attachment = archetype.attachment;
-
-// 自动推断 Socket 类型
-Set<SocketType> socketTypes = SocketSpecAdapter.inferSocketTypes(attachment);
-
-// 填充到 ComponentPlacementSpec
-ComponentPlacementSpec spec = component.placementSpec;
-spec.allowedSockets = socketTypes;
+// 历史示例（已失效，不可照抄）
+// Set<SocketType> socketTypes = SocketSpecAdapter.inferSocketTypes(attachment);
 ```
 
 ## 🔄 完整数据流
@@ -271,7 +248,7 @@ SocketProvider.provideSockets()
         ↓
 [ 生成 Socket 列表（WALL_SURFACE, WALL_OPENING, EDGE_OUTER 等）]
         ↓
-SocketRegistry.getAllSockets()
+SocketProviders.collect() / collectAndSort()
         ↓
 SocketMatcher.match()
         ↓
@@ -295,7 +272,7 @@ SocketMatcher.match()
 👉 没有一条是"特判"
 👉 全部是数据驱动
 
-## ✅ 完成度
+## ✅ 完成度（2026-11-15 核对）
 
 | 组件 | 状态 | 说明 |
 |------|------|------|
@@ -304,27 +281,27 @@ SocketMatcher.match()
 | AlignmentPolicy | ✅ 完成 | 对齐策略（CENTER / BOTTOM / TOP / EDGE） |
 | ComponentPlacementSpec（扩展） | ✅ 完成 | 声明需要什么 Socket |
 | SocketProvider | ✅ 完成 | 插槽提供者接口 |
-| WallSocketProvider | ✅ 完成 | 墙体插槽提供者（示例实现） |
-| SocketRegistry | ✅ 完成 | 管理所有 SocketProvider |
+| WallOpeningSocketProvider | ✅ 完成 | 墙体开洞插槽提供者（`WallSocketProvider` 已删） |
+| SocketProviders | ✅ 完成 | 插槽收集入口（`SocketRegistry` 已删） |
 | SocketMatcher | ✅ 完成 | 合法性裁判 |
-| SocketSpecAdapter | ✅ 完成 | 从 AttachmentSpec 推断 Socket |
+| SocketSpecAdapter | ❌ **已删除** | 从 AttachmentSpec 推断 Socket —— 未重新接线 |
 | SocketHighlighter | ✅ 完成 | ComponentTool 高亮合法位置 |
-| PromptAssembler 集成 | ✅ 完成 | AI 看到约束 |
+| Prompt 集成 | ✅ 完成 | 后端 `prompt_assembly.py` 组装（非客户端 PromptAssembler） |
 
 ## 🎉 总结
 
-已成功实现 Component Socket System：
+Component Socket System 现状：
 
 - ✅ **SocketType** - 8 种插槽类型（无方向）
 - ✅ **Socket** - 几何 + 语义复合体
 - ✅ **AlignmentPolicy** - 对齐策略
 - ✅ **ComponentPlacementSpec（扩展）** - 声明需要什么 Socket
 - ✅ **SocketProvider** - 插槽提供者接口
-- ✅ **WallSocketProvider** - 墙体插槽提供者
-- ✅ **SocketRegistry** - 管理所有 SocketProvider
+- ✅ **WallOpeningSocketProvider** - 墙体开洞插槽提供者
+- ✅ **SocketProviders** - 插槽收集入口
 - ✅ **SocketMatcher** - 合法性裁判
 - ✅ **SocketHighlighter** - ComponentTool 高亮合法位置
-- ✅ **PromptAssembler 集成** - AI 看到约束
+- ✅ **Prompt 集成** - 后端提示词组装
 
 **这一层完成后，系统立刻获得的能力**：
 - ✅ 不是构件有方向，而是"它能附着在什么地方"
@@ -339,4 +316,4 @@ SocketMatcher.match()
 
 **实现时间**: 2026-01-14  
 **版本**: v1.0  
-**状态**: ✅ 核心功能完成，已集成到 ComponentTool 和 PromptAssembler
+**状态**: 核心功能完成，已集成到 ComponentTool 与后端提示词组装（2026-11-15 核对：SocketSpecAdapter / SocketRegistry / WallSocketProvider 已删除）

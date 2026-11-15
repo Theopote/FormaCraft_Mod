@@ -343,18 +343,21 @@ Palette.pick(SemanticPart.WALL)
 
 ### 输入数据结构
 
-#### PromptAssemblerInput
+#### Prompt 输入
+> 2026-11-15 核对：原 `PromptAssemblerInput` 结构与其中的 `PolygonNoBuildZone` /
+> `SelectionRegion` / `OutlineShape` 等客户端上下文类**已删除**（客户端 `PromptAssembler` 已删）。
+> 现行请求结构见 `python_backend/app/models/request.py` 的 `BuildRequest` 与
+> `common/model/request/FormaRequest`。
+
 ```java
 {
-  userText: "在锚点位置生成12*15中式别墅",
-  anchor: BlockPos(-969, 64, -671),
-  facing: NORTH,
-  selectionRegion: SelectionBox(...),
-  outlineRegion: OutlineShape(...),
-  noBuildZones: List<PolygonNoBuildZone>(...),
-  symmetryPlane: SymmetryPlane(...),
-  terrainPolicy: TerrainPolicy(ADAPTIVE, ...),
-  semanticLabels: List<SemanticLabel>(...)
+  requestText: "在锚点位置生成12*15中式别墅",
+  player: { name, pos: BlockPos(-969, 64, -671), facing: NORTH },
+  world: { dimension, biome },
+  selection: Selection(...),
+  outline: OutlineShape(...),
+  protectedZones: List<ProtectedZone>(...),
+  path: PathConstraint(...),
 }
 ```
 

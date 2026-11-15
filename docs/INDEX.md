@@ -34,6 +34,8 @@
 | [phase1/GOLDEN_PATH_AUDIT.md](phase1/GOLDEN_PATH_AUDIT.md) | Phase 1 时点审计；双栈债仍有效，入口类名以 PIPELINE 复核 |
 | [phase1/INGAME_ACCEPTANCE_MATRIX.md](phase1/INGAME_ACCEPTANCE_MATRIX.md) | 验收矩阵参考 |
 | [refactoring/REGRESSION_BASELINE.md](refactoring/REGRESSION_BASELINE.md) | 回归时点记录 |
+| [GEOMETRY_MODIFIER_TOOL_SYSTEM.md](GEOMETRY_MODIFIER_TOOL_SYSTEM.md) | **部分已删**；footprint/nobuild 约束类已移除，改用 `BuildConstraints` + `BuildConstraintClipper` |
+| [PROMPT_ASSEMBLER_AUTOMATION.md](PROMPT_ASSEMBLER_AUTOMATION.md) | **历史**；客户端 PromptAssembler 已删 → `prompt_assembly.py`；工具上下文改用 `ToolConstraintSnapshot` |
 
 ---
 
@@ -62,7 +64,6 @@
 | [PATCH_FILTER_PIPELINE_K3_3.md](PATCH_FILTER_PIPELINE_K3_3.md) | **历史设计**；未全线接线；禁止再接第三套过滤主干 |
 | [POST_PROCESS_PIPELINE_IMPLEMENTATION.md](POST_PROCESS_PIPELINE_IMPLEMENTATION.md) | PostProcessPipeline 后处理 |
 | [PALETTE_RESOLVER_K3_2.md](PALETTE_RESOLVER_K3_2.md) | 语义材质解析 |
-| [PROMPT_ASSEMBLER_AUTOMATION.md](PROMPT_ASSEMBLER_AUTOMATION.md) | **历史**；客户端 PromptAssembler 已删 → `prompt_assembly.py` |
 | [TERRAIN_STRATEGY_SYSTEM.md](TERRAIN_STRATEGY_SYSTEM.md) | 地形策略 |
 | [GENERATION_QUALITY_PARAMS.md](GENERATION_QUALITY_PARAMS.md) | 生成质量参数 |
 
@@ -108,7 +109,6 @@
 | 文档 | 用途 |
 |------|------|
 | [PATH_DRIVEN_GENERATION_SYSTEM.md](PATH_DRIVEN_GENERATION_SYSTEM.md) | 路径驱动生成 |
-| [PATH_FUNCTION_ZONING_K3.md](PATH_FUNCTION_ZONING_K3.md) | 路径功能分区 |
 | [TRANSPORT_COMPONENTS_IMPLEMENTATION.md](TRANSPORT_COMPONENTS_IMPLEMENTATION.md) | 道路/桥梁构件 |
 | [MEMORY_SYSTEM_IMPLEMENTATION.md](MEMORY_SYSTEM_IMPLEMENTATION.md) | Forma-Cortex Memory |
 

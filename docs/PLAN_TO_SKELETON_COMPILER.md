@@ -168,10 +168,13 @@ CompiledSkeleton
 
 ## 🔗 与现有系统的连接
 
-你已经有的：
+> 2026-11-15 核对：`SkeletonComponentRules`（`common/assembly/SkeletonComponentRules.java`）
+> **已删除**，无生产调用者；`AutoAssembler` 亦非现行入口。
+> 骨架 → 构件的现行装配由 `SkeletonBuildPipeline` / `SkeletonBuildService` 承担。
+
+现行可用的：
 - `SkeletonSocketProfile.forWall()`
-- `SkeletonComponentRules.defaultMedieval()`
-- `AutoAssembler.assembleOnSockets(...)`
+- `SkeletonBuildPipeline` / `SkeletonBuildService`（骨架构建与语义生成）
 
 全部可以无缝接上：
 

@@ -1,3 +1,8 @@
+> **归档（ARCHIVED）**：本文描述的实现已废弃或已被后续方案取代，**不是现行接线指南**。
+> 现行流程见 [GENERATION_PIPELINE.md](../../GENERATION_PIPELINE.md) 与 [ARCHITECTURE.md](../../../ARCHITECTURE.md)；
+> 迁移与删除台账见 [ARCHITECTURE_AUDIT.md](../../refactoring/ARCHITECTURE_AUDIT.md)。
+> 保留原因：记录历史设计思路，不代表可恢复的代码位置。
+
 # P2 roof execution
 
 Four additional explicit `roof_type` values are implemented: `gambrel`,

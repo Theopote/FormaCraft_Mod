@@ -164,14 +164,16 @@ ComponentDefinition base = result.base();
 ComponentVariant variant = result.variant();
 ```
 
-### 7. ComponentVariantAdapter（适配器）
+### 7. ComponentVariantAdapter（适配器）—— 已删除
 
-**位置**：`src/main/java/com/formacraft/common/compiler/voxel/ComponentVariantAdapter.java`
+> 2026-11-15 核对：`ComponentVariantAdapter`（`common/compiler/voxel/ComponentVariantAdapter.java`）
+> **已删除**，其所在的 `common/compiler/voxel/` 整包已移除（零消费者）。
+> 同包的 `ComponentVoxelizer` / `VoxelPlan` / `SemanticBlock` / `PaletteResolver`
+> 也一并删除。变体编译现行入口为 `ComponentVariantCompiler`（`common/component/`）。
 
-**核心功能**：
+**原职责**（历史）：
 - 将新的 ComponentVariant 适配为旧的 ComponentVariant
-- 临时适配层，用于兼容现有的 ComponentVoxelizer 和 ComponentPlanCompiler
-- 未来可以逐步迁移到新的 ComponentVariant 系统
+- 临时适配层，用于兼容已删除的 ComponentVoxelizer 和 ComponentPlanCompiler
 
 ## 📊 使用示例
 
@@ -310,7 +312,8 @@ ComponentPlanCompiler.compileWithNewVariant()
 | ComponentVariant | ✅ 完成 | 变体数据（运行时产物，不存盘） |
 | VariantGenerator | ✅ 完成 | 核心逻辑（自动生成变体） |
 | ComponentRetriever 集成 | ✅ 完成 | 检索最佳匹配并自动生成变体 |
-| ComponentVariantAdapter | ✅ 完成 | 适配器（兼容现有代码） |
+| ComponentVariantAdapter | ❌ **已删除** | 适配层（`common/compiler/voxel/` 整包已移除） |
+| ComponentVariantCompiler | ✅ 完成 | 现行变体编译入口（`common/component/`） |
 
 ## 🎉 总结
 

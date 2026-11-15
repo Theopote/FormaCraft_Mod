@@ -43,7 +43,7 @@ class Live0058RegressionTest {
             live.put(p.toImmutable(),net.minecraft.block.Blocks.AIR.getDefaultState());
         for(var b:blocks) live.put(new BlockPos(b.dx(),b.dy(),b.dz()),
                 "minecraft:air".equals(b.targetBlock())?net.minecraft.block.Blocks.AIR.getDefaultState():
-                com.formacraft.common.compiler.voxel.PaletteResolver.resolveFromBlockString(b.targetBlock()));
+                com.formacraft.common.patch.BlockPatchTargetResolver.parse(b.targetBlock()));
         var result=com.formacraft.server.edit.WindowSealCompiler.compile(live,BlockPos.ORIGIN,
                 new BlockPos((minX+maxX)/2,0,(minZ+maxZ)/2),Set.of(),p->{
                     for(int y=p.getY()+1;y<=maxY;y++) if(!live.getOrDefault(new BlockPos(p.getX(),y,p.getZ()),net.minecraft.block.Blocks.AIR.getDefaultState()).isAir()) return false;

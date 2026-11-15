@@ -143,7 +143,7 @@ for (SemanticPlacementOp op : semanticOps) {
 ### 现有系统
 
 1. **SemanticPalette** - 使用 String blockId 的调色板
-2. **SemanticResolver** - 使用 SemanticPalette 的解析器
+2. **SemanticBlockStateResolver** - 使用 SemanticPalette 的解析器（2026-11-15 核对：原 `SemanticResolver` 已删除）
 3. **StyleProfile** - 用于 BuildingSpec 的风格配置
 
 ### 新系统

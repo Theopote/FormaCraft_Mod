@@ -72,6 +72,8 @@ LlmPlan 构件类型别名、features 表示归一和未转义请求字符串修
 
 仓库根执行 `python scripts/test_check_architecture.py`、`python scripts/check_architecture.py` 和 Windows `./gradlew.bat check`（Unix 用 `./gradlew check`）。使用仓库 Wrapper，不依赖机器上的 Gradle 版本。
 
+架构门禁还包括 `scripts/check_generation_entrypoints.py`（生成入口清单）、`scripts/check_active_docs.py`（Tier 0 文档不得复活已删符号）、`scripts/check_doc_dead_symbols.py`（活文档不得把已删类型当现行实现）、`scripts/check_banned_resurrect.py`（生产代码不得复活已删 API）。归档文档（`docs/archive/**`）豁免死符号检查，仅作历史追溯。
+
 后端安装 `python_backend/requirements.lock` 后，在 python_backend 下运行 `python -m eval.ci_gate`。主干改动还需要 [生成流程](GENERATION_PIPELINE.md) 和 [架构概览](../ARCHITECTURE.md) 中的游戏验收案例。静态检查和离线计划质量门不等同于游戏内建筑验收。
 
 ## 修改原则

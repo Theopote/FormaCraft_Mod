@@ -10,15 +10,16 @@
 2. ✅ **SemanticPart** - 语义部位枚举
 3. ✅ **SemanticRole** - 语义角色枚举
 4. ✅ **WeightedBlock** - 加权方块
-5. ✅ **WeightedPicker** - 加权随机选择器
-6. ✅ **SemanticPalette** - 语义调色板
-7. ✅ **SemanticPaletteRegistry** - 调色板注册表
-8. ✅ **SemanticResolver** - 语义解析器（SemanticPlacementOp → BlockPatch）
-9. ✅ **DefaultPalettes** - 默认调色板
-10. ✅ **ISkeletonSemanticGenerator** - 语义生成器接口
-11. ✅ **LinearPathSemanticGenerator** - LINEAR_PATH 语义生成器
-12. ✅ **SkeletonSemanticRegistry** - 语义生成器注册表
-13. ✅ **SkeletonBuildPipeline** - 完整流程
+5. ✅ **SemanticPalette / SemanticPaletteRegistry** - 语义调色板与注册表
+6. ✅ **DefaultPalettes** - 默认调色板
+7. ✅ **ISkeletonSemanticGenerator** - 语义生成器接口
+8. ✅ **LinearPathSemanticGenerator** - LINEAR_PATH 语义生成器
+9. ✅ **SkeletonSemanticRegistry** - 语义生成器注册表
+10. ✅ **SkeletonBuildPipeline** - 完整流程
+
+> 2026-11-15 核对：原列表中的独立类 `WeightedPicker` 与 `SemanticResolver` **已删除**。
+> 加权抽样由调色板内部完成；语义 → BlockPatch 解析由
+> `SemanticBlockStateResolver` 承担。
 
 ## 核心组件
 
@@ -46,7 +47,9 @@
 
 **WeightedBlock**：加权方块（blockId + weight）
 
-**WeightedPicker**：加权随机选择器
+**加权选择**：> 2026-11-15 核对：原独立类 `WeightedPicker`（`common/palette/WeightedPicker.java`）
+> **已删除**。加权抽样现由持有 `List<WeightedBlock>` 的调色板与解析器内部完成，
+> 不得再引用 `WeightedPicker`。
 
 **SemanticPalette**：
 - part → blocks 映射
@@ -56,8 +59,11 @@
 
 ### 4. 解析器
 
-**SemanticResolver**：
-- 输入：origin + semanticOps + paletteId + random
+**SemanticBlockStateResolver**（现行）：
+> 2026-11-15 核对：原 `SemanticResolver`（`server/skeleton/gen/SemanticResolver.java`）
+> **已删除**，无生产调用者。现行解析入口是
+> `server/skeleton/gen/palette/SemanticBlockStateResolver.resolveToPatches(...)`。
+- 输入：patchOrigin + semanticOps + paletteId + random
 - 输出：List<BlockPatch>
 - 功能：将语义放置操作转换为 BlockPatch
 
@@ -101,7 +107,7 @@ List<SemanticPlacementOp> ops = gen.generateSemantic(ctx, plan);
 
 ```java
 // 解析语义操作为 BlockPatch
-List<BlockPatch> patches = SemanticResolver.resolveToPatches(
+List<BlockPatch> patches = SemanticBlockStateResolver.resolveToPatches(
     origin,
     ops,
     "DEFAULT",  // paletteId
@@ -156,7 +162,7 @@ List<BlockPatch> patches = SkeletonBuildPipeline.buildSkeletonAsPatch(
 ### 新系统
 
 - `SemanticPalette` / `SemanticPaletteRegistry`：使用枚举的语义调色板
-- `SemanticResolver`：返回 BlockPatch 的解析器
+- `SemanticBlockStateResolver`：返回 BlockPatch 的解析器（取代已删除的 `SemanticResolver`）
 
 **两者可以共存**：
 - 新系统用于 Skeleton Generator

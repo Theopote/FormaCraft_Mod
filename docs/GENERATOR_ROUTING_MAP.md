@@ -17,17 +17,18 @@
 
 | 模型 | 包 | 用途 | 转换 |
 |------|-----|------|------|
-| `SkeletonPlan` | `common/skeleton/*Plan` | Blueprint / Interpreter 路径 | `SkeletonPlanConverter.toExecutable()` |
+| `SkeletonPlan` | `common/skeleton/*Plan` | Blueprint / Interpreter 路径 | 由 `SkeletonInterpreter` 解释为 `PlannedBlock` |
 | `ExecutableSkeletonPlan` | `common/skeleton` | LLM / Generator 路径 | 直接输入 `SkeletonExecutor` |
 
 ```
 LlmPlan / PlanProgram  →  ExecutableSkeletonPlan  →  SkeletonExecutors.get()  →  SkeletonBuildService  →  ISkeletonGenerator
 Blueprint              →  SkeletonPlan            →  Interpreter（不变）     →  PlannedBlock
-Blueprint（未来）       →  SkeletonPlanConverter   →  ExecutableSkeletonPlan  →  SkeletonExecutor（Phase 2 可选接入）
 ```
 
-> **收敛追踪**：契约层已统一（Phase 1）；Blueprint 路径仍未经 `SkeletonPlanConverter` 接入执行层。  
-> **下次检查**：**2026-10-02** — 若仍未推进 Blueprint → `SkeletonExecutor` 桥接，评估是否启动 Phase 2 接入或记录为长期双路径。
+> **收敛追踪**：契约层已统一（Phase 1）。Blueprint → `SkeletonExecutor` 桥接**仍未实现**。
+>
+> **2026-11-15 核对**：原表中的 `SkeletonPlanConverter`（`common/skeleton/SkeletonPlanConverter.java`）
+> **已删除**，无生产调用者。桥接若要实现，需重新设计；不得按本文旧行号引用该类。
 
 ---
 
@@ -301,7 +302,7 @@ CityBuilder → RuleBasedGeneratorSelector.apply()
 | Phase | 内容 | 风险 |
 |-------|------|------|
 | **0** ✅ | 删 `common/gen`、产出对照表、标记 adaptor | 低 |
-| **1** ✅ | `ExecutableSkeletonPlan` 迁至 common、`SkeletonExecutor` 门面、`SkeletonPlanConverter` | 低 |
+| **1** ✅ | `ExecutableSkeletonPlan` 迁至 common、`SkeletonExecutor` 门面（`SkeletonPlanConverter` 已删除） | 低 |
 | **2** ✅ | `UnifiedGeneratorRouter` + `StructureGeneratorAdaptor` 受控回退 | 中 |
 | **3** ✅ | 数据驱动整栋路由 + `GenerationHub` 统一入口 | 中 |
 | **4** ✅ | `birds_nest_stadium` 实现 + 主路径接入 `GenerationHub` | 低 |

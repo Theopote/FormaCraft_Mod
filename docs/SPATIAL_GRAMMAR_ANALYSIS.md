@@ -15,7 +15,7 @@
 一个完整的语言需要：
 - **词汇（Vocabulary）**：SkeletonType 的 16 个类型
 - **语法（Grammar）**：SkeletonContract 定义的约束规则
-- **语义（Semantics）**：SkeletonSemantics 提供的语义说明
+- **语义（Semantics）**：`SkeletonContract` / `SkeletonContractRegistry` 提供的语义约束与描述
 - **语用（Pragmatics）**：在 Prompt 中的使用方式
 
 FormaCraft 的 Skeleton 系统完全符合这些要素。
@@ -36,28 +36,29 @@ FormaCraft 的 Skeleton 系统完全符合这些要素。
 
 ## 实现内容
 
-### 1. Java 端：SkeletonSemantics 类
+### 1. Java 端：SkeletonContract 语义约束
 
-**位置**：`src/main/java/com/formacraft/common/skeleton/SkeletonSemantics.java`
+**位置**：`src/main/java/com/formacraft/common/skeleton/SkeletonContract.java`、`SkeletonContractRegistry.java`
+
+> 2026-11-15 核对：原 `SkeletonSemantics` 类（提供 `getDescription` / `generatePromptBlock` /
+> `generateEnglishPromptBlock` / `generateCompactPromptBlock`）**已删除**，无调用者。
+> 现行语义来源为 `SkeletonContract.description()` 与 `SkeletonContractRegistry` 的注册表。
 
 **功能**：
-- 存储每个 SkeletonType 的完整语义说明
-- 提供中文和英文的 Prompt 描述
-- 支持生成完整的 Prompt 区块
+- 为每个 SkeletonType 提供语义约束（必需锚点、是否需地形采样、是否偏好对称、是否支持不规则形状等）
+- `description()` 提供给 LLM 理解的英文描述
 
 **使用方式**：
 ```java
-// 获取单个骨架的语义说明
-SemanticDescription desc = SkeletonSemantics.getDescription(SkeletonType.RADIAL_SPOKE);
+// 获取单个骨架的语义约束
+SkeletonContract contract = SkeletonContractRegistry.get(SkeletonType.RADIAL_SPOKE);
 
-// 生成完整的 Prompt 区块（中文）
-String promptBlock = SkeletonSemantics.generatePromptBlock();
+// 描述信息（供 LLM 理解）
+String desc = contract.description();
 
-// 生成完整的 Prompt 区块（英文）
-String englishBlock = SkeletonSemantics.generateEnglishPromptBlock();
-
-// 生成简化版本（仅类型和描述用语）
-String compactBlock = SkeletonSemantics.generateCompactPromptBlock();
+// 约束特征
+List<String> anchors = contract.requiredAnchors();
+boolean terrain = contract.requiresTerrainSampling();
 ```
 
 ### 2. Python 端：skeleton_semantics.py
@@ -66,7 +67,7 @@ String compactBlock = SkeletonSemantics.generateCompactPromptBlock();
 
 **功能**：
 - 提供完整的 SkeletonType 语义说明（英文）
-- 直接集成到 System Prompt 中
+- 由 `services/building_spec_prompts.py` 组装进兼容路径提示词
 
 **集成方式**：
 ```python
@@ -79,10 +80,10 @@ def _build_system_prompt() -> str:
 
 ### 3. System Prompt 集成
 
-**位置**：`python_backend/app/services/ai_planner.py`
+**位置**：`python_backend/app/services/building_spec_prompts.py`（显式 buildingspec 兼容路径）
 
 **效果**：
-- 每次调用 LLM 时，System Prompt 都会包含完整的 SkeletonType 语义说明
+- 兼容路径的 System Prompt 会包含 SkeletonType 语义说明
 - LLM 能够在规划阶段就理解每个骨架类型的含义和适用场景
 - 帮助 LLM 选择正确的空间组织方式
 

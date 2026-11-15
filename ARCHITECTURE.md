@@ -128,6 +128,7 @@ LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhand
 - [ ] 新能力挂在 LlmPlan 主干；未新增隐式 buildingspec 默认
 - [ ] 跨端只传 common DTO
 - [ ] Panel > 400 行已拆分；可应用结果已接质量门
+- [ ] 活文档未把已删类型当作现行实现（`scripts/check_doc_dead_symbols.py`）
 - [ ] 若触及兼容入口：已更新 [弃用退出清单](docs/refactoring/ARCHITECTURE_AUDIT.md)
 
 ---

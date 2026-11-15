@@ -316,11 +316,10 @@ doorSpec.allowedSockets.add(SocketType.WALL_OPENING);
 **Socket 是世界中"可被构件附着的位置"。**
 
 #### Socket 来源：
-- 墙面 (`WallSocketProvider`)
-- 边缘 (`EdgeSocketProvider`)
-- 路径点 (`PathSocketProvider`)
-- 对称轴 (`SymmetrySocketProvider`)
-- 轮廓边界 (`OutlineSocketProvider`)
+- 墙面开洞 (`WallOpeningSocketProvider`)
+- 路径点 (`PathPolylineSocketProvider`)
+- 轮廓边界 (`OutlinePolygonSocketProvider`)
+- 选区边界 (`SelectionBoxSocketProvider`)
 
 **核心思想**: Socket = 世界给构件提供的机会点
 
@@ -734,11 +733,13 @@ public interface SocketProvider {
 
 #### 已实现的 Provider：
 
-- `WallSocketProvider` - 墙面 Socket
-- `EdgeSocketProvider` - 边缘 Socket
+- `WallOpeningSocketProvider` - 墙面开洞 Socket
 - `PathPolylineSocketProvider` - 路径点 Socket
 - `OutlinePolygonSocketProvider` - 轮廓边界 Socket
 - `SelectionBoxSocketProvider` - 选区边界 Socket
+
+> 2026-11-15 核对：收集入口为 `SocketProviders.collect(world, ctx)` /
+> `collectAndSort(...)`；原 `SocketRegistry` 已删除。
 
 ### 8.2 SocketMatcher
 
@@ -771,18 +772,29 @@ public class SocketMatcher {
 // Socket 提供抽象位置
 Socket socket = socketProvider.provideSockets(ctx).get(0);
 
-// 转换为构件锚点
-ComponentAnchor anchor = SocketAnchorPlacement.place(
-    socket,
-    componentDefinition
+// 解析构件局部原点与朝向
+BlockPos localOrigin = SocketPlacementResolver.resolveLocalOrigin(
+    componentDefinition,
+    socket.id(),
+    socket.socket()
+);
+Direction localFacing = SocketPlacementResolver.resolveLocalFacing(
+    componentDefinition,
+    socket.id(),
+    socket.socket()
 );
 
 // 生成 Patch
 List<BlockPatch> patches = ComponentVariantCompiler.compile(
     componentDefinition,
-    anchor
+    localOrigin,
+    localFacing
 );
 ```
+
+> 2026-11-15 核对：原示例中的 `ComponentAnchor` / `SocketAnchorPlacement.place(...)`
+> **已删除**（`common/component/anchor/`、`common/component/socket/place/` 整包已移除）。
+> 现行入口是 `SocketPlacementResolver.resolveLocalOrigin/resolveLocalFacing`。
 
 **这是整个系统从"语义"落地到"几何"的关键一步。**
 
@@ -1040,12 +1052,15 @@ if (strategy == TerrainStrategy.ADAPTIVE) {
 }
 ```
 
-#### 步骤 2: 提供 ComponentAnchor
+#### 步骤 2: 解析构件放置原点
 
 ```java
-// 系统会自动从 Socket 生成 Anchor
-// 如果需要自定义，可以实现 ComponentAnchorProvider
+// 系统会自动从 Socket 解析局部原点与朝向
+BlockPos localOrigin = SocketPlacementResolver.resolveLocalOrigin(def, socketId, socket);
+Direction localFacing = SocketPlacementResolver.resolveLocalFacing(def, socketId, socket);
 ```
+
+> 2026-11-15 核对：原 `ComponentAnchor` / `ComponentAnchorProvider` **已删除**。
 
 #### 步骤 3: 配置 PlacementSpec
 

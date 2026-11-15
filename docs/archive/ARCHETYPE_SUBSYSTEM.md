@@ -1,3 +1,8 @@
+> **归档（ARCHIVED）**：本文描述的实现已废弃或已被后续方案取代，**不是现行接线指南**。
+> 现行流程见 [GENERATION_PIPELINE.md](../../GENERATION_PIPELINE.md) 与 [ARCHITECTURE.md](../../../ARCHITECTURE.md)；
+> 迁移与删除台账见 [ARCHITECTURE_AUDIT.md](../../refactoring/ARCHITECTURE_AUDIT.md)。
+> 保留原因：记录历史设计思路，不代表可恢复的代码位置。
+
 # Landmark / Archetype 子系统（v1）
 
 目标：为“强原型、强还原”的建筑对象提供稳定生成链路：**识别 → 选择原型 → 参数化 → 专用生成器 → 校验/修正（评分） → Patch**。

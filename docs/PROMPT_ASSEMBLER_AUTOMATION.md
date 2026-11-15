@@ -27,18 +27,24 @@
 
 ### 输入（来自客户端 / 世界）
 
+> 2026-11-15 核对：客户端 `PromptAssembler` **已删除**，本文描述的 `PromptContext` /
+> `AnchorPoint` / `SelectionRegion` / `FootprintRegion` / `NoBuildZone` / `ToolSemanticTags`
+> 等上下文类**均已删除、未在现行代码中存在**。
+> 现行工具上下文的唯一载体是 `ToolConstraintSnapshot`（见下表）。
+
 ```
-PromptContext {
-    AnchorPoint anchor;                  // 锚点（可能为空）
-    FacingDirection facing;              // 朝向（可选）
-    SelectionRegion selection;            // 选区（可选）
-    FootprintRegion footprint;            // 轮廓（可选）
-    List<NoBuildZone> noBuildZones;       // 禁区（可选）
-    SymmetryPlane symmetry;               // 对称（可选）
-    ToolSemanticTags semanticTags;        // 区域语义
-    UserNaturalLanguage userInput;        // 玩家原始输入
+ToolConstraintSnapshot {
+    SelectionBox selection;               // 选区
+    OutlineShape outline;                 // 轮廓
+    List<List<Vec3d>> paths;              // 路径走廊
+    List<ProtectedZone> protectedZones;   // 禁区
+    SymmetryConstraint symmetry;          // 对称
 }
 ```
+
+**采集入口**：`client/tool/ToolConstraintSnapshotFactory.fromTools(...)`
+
+**服务端权威形式**：`server/build/BuildConstraints`（含 `allow(BlockPos)` 判定）
 
 ### 输出（给 LLM）
 
@@ -260,22 +266,26 @@ Apply / Undo / Redo
 
 ## 与现有系统的关系
 
-### 现有系统
+### 现行系统（2026-11-15 核对）
 
-1. **ToolPromptBuilder** - 工具状态 → PromptContext（已存在）
-2. **SelectionContext / OutlineContext / ProtectedZoneContext** - 工具上下文（已存在）
-3. **SymmetryContext / SemanticLabelContext** - 对称和语义上下文（已存在）
+1. **ToolConstraintSnapshotFactory** - 工具状态 → `ToolConstraintSnapshot`（`client/tool/`）
+2. **ToolConstraintSnapshot** - 选区 / 轮廓 / 路径 / 禁区 / 对称的唯一载体（`common/tool/`）
+3. **BuildConstraints** - 服务端权威约束判定（`server/build/`）
+4. **prompt_assembly.py / llm_plan_system_prompt.py** - 后端提示词组装（**不是**客户端 PromptAssembler）
+
+> `SelectionContext` 仍然存活（客户端选区上下文）；但 `OutlineContext` /
+> `ProtectedZoneContext` / `SymmetryContext` / `SemanticLabelContext` / `ToolPromptBuilder`
+> **均已删除**，其能力由上述快照与约束类承担。
 
 ### 新系统
 
-1. **System Role** - AI 身份定义（已改进）
-2. **Spatial Constraints Block** - 空间约束块（已改进）
-3. **Output Contract** - 输出契约（已改进）
+1. **System Role** - AI 身份定义
+2. **Spatial Constraints Block** - 空间约束块
+3. **Output Contract** - 输出契约
 
 **集成方式**：
-- 新系统完全集成到现有 PromptAssembler
-- 保持向后兼容
-- 提供更结构化和自动化的约束转换
+- 约束块在后端 `prompt_assembly.py` 组装，随 `BuildRequest` 一同进入规划器
+- 客户端只下发结构化工具字段，不参与提示词拼装
 
 ## 总结
 

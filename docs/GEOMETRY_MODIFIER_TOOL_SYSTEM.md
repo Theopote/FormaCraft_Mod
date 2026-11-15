@@ -1,22 +1,25 @@
 # Geometry Modifier × Tool 系统实现总结
 
+> **2026-11-15 核对**：本文原描述的 `NoBuildZone` / `PolygonNoBuildZone` / `NoBuildConstraint` /
+> `FootprintRegion` / `PolygonFootprint` / `FootprintConstraint` **均已删除**（PR-5d，无生产调用者）。
+> 现行约束表达见文末「现行约束表达」一节；本文其余部分（`GeometryConstraint` /
+> `GeometryConstraintPipeline` / `SymmetryPlane` / `SymmetryProcessor`）仍然有效。
+
 ## 实现状态
 
-### ✅ 已完全实现
-
-建议中的 Geometry Modifier × Tool 系统已经全部实现：
+### ✅ 现行有效
 
 1. ✅ **GeometryConstraint** - 几何约束接口
 2. ✅ **GeometryConstraintPipeline** - 约束管道（组合多个约束）
 3. ✅ **SymmetryPlane** - 对称平面定义
 4. ✅ **SymmetryProcessor** - 对称处理器（生成型约束）
-5. ✅ **NoBuildZone** - 禁区接口
-6. ✅ **PolygonNoBuildZone** - 多边形禁区实现
-7. ✅ **NoBuildConstraint** - 禁区约束器
-8. ✅ **FootprintRegion** - 轮廓区域接口
-9. ✅ **PolygonFootprint** - 多边形轮廓实现
-10. ✅ **FootprintConstraint** - 轮廓约束器
-11. ✅ **GeometryModifierPipeline 扩展** - 集成约束和对称处理
+5. ✅ **GeometryModifierPipeline 扩展** - 集成约束和对称处理
+
+### ❌ 已删除
+
+原列出的 `NoBuildZone` / `PolygonNoBuildZone` / `NoBuildConstraint` / `FootprintRegion` /
+`PolygonFootprint` / `FootprintConstraint` 六个类**已删除**，其"轮廓裁切 / 禁区裁切"能力
+改由 `BuildConstraints`（服务端）与 `BuildConstraintClipper` 承担（见文末）。
 
 ## 核心定位
 
@@ -71,8 +74,7 @@ public interface GeometryConstraint {
 **使用示例**：
 ```java
 GeometryConstraintPipeline pipeline = new GeometryConstraintPipeline();
-pipeline.add(new FootprintConstraint(footprint));
-pipeline.add(new NoBuildConstraint(noBuildZone));
+pipeline.add(someConstraint);
 
 boolean allowed = pipeline.allow(pos);
 ```
@@ -107,58 +109,6 @@ SymmetryProcessor processor = new SymmetryProcessor(plane);
 Set<BlockPos> symmetric = processor.apply(originalPositions);
 ```
 
-### 5. NoBuildZone（禁区）
-
-**功能**：
-- 定义任意形状的禁区
-- 这是"斜线遮罩"的本质逻辑层
-
-**实现**：
-- `PolygonNoBuildZone` - 多边形禁区（2D，XZ 平面）
-
-**应用场景**：
-- 河道
-- 山体
-- 保护遗迹
-
-**使用示例**：
-```java
-List<Point2> polygon = List.of(
-    new Point2(0, 0),
-    new Point2(10, 0),
-    new Point2(10, 10),
-    new Point2(0, 10)
-);
-NoBuildZone zone = new PolygonNoBuildZone(polygon);
-NoBuildConstraint constraint = new NoBuildConstraint(zone);
-```
-
-### 6. FootprintRegion（轮廓区域）
-
-**功能**：
-- 定义建筑允许的轮廓范围
-- 这是 Selection → AI → Patch → Preview 闭环的核心安全阀
-
-**实现**：
-- `PolygonFootprint` - 多边形轮廓（2D，XZ 平面）
-
-**应用场景**：
-- "只在选区内建造"
-- "在轮廓范围内生成寺庙"
-- Patch 自动裁剪
-
-**使用示例**：
-```java
-List<Point2> polygon = List.of(
-    new Point2(0, 0),
-    new Point2(20, 0),
-    new Point2(20, 20),
-    new Point2(0, 20)
-);
-FootprintRegion footprint = new PolygonFootprint(polygon);
-FootprintConstraint constraint = new FootprintConstraint(footprint);
-```
-
 ## 完整流程
 
 ```
@@ -185,19 +135,12 @@ BlockPatch
 
 ## 使用示例
 
-### 示例 1：基础约束使用
+### 示例 1：约束管道
 
 ```java
 // 创建约束管道
 GeometryConstraintPipeline pipeline = new GeometryConstraintPipeline();
-
-// 添加轮廓约束
-FootprintRegion footprint = new PolygonFootprint(selectionPolygon);
-pipeline.add(new FootprintConstraint(footprint));
-
-// 添加禁区约束
-NoBuildZone noBuildZone = new PolygonNoBuildZone(protectedPolygon);
-pipeline.add(new NoBuildConstraint(noBuildZone));
+pipeline.add(someConstraint);
 
 // 应用约束
 List<SemanticPlacementOp> constrained = GeometryModifierPipeline.applyModifiersAndConstraints(
@@ -236,8 +179,6 @@ List<SemanticPlacementOp> expanded = GeometryModifierPipeline.applyModifiers(bas
 
 // 3. 创建约束管道
 GeometryConstraintPipeline constraints = new GeometryConstraintPipeline();
-constraints.add(new FootprintConstraint(footprint));
-constraints.add(new NoBuildConstraint(noBuildZone));
 
 // 4. 创建对称处理器（可选）
 SymmetryProcessor symmetry = new SymmetryProcessor(
@@ -258,6 +199,22 @@ List<BlockPatch> patches = SemanticBlockStateResolver.resolveToPatches(
 );
 ```
 
+## 现行约束表达（替代已删除的 footprint / nobuild 类）
+
+工具侧状态不再由 `OutlineContext` / `ProtectedZoneContext` / `SymmetryContext` 等
+客户端上下文类传递，而是：
+
+| 阶段 | 载体 | 位置 |
+|------|------|------|
+| 客户端采集 | `ToolConstraintSnapshot` | `common/tool/ToolConstraintSnapshot.java` |
+| 客户端工厂 | `ToolConstraintSnapshotFactory.fromTools(...)` | `client/tool/ToolConstraintSnapshotFactory.java` |
+| 服务端权威 | `BuildConstraints`（含 `allow(BlockPos)`） | `server/build/BuildConstraints.java` |
+| 服务端裁剪 | `BuildConstraintClipper` | `server/build/BuildConstraintClipper.java` |
+| 骨架侧对称 | `SymmetryConstraint` / `SymmetryProcessor` | `common/geometry/tool/symmetry/` |
+
+> `OutlineContext` / `ProtectedZoneContext` / `SymmetryContext` / `ToolSnapshot` 已删除，
+> 不得再作为工具上下文入口引用。
+
 ## 系统优势
 
 ### ✅ 工具不生成建筑，只约束几何结果
@@ -265,12 +222,6 @@ List<BlockPatch> patches = SemanticBlockStateResolver.resolveToPatches(
 - Tool 不决定风格
 - Tool 不生成内容
 - Tool 只"约束几何结果是否允许存在"
-
-### ✅ 从"生成器"迈向"建筑系统"
-
-- 不再是简单的生成器
-- 是一个完整的建筑系统
-- 支持复杂的空间约束和规则
 
 ### ✅ 核心安全阀
 
@@ -284,47 +235,19 @@ List<BlockPatch> patches = SemanticBlockStateResolver.resolveToPatches(
 - 自动生成镜像点
 - 适用于宫殿、城堡等
 
-### ✅ 灵活的组合
-
-- 可以组合多个约束
-- 支持对称 + 轮廓 + 禁区
-- 所有约束都必须通过
-
-## 与现有系统的关系
-
-### 现有系统
-
-1. **ToolPatchFilter** - 客户端 Patch 过滤（已存在）
-2. **BuildContext** - 构建上下文（已存在）
-3. **SelectionContext / OutlineContext / ProtectedZoneContext** - 工具上下文（已存在）
-
-### 新系统
-
-1. **GeometryConstraint** - 几何约束接口（新）
-2. **GeometryConstraintPipeline** - 约束管道（新）
-3. **SymmetryProcessor** - 对称处理器（新）
-4. **NoBuildZone / FootprintRegion** - 区域定义（新）
-
-**集成方式**：
-- 新系统在服务端运行（Geometry Modifier 之后）
-- 现有系统在客户端运行（Patch 过滤）
-- 两者可以配合使用，提供双重保护
-
 ## 总结
 
-✅ **完整的 Geometry Modifier × Tool 系统已实现**：
+✅ **Geometry Modifier × Tool 系统（现行部分）**：
 - GeometryConstraint（几何约束接口） ✅
 - GeometryConstraintPipeline（约束管道） ✅
 - SymmetryProcessor（对称处理器） ✅
-- NoBuildZone（禁区） ✅
-- FootprintRegion（轮廓区域） ✅
 - GeometryModifierPipeline 扩展（集成约束和对称） ✅
+
+⚠️ **已删除**：NoBuildZone / FootprintRegion 及其实现与约束器 —— 改用 `BuildConstraints` +
+`BuildConstraintClipper`。
 
 ✅ **设计优势**：
 - Tool 不生成建筑，只约束几何结果
-- 从"生成器"迈向"建筑系统"
 - 核心安全阀（Selection → AI → Patch → Preview）
 - 支持对称、轮廓、禁区等复杂约束
-
-这是 FormaCraft 从"生成器"进化到"建筑系统"的关键跃迁层！
 
