@@ -8,7 +8,10 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RoofHostedDormerSupportTest {
-    @Test void emissionPassBuildsDormerWallsDownToItsGeneratedRoof() {
+    @Test void emissionPassBuildsDormerWallsDownToItsGeneratedRoof() { verifyEmission(false); }
+    @Test void emissionPassRejectsDormerWithoutActualRoofCoverage() { verifyEmission(true); }
+
+    private void verifyEmission(boolean unsupported) {
         com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
         com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
         var body = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0), new Dimensions(15, 15, 8),
@@ -17,7 +20,7 @@ class RoofHostedDormerSupportTest {
         var roof = new Component("ROOF", "main", new Vec3i(0, 7, 0), new Dimensions(15, 15, 6),
                 List.of(), Map.of("component_id", "roof", "host_id", "body", "anchor_mode", "min_corner",
                         "roof_type", "mansard", "roof_dormers", false, "roof_block", "minecraft:stone"));
-        var window = ComponentSatelliteInference.normalizeComponent(new Component("MASS_ANCILLARY", "main", new Vec3i(2, 15, 2), new Dimensions(3, 3, 3),
+        var window = ComponentSatelliteInference.normalizeComponent(new Component("MASS_ANCILLARY", "main", new Vec3i(unsupported ? 30 : 2, 15, 2), new Dimensions(3, 3, 3),
                 List.of("dormer", "hollow"), Map.of("component_id", "window", "host_id", "roof",
                         "anchor_mode", "min_corner", "wall_block", "minecraft:white_concrete",
                         "suppress_windows", true, "suppress_doors", true)));
@@ -27,6 +30,12 @@ class RoofHostedDormerSupportTest {
         ComponentEmitPass.compileComponents(plan, null, null, false, components, Set.of(), Map.of(), result,
                 new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new ArrayList<>(), new HashSet<>(),
                 new HashSet<>(), new HashMap<>());
+        if (unsupported) {
+            assertNotNull(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get());
+            assertEquals("E_DORMER_ROOF_SUPPORT", com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+            assertFalse(result.stream().anyMatch(p -> p.dx() >= 30));
+            return;
+        }
         assertFalse(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap(),
                 String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var finalAt = new HashMap<BlockPos, BlockPatch>();
@@ -57,6 +66,7 @@ class RoofHostedDormerSupportTest {
             var support = new RoofHostedDormerSupport();
             support.record(roof(), slope(offset));
             var original = dormer("roof", "main");
+            assertTrue(support.supportGap(original, offset).isEmpty());
             var result = support.extendToRoof(original, offset);
             assertEquals(new Vec3i(1, 13, 2), result.relativePosition());
             assertEquals(new Dimensions(3, 3, 8), result.dimensions());
@@ -74,8 +84,15 @@ class RoofHostedDormerSupportTest {
             patches.add(operation);
             support.record(roof(), patches);
             var original = dormer("roof", "main");
+            assertEquals("E_DORMER_ROOF_SUPPORT", support.supportGap(original, null).orElseThrow().code());
             assertSame(original, support.extendToRoof(original, null));
         }
+    }
+
+    @Test void knownRoofWithoutEmittedCellsCannotSupportDormers() {
+        var support = new RoofHostedDormerSupport();
+        support.record(roof(), List.of());
+        assertEquals("E_DORMER_ROOF_SUPPORT", support.supportGap(dormer("roof", "main"), null).orElseThrow().code());
     }
 
     @Test void doesNotUseOtherRoofsSlotsOrRaiseAlreadyEmbeddedDormers() {
@@ -94,6 +111,7 @@ class RoofHostedDormerSupportTest {
     }
 
     @Test void dormerJoinAuthorityIsLimitedToItsNamedRoofAndSlot() {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
         var index = new PatchOccupancyIndex();
         var cell = new BlockPatch(BlockPatch.PLACE, 1, 12, 2, "minecraft:stone");
         index.commit(roof(), List.of(cell));
@@ -109,5 +127,18 @@ class RoofHostedDormerSupportTest {
                 List.of(), Map.of("host_id", "roof"));
         assertTrue(index.validate(ordinary, List.of(replacement)).isPresent());
         assertTrue(index.validate(ordinary, List.of(carve)).isPresent());
+    }
+
+    @Test void dormerJoinAuthorityRejectsEditsOutsideDormerEnvelope() {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+        var index = new PatchOccupancyIndex();
+        // Far along the ridge — same host roof/slot, but outside dormer footprint column.
+        var far = new BlockPatch(BlockPatch.PLACE, 8, 12, 8, "minecraft:stone");
+        index.commit(roof(), List.of(far));
+        var replacement = new BlockPatch(BlockPatch.PLACE, 8, 12, 8, "minecraft:bricks");
+        var carve = new BlockPatch(BlockPatch.REMOVE, 8, 12, 8, null);
+        var dormer = dormer("roof", "main");
+        assertTrue(index.validate(dormer, List.of(replacement)).isPresent());
+        assertTrue(index.validate(dormer, List.of(carve)).isPresent());
     }
 }

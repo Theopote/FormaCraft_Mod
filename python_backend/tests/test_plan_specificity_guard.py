@@ -62,12 +62,25 @@ class TestPlanSpecificityGuard(unittest.TestCase):
         }
         out = apply_profile_features_to_plan(plan, profile)
         mass = out["components"][0]
-        self.assertIn("shell_roof", mass["features"])
-        self.assertIn("shell roof", out["style_attributes"]["decorative_elements"])
+        # Research tokens must not rewrite model-authored plan fields.
+        self.assertEqual(mass["features"], [])
+        self.assertNotIn("distinguishing_features", out)
+        self.assertNotIn("style_attributes", out)
         self.assertEqual(
-            out["distinguishing_features"],
+            out["research_feature_hints"],
             ["shell roof", "sail shells"],
         )
+
+    def test_feature_coverage_ignores_research_hints_alone(self):
+        plan = {
+            "research_feature_hints": ["white sail shells", "shell roof", "waterfront podium"],
+            "components": [{"component_type": "MASS_MAIN", "features": [], "params": {}}],
+        }
+        tokens = ["white sail shells", "shell roof", "waterfront podium"]
+        coverage, matched, missing = score_feature_token_coverage(plan, tokens)
+        self.assertEqual(coverage, 0.0)
+        self.assertEqual(matched, [])
+        self.assertEqual(set(missing), set(tokens))
 
     def test_feature_coverage_scoring(self):
         plan = {

@@ -144,7 +144,7 @@ def typology_prompt_block(match: Optional[TypologyMatch]) -> str:
     lines = [
         "",
         "========================================",
-        "STRUCTURAL TYPOLOGY (parametric interpreter)",
+        "STRUCTURAL TYPOLOGY (optional research evidence)",
         "========================================",
         f"structural_typology: {defn.id} ({defn.display_name_zh})",
         f"skeleton_type: {defn.skeleton_type}",
@@ -157,8 +157,10 @@ def typology_prompt_block(match: Optional[TypologyMatch]) -> str:
     if defn.llm_plan_guidance:
         lines.append(defn.llm_plan_guidance.strip())
     lines.append(
-        "You MUST set proportion_hints.typology to this typology id and "
-        "layout.skeleton_type to the skeleton above."
+        "Treat the typology id and skeleton above as optional morphological evidence. "
+        "Do NOT bind a typology:* STRUCTURE executor or force layout.skeleton_type unless the "
+        f"user explicitly requested typology:{defn.id} / typology_id={defn.id} (or preset:<id>). "
+        "Open-world default: design your own massing and components from the user brief."
     )
     return "\n".join(lines)
 

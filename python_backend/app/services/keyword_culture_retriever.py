@@ -644,16 +644,17 @@ def resolve_landmark_module_routing(prompt: str) -> Optional[Dict[str, Any]]:
 
     if tier_value == RoutingTier.MANDATORY.value:
         default_instruction = (
-            f"User explicitly named landmark {module_id}. "
-            f"MUST output ONE MODULE with features [\"landmark:{module_id}\"]. "
-            "Still vary designSeed, facing, dimensions hints, style_attributes."
+            f"Landmark {module_id} matched by name as research evidence only. "
+            f"Use MODULE with features [\"landmark:{module_id}\"] solely when the user "
+            f"explicitly requested preset:{module_id}; otherwise design with open catalog "
+            "components and vary seed/facing/dimensions. Naming the building is not a "
+            "fixed-executor grant."
         )
     else:
         default_instruction = (
-            f"Typological match for {module_id}. "
-            f"PREFERRED: MODULE with features [\"landmark:{module_id}\"] and varied params "
-            "(designSeed, bowlSteepness, facing). "
-            "ALTERNATIVE: compositional MASS tiers + PAVING + ROOF for 原创 results. "
+            f"Typological match for {module_id} (optional evidence). "
+            f"Prefer open catalog composition; MODULE landmark:{module_id} only for "
+            f"explicit preset:{module_id}. "
             "Do NOT use a plain rectangular MASS box for elliptical stadium requests."
         )
 

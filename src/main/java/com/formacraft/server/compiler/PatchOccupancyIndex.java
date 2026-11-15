@@ -355,7 +355,7 @@ public final class PatchOccupancyIndex {
                         && !isHostedStairJoin(writer, existing, pos)
                         && !isBoundUpperMassSeam(writer, existing, pos)
                         && !isHostedMassSecondaryCarve(writer, existing)
-                        && !isHostedDormerRoofJoin(writer, existing)
+                        && !isHostedDormerRoofJoin(writer, existing, pos)
                         && !isHostedStructuralJoin(writer, existing)
                         && !connectorAccess.contains(pos)) {
                     return Optional.of(new Conflict(pos, existing.writerType(), existing.targetBlock(),
@@ -422,7 +422,7 @@ public final class PatchOccupancyIndex {
                         && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)
-                        && !isHostedDormerRoofJoin(writer, prev)
+                        && !isHostedDormerRoofJoin(writer, prev, pos)
                         && !isSameSlotCrownPeerJoin(writer, prev, pos)
                         && !isSoftFoliageOverRail(writer, prev, p.targetBlock())) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
@@ -439,13 +439,46 @@ public final class PatchOccupancyIndex {
         return com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.canonical(target);
     }
 
-    /** Dormer geometry may intersect only its explicitly named roof in the same slot frame. */
-    private static boolean isHostedDormerRoofJoin(Component writer, PlaceRecord previous) {
+    /**
+     * Dormer geometry may intersect only its explicitly named roof in the same slot,
+     * and only inside the dormer footprint column down to that roof's vertical band.
+     */
+    private static boolean isHostedDormerRoofJoin(Component writer, PlaceRecord previous, BlockPos pos) {
         if (!ComponentSatelliteAligner.isDormer(writer) || previous == null || previous.owner() == null
                 || !ComponentPlanTypes.isRoofType(ComponentPlanTypes.normalizeType(previous.writerType()))
                 || !java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
         String host = ComponentPlanTypes.getParamString(writer.params(), "host_id", "hostId");
-        return host != null && host.equals(ComponentPlanTypes.getParamString(previous.owner().params(), "component_id"));
+        if (host == null || !host.equals(ComponentPlanTypes.getParamString(previous.owner().params(), "component_id"))) {
+            return false;
+        }
+        return isWithinDormerRoofJoinEnvelope(writer, previous.owner(), pos);
+    }
+
+    /** Footprint column of the dormer, vertically spanning the host roof up through the dormer body. */
+    private static boolean isWithinDormerRoofJoinEnvelope(Component dormer, Component roof, BlockPos pos) {
+        if (dormer == null || dormer.relativePosition() == null || dormer.dimensions() == null || pos == null) {
+            return false;
+        }
+        var origin = dormer.relativePosition();
+        var dims = dormer.dimensions();
+        int marginXZ = 1;
+        int minX = origin.x() - marginXZ;
+        int maxX = origin.x() + Math.max(0, dims.width() - 1) + marginXZ;
+        int minZ = origin.z() - marginXZ;
+        int maxZ = origin.z() + Math.max(0, dims.depth() - 1) + marginXZ;
+        if (pos.getX() < minX || pos.getX() > maxX || pos.getZ() < minZ || pos.getZ() > maxZ) {
+            return false;
+        }
+        int dormerTop = origin.y() + Math.max(0, dims.height() - 1) + 1;
+        int roofBottom = origin.y() - 16;
+        if (roof != null && roof.relativePosition() != null) {
+            roofBottom = roof.relativePosition().y() - 1;
+            if (roof.dimensions() != null) {
+                // Keep the full roof height band under the dormer column joinable.
+                roofBottom = Math.min(roofBottom, roof.relativePosition().y() - 1);
+            }
+        }
+        return pos.getY() >= roofBottom && pos.getY() <= dormerTop;
     }
 
     private static boolean isBoundUpperMassSeam(Component writer, PlaceRecord previous, BlockPos pos) {

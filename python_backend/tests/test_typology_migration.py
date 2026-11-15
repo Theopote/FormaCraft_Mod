@@ -94,6 +94,22 @@ class FamenTypologyMigrationTest(unittest.TestCase):
         self.assertEqual(plain.minecraft_strategy.structural_typology, "dense_eaves_pagoda")
         self.assertEqual(plain.minecraft_strategy.recommended_components, ["STRUCTURE"])
 
+    def test_negated_typology_id_does_not_bind_executor(self):
+        from app.models.building_profile import BuildingProfile
+        from app.services.building_research_agent import (
+            finalize_profile_minecraft_strategy,
+            resolve_explicit_structural_typology,
+        )
+
+        text = (
+            "建造一座七层佛塔，不要使用 typology_id=dense_eaves_pagoda，"
+            "让 AI 自己选择建筑结构。"
+        )
+        self.assertIsNone(resolve_explicit_structural_typology(text))
+        profile = finalize_profile_minecraft_strategy(BuildingProfile(), text)
+        self.assertIsNone(profile.minecraft_strategy.structural_typology)
+        self.assertNotEqual(profile.minecraft_strategy.recommended_components, ["STRUCTURE"])
+
     def test_famen_archetype_research_only(self):
         from app.services.archetype_detector import detect_archetype_local, PRESET_IDENTITY_MIN_CONFIDENCE
         from app.services.archetype_registry import get_archetype_def

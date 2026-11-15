@@ -67,7 +67,7 @@ class PromptRoutingAuthorityTest(unittest.TestCase):
         self.assertIn(RESEARCH_OVERRIDE_MARKER, out)
         self.assertLess(out.index("=== BASE ==="), out.index(RESEARCH_OVERRIDE_MARKER))
 
-    def test_context_block_skips_landmark_routing_when_profile_present(self):
+    def test_context_block_skips_landmark_routing_without_explicit_preset(self):
         from app.services.ai_planner import _llm_plan_context_block
         from app.services.building_research_agent import finalize_profile_minecraft_strategy
 
@@ -86,9 +86,11 @@ class PromptRoutingAuthorityTest(unittest.TestCase):
         with_profile = _llm_plan_context_block(_Req(), profile)
         without_profile = _llm_plan_context_block(_Req(), None)
         self.assertNotIn("LandmarkModuleRouting(JSON)", with_profile)
-        self.assertNotIn("You MUST", with_profile)
+        self.assertNotIn("LandmarkModuleRouting(JSON)", without_profile)
         self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
-        self.assertIn("LandmarkModuleRouting(JSON)", without_profile)
+        # Culture may still inject soft typology evidence — never hard MODULE routing by name.
+        self.assertIn("optional research evidence", without_profile)
+        self.assertNotIn("MUST output ONE MODULE", without_profile)
 
 
 if __name__ == "__main__":

@@ -187,7 +187,49 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
         mass = out["components"][0]
         self.assertNotEqual(mass["params"].get("facade_profile"), "vertical_pilasters")
         self.assertIn("enrichment_guard", out)
-        self.assertIn("shell", " ".join(mass.get("features") or []).lower())
+        # Research tokens stay in hints — not auto-copied onto model features.
+        self.assertEqual(mass.get("features") or [], [])
+        hints = " ".join(out.get("research_feature_hints") or []).lower()
+        self.assertIn("shell", hints)
+
+    def test_skip_classical_preserves_ai_designed_dome(self):
+        from app.models.building_profile import BuildingProfile, ProfileStructure
+        from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail
+
+        profile = BuildingProfile(
+            query="中式现代展馆",
+            structure=ProfileStructure(distinguishing_features=["glass dome", "timber lattice"]),
+        )
+        plan = {
+            "mode": "build",
+            "style_profile": "Modern_Chinese",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 24, "depth": 20, "height": 10},
+                    "features": ["pavilion"],
+                    "params": {"component_id": "main"},
+                },
+                {
+                    "component_type": "DOME",
+                    "relative_position": {"x": 6, "y": 10, "z": 5},
+                    "dimensions": {"width": 12, "depth": 12, "height": 8},
+                    "features": ["glass_dome"],
+                    "params": {"host_id": "main", "material": "glass"},
+                },
+            ],
+        }
+        out = enrich_llm_plan_architectural_detail(
+            plan,
+            user_text="一座带玻璃穹顶的中式现代展馆",
+            profile=profile,
+        )
+        types = [c["component_type"] for c in out["components"]]
+        self.assertIn("DOME", types)
+        dome = next(c for c in out["components"] if c["component_type"] == "DOME")
+        self.assertEqual(dome["dimensions"]["height"], 8)
+        self.assertIn("glass_dome", dome["features"])
 
     def test_zaha_profile_skips_classical_notes(self):
         from app.models.building_profile import BuildingProfile, ProfileIdentity, ProfileStructure

@@ -325,7 +325,18 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
             "never model a floor as a tall solid volume. Stairs carve the floor opening after plates. "
             "Text-only features do not generate stairs or holes. Do not add furniture/ornament when excluded by the user."
         )
-    skip_landmark_routing = building_profile is not None
+    # Open-world: never inject landmark MODULE / name-bound routing unless the user
+    # explicitly requested preset:<id>. BuildingProfile Stage P owns bound routes.
+    from app.services.building_research_agent import resolve_landmark_module_for_intent
+    _route_text = (
+        (getattr(req, "requestText", None) or "")
+        + "\n"
+        + (getattr(req, "userMessage", None) or user_text or "")
+    )
+    skip_landmark_routing = (
+        building_profile is not None
+        or resolve_landmark_module_for_intent(_route_text) is None
+    )
     if any(token in user_text.lower() for token in ("折返", "转折楼梯", "switchback")):
         parts.append("For a switchback staircase use ASSEMBLY params.assembly={stair_type:'switchback',width:3,"
                      "flight_rise:3,flight_run:3,landing_width:7,landing_depth:2,material:{steps:'stone_bricks',landing:'oak_planks'}}. "

@@ -306,7 +306,13 @@ _CLASSICAL_FACADE = ("pilaster", "colonnade", "classical", "mullion_grid")
 
 
 def _strip_classical_pollution(plan: Dict[str, Any]) -> Dict[str, Any]:
-    """Drop cupola / pilaster / cornice leftovers when East-Asian skip wins."""
+    """Opt-in cleanup for classical enrichment artifacts only.
+
+    Open-world default paths must not call this: CROWN/CUPOLA/DOME and decor may be
+    AI-authored (e.g. a glass dome on a modern Chinese pavilion) and must be preserved.
+    When classical enrichment is enabled, strip only components/params tagged as
+    enrichment-injected — never delete untagged AI design.
+    """
     if not isinstance(plan, dict):
         return plan
     components = plan.get("components")
@@ -315,15 +321,19 @@ def _strip_classical_pollution(plan: Dict[str, Any]) -> Dict[str, Any]:
         for comp in components:
             if not isinstance(comp, dict):
                 continue
+            params = dict(comp.get("params") or {})
+            injected = bool(params.get("enrichment_injected") or params.get("classical_enrichment"))
             ctype = str(comp.get("component_type") or "").upper()
-            if ctype in ("CROWN", "CUPOLA", "DOME"):
+            if injected and ctype in ("CROWN", "CUPOLA", "DOME"):
+                continue
+            if not injected:
+                cleaned.append(comp)
                 continue
             feats = [
                 f for f in (comp.get("features") or [])
                 if isinstance(f, str)
                 and not any(tok in f.lower() for tok in _CLASSICAL_FEATURE_TOKENS)
             ]
-            params = dict(comp.get("params") or {})
             facade = str(params.get("facade_profile") or params.get("facadeProfile") or "").lower()
             if any(tok in facade for tok in _CLASSICAL_FACADE):
                 params.pop("facade_profile", None)
@@ -338,28 +348,8 @@ def _strip_classical_pollution(plan: Dict[str, Any]) -> Dict[str, Any]:
                 feat_blob = " ".join(str(f) for f in (comp.get("features") or [])).lower()
                 if any(tok in feat_blob for tok in _CLASSICAL_FEATURE_TOKENS):
                     continue
-            door_w = params.get("door_width")
-            try:
-                if ctype == "ENTRANCE" and door_w is not None and int(door_w) > 7:
-                    params["door_width"] = 4
-            except (TypeError, ValueError):
-                pass
             cleaned.append({**comp, "features": feats, "params": params})
         plan = {**plan, "components": cleaned}
-    hints = plan.get("proportion_hints")
-    if isinstance(hints, dict):
-        hints = dict(hints)
-        hints.pop("floor_cornice", None)
-        hints.pop("base_plinth_detail", None)
-        hints.pop("crown_assembly", None)
-        hints.pop("crown_template", None)
-        hints.pop("detail_rules", None)
-        hints.pop("repeating_pattern", None)
-        if str(hints.get("typology") or "").lower() in (
-            "classical_monument", "baroque", "stadium_bowl"
-        ):
-            hints["typology"] = "chinese_timber_hall"
-        plan = {**plan, "proportion_hints": hints}
     return plan
 
 
@@ -419,33 +409,13 @@ def enrich_llm_plan_architectural_detail(
 
     skip_classical, skip_reason = should_skip_classical_enrichment(user_text, profile, plan)
     if skip_classical:
+        # Open-world: never delete or reshape AI-authored components here.
+        # Research tokens stay in research_feature_hints (non-destructive).
         plan = apply_profile_features_to_plan(plan, profile)
-        plan = _strip_classical_pollution(plan)
-        card = infer_heuristic_proportion_card(user_text, profile)
-        mass_hit = _find_mass(plan.get("components") or [])
-        if mass_hit is not None:
-            _, mass = mass_hit
-            hints = build_proportion_hints(card, _mass_dims(mass)["width"])
-            existing_hints = plan.get("proportion_hints")
-            if not isinstance(existing_hints, dict):
-                plan["proportion_hints"] = hints
-            else:
-                merged = {**hints, **existing_hints}
-                merged.pop("floor_cornice", None)
-                merged.pop("base_plinth_detail", None)
-                merged.pop("crown_assembly", None)
-                merged.pop("crown_template", None)
-                merged.pop("detail_rules", None)
-                merged.pop("repeating_pattern", None)
-                if str(merged.get("typology") or "").lower() in (
-                    "classical_monument", "baroque", "stadium_bowl"
-                ):
-                    merged["typology"] = str(card.get("typology") or "chinese_timber_hall")
-                plan["proportion_hints"] = merged
         plan["enrichment_guard"] = skip_reason
         return plan
 
-    # Open-world default: stop here — do not resize mass or inject classical kits.
+    # Open-world default: stop here — do not resize mass, strip AI details, or inject kits.
     if not classical_enrichment_enabled():
         return plan
 
@@ -717,12 +687,16 @@ def enrich_llm_plan_architectural_detail(
 
     # Give generated additions an explicit owner when the contract already
     # supplied an identity. Final contract normalization assigns their new IDs.
-    if mass_id:
-        existing_objects = {id(c) for c in components}
-        for component in new_components:
-            if id(component) not in existing_objects:
-                component.setdefault("params", {}).setdefault("host_id", mass_id)
-                if mass.get("slot_id") is not None:
-                    component.setdefault("slot_id", mass["slot_id"])
+    # Tag enrichment-authored parts so opt-in cleanup can retract them without
+    # deleting untagged AI design (domes, crowns, etc.).
+    existing_objects = {id(c) for c in components}
+    for component in new_components:
+        if id(component) not in existing_objects:
+            params = component.setdefault("params", {})
+            params["enrichment_injected"] = True
+            if mass_id:
+                params.setdefault("host_id", mass_id)
+            if mass_id and mass.get("slot_id") is not None:
+                component.setdefault("slot_id", mass["slot_id"])
     plan["components"] = new_components
     return plan

@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
@@ -24,6 +25,26 @@ final class RoofHostedDormerSupport {
         for (var patch : finalAt.values()) if (GeneratedSurfaceCapture.occupied(patch))
             tops.merge(new BlockPos(patch.dx(), 0, patch.dz()), patch.dy(), Math::max);
         roofs.put(new Key(ComponentPlanTypes.slotKey(roof), id), tops);
+    }
+
+    Optional<CapabilityGap> supportGap(Component dormer, Vec3i slotOffset) {
+        if (!ComponentSatelliteAligner.isDormer(dormer)) return Optional.empty();
+        String host = ComponentPlanTypes.getParamString(dormer.params(), "host_id", "hostId");
+        var roof = roofs.get(new Key(ComponentPlanTypes.slotKey(dormer), host));
+        Vec3i origin = ComponentPlanCompiler.resolveMassOrigin(dormer);
+        Dimensions dims = dormer.dimensions();
+        if (roof == null || origin == null || dims == null) return Optional.empty();
+        int ox = slotOffset == null ? 0 : slotOffset.x();
+        int oz = slotOffset == null ? 0 : slotOffset.z();
+        for (int x = 0; x < dims.width(); x++) for (int z = 0; z < dims.depth(); z++) {
+            var column = new BlockPos(origin.x() + ox + x, 0, origin.z() + oz + z);
+            if (!roof.containsKey(column)) return Optional.of(new CapabilityGap(
+                    "E_DORMER_ROOF_SUPPORT",
+                    "老虎窗缺少宿主屋面支撑：id=" + ComponentPlanTypes.paramIdentity(dormer)
+                            + " host=" + host + " plan x=" + column.getX() + " z=" + column.getZ(),
+                    "components[]", List.of("将老虎窗移到宿主实际屋面覆盖范围内，或补齐对应屋面；不要保留悬空窗体。")));
+        }
+        return Optional.empty();
     }
 
     Component extendToRoof(Component dormer, Vec3i slotOffset) {

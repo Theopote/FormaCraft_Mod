@@ -28,17 +28,15 @@ class JavaBridgeParityTest(unittest.TestCase):
             ],
         }
         out = apply_profile_features_to_plan(plan, profile)
+        # Research stays in a side channel — Java fidelity must not rely on auto-copied text.
         self.assertEqual(
-            out["distinguishing_features"],
+            out["research_feature_hints"],
             ["lattice windows", "dougong brackets"],
         )
-        self.assertIn("lattice windows", out["style_attributes"]["decorative_elements"])
+        self.assertNotIn("distinguishing_features", out)
         mass = out["components"][0]
-        self.assertIn("lattice_windows", mass["features"])
-        self.assertEqual(
-            mass["params"]["distinctive_features"],
-            ["lattice windows", "dougong brackets"],
-        )
+        self.assertEqual(mass["features"], [])
+        self.assertNotIn("distinctive_features", mass["params"])
 
 
 if __name__ == "__main__":

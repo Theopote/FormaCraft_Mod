@@ -34,9 +34,16 @@ def typology_exclusive_component_note(
     from .typology_registry import get_typology, is_compositional_typology
     if is_compositional_typology(typology_id):
         definition = get_typology(typology_id)
-        return (f"structural_typology={typology_id}: compositional_only; landmark_module=null. "
-                "Use MASS_MAIN + ROOF + FACADE_WINDOWS + ENTRANCE; do not output STRUCTURE or MODULE. "
-                f"Set proportion_hints.typology={typology_id}. {definition.llm_plan_guidance}")
+        guidance = (definition.llm_plan_guidance or "").strip() if definition else ""
+        return (
+            f"structural_typology={typology_id}: compositional_only style evidence; "
+            "landmark_module=null. "
+            "MASS_MAIN / ROOF / FACADE_WINDOWS / ENTRANCE are optional references for this "
+            "style pack — choose the composition that fits the user brief (minimal sculpture "
+            "masses are allowed). Do not output MODULE or typology:* STRUCTURE unless the user "
+            f"explicitly requested preset:<id> or typology:{typology_id}. "
+            f"Optional proportion_hints.typology={typology_id}. {guidance}"
+        ).strip()
     ref = reference_landmark or "none"
     note = (
         f"structural_typology={typology_id}: output ONLY ONE STRUCTURE with "
@@ -603,9 +610,20 @@ _EXPLICIT_TYPOLOGY_RE = re.compile(
 
 
 def resolve_explicit_structural_typology(user_text: str) -> Optional[str]:
-    """Whole-building typology only when the user explicitly requests it."""
+    """Whole-building typology only when the user explicitly requests it.
+
+    Mentions under negation (不要使用 typology_id=… / do not use typology:…) never bind.
+    """
     text = (user_text or "").strip()
     if not text:
+        return None
+    lowered = text.lower()
+    if re.search(
+        r"(?:不要(?:使用|用)?|不使用|不用|禁用|关闭)\s*"
+        r"(?:typology|structural_typology|typology_id)\s*[:=]|"
+        r"do\s+not\s+use\s+(?:typology|structural_typology|typology_id)\s*[:=]",
+        lowered,
+    ):
         return None
     match = _EXPLICIT_TYPOLOGY_RE.search(text)
     if not match:

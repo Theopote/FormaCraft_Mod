@@ -35,7 +35,9 @@ Core rules:
 - style_profile is a string preset id. style_attributes.palette/materials/block_palette MUST be objects
   mapping roles→block ids — never put a palette preset string into those map fields.
 - ASSEMBLY is for free-form parametric geometry when MASS/ROOF enums cannot express the shape.
-- LANDMARK MODULE: only when the user names a known landmark; vary params/seed/facing.
+- LANDMARK MODULE / typology:* whole-building executors: only when the user explicitly
+  requests preset:<id> or typology:<id> / typology_id=<id>. Naming a known building alone
+  is research evidence — design with catalog components (or report a capability gap).
 - Never emit identical plans for repeat requests; differentiate facade, entrances, and masses.
 - When proportion hints apply, output top-level proportion_hints with numeric ratio targets.
 - Respect outline, protected zones, path corridors, and selection bounds from the request context.

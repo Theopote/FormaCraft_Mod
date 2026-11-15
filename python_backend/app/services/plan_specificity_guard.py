@@ -256,54 +256,21 @@ def apply_profile_features_to_plan(
     plan: Dict[str, Any],
     profile: Optional[BuildingProfile],
 ) -> Dict[str, Any]:
-    """Deterministically surface distinguishing features into plan fields Java consumes."""
+    """Attach research distinguishing tokens as non-authoritative hints only.
+
+    Does not copy research text into plan.distinguishing_features, decorative_elements,
+    or component features — those remain model-authored so fidelity scoring cannot
+    pass by echoing auto-injected research phrases.
+    """
     if profile is None:
         return plan
     tokens = extract_distinguishing_tokens(profile)
     if not tokens:
         return plan
 
-    existing = plan.get("distinguishing_features")
-    merged_top: List[str] = []
-    if isinstance(existing, list):
-        for item in existing:
-            if item and str(item).strip() and str(item) not in merged_top:
-                merged_top.append(str(item))
-    for token in tokens[:8]:
-        if token not in merged_top:
-            merged_top.append(token)
-    plan["distinguishing_features"] = merged_top[:12]
-
-    sa = plan.get("style_attributes")
-    if not isinstance(sa, dict):
-        sa = {}
-        plan["style_attributes"] = sa
-    deco = list(sa.get("decorative_elements") or [])
-    for token in tokens[:8]:
-        if token not in deco:
-            deco.append(token)
-    sa["decorative_elements"] = deco[:12]
-
-    plan.pop("research_feature_hints", None)
-
-    for comp in plan.get("components") or []:
-        if not isinstance(comp, dict):
-            continue
-        ctype = str(comp.get("component_type") or "").upper()
-        if ctype not in ("MASS_MAIN", "MASS_SECONDARY", "ROOF", "STRUCTURE", "CROWN"):
-            continue
-        feats = list(comp.get("features") or [])
-        for token in tokens[:6]:
-            slug = re.sub(r"[^a-z0-9_]+", "_", token.lower()).strip("_")
-            if slug and slug not in [str(f).lower() for f in feats]:
-                feats.append(slug)
-        comp["features"] = feats
-
-        params = comp.get("params")
-        if not isinstance(params, dict):
-            params = {}
-            comp["params"] = params
-        if tokens and not params.get("distinctive_features"):
-            params["distinctive_features"] = tokens[:8]
-
+    hints = list(plan.get("research_feature_hints") or [])
+    for token in tokens[:12]:
+        if token and token not in hints:
+            hints.append(token)
+    plan["research_feature_hints"] = hints[:16]
     return plan

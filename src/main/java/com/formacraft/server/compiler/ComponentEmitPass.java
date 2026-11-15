@@ -54,6 +54,8 @@ final class ComponentEmitPass {
         var surfaceLedger = new SurfaceOwnershipLedger();
         var patchOccupancy = new PatchOccupancyIndex();
         var dormerSupport = new RoofHostedDormerSupport();
+        // Known roofs start without support; disabled/empty emission must not silently pass.
+        for (Component candidate : ordered) if (candidate != null) dormerSupport.record(candidate, List.of());
         for (Component authored : ordered) {
             if (authored == null) continue;
             String normalizedType = ComponentPlanTypes.normalizeType(authored.componentType());
@@ -63,6 +65,11 @@ final class ComponentEmitPass {
             if (slot == null) {
                 slot = ComponentPlanCompiler.defaultSlot(plan);
                 FormacraftMod.LOGGER.debug("ComponentPlanCompiler: component {} has no slot, using default slot", authored.componentType());
+            }
+            var dormerGap = dormerSupport.supportGap(authored, slot.anchor());
+            if (dormerGap.isPresent()) {
+                AssemblyCompileDiagnostics.set(dormerGap.get());
+                return patchOccupancy;
             }
             Component c = dormerSupport.extendToRoof(authored, slot.anchor());
             String slotKey = ComponentPlanTypes.slotKey(c);

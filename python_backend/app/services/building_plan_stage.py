@@ -390,9 +390,9 @@ def evaluate_plan_profile_alignment(
     components = _component_types_in_plan(plan)
     stid = profile.minecraft_strategy.structural_typology
     if stid and is_compositional_typology(stid):
-        valid = (not ({"STRUCTURE", "MODULE"} & set(components))
-                 and {"MASS_MAIN", "ROOF"}.issubset(components)
-                 and (plan.get("proportion_hints") or {}).get("typology") == stid)
+        # compositional_only forbids fixed MODULE / typology STRUCTURE executors;
+        # MASS+ROOF kits are optional evidence, not a required composition.
+        valid = not ({"STRUCTURE", "MODULE"} & set(components))
         results.append(("plan_respects_typology_policy", valid, f"compositional_only={stid}, found={components}"))
 
     # skeleton
