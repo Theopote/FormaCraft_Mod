@@ -224,6 +224,8 @@ OrchestratorClient 的 editCity/editBuilding 旧名称删除，改为 editLegacy
 
 钟楼实测台基修复：带显式 host_id 和 plinth/podium/台基标记的 PAVING 复用现有地基对齐，补齐此前仅 FOUNDATION/BASE 进入的分支。普通铺装、无宿主铺装不移动。新增 8×8 主体 / 12×12 台基坐标回归，尚待游戏内复测。
 
+都铎烟囱实测修复：CHIMNEY 的显式 host_id 允许查找同坐标框架的 ROOF 宿主，不再因非 MASS 被跳过；屋面内约束烟囱 footprint，并向下延伸至屋顶基准保持原顶部高度。未宣称斜屋面穿孔、老虎窗、雨棚或都铎悬挑全部修复，仍待游戏验收。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

@@ -93,7 +93,8 @@ final class ComponentSatelliteAligner {
             if (hostId != null) {
                 mass = null;
                 for (Component candidate : components) {
-                    if (!isSatelliteHostMass(candidate)
+                    if (!(isSatelliteHostMass(candidate)
+                            || ("CHIMNEY".equals(type) && ComponentPlanTypes.isRoofType(ComponentPlanTypes.normalizeType(candidate.componentType()))))
                             || candidate.params() == null
                             || !hostId.equals(candidate.params().get("component_id"))) continue;
                     // Explicit ownership cannot equate different real slot coordinate frames.
@@ -138,7 +139,9 @@ final class ComponentSatelliteAligner {
                 case "FOUNDATION", "TERRACE", "BASE" -> alignFoundationToMass(c, mass);
                 case "PAVING" -> hostId != null && isVisiblePlinth(c, c.params())
                         ? alignFoundationToMass(c, mass) : c;
-                case "DECOR_DETAIL", "DECOR", "ORNAMENT", "CHIMNEY", "SIGNAGE" -> alignHostedDetail(c, mass);
+                case "CHIMNEY" -> ComponentPlanTypes.isRoofType(ComponentPlanTypes.normalizeType(mass.componentType()))
+                        ? alignChimneyToRoof(c, mass) : alignHostedDetail(c, mass);
+                case "DECOR_DETAIL", "DECOR", "ORNAMENT", "SIGNAGE" -> alignHostedDetail(c, mass);
                 default -> ComponentPlanTypes.isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
             };
             if (AssemblyCompileDiagnostics.hasGap()) {
@@ -194,6 +197,25 @@ final class ComponentSatelliteAligner {
             return plan.globalConstraints().facing();
         }
         return GlobalConstraints.Facing.SOUTH;
+    }
+
+    private static Component alignChimneyToRoof(Component chimney, Component roof) {
+        Vec3i origin = roof.relativePosition();
+        Dimensions body = roof.dimensions(), dims = chimney.dimensions();
+        if (origin == null || body == null || dims == null || chimney.relativePosition() == null) return chimney;
+        if (!ComponentFootprintUtil.isCornerAnchor(roof.params())) {
+            origin = new Vec3i(origin.x() - body.width() / 2, origin.y(), origin.z() - body.depth() / 2);
+        }
+        int x = Math.max(origin.x(), Math.min(origin.x() + body.width() - dims.width(), chimney.relativePosition().x()));
+        int z = Math.max(origin.z(), Math.min(origin.z() + body.depth() - dims.depth(), chimney.relativePosition().z()));
+        int bottom = Math.min(chimney.relativePosition().y(), origin.y());
+        int top = chimney.relativePosition().y() + dims.height();
+        var params = new HashMap<String, Object>();
+        if (chimney.params() != null) params.putAll(chimney.params());
+        params.put("anchor_mode", "min_corner");
+        params.put("resolved_host_attachment", true);
+        return new Component(chimney.componentType(), chimney.slotId(), new Vec3i(x, bottom, z),
+                new Dimensions(dims.width(), dims.depth(), Math.max(1, top - bottom)), chimney.features(), params);
     }
 
     private static Component alignHostedDetail(Component detail, Component mass) {
