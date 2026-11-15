@@ -105,7 +105,7 @@ flowchart TD
 | ID | 分叉 | 风险 | 优先级 |
 |----|------|------|--------|
 | D1 | `PreviewStorage` vs `PreviewTicket` | Confirm 门禁、消费语义、客户端 Mode 不同 | P0 |
-| D2 | `BuildTask` vs `WorldPatchTransaction` | Build 无全批原子回滚；失败可能部分写入却进入/不进入历史语义不一 | P0 |
+| D2 | `BuildTask` vs `WorldPatchTransaction` | 写入器不同；BuildTask 已有失败/取消整批回滚（WORLD_MUTATION 第四十七批），但非同一事务实现——PR-4 冻结语义，不合并 | P1 |
 | D3 | `UndoService` vs `PatchHistoryManager` | 靠 `MutationHistoryFacade` + ledger 择栈；跨栈 UX / 幽灵条目需实机验证 | P0 |
 | D4 | BuildingSpec / City / Composite 整栋路径 | 跳过 `ComponentPlanCompiler`；过滤走 `BuildConstraintClipper` | P1 |
 | D5 | `UnifiedGeneratorRouter` landmark 中途整栋 | LlmPlan 内混入 StructureGenerator 几何 | P1 |
@@ -143,7 +143,7 @@ flowchart TD
 | 质量 ERROR | 需 force；与 UI 二次确认对齐 | `/forma_confirm force` | 部分 | 是 |
 | 距离门禁 | ≤96 格，先校验再 consume | 维度 + digest | 部分 | 是 |
 | 跨玩家 | Ticket 绑定 playerId | PreviewStorage 按 UUID | Ticket：有 | 多人实机 |
-| 部分失败回滚 | `WorldPatchTransaction` Recover + status | BuildTask **未做**全批回滚 | Patch：有 | Build 中断 |
+| 部分失败回滚 | `WorldPatchTransaction` Recover + status | BuildTask 整批回滚；`ROLLBACK_INCOMPLETE` 可 Undo、不入成功 Memory | 有单测 | 大建筑实机 |
 
 ---
 

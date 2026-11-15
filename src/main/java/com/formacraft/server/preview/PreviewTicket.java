@@ -12,7 +12,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 服务端持有的 Patch 预览票据：确认时仅接受 ticketId，客户端不能篡改 patch 内容。
+ * Patch 路径预览票据（与 Build {@link PreviewStorage} 并存，PR-4 <strong>不合并</strong>）。
+ * <p>
+ * 确认时仅接受 ticketId；patches 为 {@link ConfirmedPlanIdentity#toFinalPatches} 冻结集。
+ * 不变量见 {@code docs/PREVIEW_UNDO_INVARIANTS.md}。
  * <p>
  * {@code requiresConfirmedPlan=true} 的票据必须在 Confirm 时找到对应
  * {@link com.formacraft.server.generation.typology.builder.PalacePreviewPlan}，

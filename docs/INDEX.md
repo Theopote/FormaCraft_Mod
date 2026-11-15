@@ -16,6 +16,8 @@
 | [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) | LlmPlan → 放置方块的**现行流程真相** | 维护中 |
 | [architecture/GENERATION_AUTHORITY_MAP.md](architecture/GENERATION_AUTHORITY_MAP.md) | 规划权 / 执行权矩阵（与 pipeline 对齐） | 维护中 |
 | [MEMORY_TRANSACTION_CONTRACT.md](MEMORY_TRANSACTION_CONTRACT.md) | Memory 维度隔离与撤销事务边界 | 维护中 |
+| [PREVIEW_UNDO_INVARIANTS.md](PREVIEW_UNDO_INVARIANTS.md) | Preview/Confirm/Undo 双栈冻结不变量（不合并存储） | 维护中 |
+| [WORLD_MUTATION_CONTRACT.md](WORLD_MUTATION_CONTRACT.md) | 方块执行、历史与回滚契约 | 维护中 |
 | [STAIR_CIRCULATION_CONTRACT.md](STAIR_CIRCULATION_CONTRACT.md) | 楼梯入口、坡度/净空、未接线边界 | 维护中 |
 | [SHELL_FLOOR_CONTRACT.md](SHELL_FLOOR_CONTRACT.md) | 楼板生成顺序与洞口组合 | 维护中 |
 | [PLAN_CIRCULATION_CONTRACT.md](PLAN_CIRCULATION_CONTRACT.md) | 跨构件通行约束 | 维护中 |
@@ -122,7 +124,7 @@
 
 | 文档 | 用途 |
 |---|---|
-| [WORLD_MUTATION_CONTRACT.md](WORLD_MUTATION_CONTRACT.md) | 方块执行结果、严格目标解析、历史差异与未完成的事务问题 |
+| [WORLD_MUTATION_CONTRACT.md](WORLD_MUTATION_CONTRACT.md) | 方块执行细节（摘要入口已升至 Tier 0；此处保留子系统索引） |
 | [TESTING_AND_BUILDING_ACCEPTANCE.md](TESTING_AND_BUILDING_ACCEPTANCE.md) | Fabric JUnit、完整检查与下一轮建筑验收顺序 |
 
 ### 地标与参数化建筑类型

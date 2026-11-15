@@ -21,10 +21,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 预览存储
- * 临时存储玩家最后一次生成的建筑结构，用于预览和确认。
+ * Build 路径预览存储（与 Patch {@link PreviewTicket} 并存，PR-4 <strong>不合并</strong>）。
  * <p>
- * 确认契约：维度 + origin + 结构 digest；确认后一次性消费，防止重放。
+ * 确认契约：维度 + origin + 结构 digest + generation CAS；确认后一次性消费，防止重放。
+ * 冻结不变量见 {@code docs/PREVIEW_UNDO_INVARIANTS.md}。
  */
 public class PreviewStorage {
     private static final Map<UUID, GeneratedStructure> lastStructures = new HashMap<>();

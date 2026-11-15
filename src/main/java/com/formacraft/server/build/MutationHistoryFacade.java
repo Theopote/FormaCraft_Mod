@@ -7,7 +7,11 @@ import net.minecraft.server.world.ServerWorld;
 import java.util.UUID;
 
 /**
- * 统一 Undo/Redo 入口：按 {@link PlayerMutationLedger} 时间序选择 BUILD 或 PATCH 栈执行一次。
+ * 统一 Undo/Redo 入口：按 {@link PlayerMutationLedger} 时间序选择 BUILD（{@link UndoService}）
+ * 或 PATCH（{@link PatchHistoryManager}）栈执行一次。
+ * <p>
+ * PR-4：两套存储<strong>不合并</strong>；本门面只负责择栈与幽灵账本丢弃。
+ * 世界差异来源仍是各栈记录的 BlockPatch / BlockChange 事务。见 {@code docs/PREVIEW_UNDO_INVARIANTS.md}。
  */
 public final class MutationHistoryFacade {
     private MutationHistoryFacade() {}

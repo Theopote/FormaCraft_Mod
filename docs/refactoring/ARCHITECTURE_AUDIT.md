@@ -60,7 +60,9 @@ flowchart LR
 - 双 JSON 库收敛（新代码优先 `common.json.JsonUtil` / Gson）；服务端硬编码中文文案迁语言文件（建造门控文案已走 lang）
 - Memory 落盘与世界修改原子性；Undo 双轨统一（见 WORLD_MUTATION_CONTRACT）
 - ~~PR-2 指标误记账~~：已改为 `recordError(..., preview_unhandled_no_structure_fallback)`；勿用修复前历史 fallback 率做迁移决策
-- PR-3+：compat handler 拆分、无消费者实现删除、Preview/Undo 存储合并
+- ~~PR-3 compat 拆分~~：`LegacySpecPreviewHandler` / `LegacyBuildingEditHandler`（工作区待提交）
+- ~~PR-4 双栈语义冻结~~：见 [PREVIEW_UNDO_INVARIANTS](../PREVIEW_UNDO_INVARIANTS.md)；**未**合并 Preview/Undo 存储
+- PR-5+：无消费者实现删除；Preview/Undo 存储合并（需 Memory 原子）
 
 ## 已落地（2026-10-31 审查整改）
 
@@ -212,9 +214,9 @@ AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替
 | LEGACY-008 | ACTIVE_COMPAT | `OrchestratorClient.editLegacyCitySpec` → `POST /edit/city` | `FormaCraftCommands` `forma_edit_city` ~L216–254；`python_backend/app/routes/edit.py` L12+ | LlmPlan patch | 同上 | 命令清零 | OpenAPI deprecated |
 | LEGACY-009 | ACTIVE_COMPAT | 蓝图存档 BuildingSpec / CitySpec / CompositeSpec | `FormaCraftCommands` save/load；`BlueprintStorage`；codec 夹具 `BlueprintCodecRoundTripTest` | 未来 LlmPlan 存档格式（未定） | 删读写会破坏既有蓝图 | 迁移工具 + 玩家存档兼容策略 | round-trip 测试 |
 | LEGACY-010 | ACTIVE_COMPAT | Python `legacy_spec_*` + `ai_planner` 兼容 import | 生产：`ai_planner` 自身编排仍 import `legacy_spec_fallbacks/genome/normalization`（L17–23）；`llm_plan_normalization` 复用 `_deep_merge`；`assembly_plan_repair` / `fbd_repair` 调 `ai_planner` 门面；测试与 eval 仍 patch `ai_planner` | 职责模块直导 | 删 re-export 会断测试补丁点 | 调用方改直导后再删 facade 别名 | import 图 |
-| LEGACY-011 | ACTIVE_COMPAT | `PreviewStorage`（Build 预览） | `LlmPlanPreviewBuilder` / `BuildConfirmService` / `/forma_confirm` | 长期与 Ticket 统一（PR-3+） | 双确认 UX | 见 WORLD_MUTATION | 不变量表 |
-| LEGACY-012 | ACTIVE_COMPAT | `PreviewTicket`（Patch 预览） | `PatchPreviewService` → `PreviewTicketStorage` | 同上 | 同上 | 同上 | 不变量表 |
-| LEGACY-013 | ACTIVE_COMPAT | `UndoService` vs `PatchHistoryManager` | Build 完成 → UndoService；Patch 成功 → PatchHistoryManager；择栈 `MutationHistoryFacade` | 合并存储（PR-3+） | 跨栈幽灵条目 | Memory 原子性方案 | MEMORY / WORLD_MUTATION |
+| LEGACY-011 | ACTIVE_COMPAT | `PreviewStorage`（Build 预览） | `LlmPlanPreviewBuilder` / `BuildConfirmService` / `/forma_confirm` | 与 Ticket **语义已冻结**（[PREVIEW_UNDO_INVARIANTS](../PREVIEW_UNDO_INVARIANTS.md)）；存储合并延后 | 双确认 UX | Memory 原子 + UX 统一后再合并 | `PreviewUndoParityTest` + Confirm 单测 |
+| LEGACY-012 | ACTIVE_COMPAT | `PreviewTicket`（Patch 预览） | `PatchPreviewService` → `PreviewTicketStorage` | 同上 | 同上 | 同上 | `PreviewTicketStorageTest` |
+| LEGACY-013 | ACTIVE_COMPAT | `UndoService` vs `PatchHistoryManager` | Build → UndoService；Patch → PatchHistoryManager；择栈 `MutationHistoryFacade`（丢幽灵账本） | 合并存储延后；真相源=成功事务方块差异 | 跨栈幽灵 / Memory 非原子 | Memory 原子方案落地 | MEMORY / PREVIEW_UNDO_INVARIANTS |
 | LEGACY-014 | MIGRATED | 指标原 `recordStructureAfterFallback` 误记账 | 原 `BuildRequestProcessor` 预览失败回调 | 现记 `recordError(..., preview_unhandled_no_structure_fallback)`；`recordStructureAfterFallback` 仅真实整栋回退时用 | 历史日志污染 | — | `LlmPlanRoutingMetricsTest` |
 | LEGACY-015 | REMOVED | `BuildingSpecRoutingPolicy` / `requestBuildingSpec` | 无生产调用者（类已删） | `requestAiPlan` + `FormaRequest.requestsLegacyBuildingSpec()` | 文档若仍引用会误导 | — | 已删；见迁移文档警告 |
 | LEGACY-016 | REMOVED | 客户端 `PromptAssembler.java` | 无 | `prompt_assembly.py` + `llm_plan_system_prompt.py` | 文档旧路径 | — | 已删 |

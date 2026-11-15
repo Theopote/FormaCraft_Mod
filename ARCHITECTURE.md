@@ -140,6 +140,7 @@ LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhand
 | [GENERATION_PIPELINE](docs/GENERATION_PIPELINE.md) | 现行运行流程与类路径 |
 | [GENERATION_AUTHORITY_MAP](docs/architecture/GENERATION_AUTHORITY_MAP.md) | 规划权 / 执行权矩阵 |
 | [ARCHITECTURE_AUDIT](docs/refactoring/ARCHITECTURE_AUDIT.md) | 未决债 + 弃用退出清单 |
+| [PREVIEW_UNDO_INVARIANTS](docs/PREVIEW_UNDO_INVARIANTS.md) | Preview/Confirm/Undo 双栈冻结（不合并存储） |
 | [MIGRATION_LLMPLAN_VS_BUILDINGSPEC](docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md) | 构件 vs 结构**能力对照**（非现行路由指南） |
 | [INDEX](docs/INDEX.md) | 文档分层索引 |
 

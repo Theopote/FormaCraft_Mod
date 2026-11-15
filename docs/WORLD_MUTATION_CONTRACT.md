@@ -1,6 +1,8 @@
 # 方块执行与历史契约
 
-状态：维护中；核查：2026-10-15（第四十七批）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；直接世界方块写入由 BlockMutationAccess 收敛，scripts/check_architecture.py 检查新增旁路。
+状态：维护中；核查：2026-11-15（PR-4 冻结双栈不变量，不合并存储）。适用于 BuildTask、PatchExecutor、Patch/普通建造历史；直接世界方块写入由 BlockMutationAccess 收敛，scripts/check_architecture.py 检查新增旁路。
+
+**双栈冻结摘要**（Preview / Confirm / Undo）：见 [PREVIEW_UNDO_INVARIANTS.md](PREVIEW_UNDO_INVARIANTS.md)。
 
 ## 预览过滤 = 建造过滤（不变量）
 

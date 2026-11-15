@@ -1,6 +1,8 @@
 # Memory 查询与事务契约
 
-状态：维护中；核查：2026-10-03（第十一批）。
+状态：维护中；核查：2026-11-15（PR-4：明确 Undo/Memory 以成功事务的方块差异为真相源；不合并 Undo 存储）。
+
+与 Preview/Confirm 双栈冻结对照见 [PREVIEW_UNDO_INVARIANTS.md](PREVIEW_UNDO_INVARIANTS.md)。**禁止**用“删除异常 / 静默吞失败”伪装 Memory 与世界已原子；失败走待保存重试与 FAILED_NEEDS_ATTENTION。
 
 ## 维度是空间身份的一部分
 

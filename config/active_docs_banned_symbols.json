@@ -15,7 +15,8 @@
     "docs/PLAN_CIRCULATION_CONTRACT.md",
     "docs/STAIR_CIRCULATION_CONTRACT.md",
     "docs/SHELL_FLOOR_CONTRACT.md",
-    "docs/TOWER_CIRCULATION_CONTRACT.md"
+    "docs/TOWER_CIRCULATION_CONTRACT.md",
+    "docs/PREVIEW_UNDO_INVARIANTS.md"
   ],
   "banned": [
     {
