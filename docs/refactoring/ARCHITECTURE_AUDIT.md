@@ -128,6 +128,10 @@ LlmPlan 输出规范化主流程与最小角锚点识别迁至 llm_plan_normaliz
 
 城市/复合兼容入口的静态系统提示词集中到现有 building_spec_prompts.py，原入口只调用 builder。提示词文本与 HEAD 基线逐字一致；没有扩展兼容协议或改变语义规划前置阶段。
 
+城市/复合入口重复的语义参数写入收敛为 semantic_plan_adapters.attach_semantic_plan_to_first_structure，保留首个子建筑、显式键（含 None）优先及异常跳过行为。回归覆盖首项写入、缺失 extra、后续子建筑不变和无计划/空集合/无效项。
+
+城市分区到 semanticRole 的确定性补全迁至 semantic_plan_adapters.fill_city_semantic_roles，规划器只调用；PUBLIC/PRIVATE/SERVICE/TRANSITION 映射、未知分区回退、显式角色优先及异常跳过保持原行为。新增各分区映射与未匹配/空角色/显式角色回归。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

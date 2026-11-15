@@ -1,6 +1,57 @@
 from app.models.request import BuildRequest
 from app.models.semantic_spatial_plan import SemanticSpatialPlan
 from app.services import semantic_plan_adapters as adapters
+import pytest
+
+
+@pytest.mark.parametrize("zone_type,expected", [
+    (" plaza ", "PUBLIC"), ("MARKET", "PUBLIC"), ("COMMERCIAL_AREA", "PUBLIC"),
+    ("RESIDENTIAL", "PRIVATE"), ("INDUSTRIAL", "SERVICE"),
+    ("WALL", "TRANSITION"), ("GATE", "TRANSITION"), ("UNKNOWN", "SEMI_PUBLIC"),
+])
+def test_city_zone_role_mapping(zone_type, expected):
+    from types import SimpleNamespace as NS
+
+    entry = NS(zone=" central ", spec=NS(extra=None))
+    city = NS(zones=[NS(name="central", type=zone_type)], structures=[entry])
+    adapters.fill_city_semantic_roles(city)
+    assert entry.spec.extra == {"semanticRole": expected}
+
+
+def test_city_roles_preserve_explicit_and_ignore_unmatched_zones():
+    from types import SimpleNamespace as NS
+
+    explicit = NS(zone="center", spec=NS(extra={"semanticRole": "CUSTOM"}))
+    unmatched = NS(zone="missing", spec=NS(extra=None))
+    empty = NS(zone="center", spec=NS(extra={"semanticRole": "null"}))
+    city = NS(zones=[NS(name="center", type="PLAZA")], structures=[explicit, unmatched, empty, NS(spec=None)])
+    adapters.fill_city_semantic_roles(city)
+    assert explicit.spec.extra == {"semanticRole": "CUSTOM"}
+    assert unmatched.spec.extra == {}
+    assert empty.spec.extra == {"semanticRole": "PUBLIC"}
+
+
+def test_attach_only_first_structure_preserving_explicit_values():
+    from types import SimpleNamespace
+
+    first = SimpleNamespace(spec=SimpleNamespace(extra={"clusterTerrainPolicy": "custom", "skeletonLayout": None}))
+    second = SimpleNamespace(spec=SimpleNamespace(extra=None))
+    adapters.attach_semantic_plan_to_first_structure(request(), SemanticSpatialPlan(), [first, second])
+    assert first.spec.extra["clusterTerrainPolicy"] == "custom"
+    assert first.spec.extra["skeletonLayout"] is None
+    assert first.spec.extra["clusterTerrainBudgetBlocks"] == 2600
+    assert second.spec.extra is None
+
+
+def test_attach_missing_extras_and_best_effort_failure():
+    from types import SimpleNamespace
+
+    first = SimpleNamespace(spec=SimpleNamespace(extra=None))
+    adapters.attach_semantic_plan_to_first_structure(request(), SemanticSpatialPlan(), [first])
+    assert first.spec.extra["skeletonLayout"] == {"skeletons": []}
+    adapters.attach_semantic_plan_to_first_structure(request(), None, [first])
+    adapters.attach_semantic_plan_to_first_structure(request(), SemanticSpatialPlan(), [])
+    adapters.attach_semantic_plan_to_first_structure(request(), SemanticSpatialPlan(), [None])
 
 
 def request(text=""):

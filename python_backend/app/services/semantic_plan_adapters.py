@@ -352,3 +352,57 @@ def _semantic_to_skeleton_layout(req: BuildRequest, plan: SemanticSpatialPlan) -
 
     sks_sorted = sorted(sks, key=sort_key)
     return SkeletonLayout(skeletons=sks_sorted)
+
+
+def attach_semantic_plan_to_first_structure(req, plan, structures) -> None:
+    """Populate existing compatibility extras without overwriting explicit keys."""
+    if plan is None or not structures:
+        return
+    try:
+        knobs = _compile_semantic_plan_extra(req, plan)
+        first = structures[0]
+        if first.spec.extra is None:
+            first.spec.extra = {}
+        for key, value in knobs.items():
+            if key not in first.spec.extra:
+                first.spec.extra[key] = value
+        if "skeletonLayout" not in first.spec.extra:
+            first.spec.extra["skeletonLayout"] = _semantic_to_skeleton_layout(req, plan).model_dump()
+    except Exception:
+        pass
+
+
+def fill_city_semantic_roles(spec) -> None:
+    """Fill compatibility semantic roles from zones without replacing explicit roles."""
+    try:
+        zone_type_by_name: Dict[str, str] = {}
+        if spec.zones:
+            for z in spec.zones:
+                if z and z.name:
+                    zone_type_by_name[z.name.strip()] = (z.type or "").strip().upper()
+
+        def role_from_zone_type(t: str) -> str:
+            tt = (t or "").strip().upper()
+            if tt in ("PLAZA", "MARKET", "COMMERCIAL", "COMMERCIAL_AREA"):
+                return "PUBLIC"
+            if tt in ("RESIDENTIAL",):
+                return "PRIVATE"
+            if tt in ("INDUSTRIAL",):
+                return "SERVICE"
+            if tt in ("WALL", "GATE"):
+                return "TRANSITION"
+            return "SEMI_PUBLIC"
+
+        for sp in (spec.structures or []):
+            bs = getattr(sp, "spec", None)
+            if bs is None:
+                continue
+            if bs.extra is None:
+                bs.extra = {}
+            if "semanticRole" in bs.extra and bs.extra.get("semanticRole") not in (None, "", "null"):
+                continue
+            zn = (sp.zone or "").strip()
+            if zn and zn in zone_type_by_name:
+                bs.extra["semanticRole"] = role_from_zone_type(zone_type_by_name.get(zn, ""))
+    except Exception:
+        pass

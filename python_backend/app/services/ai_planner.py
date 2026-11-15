@@ -22,7 +22,7 @@ from .legacy_spec_fallbacks import (
 from .legacy_spec_genome import _ensure_genome_for_spec, _ensure_genome_for_composite_spec, _ensure_genome_for_city_spec
 from .legacy_spec_normalization import _normalize_building_spec_dict, _normalize_composite_spec_dict
 from .semantic_plan_prompts import build_semantic_plan_prompts
-from .semantic_plan_adapters import _compile_semantic_plan_extra, _semantic_to_skeleton_layout
+from .semantic_plan_adapters import attach_semantic_plan_to_first_structure, fill_city_semantic_roles
 from .planning_request_hints import _derive_structured_intent
 from .llm_plan_wire_normalization import _repair_component_request_strings
 from .llm_client import get_client, build_config, resolve_provider
@@ -190,58 +190,9 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
 
         # Fill per-structure semanticRole hints (do not override explicit user/LLM overrides).
         # This makes Java-side semantic placement constraints deterministic even when zone inference is weak.
-        try:
-            zone_type_by_name: Dict[str, str] = {}
-            if spec.zones:
-                for z in spec.zones:
-                    if z and z.name:
-                        zone_type_by_name[z.name.strip()] = (z.type or "").strip().upper()
+        fill_city_semantic_roles(spec)
 
-            def role_from_zone_type(t: str) -> str:
-                tt = (t or "").strip().upper()
-                if tt in ("PLAZA", "MARKET", "COMMERCIAL", "COMMERCIAL_AREA"):
-                    return "PUBLIC"
-                if tt in ("RESIDENTIAL",):
-                    return "PRIVATE"
-                if tt in ("INDUSTRIAL",):
-                    return "SERVICE"
-                if tt in ("WALL", "GATE"):
-                    return "TRANSITION"
-                return "SEMI_PUBLIC"
-
-            for sp in (spec.structures or []):
-                bs = getattr(sp, "spec", None)
-                if bs is None:
-                    continue
-                if bs.extra is None:
-                    bs.extra = {}
-                if "semanticRole" in bs.extra and bs.extra.get("semanticRole") not in (None, "", "null"):
-                    continue
-                zn = (sp.zone or "").strip()
-                if zn and zn in zone_type_by_name:
-                    bs.extra["semanticRole"] = role_from_zone_type(zone_type_by_name.get(zn, ""))
-        except Exception:
-            pass
-
-        # Compile I-layer plan into spec.extra so Java CityBuilder can consume it immediately.
-        if semantic_plan is not None and spec.structures:
-            try:
-                extra_knobs = _compile_semantic_plan_extra(req, semantic_plan)
-                # Inject into the first structure's spec.extra (CityBuilder uses extra0 from first available).
-                sp0 = spec.structures[0]
-                if sp0.spec.extra is None:
-                    sp0.spec.extra = {}
-                # Do not clobber explicit user/LLM-provided overrides.
-                for k, v in extra_knobs.items():
-                    if k not in sp0.spec.extra:
-                        sp0.spec.extra[k] = v
-
-                # Also attach an explicit J-layer skeleton layout for debugging and future routing.
-                if "skeletonLayout" not in sp0.spec.extra:
-                    layout = _semantic_to_skeleton_layout(req, semantic_plan)
-                    sp0.spec.extra["skeletonLayout"] = layout.model_dump()
-            except Exception:
-                pass
+        attach_semantic_plan_to_first_structure(req, semantic_plan, spec.structures)
 
         return spec
         
@@ -297,23 +248,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
         data = _normalize_composite_spec_dict(data)
         spec = CompositeSpec.model_validate(data)
 
-        # Compile I-layer plan into the first sub-structure's spec.extra (best-effort).
-        # Not all composite generators consume these knobs today, but it provides a forward-compatible hook.
-        if semantic_plan is not None and spec.structures:
-            try:
-                extra_knobs = _compile_semantic_plan_extra(req, semantic_plan)
-                s0 = spec.structures[0]
-                if s0.spec.extra is None:
-                    s0.spec.extra = {}
-                for k, v in extra_knobs.items():
-                    if k not in s0.spec.extra:
-                        s0.spec.extra[k] = v
-
-                if "skeletonLayout" not in s0.spec.extra:
-                    layout = _semantic_to_skeleton_layout(req, semantic_plan)
-                    s0.spec.extra["skeletonLayout"] = layout.model_dump()
-            except Exception:
-                pass
+        attach_semantic_plan_to_first_structure(req, semantic_plan, spec.structures)
 
         spec = _ensure_genome_for_composite_spec(spec, req)
         return spec
