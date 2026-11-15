@@ -9,17 +9,19 @@
 1. ✅ **SemanticPlacementOp** - 语义放置指令
 2. ✅ **SemanticPart** - 语义部位枚举
 3. ✅ **SemanticRole** - 语义角色枚举
-4. ✅ **WeightedBlock** - 加权方块
-5. ✅ **SemanticPalette / SemanticPaletteRegistry** - 语义调色板与注册表
-6. ✅ **DefaultPalettes** - 默认调色板
-7. ✅ **ISkeletonSemanticGenerator** - 语义生成器接口
-8. ✅ **LinearPathSemanticGenerator** - LINEAR_PATH 语义生成器
-9. ✅ **SkeletonSemanticRegistry** - 语义生成器注册表
-10. ✅ **SkeletonBuildPipeline** - 完整流程
+4. ✅ **PaletteCatalog.WeightedBlock** - 加权方块
+5. ✅ **SemanticBlockStateResolver** - 语义 → BlockPatch 解析器
+6. ✅ **ISkeletonSemanticGenerator** - 语义生成器接口
+7. ✅ **LinearPathSemanticGenerator** - LINEAR_PATH 语义生成器
+8. ✅ **SkeletonSemanticRegistry** - 语义生成器注册表
+9. ✅ **SkeletonBuildPipeline** - 完整流程
 
 > 2026-11-15 核对：原列表中的独立类 `WeightedPicker` 与 `SemanticResolver` **已删除**。
-> 加权抽样由调色板内部完成；语义 → BlockPatch 解析由
-> `SemanticBlockStateResolver` 承担。
+> 2026-11-15 第二轮核对：`SemanticPalette` / `SemanticPaletteRegistry` /
+> `DefaultPalettes` / `common.palette.WeightedBlock` **也已删除**（只写死簇，
+> 注册后从未被查询）。现行调色板系统是 `PaletteCatalog` / `PaletteRegistry`
+> （数据驱动，资源文件 `palette_catalog.json`），风格换皮走
+> `SemanticStyleProfile` / `SemanticPaletteResolver`。
 
 ## 核心组件
 
@@ -45,17 +47,16 @@
 
 ### 3. 调色板系统
 
-**WeightedBlock**：加权方块（blockId + weight）
+**WeightedBlock**（加权方块，blockId + weight）：
 
-**加权选择**：> 2026-11-15 核对：原独立类 `WeightedPicker`（`common/palette/WeightedPicker.java`）
+> 2026-11-15 核对：原独立类 `WeightedPicker`（`common/palette/WeightedPicker.java`）
 > **已删除**。加权抽样现由持有 `List<WeightedBlock>` 的调色板与解析器内部完成，
 > 不得再引用 `WeightedPicker`。
-
-**SemanticPalette**：
-- part → blocks 映射
-- part + role → blocks 覆盖映射
-
-**SemanticPaletteRegistry**：调色板注册表
+>
+> 2026-11-15 第二轮核对：顶层类 `common/palette/WeightedBlock.java`
+> （`record WeightedBlock(String blockId, int weight)`）**已删除**。
+> 现行加权方块是 `PaletteCatalog.WeightedBlock`（嵌套类，字段 `id` / `weight`），
+> 由 `PaletteRegistry` 从资源加载、`PaletteResolver` 抽样。
 
 ### 4. 解析器
 
@@ -118,9 +119,6 @@ List<BlockPatch> patches = SemanticBlockStateResolver.resolveToPatches(
 ### 示例 3：完整流程
 
 ```java
-// 初始化默认调色板
-DefaultPalettes.bootstrap();
-
 // 注册语义生成器
 SkeletonSemanticRegistry.registerDefaults();
 
@@ -144,7 +142,8 @@ List<BlockPatch> patches = SkeletonBuildPipeline.buildSkeletonAsPatch(
 ### ✅ 可扩展性
 
 - 新增 SemanticPart：只需在枚举中添加
-- 新增调色板：只需注册到 SemanticPaletteRegistry
+- 新增调色板：只需往 `palette_catalog.json` 资源里加一条，并由
+  `PaletteRegistry` 加载
 - 新增生成器：实现 ISkeletonSemanticGenerator 并注册
 
 ### ✅ 风格统一
@@ -154,19 +153,20 @@ List<BlockPatch> patches = SkeletonBuildPipeline.buildSkeletonAsPatch(
 
 ## 与现有系统的关系
 
-### 现有系统
+### 现有系统（现行）
 
 - `PaletteCatalog` / `PaletteRegistry`：使用字符串键的调色板系统
 - `PaletteResolver`：直接返回 BlockState 的解析器
+- `SemanticStyleProfile` / `SemanticPaletteResolver`：按 `SemanticPart` 绑定
+  BlockState 的风格换皮系统
 
 ### 新系统
 
-- `SemanticPalette` / `SemanticPaletteRegistry`：使用枚举的语义调色板
 - `SemanticBlockStateResolver`：返回 BlockPatch 的解析器（取代已删除的 `SemanticResolver`）
 
-**两者可以共存**：
-- 新系统用于 Skeleton Generator
-- 旧系统用于其他生成器（HouseGenerator 等）
+**说明**：原"新系统"的 `SemanticPalette` / `SemanticPaletteRegistry` 已删除
+（只写死簇）。Skeleton Generator 现行使用的调色板是上面那套
+`SemanticStyleProfile` + `PaletteResolver` 体系。
 
 ## 初始化
 
@@ -174,7 +174,6 @@ List<BlockPatch> patches = SkeletonBuildPipeline.buildSkeletonAsPatch(
 
 ```java
 // 在 FormacraftMod.onInitialize() 或 ServerInitializer.onInitializeServer()
-DefaultPalettes.bootstrap();
 SkeletonSemanticRegistry.registerDefaults();
 ```
 

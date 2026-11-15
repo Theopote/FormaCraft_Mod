@@ -84,6 +84,8 @@ jobs:
           python scripts/check_dead_code.py
           python scripts/test_check_unused_interface_methods.py
           python scripts/check_unused_interface_methods.py
+          python scripts/test_check_unreachable_types.py
+          python scripts/check_unreachable_types.py
 
   python:
     name: python

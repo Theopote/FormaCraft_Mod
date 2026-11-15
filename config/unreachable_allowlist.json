@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "description": "Top-level Java types that scripts/check_unreachable_types.py cannot reach from the framework entry points, because the framework loads them in a way the static reference graph cannot see (e.g. a custom classloader scanning a directory, or a fully-qualified string in a resource). Each entry is a type simple name.",
+  "allow": []
+}

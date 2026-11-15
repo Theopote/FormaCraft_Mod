@@ -140,21 +140,23 @@ for (SemanticPlacementOp op : semanticOps) {
 
 ## 与现有系统的关系
 
-### 现有系统
-
-1. **SemanticPalette** - 使用 String blockId 的调色板
-2. **SemanticBlockStateResolver** - 使用 SemanticPalette 的解析器（2026-11-15 核对：原 `SemanticResolver` 已删除）
-3. **StyleProfile** - 用于 BuildingSpec 的风格配置
-
-### 新系统
+### 现行系统
 
 1. **SemanticStyleProfile** - 使用 BlockState 的风格配置
 2. **PaletteRule** - 使用 BlockState 的权重规则
 3. **SemanticPaletteResolver** - 使用 BlockState 的解析器
+4. **SemanticBlockStateResolver** - 语义操作 → BlockPatch 的解析器（2026-11-15 核对：原 `SemanticResolver` 已删除）
 
-**两者可以共存**：
-- 新系统用于 Skeleton/Component 生成
-- 旧系统用于其他生成器（HouseGenerator 等）
+> 2026-11-15 第二轮核对：原"现有系统"里的 `SemanticPalette` /
+> `SemanticPaletteRegistry` / `DefaultPalettes` / `common.palette.WeightedBlock`
+> **已删除**（只写死簇：注册后从未被查询）。加权方块现行是
+> `PaletteCatalog.WeightedBlock`。
+
+**用途划分**：
+- `SemanticStyleProfile` + `SemanticPaletteResolver` 用于 Skeleton/Component 换皮
+- `SemanticBlockStateResolver` 用于语义操作 → BlockPatch 转换
+- `PaletteCatalog` / `PaletteRegistry` / `PaletteResolver` 用于其他生成器
+  （HouseGenerator 等）
 
 ## 系统优势
 

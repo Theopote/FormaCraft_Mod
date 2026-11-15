@@ -121,6 +121,8 @@ LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhand
 - 新增「注册后从不渲染」的脚手架：注册表/枚举/接口齐备但无实际调用方的子系统，等同死代码（见 `common/debug/` 的历史教训）。
 - 新增「注册后从不调用」的脚手架：实现类被注册表登记，但**接口方法在生产代码中无任何调用点**（见 `server/skeleton/gen/assembler/` 的历史教训）。这类结构靠「零外部引用」扫描抓不到，因为类之间互相引用。
 - 新增永远 `visible = false` 的 UI 按钮，或只弹"此功能尚未实现"的存根处理器：永久不可见的 UI = 死代码（见构件捕获面板"智能分析/自动检测"的历史教训）。
+- 新增**从任何入口都打不开**的功能簇：整簇类互相引用，逐类看都有"引用者"，实际整簇不可达（见 `BlueprintPanel` 的历史教训）。判据是可达性，不是引用计数。
+- 新增**只写不读**的注册表/缓存：某注册表被 `bootstrap` / `register` 填充，却没有任何生产代码去 `get` / `getOrDefault` 它（见 `SemanticPaletteRegistry` 的历史教训）。写入口有调用点 ≠ 读出口有调用点。
 
 ---
 
@@ -134,6 +136,7 @@ LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhand
 - [ ] 活文档未把已删类型当作现行实现（`scripts/check_doc_dead_symbols.py`）
 - [ ] 无零消费者顶层类型（`scripts/check_dead_code.py`）
 - [ ] 无「声明但从未被调用」的接口方法（`scripts/check_unused_interface_methods.py`）
+- [ ] 无从框架入口不可达的顶层类型（`scripts/check_unreachable_types.py`）
 - [ ] 若触及兼容入口：已更新 [弃用退出清单](docs/refactoring/ARCHITECTURE_AUDIT.md)
 
 ---

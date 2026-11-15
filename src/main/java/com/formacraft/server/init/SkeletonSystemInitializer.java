@@ -1,6 +1,5 @@
 package com.formacraft.server.init;
 
-import com.formacraft.common.palette.DefaultPalettes;
 import com.formacraft.server.skeleton.SkeletonExecutors;
 import com.formacraft.common.style.presets.DefaultStyleProfiles;
 import com.formacraft.server.skeleton.gen.SkeletonBuildService;
@@ -24,19 +23,15 @@ public final class SkeletonSystemInitializer {
     public static void initialize() {
         FormacraftMod.LOGGER.info("Initializing Skeleton System...");
 
-        // 1. 初始化默认调色板（SemanticPalette）
-        DefaultPalettes.bootstrap();
-        FormacraftMod.LOGGER.info("  ✓ DefaultPalettes initialized");
-
-        // 2. 初始化默认风格配置（SemanticStyleProfile）
+        // 1. 初始化默认风格配置（SemanticStyleProfile）
         DefaultStyleProfiles.bootstrap();
         FormacraftMod.LOGGER.info("  ✓ DefaultStyleProfiles initialized");
 
-        // 3. 注册默认语义生成器（SkeletonSemanticRegistry）
+        // 2. 注册默认语义生成器（SkeletonSemanticRegistry）
         SkeletonSemanticRegistry.registerDefaults();
         FormacraftMod.LOGGER.info("  ✓ SkeletonSemanticRegistry initialized");
 
-        // 4. 注册骨架执行门面（服务端编译器通过 SkeletonExecutors 调用）
+        // 3. 注册骨架执行门面（服务端编译器通过 SkeletonExecutors 调用）
         SkeletonExecutors.register(new SkeletonBuildService());
         FormacraftMod.LOGGER.info("  ✓ SkeletonExecutor registered");
 
