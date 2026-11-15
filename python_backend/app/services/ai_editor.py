@@ -2,17 +2,10 @@
 AI Editor Service
 增量编辑 CitySpec 和 BuildingSpec
 """
-import os
 import logging
 import json
 from typing import Optional
 
-try:
-    from openai import OpenAI
-    HAS_OPENAI = True
-except ImportError:
-    HAS_OPENAI = False
-    OpenAI = None
 
 from ..models.city_spec import CitySpec
 from ..models.building_spec import BuildingSpec

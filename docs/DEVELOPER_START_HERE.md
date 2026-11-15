@@ -1,6 +1,6 @@
 # 开发者从这里开始
 
-状态：维护中；更新：2026-10-03。
+状态：维护中；更新：2026-11-15。
 
 FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先理解从意图到可撤销世界修改的链路，再阅读具体生成器。
 
@@ -28,6 +28,26 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 上表 Java 路径以 `src/main/java/com/formacraft/` 为根；Python app 路径以 `python_backend/` 为根。
 
 路由修改先阅读 [地标与建筑类型契约](ROUTING_AND_TYPOLOGY_CONTRACT.md)，避免按旧模块目录恢复已迁移的固定模板。
+
+## 后端主干与兼容边界
+
+新生成能力沿 `routes/build.py → ai_planner.generate_llm_plan → LlmPlan` 开发。提示词由 `prompt_assembly.py` / `llm_plan_system_prompt.py` 维护；LlmPlan 的响应 schema 位于 `models/llm_plan_json_schema.py`。不要恢复旧 BuildingSpec 的未接线 schema 或另建一套默认生成流程。
+
+以下模块服务于现存兼容调用，保持冻结，不作为新功能入口。
+
+| 模块 | 职责 |
+|---|---|
+| `legacy_spec_fallbacks.py` | 无 LLM 客户端时的 BuildingSpec / city / composite 规则回退；不承接 LlmPlan 失败 |
+| `legacy_spec_normalization.py` | BuildingSpec / CompositeSpec 输出容错与别名归一 |
+| `legacy_spec_genome.py` | 兼容 spec 的基因、默认构件参数补全；递归合并仍被 LlmPlan 复用 |
+| `semantic_plan_adapters.py` | 兼容城市/复合路径的语义计划转地形参数、骨架布局 |
+| `planning_route_policy.py` | 城市/复合兼容路由分类 |
+
+`planning_request_hints.py` 保存规划请求的规模、地形提示推断。`ai_planner.py` 仍保留迁移函数的导入别名，以支持已有调用与测试；这些别名不代表另一份实现。删除兼容入口前须核对 `build.py` 的实际路由和消费者。
+
+联网研究由 `building_research_agent.py` 管理，配置使用 `BUILDING_RESEARCH`、`BUILDING_RESEARCH_MODE`、`BUILDING_RESEARCH_TIMEOUT_SEC`。旧 `ARCHITECTURE_SEARCH` 仅保留兼容开关语义，旧 `landmark/all` 不再选择研究模式，`ARCHITECTURE_SEARCH_TIMEOUT_SEC` 已无作用。
+
+LLM 客户端创建与 provider、模型、密钥解析统一由 `services/llm_client.py` 负责；规划、兼容编辑和历史摘要均使用该工厂。新增调用应复用此入口，不恢复路由内的 OpenAI 专用客户端或独立环境变量解析。
 
 验证细节和下一轮检查顺序见 [测试与建筑验收](TESTING_AND_BUILDING_ACCEPTANCE.md)。
 

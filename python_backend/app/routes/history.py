@@ -2,14 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import json
-import os
 
-try:
-    from openai import OpenAI
-    HAS_OPENAI = True
-except ImportError:
-    HAS_OPENAI = False
-    OpenAI = None
 
 router = APIRouter()
 
@@ -35,34 +28,6 @@ def _clamp_temperature(v: Optional[float], default: float) -> float:
         return f
     except Exception:
         return default
-
-
-def _resolve_api_key(api_key: Optional[str]) -> Optional[str]:
-    if api_key is not None:
-        k = str(api_key).strip()
-        if k:
-            return k
-    env_key = os.getenv("OPENAI_API_KEY")
-    return env_key.strip() if env_key else None
-
-
-def _resolve_model(model: Optional[str], default: str) -> str:
-    if model is not None:
-        m = str(model).strip()
-        if m:
-            return m
-    return os.getenv("OPENAI_MODEL", default)
-
-
-def _get_openai_client(api_key: Optional[str]) -> Optional[OpenAI]:
-    if not HAS_OPENAI:
-        return None
-    if not api_key:
-        return None
-    try:
-        return OpenAI(api_key=api_key)
-    except Exception:
-        return None
 
 
 @router.post("/summarize")

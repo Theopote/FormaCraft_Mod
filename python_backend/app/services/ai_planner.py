@@ -1,6 +1,6 @@
 """
 AI Planner Service
-调用大模型生成 BuildingSpec 或 CompositeSpec
+LlmPlan 主干规划；BuildingSpec / city / composite 仅保留兼容入口
 """
 import os
 import json
@@ -11,14 +11,22 @@ from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
-try:
-    from openai import OpenAI
-    HAS_OPENAI = True
-except ImportError:
-    HAS_OPENAI = False
-    OpenAI = None
 
 from ..models.request import BuildRequest
+from .legacy_spec_fallbacks import (
+    _generate_fallback_spec,
+    _generate_fallback_city_spec,
+    _generate_fallback_composite_spec,
+)
+from .legacy_spec_genome import (
+    _deep_merge,
+    _semantic_material_from_block,
+    _build_genome_from_spec,
+    _default_component_params_for_spec,
+    _ensure_genome_for_spec,
+    _ensure_genome_for_composite_spec,
+    _ensure_genome_for_city_spec,
+)
 from .legacy_spec_normalization import (
     _normalize_building_spec_dict,
     _normalize_building_style_value,
@@ -27,25 +35,30 @@ from .legacy_spec_normalization import (
     _normalize_substructure_item,
     _normalize_composite_spec_dict,
 )
+from .semantic_plan_adapters import (
+    _disturbance_to_policy_and_budget,
+    _policy_upper_to_lower,
+    _compile_semantic_plan_extra,
+    _cardinal_facing_from_dxz,
+    _default_size_for_zone,
+    _default_radius_for_core,
+    _semantic_to_skeleton_layout,
+)
 from .planning_request_hints import _infer_scale, _infer_terrain
 from .planning_route_policy import _should_generate_city, _should_generate_composite
 from .llm_client import get_client, build_config, resolve_provider
 # Compatibility alias: existing callers and test patches keep the same facade.
 from .inference_call import call_with_timeout as _call_with_timeout
-from ..models.building_spec import (
-    BuildingSpec, BuildingType, BuildingStyle, 
-    Footprint, Materials, Features, StyleOptions
-)
+from ..models.building_spec import BuildingSpec
 from ..models.building_genome import BuildingGenome
 from ..models.llm_plan import LlmPlanValidationError, validate_llm_plan_dict
 from ..models.llm_plan_json_schema import (
     call_chat_with_llm_plan_response_formats,
     resolve_llmplan_json_schema_mode,
 )
-from ..models.composite_spec import CompositeSpec, SubStructure, Vec3i, PathSpec
-from ..models.city_spec import CitySpec, Zone, StructurePlan, BridgePlan, Point
+from ..models.composite_spec import CompositeSpec
+from ..models.city_spec import CitySpec
 from ..models.semantic_spatial_plan import SemanticSpatialPlan
-from ..models.skeleton_layout import SkeletonLayout, SkeletonNode, IntVec3
 from .archetype_detector import detect_archetype_local, should_force_strong_mode
 from .archetype_registry import get_archetype_def
 
@@ -63,8 +76,6 @@ _LLM_CALL_TIMEOUT_CITY_SEC = float(os.getenv("LLM_CALL_TIMEOUT_CITY_SEC", "600")
 # 参考资料联网搜索：已由 BuildingResearchAgent 接管（PR-1）。
 # ARCHITECTURE_SEARCH 保留兼容：off=关闭研究，其他值=开启（具体模式见 BUILDING_RESEARCH_MODE）。
 _ARCHITECTURE_SEARCH_MODE = (os.getenv("ARCHITECTURE_SEARCH") or "landmark").strip().lower()
-# 联网搜索硬超时（秒）：搜索是主要隐藏延迟，超时即跳过，绝不阻塞生成
-_ARCHITECTURE_SEARCH_TIMEOUT_SEC = float(os.getenv("ARCHITECTURE_SEARCH_TIMEOUT_SEC", "3"))
 # 可选：llmplan 步骤强制使用的快模型（覆盖客户端 model，用于速度/质量对比）。为空则不覆盖。
 _LLMPLAN_MODEL_OVERRIDE = (os.getenv("LLMPLAN_MODEL") or "").strip()
 # 已知不支持严格 json_schema 的 provider：auto 模式下直接走 json_object，避免必失的首次尝试
@@ -111,177 +122,6 @@ def _resolve_model(req: Optional[BuildRequest], default: str) -> str:
     # 统一从 llm_client 解析（支持 DeepSeek/OpenAI-compatible）
     cfg = build_config(req, default_model=default)
     return cfg.model
-
-
-def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
-    out = dict(base or {})
-    for k, v in (override or {}).items():
-        if isinstance(v, dict) and isinstance(out.get(k), dict):
-            out[k] = _deep_merge(out.get(k, {}), v)
-        else:
-            out[k] = v
-    return out
-
-
-def _semantic_material_from_block(block_id: Optional[str]) -> Optional[str]:
-    if not block_id:
-        return None
-    s = str(block_id).lower()
-    if "glass" in s:
-        return "glass"
-    if "planks" in s or "wood" in s or "log" in s:
-        return "wood"
-    if "brick" in s or "stone" in s or "deepslate" in s or "cobble" in s:
-        return "stone"
-    if "terracotta" in s or "clay" in s:
-        return "earth"
-    if "iron" in s or "copper" in s or "gold" in s or "metal" in s:
-        return "metal"
-    return "mixed"
-
-
-def _build_genome_from_spec(req: Optional[BuildRequest], spec: BuildingSpec) -> BuildingGenome:
-    g = BuildingGenome()
-    if spec is None:
-        return g
-
-    fp = spec.footprint
-    if fp and fp.shape:
-        shape = fp.shape.lower()
-        if shape == "circle":
-            g.topology.layout = "circular"
-            g.symmetry.type = "radial"
-        elif shape == "rectangle":
-            g.topology.layout = "rectangular"
-
-    if spec.style is not None:
-        from .style_profile_registry import get_style_profile
-        style = spec.style.value if hasattr(spec.style, "value") else spec.style
-        profile = get_style_profile(style)
-        cultural = (profile.defaults.get("genome") or {}).get("culturalStyle", {}) if profile else {}
-        g.culturalStyle = g.culturalStyle.model_copy(update=cultural)
-
-    if spec.materials is not None:
-        g.materials.primary = _semantic_material_from_block(spec.materials.wall)
-        g.materials.secondary = _semantic_material_from_block(spec.materials.roof)
-        g.materials.accent = _semantic_material_from_block(spec.materials.window)
-
-    if spec.features is not None:
-        if spec.features.hasRoof:
-            g.modules.append("roof")
-        if spec.features.hasWindows:
-            g.modules.append("windows")
-        if spec.features.hasBalcony:
-            g.modules.append("balcony")
-
-    if spec.styleOptions is not None and spec.styleOptions.roofType:
-        rt = spec.styleOptions.roofType.lower()
-        if rt in ("pyramid", "cone"):
-            g.form.progression = "tapering"
-        if rt in ("gable", "hipped"):
-            g.form.curvature = "straight"
-
-    if spec.height and fp and fp.width and fp.depth:
-        footprint = max(1, max(fp.width, fp.depth))
-        ratio = spec.height / float(footprint)
-        if ratio >= 1.2:
-            g.form.progression = g.form.progression or "upward"
-        g.structure.massiveness = min(1.0, max(0.2, ratio / 2.5))
-
-    if req is not None:
-        g.constraints.insideSelectionOnly = req.selection is not None or req.outline is not None
-        g.constraints.respectTerrain = True
-
-    return g
-
-
-def _default_component_params_for_spec(spec: BuildingSpec) -> Dict[str, Any]:
-    if spec is None:
-        return {}
-    params = {}
-    fp = spec.footprint
-    if fp and fp.shape:
-        params["shape"] = fp.shape.lower()
-    if spec.styleOptions is not None and spec.styleOptions.roofType:
-        params["roof_type"] = spec.styleOptions.roofType
-    if spec.styleOptions is not None:
-        params["window_ratio"] = spec.styleOptions.windowRatio
-    if spec.floors:
-        params["floor_count"] = spec.floors
-        params["floor_height"] = max(3, int(spec.height / max(1, spec.floors)))
-    if spec.extra is not None:
-        plan_type = spec.extra.get("plan_type") or spec.extra.get("planType") or spec.extra.get("footprint_pattern")
-        if plan_type:
-            params["plan_type"] = plan_type
-    return {"MASS_MAIN": params}
-
-
-def _ensure_genome_for_spec(spec: BuildingSpec, req: Optional[BuildRequest]) -> BuildingSpec:
-    if spec is None:
-        return spec
-    if spec.extra is None:
-        spec.extra = {}
-    if "genome" not in spec.extra or not isinstance(spec.extra.get("genome"), dict):
-        spec.extra["genome"] = _build_genome_from_spec(req, spec).model_dump()
-    else:
-        default = _build_genome_from_spec(req, spec).model_dump()
-        spec.extra["genome"] = _deep_merge(default, spec.extra.get("genome", {}))
-    if "component_params" not in spec.extra:
-        spec.extra["component_params"] = _default_component_params_for_spec(spec)
-    return spec
-
-
-def _attach_archetype_genome(
-    spec: BuildingSpec,
-    req: Optional[BuildRequest],
-    arche: Optional[Any],
-    mode: Optional[str],
-    include_reason_tags: bool = False,
-) -> BuildingSpec:
-    spec = _ensure_genome_for_spec(spec, req)
-    if spec is None or arche is None:
-        spec = _ensure_genome_for_city_spec(spec, req)
-        return _ensure_genome_for_spec(spec, req)
-    try:
-        if spec.extra is None:
-            spec.extra = {}
-        genome = spec.extra.get("genome")
-        if not isinstance(genome, dict):
-            genome = _build_genome_from_spec(req, spec).model_dump()
-            spec.extra["genome"] = genome
-        genome["archetype"] = {
-            "id": str(getattr(arche, "id", "generic")),
-            "confidence": float(getattr(arche, "confidence", 0.0)),
-        }
-        if mode:
-            spec.extra["archetypeMode"] = mode
-        if include_reason_tags:
-            reason_tags = getattr(arche, "reason_tags", None)
-            if reason_tags is not None:
-                spec.extra["archetypeReasonTags"] = list(reason_tags)
-    except Exception:
-        pass
-    return spec
-
-
-def _ensure_genome_for_composite_spec(spec: CompositeSpec, req: Optional[BuildRequest]) -> CompositeSpec:
-    if spec is None:
-        return spec
-    for entry in (spec.structures or []):
-        if entry is None or getattr(entry, "spec", None) is None:
-            continue
-        entry.spec = _ensure_genome_for_spec(entry.spec, req)
-    return spec
-
-
-def _ensure_genome_for_city_spec(spec: CitySpec, req: Optional[BuildRequest]) -> CitySpec:
-    if spec is None:
-        return spec
-    for entry in (spec.structures or []):
-        if entry is None or getattr(entry, "spec", None) is None:
-            continue
-        entry.spec = _ensure_genome_for_spec(entry.spec, req)
-    return spec
 
 
 def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome: Dict[str, Any]) -> None:
@@ -1472,413 +1312,8 @@ def generate_semantic_spatial_plan(req: BuildRequest) -> Optional[SemanticSpatia
         return None
 
 
-def _disturbance_to_policy_and_budget(level: str, scale: str) -> tuple[str, int]:
-    lvl = (level or "MEDIUM").strip().upper()
-    sc = (scale or "MEDIUM").strip().upper()
-    mult = 1.0
-    if sc == "SMALL":
-        mult = 0.7
-    elif sc == "LARGE":
-        mult = 1.8
-
-    if lvl == "LOW":
-        return "preserve_dominant", int(900 * mult)
-    if lvl == "HIGH":
-        return "engineered", int(6500 * mult)
-    return "balanced", int(2600 * mult)
 
 
-def _policy_upper_to_lower(policy: Optional[str]) -> Optional[str]:
-    if policy is None:
-        return None
-    p = policy.strip().upper()
-    return {
-        "PRESERVE_DOMINANT": "preserve_dominant",
-        "BALANCED": "balanced",
-        "ENGINEERED": "engineered",
-    }.get(p)
-
-
-def _compile_semantic_plan_extra(req: BuildRequest, plan: SemanticSpatialPlan) -> Dict[str, Any]:
-    """
-    Convert SemanticSpatialPlan -> spec.extra knobs that Java CityBuilder/ClusterLayoutConfig already consumes.
-    This avoids protocol changes while making I-layer effective immediately.
-    """
-    scale = _infer_scale(req)
-
-    # Default from constraints
-    policy_s, budget = _disturbance_to_policy_and_budget(plan.constraints.max_terrain_disturbance, scale)
-    if plan.constraints.terrain_budget_blocks is not None and plan.constraints.terrain_budget_blocks > 0:
-        budget = int(plan.constraints.terrain_budget_blocks)
-
-    # If any high-priority zone is engineered, promote cluster policy.
-    for z in plan.zones:
-        if z.priority >= 8 and z.terrain_policy == "ENGINEERED":
-            policy_s = "engineered"
-            break
-
-    extra: Dict[str, Any] = {}
-    extra["clusterTerrainPolicy"] = policy_s
-    extra["clusterTerrainBudgetBlocks"] = budget
-    # be conservative: preserve/balanced avoid water/lava edits by default
-    extra["allowWaterEdit"] = (policy_s == "engineered")
-    extra["allowLavaEdit"] = False
-
-    # Axis alignment hint: if any AXIAL relation exists, enable axis scoring.
-    axial = plan.constraints.prefer_axis_alignment or any(r.relation == "AXIAL" for r in plan.relations)
-    if axial:
-        extra["axisMode"] = "z"
-        extra["axisWeight"] = 0.18
-
-    # Semantic spacing knobs: tighten buffers when user wants privacy/access separation.
-    if plan.constraints.avoid_direct_private_access:
-        extra["semanticBufferMinDistN"] = 0.22
-        extra["semanticBufferWeight"] = 0.55
-        extra["semanticServicePrivateMinDistN"] = 0.30
-        extra["semanticServicePrivateWeight"] = 0.55
-        extra["semanticWeightPrivate"] = 0.30
-        extra["semanticWeightService"] = 0.25
-        extra["semanticWeightPublic"] = 0.22
-
-    # zoneTerrainRules: map semantic zones -> CitySpec zone types (best-effort)
-    # pick the highest-priority policy per semantic type
-    best_policy: Dict[str, str] = {}
-    best_pri: Dict[str, int] = {}
-    for z in plan.zones:
-        t = z.type
-        pri = int(z.priority)
-        if t not in best_pri or pri > best_pri[t]:
-            p = _policy_upper_to_lower(z.terrain_policy) or policy_s
-            best_pri[t] = pri
-            best_policy[t] = p
-
-    def policy_for(semantic_type: str) -> Optional[str]:
-        return best_policy.get(semantic_type)
-
-    zone_rules: Dict[str, Any] = {}
-    mapping = {
-        "PLAZA": policy_for("PUBLIC"),
-        "MARKET": policy_for("PUBLIC"),
-        "COMMERCIAL": policy_for("PUBLIC"),
-        "RESIDENTIAL": policy_for("PRIVATE"),
-        "INDUSTRIAL": policy_for("SERVICE"),
-        "WALL": policy_for("TRANSITION"),
-        "GATE": policy_for("TRANSITION"),
-    }
-    for zone_type, pol in mapping.items():
-        if not pol:
-            continue
-        rule: Dict[str, Any] = {"policy": pol}
-        # optional per-zone budget: small slice of cluster budget
-        if budget > 0:
-            rule["budget"] = max(0, int(budget * 0.25))
-        if pol != "preserve_dominant":
-            rule["allowWaterEdit"] = (pol == "engineered")
-            rule["allowLavaEdit"] = False
-        zone_rules[zone_type] = rule
-    if zone_rules:
-        extra["zoneTerrainRules"] = zone_rules
-
-    return extra
-
-
-def _cardinal_facing_from_dxz(dx: int, dz: int) -> str:
-    # Default to player's facing if degenerate
-    if abs(dx) <= 0 and abs(dz) <= 0:
-        return "NORTH"
-    # Prefer dominant axis
-    if abs(dz) >= abs(dx):
-        return "SOUTH" if dz > 0 else "NORTH"
-    return "EAST" if dx > 0 else "WEST"
-
-
-def _default_size_for_zone(zone_type: str, scale: str) -> tuple[int, int]:
-    """
-    Returns (w, d) for RECTANGLE zones. Keep conservative; actual building specs may override.
-    """
-    sc = (scale or "MEDIUM").upper()
-    base = 12
-    if sc == "SMALL":
-        base = 10
-    elif sc == "LARGE":
-        base = 16
-
-    zt = (zone_type or "").upper()
-    if zt == "CORE":
-        return base + 2, base
-    if zt in ("PUBLIC", "SEMI_PUBLIC"):
-        return base + 6, base + 4
-    if zt == "PRIVATE":
-        return base, base
-    if zt == "SERVICE":
-        return base, base - 2 if base > 6 else base
-    if zt == "TRANSITION":
-        return base + 2, max(6, base - 4)
-    return base, base
-
-
-def _default_radius_for_core(scale: str) -> int:
-    sc = (scale or "MEDIUM").upper()
-    if sc == "SMALL":
-        return 8
-    if sc == "LARGE":
-        return 14
-    return 10
-
-
-def _semantic_to_skeleton_layout(req: BuildRequest, plan: SemanticSpatialPlan) -> SkeletonLayout:
-    """
-    J-layer (v0): Convert SemanticSpatialPlan -> SkeletonLayout.
-    This is a light, deterministic layout hint (no world sampling).
-    Coordinates are relative to cluster center (0,0,0), matching CitySpec conventions.
-    """
-    scale = _infer_scale(req)
-    t = (req.requestText or "").lower()
-    # Hint for iconic circular core (tulou/temple/ring)
-    prefer_circular_core = any(k in t for k in ["土楼", "tulou", "天坛", "temple of heaven", "ring", "圆形", "环形"])
-
-    # Index zones by id for quick lookup
-    zones_by_id: Dict[str, Any] = {z.id: z for z in (plan.zones or []) if z and z.id}
-    # Choose a CORE zone id if present, else highest priority
-    core_id: Optional[str] = None
-    for z in (plan.zones or []):
-        if z.type == "CORE":
-            core_id = z.id
-            break
-    if core_id is None and plan.zones:
-        core_id = sorted(plan.zones, key=lambda zz: (-int(zz.priority), zz.id))[0].id
-
-    # Build adjacency from relations (treat as undirected for placement order)
-    adj: Dict[str, List[str]] = {}
-    axial_edges: List[tuple[str, str]] = []
-    for r in (plan.relations or []):
-        a = getattr(r, "from_zone", None) or getattr(r, "from", None)
-        b = getattr(r, "to_zone", None) or getattr(r, "to", None)
-        if not a or not b:
-            continue
-        adj.setdefault(a, []).append(b)
-        adj.setdefault(b, []).append(a)
-        if r.relation == "AXIAL":
-            axial_edges.append((a, b))
-
-    # Basic placement: CORE at origin, expand neighbors on rings.
-    spacing = 18
-    if scale == "SMALL":
-        spacing = 14
-    elif scale == "LARGE":
-        spacing = 24
-
-    pos: Dict[str, tuple[int, int]] = {}
-    if core_id:
-        pos[core_id] = (0, 0)
-
-    # If we have an axial edge involving core, place its counterpart along +Z (forward).
-    for a, b in axial_edges:
-        if core_id and a == core_id and b not in pos:
-            pos[b] = (0, -spacing)  # north
-        elif core_id and b == core_id and a not in pos:
-            pos[a] = (0, -spacing)
-
-    # BFS from core
-    if core_id:
-        q = [core_id]
-        visited = set(q)
-        while q:
-            cur = q.pop(0)
-            cx, cz = pos.get(cur, (0, 0))
-            neigh = adj.get(cur, [])
-            # deterministic order by zone priority (higher first)
-            neigh_sorted = sorted(
-                [n for n in neigh if n in zones_by_id],
-                key=lambda nid: (-int(zones_by_id[nid].priority), nid),
-            )
-            # fan out around current
-            fan = [
-                (0, -1),  # north
-                (1, 0),   # east
-                (-1, 0),  # west
-                (0, 1),   # south
-                (1, -1),
-                (-1, -1),
-                (1, 1),
-                (-1, 1),
-            ]
-            fi = 0
-            for n in neigh_sorted:
-                if n in visited:
-                    continue
-                visited.add(n)
-                # find first free slot
-                while fi < len(fan):
-                    dx, dz = fan[fi]
-                    fi += 1
-                    nx, nz = cx + dx * spacing, cz + dz * spacing
-                    if (nx, nz) in pos.values():
-                        continue
-                    pos[n] = (nx, nz)
-                    break
-                q.append(n)
-
-    # Any unplaced zones: place on a loose ring
-    ring_i = 0
-    for z in (plan.zones or []):
-        if z.id in pos:
-            continue
-        ring_i += 1
-        pos[z.id] = (ring_i * 6, -spacing - ring_i * 4)
-
-    # Facing: use player's facing as default, or infer from axial core->other direction
-    default_facing = (req.player.facing or "NORTH").strip().upper()
-    if default_facing not in ("NORTH", "SOUTH", "EAST", "WEST"):
-        default_facing = "NORTH"
-
-    def infer_facing_for_zone(zid: str) -> str:
-        # if axial edge touches zid, face toward its axial partner
-        for a, b in axial_edges:
-            if a == zid and b in pos:
-                ax, az = pos[a]
-                bx, bz = pos[b]
-                return _cardinal_facing_from_dxz(bx - ax, bz - az)
-            if b == zid and a in pos:
-                bx, bz = pos[b]
-                ax, az = pos[a]
-                return _cardinal_facing_from_dxz(ax - bx, az - bz)
-        # if core exists, non-core face toward core (helps entrances)
-        if core_id and zid != core_id and core_id in pos:
-            zx, zz = pos[zid]
-            cx, cz = pos[core_id]
-            return _cardinal_facing_from_dxz(cx - zx, cz - zz)
-        return default_facing
-
-    sks: List[SkeletonNode] = []
-    for z in (plan.zones or []):
-        zx, zz = pos.get(z.id, (0, 0))
-        facing = infer_facing_for_zone(z.id)
-
-        if z.type == "CIRCULATION":
-            # Minimal: linear from core to this zone if core exists
-            pts = []
-            if core_id and core_id in pos:
-                cx, cz = pos[core_id]
-                pts = [
-                    IntVec3(x=cx, y=0, z=cz),
-                    IntVec3(x=zx, y=0, z=zz),
-                ]
-            sks.append(
-                SkeletonNode(
-                    zone=z.id,
-                    zoneType=z.type,
-                    shape="LINEAR",
-                    anchor=IntVec3(x=zx, y=0, z=zz),
-                    facing=facing,
-                    points=pts or None,
-                    notes=z.notes or "",
-                )
-            )
-            continue
-
-        if z.type == "CORE" and prefer_circular_core:
-            sks.append(
-                SkeletonNode(
-                    zone=z.id,
-                    zoneType=z.type,
-                    shape="CIRCLE",
-                    anchor=IntVec3(x=zx, y=0, z=zz),
-                    facing=facing,
-                    radius=_default_radius_for_core(scale),
-                    notes=z.notes or "",
-                )
-            )
-            continue
-
-        # Default: rectangles for most zones
-        w, d = _default_size_for_zone(z.type, scale)
-        sks.append(
-            SkeletonNode(
-                zone=z.id,
-                zoneType=z.type,
-                shape="RECTANGLE",
-                anchor=IntVec3(x=zx, y=0, z=zz),
-                facing=facing,
-                width=w,
-                depth=d,
-                notes=z.notes or "",
-            )
-        )
-
-    # Ensure CORE is first (helps debug/consumption)
-    def sort_key(node: SkeletonNode) -> tuple[int, str]:
-        zz = zones_by_id.get(node.zone)
-        t0 = zz.type if zz else ""
-        pri = int(zz.priority) if zz else 1
-        core_rank = 0 if t0 == "CORE" else 1
-        return (core_rank, -pri, node.zone)
-
-    sks_sorted = sorted(sks, key=sort_key)
-    return SkeletonLayout(skeletons=sks_sorted)
-
-
-def _default_schema() -> Dict[str, Any]:
-    """
-    可以用于 response_format 的 JSON Schema
-    这里先不用强 schema，让模型自由一点，后面可以升级成严格结构
-    """
-    return {
-        "type": "object",
-        "properties": {
-            "type": {"type": "string", "enum": [t.value for t in BuildingType]},
-            "style": {"type": "string", "enum": [s.value for s in BuildingStyle]},
-            "footprint": {
-                "type": "object",
-                "properties": {
-                    "shape": {"type": "string"},
-                    "width": {"type": "integer"},
-                    "depth": {"type": "integer"},
-                    "radius": {"type": "integer"},
-                },
-                "required": ["shape"],
-            },
-            "height": {"type": "integer"},
-            "floors": {"type": "integer"},
-            "materials": {
-                "type": "object",
-                "properties": {
-                    "wall": {"type": "string"},
-                    "roof": {"type": "string"},
-                    "floor": {"type": "string"},
-                    "window": {"type": "string"},
-                    "foundation": {"type": "string"},
-                },
-            },
-            "features": {
-                "type": "object",
-                "properties": {
-                    "hasWindows": {"type": "boolean"},
-                    "hasStairs": {"type": "boolean"},
-                    "hasDoor": {"type": "boolean"},
-                    "hasBalcony": {"type": "boolean"},
-                    "hasRoof": {"type": "boolean"},
-                    "hasRoofDecoration": {"type": "boolean"},
-                    "windowCount": {"type": "integer"},
-                    "floorCount": {"type": "integer"},
-                },
-            },
-            "styleOptions": {
-                "type": "object",
-                "properties": {
-                    "doorStyle": {"type": "string", "enum": ["single", "double", "arched", "none"]},
-                    "roofType": {"type": "string", "enum": ["flat", "gable", "cone", "pyramid", "hipped"]},
-                    "bridgeType": {"type": "string", "enum": ["flat", "arched", "suspension", "beam", "rope"]},
-                    "windowRatio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-                    "windowStyle": {"type": "string", "enum": ["pane", "fence", "stained"]},
-                    "wallPattern": {"type": "string", "enum": ["uniform", "striped", "gradient", "random"]},
-                },
-            },
-            "notes": {"type": "string"},
-            "extra": {"type": "object"},
-        },
-        "required": ["type", "style", "footprint", "height", "materials", "features"],
-    }
 
 
 def _resolve_timeout_sec(req: Optional[BuildRequest], model: Optional[str]) -> float:
@@ -1961,88 +1396,6 @@ def _parse_levels_from_text(s: str) -> Optional[int]:
 
 
 
-def _generate_fallback_spec(req: BuildRequest) -> BuildingSpec:
-    """规则基础的回退方案（当 LLM 不可用时）"""
-    request_lower = req.requestText.lower()
-    
-    # 判断建筑类型
-    if "塔" in req.requestText or "tower" in request_lower:
-        building_type = BuildingType.TOWER
-        height = 20
-        footprint = Footprint(shape="circle", radius=6)
-    elif "桥" in req.requestText or "bridge" in request_lower:
-        building_type = BuildingType.BRIDGE
-        height = 1
-        footprint = Footprint(shape="rectangle", width=10, depth=3)
-    elif "房子" in req.requestText or "house" in request_lower or "房屋" in req.requestText:
-        building_type = BuildingType.HOUSE
-        height = 4
-        footprint = Footprint(shape="rectangle", width=8, depth=6)
-    else:
-        building_type = BuildingType.HOUSE
-        height = 4
-        footprint = Footprint(shape="rectangle", width=8, depth=6)
-    
-    # 判断风格
-    style = BuildingStyle.MEDIEVAL
-    if "现代" in req.requestText or "modern" in request_lower:
-        style = BuildingStyle.MODERN
-    elif "乡村" in req.requestText or "rustic" in request_lower:
-        style = BuildingStyle.RUSTIC
-    
-    # 判断材料
-    wall_material = "minecraft:stone_bricks"
-    if "木头" in req.requestText or "wood" in request_lower or "木" in req.requestText:
-        wall_material = "minecraft:oak_planks"
-    elif "砖" in req.requestText or "brick" in request_lower:
-        wall_material = "minecraft:bricks"
-    
-    materials = Materials(
-        wall=wall_material,
-        roof="minecraft:dark_oak_planks",
-        floor="minecraft:oak_planks",
-        window="minecraft:glass_pane"
-    )
-    
-    features = Features(
-        hasWindows=True,
-        hasStairs=True,
-        hasDoor=True,
-        hasRoof=True,
-        windowCount=2,
-        floorCount=1
-    )
-    
-    # 根据建筑类型设置 styleOptions
-    if building_type == BuildingType.BRIDGE:
-        style_options = StyleOptions(
-            bridgeType="arched" if "拱" in req.requestText or "arch" in request_lower else "flat"
-        )
-    elif building_type == BuildingType.TOWER:
-        style_options = StyleOptions(
-            doorStyle="none" if "瞭望" in req.requestText else "single",
-            roofType="cone" if "圆锥" in req.requestText or "cone" in request_lower else "flat",
-            windowRatio=0.3
-        )
-    else:  # HOUSE
-        style_options = StyleOptions(
-            doorStyle="double" if "双" in req.requestText or "double" in request_lower else "single",
-            roofType="gable" if "双坡" in req.requestText or "gable" in request_lower else "flat",
-            windowRatio=0.35
-        )
-    
-    spec = BuildingSpec(
-        type=building_type,
-        style=style,
-        footprint=footprint,
-        height=height,
-        floors=1,
-        materials=materials,
-        features=features,
-        styleOptions=style_options,
-        notes=f"根据规则生成的{building_type.value}建筑"
-    )
-    return _ensure_genome_for_spec(spec, req)
 
 
 def generate_city_spec(req: BuildRequest) -> CitySpec:
@@ -2172,95 +1525,6 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
         raise RuntimeError(f"LLM call failed for city spec: {e}") from e
 
 
-def _generate_fallback_city_spec(req: BuildRequest) -> CitySpec:
-    """规则基础的回退方案（生成简单的城市结构）"""
-    base_spec = _generate_fallback_spec(req)
-    
-    # 创建简单的城市布局
-    zones = [
-        Zone(
-            name="central_plaza",
-            type="PLAZA",
-            radius=15,
-            center=Point(x=0, y=0, z=0)
-        ),
-        Zone(
-            name="residential_quarter",
-            type="RESIDENTIAL",
-            radius=25,
-            center=Point(x=40, y=0, z=-20)
-        )
-    ]
-    
-    # 创建一些建筑
-    house_spec = BuildingSpec(
-        type=BuildingType.HOUSE,
-        style=base_spec.style,
-        footprint=Footprint(shape="rectangle", width=8, depth=6),
-        height=4,
-        floors=1,
-        materials=base_spec.materials,
-        features=base_spec.features,
-        styleOptions=base_spec.styleOptions
-    )
-    
-    tower_spec = BuildingSpec(
-        type=BuildingType.TOWER,
-        style=base_spec.style,
-        footprint=Footprint(shape="circle", radius=5),
-        height=12,
-        floors=2,
-        materials=base_spec.materials,
-        features=base_spec.features,
-        styleOptions=base_spec.styleOptions
-    )
-    
-    structures = [
-        StructurePlan(
-            type="HOUSE",
-            spec=house_spec,
-            offset=Point(x=12, y=0, z=-5),
-            zone="residential_quarter"
-        ),
-        StructurePlan(
-            type="HOUSE",
-            spec=house_spec,
-            offset=Point(x=15, y=0, z=-8),
-            zone="residential_quarter"
-        ),
-        StructurePlan(
-            type="TOWER",
-            spec=tower_spec,
-            offset=Point(x=-10, y=0, z=20),
-            zone="central_plaza"
-        )
-    ]
-    
-    # 创建道路
-    roads = [
-        PathSpec(
-            from_pos=Point(x=0, y=0, z=0),
-            to_pos=Point(x=40, y=0, z=-20),
-            width=5,
-            material="minecraft:gravel",
-            style="default"
-        )
-    ]
-    
-    # 创建桥梁（可选）
-    bridges = []
-    
-    spec = CitySpec(
-        cityName="Fallback City",
-        style=base_spec.style.value if hasattr(base_spec.style, 'value') else str(base_spec.style),
-        size="MEDIUM",
-        biome="plains",
-        zones=zones,
-        structures=structures,
-        roads=roads,
-        bridges=bridges
-    )
-    return _ensure_genome_for_city_spec(spec, req)
 
 
 def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
@@ -2352,147 +1616,6 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
         raise RuntimeError(f"LLM call failed for composite spec: {e}") from e
 
 
-def _generate_fallback_composite_spec(req: BuildRequest) -> CompositeSpec:
-    """规则基础的回退方案（生成简单的复合结构）"""
-    request_lower = req.requestText.lower()
-    
-    structures = []
-    paths = []
-    
-    # 根据关键词生成不同的复合结构
-    if "要塞" in req.requestText or "fort" in request_lower:
-        # 要塞：中心大厅 + 4 个角塔
-        base_spec = _generate_fallback_spec(req)
-        house_spec = BuildingSpec(
-            type=BuildingType.HOUSE,
-            style=base_spec.style,
-            footprint=Footprint(shape="rectangle", width=12, depth=10),
-            height=6,
-            floors=2,
-            materials=base_spec.materials,
-            features=base_spec.features,
-            styleOptions=base_spec.styleOptions
-        )
-        tower_spec = BuildingSpec(
-            type=BuildingType.TOWER,
-            style=base_spec.style,
-            footprint=Footprint(shape="circle", radius=5),
-            height=15,
-            floors=3,
-            materials=base_spec.materials,
-            features=base_spec.features,
-            styleOptions=base_spec.styleOptions
-        )
-        
-        structures.extend([
-            SubStructure(
-                type="HOUSE",
-                spec=house_spec,
-                offset=Vec3i(x=0, y=0, z=0)
-            ),
-            SubStructure(
-                type="TOWER",
-                spec=tower_spec,
-                offset=Vec3i(x=-20, y=0, z=-20)
-            ),
-            SubStructure(
-                type="TOWER",
-                spec=tower_spec,
-                offset=Vec3i(x=20, y=0, z=-20)
-            ),
-            SubStructure(
-                type="TOWER",
-                spec=tower_spec,
-                offset=Vec3i(x=-20, y=0, z=20)
-            ),
-            SubStructure(
-                type="TOWER",
-                spec=tower_spec,
-                offset=Vec3i(x=20, y=0, z=20)
-            ),
-        ])
-        
-        # 生成连接路径（连接中心大厅到各个角塔）
-        paths = [
-            PathSpec(
-                from_pos=Vec3i(x=0, y=0, z=0),
-                to_pos=Vec3i(x=-20, y=0, z=-20),
-                width=3,
-                material="minecraft:gravel",
-                style="default"
-            ),
-            PathSpec(
-                from_pos=Vec3i(x=0, y=0, z=0),
-                to_pos=Vec3i(x=20, y=0, z=-20),
-                width=3,
-                material="minecraft:gravel",
-                style="default"
-            ),
-            PathSpec(
-                from_pos=Vec3i(x=0, y=0, z=0),
-                to_pos=Vec3i(x=-20, y=0, z=20),
-                width=3,
-                material="minecraft:gravel",
-                style="default"
-            ),
-            PathSpec(
-                from_pos=Vec3i(x=0, y=0, z=0),
-                to_pos=Vec3i(x=20, y=0, z=20),
-                width=3,
-                material="minecraft:gravel",
-                style="default"
-            ),
-        ]
-    else:
-        # 默认：简单的房屋 + 塔楼组合
-        base_spec = _generate_fallback_spec(req)
-        house_spec = BuildingSpec(
-            type=BuildingType.HOUSE,
-            style=base_spec.style,
-            footprint=Footprint(shape="rectangle", width=8, depth=6),
-            height=4,
-            floors=1,
-            materials=base_spec.materials,
-            features=base_spec.features,
-            styleOptions=base_spec.styleOptions
-        )
-        tower_spec = BuildingSpec(
-            type=BuildingType.TOWER,
-            style=base_spec.style,
-            footprint=Footprint(shape="circle", radius=5),
-            height=12,
-            floors=2,
-            materials=base_spec.materials,
-            features=base_spec.features,
-            styleOptions=base_spec.styleOptions
-        )
-        
-        structures.extend([
-            SubStructure(
-                type="HOUSE",
-                spec=house_spec,
-                offset=Vec3i(x=0, y=0, z=0)
-            ),
-            SubStructure(
-                type="TOWER",
-                spec=tower_spec,
-                offset=Vec3i(x=20, y=0, z=0)
-            ),
-        ])
-        
-        # 生成连接路径
-        paths = [
-            PathSpec(
-                from_pos=Vec3i(x=0, y=0, z=0),
-                to_pos=Vec3i(x=20, y=0, z=0),
-                width=3,
-                material="minecraft:gravel",
-                style="default"
-            )
-        ]
-    
-    spec = CompositeSpec(structures=structures, paths=paths)
-    return _ensure_genome_for_composite_spec(spec, req)
 
 
 def _derive_structured_intent(text: str) -> str:

@@ -80,6 +80,18 @@ PlayerComponentExpander 和 PlayerComponentGroupExpander 改为接收存档目�
 
 BuildingSpec / CompositeSpec 的六个输出规范化函数已从 ai_planner.py 迁至 legacy_spec_normalization.py。旧模块保留导入别名，现有调用方和契约冒烟入口继续可用。字段别名、默认值、样式/调色板目录校验、布局与子结构规范化及原地修改行为保持原实现；LlmPlan 规范化仍沿用原路径。
 
+语义空间计划到地形参数、骨架布局的七个转换函数已迁至 semantic_plan_adapters.py，ai_planner 保留兼容导入。转换算法、预算取整、分区优先级和布局顺序保持原实现。回归记录了轴线预放置在后续 BFS 中被重新安排的现有行为；本批未调整布局算法。
+
+BuildingSpec 的基因补全、材质语义映射及默认构件参数已迁至 legacy_spec_genome.py；递归合并函数继续供 LlmPlan 规范化复用，ai_planner 保留兼容导入。七个迁移函数保持原实现，用户覆盖值与原地修改语义不变。全仓无调用者的 _attach_archetype_genome 已删除。
+
+## 已放弃入口与配置清理（2026-11-15）
+
+删除 ai_planner 中无调用者、未接线的 BuildingSpec _default_schema，移除未使用的 OpenAI 可用性检测和 ARCHITECTURE_SEARCH_TIMEOUT_SEC 读取。研究配置样例改为实际使用的 BUILDING_RESEARCH 系列配置，说明旧 ARCHITECTURE_SEARCH 模式语义已退出。开发入口新增主干与兼容模块职责表。
+
+仍被兼容路由使用的三个离线规则回退集中到 legacy_spec_fallbacks.py，保留 ai_planner 导入别名。新增无客户端路由回归时发现城市回退已不满足现行模型：补齐三个子建筑的稳定唯一 ID，道路改用 CitySpec 要求的 PathSpec 和 Vec3i。LlmPlan 失败处理没有改接规则回退。
+
+历史摘要路由已删除无调用者的 _resolve_api_key、_resolve_model、_get_openai_client 及配套 SDK 检测；实际摘要继续走 llm_client 统一工厂。ai_editor 同步删除未使用的 SDK 检测与 os 导入。回归覆盖空输入、无客户端截断、provider 配置传递、模型解析和调用失败的原有 HTTP 响应。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
