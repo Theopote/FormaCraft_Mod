@@ -164,6 +164,24 @@ public final class GenerationCapabilityCatalog {
             }
             entry.put("can_host", isHostable(type));
             entry.put("hosted", isHosted(type));
+            if ("STRUCTURE".equals(type)) {
+                Map<String, Object> planning = new LinkedHashMap<>();
+                planning.put("requires",
+                        "typology_id / typology:* feature, OR parametric structure_type "
+                                + "(colonnade/truss/spiral/...); empty typology STRUCTURE is invalid");
+                planning.put("routes", List.of("native_typology", "parametric_structure_type"));
+                entry.put("planning_contract", planning);
+            } else if ("MODULE".equals(type)) {
+                Map<String, Object> planning = new LinkedHashMap<>();
+                planning.put("requires",
+                        "explicit non-migrated preset landmark_module / landmark:* only");
+                entry.put("planning_contract", planning);
+            } else if ("ASSEMBLY".equals(type)) {
+                Map<String, Object> planning = new LinkedHashMap<>();
+                planning.put("requires",
+                        "FBD/assembly program params; otherwise generator returns empty geometry");
+                entry.put("planning_contract", planning);
+            }
             if ("ROOF".equals(type) || "ROOF_STRUCTURE".equals(type)) {
                 entry.put("supported_types_ref", "roof.supported_tokens");
             }

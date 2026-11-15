@@ -541,29 +541,116 @@ _MODEL_DESIGNED_STRUCTURE_HINTS: Dict[str, Dict[str, Any]] = {
 }
 
 
+_GENERIC_RESIDENTIAL_COMPONENTS = frozenset({
+    "MASS_MAIN",
+    "MASS_SECONDARY",
+    "ROOF",
+    "FACADE_WINDOWS",
+    "ENTRANCE",
+    "FOUNDATION",
+    "DECOR_DETAIL",
+    "BALCONY",
+    "TERRACE",
+    "CHIMNEY",
+})
+
+_OPEN_MODEL_DESIGNED_NOTES = (
+    "AI-designed landmark: research is evidence, not a fixed generator instruction. "
+    "Choose layout, massing, proportions and details independently; "
+    "do not assume a residential MASS/ROOF/ENTRANCE template."
+)
+
+
 def _model_designed_structure_hint(
     user_text: str,
     *,
     archetype_id: Optional[str] = None,
     research_typology_id: Optional[str] = None,
-) -> Dict[str, Any]:
-    """Structural semantics for model-designed landmarks (never a fixed executor)."""
+) -> Optional[Dict[str, Any]]:
+    """Optional static structure hint for known landmarks (never a fixed executor).
+
+    Returns ``None`` for unknown landmarks so callers keep research semantics or
+    an open compositional strategy instead of forcing a residential default.
+    """
+    del user_text  # reserved for future text-driven hints
     for key in (archetype_id, research_typology_id):
         if key and key in _MODEL_DESIGNED_STRUCTURE_HINTS:
             return dict(_MODEL_DESIGNED_STRUCTURE_HINTS[key])
+    return None
+
+
+def _normalize_recommended_components(raw: Any) -> List[str]:
+    out: List[str] = []
+    if not isinstance(raw, list):
+        return out
+    for item in raw:
+        token = str(item or "").strip().upper()
+        if not token or token == "MODULE" or token in out:
+            continue
+        out.append(token)
+    return out
+
+
+def _is_generic_residential_components(components: List[str]) -> bool:
+    """True when components are empty or only ordinary house/enrichment defaults."""
+    if not components:
+        return True
+    return set(components) <= _GENERIC_RESIDENTIAL_COMPONENTS
+
+
+def _is_default_skeleton(skeleton_type: Optional[str]) -> bool:
+    sk = (skeleton_type or "").strip().upper()
+    return (not sk) or sk == "COMPOUND"
+
+
+def _merge_model_designed_strategy(
+    mc: Any,
+    hint: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Clear fixed executors; preserve research structure; fill gaps from hints only."""
+    research_comps = _normalize_recommended_components(getattr(mc, "recommended_components", None))
+    research_skel = str(getattr(mc, "skeleton_type", None) or "").strip()
+    research_notes = str(getattr(mc, "notes", None) or "").strip()
+
+    hint_comps = _normalize_recommended_components((hint or {}).get("recommended_components"))
+    hint_skel = str((hint or {}).get("skeleton_type") or "").strip()
+    hint_notes = str((hint or {}).get("notes") or "").strip()
+
+    if research_comps and not _is_generic_residential_components(research_comps):
+        components = research_comps
+    elif hint_comps:
+        components = hint_comps
+    elif research_comps:
+        # Generic residential leftovers from earlier defaults — open strategy instead.
+        components = []
+    else:
+        components = []
+
+    if research_skel and not _is_default_skeleton(research_skel):
+        skeleton = research_skel
+    elif hint_skel:
+        skeleton = hint_skel
+    else:
+        skeleton = research_skel or "COMPOUND"
+
+    if research_notes and "landmark_module is null: compositional only" not in research_notes.lower():
+        if research_notes.startswith("AI-designed landmark"):
+            notes = research_notes
+        else:
+            notes = f"AI-designed landmark: research is evidence, not a fixed generator. {research_notes}".strip()
+    elif hint_notes:
+        notes = hint_notes
+    else:
+        notes = _OPEN_MODEL_DESIGNED_NOTES
+
     return {
-        "skeleton_type": "COMPOUND",
-        "recommended_components": [
-            "MASS_MAIN",
-            "MASS_SECONDARY",
-            "ROOF",
-            "FACADE_WINDOWS",
-            "ENTRANCE",
-        ],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator instruction. "
-            "Choose layout, massing, proportions and details independently from researched structure."
-        ),
+        "model_designed_landmark": True,
+        "landmark_module": None,
+        "structural_typology": None,
+        "reference_landmark": None,
+        "skeleton_type": skeleton,
+        "recommended_components": components,
+        "notes": notes,
     }
 
 
@@ -733,20 +820,21 @@ def finalize_profile_minecraft_strategy(
         mc.landmark_module = None
         mc.structural_typology = None
         mc.reference_landmark = None
-        components = [
-            str(c).upper()
-            for c in (mc.recommended_components or [])
-            if str(c).upper() not in ("MODULE", "STRUCTURE")
-        ]
-        if not components:
-            components = ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
+        components = _normalize_recommended_components(mc.recommended_components)
+        if not model_designed:
+            # Strip typology STRUCTURE for ordinary compositional plans; keep research tokens.
+            components = [c for c in components if c != "STRUCTURE"]
+            if not components:
+                components = ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
+            note = (mc.notes or "").strip()
+            if "landmark_module is null" not in note.lower():
+                mc.notes = (
+                    "landmark_module is null: compositional only. "
+                    + note
+                ).strip()
+        # model_designed: leave components as research-provided (possibly empty) —
+        # final merge fills known hints or keeps an open strategy.
         mc.recommended_components = components
-        note = (mc.notes or "").strip()
-        if "landmark_module is null" not in note.lower():
-            mc.notes = (
-                "landmark_module is null: compositional only. "
-                + note
-            ).strip()
     profile = profile.model_copy(update={"minecraft_strategy": mc})
     try:
         from .research_landmark_seeds import apply_research_landmark_seed
@@ -770,16 +858,9 @@ def finalize_profile_minecraft_strategy(
             archetype_id=archetype_id,
             research_typology_id=research_typology_id,
         )
-        # Clear fixed executors, but keep research-derived structure semantics.
-        mc = profile.minecraft_strategy.model_copy(update={
-            "model_designed_landmark": True,
-            "landmark_module": None,
-            "structural_typology": None,
-            "reference_landmark": None,
-            "skeleton_type": hint["skeleton_type"],
-            "recommended_components": list(hint["recommended_components"]),
-            "notes": hint["notes"],
-        })
+        mc = profile.minecraft_strategy.model_copy(
+            update=_merge_model_designed_strategy(profile.minecraft_strategy, hint)
+        )
         profile = profile.model_copy(update={"minecraft_strategy": mc})
     return profile
 

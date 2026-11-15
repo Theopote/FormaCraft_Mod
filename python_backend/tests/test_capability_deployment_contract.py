@@ -125,7 +125,7 @@ class CapabilityDeploymentContractTest(_EnvGuard):
             "version": 99,
             "hostable_component_types": ["MASS_MAIN"],
             "hosted_component_types": ["ROOF"],
-            "component_types": {"MASS_MAIN": {}},
+            "component_types": {"MASS_MAIN": {"implementation_status": "supported"}},
             "typologies": ["radial_terrace_hall"],
             "building_classes": {"generic": {}},
             "roof": {"aliases": {}, "supported_tokens": ["gable"]},
@@ -138,6 +138,30 @@ class CapabilityDeploymentContractTest(_EnvGuard):
             with self.assertRaises(CapabilityCatalogUnavailable) as ctx:
                 load_catalog(force=True)
             self.assertIn("unsupported version", str(ctx.exception))
+
+    def test_invalid_implementation_status_is_rejected(self):
+        import tempfile
+
+        bad_entry = {
+            "schema": "formacraft.generation_capability.v1",
+            "version": 1,
+            "hostable_component_types": ["MASS_MAIN"],
+            "hosted_component_types": ["ROOF"],
+            "component_types": {
+                "MASS_MAIN": {"implementation_status": "maybe_later"},
+            },
+            "typologies": ["radial_terrace_hall"],
+            "building_classes": {"generic": {}},
+            "roof": {"aliases": {}, "supported_tokens": ["gable"]},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "generation_capability_catalog.json"
+            bad.write_text(json.dumps(bad_entry), encoding="utf-8")
+            os.environ["FORMACRAFT_CAPABILITY_MODE"] = "strict"
+            gc._catalog_paths = lambda: [bad]
+            with self.assertRaises(CapabilityCatalogUnavailable) as ctx:
+                load_catalog(force=True)
+            self.assertIn("implementation_status", str(ctx.exception))
 
     def test_explicit_catalog_path_override_is_honoured(self):
         """Standalone deployments point at the exported file explicitly."""
@@ -200,6 +224,25 @@ class CapabilitySingleSourceOfTruthTest(unittest.TestCase):
         self.assertEqual(catalog["schema"], "formacraft.generation_capability.v1")
         self.assertGreaterEqual(len(catalog.get("component_types") or {}), 40)
         self.assertIsNotNone(catalog_source_path())
+
+    def test_planning_exposure_separates_supported_from_conditional(self):
+        from app.services.generation_capability import (
+            conditional_component_contracts,
+            plannable_component_types,
+            planning_component_exposure,
+        )
+
+        plannable = set(plannable_component_types())
+        conditional = conditional_component_contracts()
+        exposure = planning_component_exposure()
+        self.assertIn("BRIDGE", plannable)
+        self.assertNotIn("ASSEMBLY", plannable)
+        self.assertEqual(conditional["ASSEMBLY"]["status"], "fbd_or_empty")
+        self.assertIn("FBD", conditional["ASSEMBLY"]["requires"])
+        self.assertIn("structure_type", conditional["STRUCTURE"]["requires"])
+        self.assertIn("parametric_structure_type", conditional["STRUCTURE"].get("routes") or [])
+        self.assertEqual(set(exposure["direct"]), plannable)
+        self.assertIn("ASSEMBLY", exposure["conditional"])
 
 
 class CapabilityHealthEndpointTest(unittest.TestCase):

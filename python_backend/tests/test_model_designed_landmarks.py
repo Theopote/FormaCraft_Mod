@@ -37,6 +37,60 @@ def test_explicit_preset_compatibility():
             or profile.minecraft_strategy.reference_landmark == "eiffel_tower")
 
 
+def test_unknown_landmark_keeps_research_structure_semantics():
+    """Open-world research must not be overwritten by the residential default table."""
+    profile = BuildingProfile(
+        query="建造千禧桥",
+        minecraft_strategy={
+            "skeleton_type": "SPAN_SUSPENSION",
+            "recommended_components": ["BRIDGE", "TOWER", "BRIDGE_CONNECTOR", "PAVING"],
+            "notes": "Research: blade piers, shallow suspension deck, twin Y-towers.",
+        },
+        structure={
+            "distinguishing_features": [
+                "shallow suspension deck",
+                "twin Y-shaped towers",
+                "blade piers in river",
+            ],
+        },
+        request_classification={
+            "is_specific_real_building": True,
+            "building_name_normalized": "millennium_bridge",
+            "confidence": 0.9,
+            "reasoning_hint": "named real landmark outside static hint table",
+            "source": "rules",
+        },
+    )
+    result = finalize_profile_minecraft_strategy(profile, "建造千禧桥")
+    strategy = result.minecraft_strategy
+    assert strategy.model_designed_landmark
+    assert strategy.structural_typology is None
+    assert strategy.landmark_module is None
+    assert strategy.skeleton_type == "SPAN_SUSPENSION"
+    assert {"BRIDGE", "TOWER", "BRIDGE_CONNECTOR"} <= set(strategy.recommended_components)
+    assert "ROOF" not in strategy.recommended_components
+    assert "ENTRANCE" not in strategy.recommended_components
+    assert "blade piers" in (strategy.notes or "")
+
+
+def test_unknown_landmark_without_research_stays_open():
+    profile = BuildingProfile(
+        query="建造未收录奇观塔",
+        request_classification={
+            "is_specific_real_building": True,
+            "building_name_normalized": "unknown_wonder_tower",
+            "confidence": 0.85,
+            "reasoning_hint": "named real landmark with no research structure yet",
+            "source": "rules",
+        },
+    )
+    result = finalize_profile_minecraft_strategy(profile, "建造未收录奇观塔")
+    strategy = result.minecraft_strategy
+    assert strategy.model_designed_landmark
+    assert strategy.recommended_components == []
+    assert "residential" in (strategy.notes or "").lower() or "MASS/ROOF/ENTRANCE" in (strategy.notes or "")
+
+
 def test_two_model_designs_are_not_replaced_by_a_shared_template():
     profile = BuildingProfile(query="Eiffel Tower")
     profile.minecraft_strategy.model_designed_landmark = True

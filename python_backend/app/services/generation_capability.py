@@ -37,6 +37,32 @@ logger = logging.getLogger(__name__)
 
 _SCHEMA = "formacraft.generation_capability.v1"
 _SUPPORTED_VERSION = 1
+_ALLOWED_IMPLEMENTATION_STATUSES = frozenset({
+    "supported",
+    "typology_routed",
+    "fbd_or_empty",
+    "unsupported",
+})
+# Stage P may freely emit these; conditional statuses need extra contracts.
+_DIRECT_PLAN_STATUSES = frozenset({"supported"})
+_CONDITIONAL_PLAN_STATUSES = frozenset({"typology_routed", "fbd_or_empty"})
+_DEFAULT_CONDITIONAL_CONTRACTS: Dict[str, Dict[str, str]] = {
+    "STRUCTURE": {
+        "status": "typology_routed",
+        "requires": (
+            "typology_id / typology:* feature, OR parametric structure_type "
+            "(colonnade/truss/spiral/...); empty typology STRUCTURE is invalid"
+        ),
+    },
+    "MODULE": {
+        "status": "typology_routed",
+        "requires": "explicit non-migrated preset landmark_module / landmark:* only",
+    },
+    "ASSEMBLY": {
+        "status": "fbd_or_empty",
+        "requires": "FBD/assembly program params; otherwise generator returns empty geometry",
+    },
+}
 _CATALOG: Optional[Dict[str, Any]] = None
 
 # ---------------------------------------------------------------------------
@@ -196,6 +222,17 @@ def _validate_catalog(data: Any) -> Optional[str]:
     component_types = data.get("component_types")
     if not isinstance(component_types, dict) or not component_types:
         return "missing/invalid section 'component_types'"
+    for type_name, entry in component_types.items():
+        if not isinstance(type_name, str) or not type_name.strip():
+            return "component_types contains an empty key"
+        if not isinstance(entry, dict):
+            return f"component_types[{type_name!r}] must be an object"
+        status = entry.get("implementation_status")
+        if status not in _ALLOWED_IMPLEMENTATION_STATUSES:
+            return (
+                f"component_types[{type_name!r}].implementation_status="
+                f"{status!r} not in {sorted(_ALLOWED_IMPLEMENTATION_STATUSES)}"
+            )
     typologies = data.get("typologies")
     if not isinstance(typologies, list) or not typologies:
         return "missing/invalid section 'typologies'"
@@ -332,12 +369,75 @@ def hosted_types() -> set[str]:
 
 
 def listed_component_types() -> Tuple[str, ...]:
-    """Sorted component_type keys from the capability catalog (Stage P whitelist)."""
+    """All registered component_type keys from the capability catalog."""
     raw = load_catalog().get("component_types")
     if isinstance(raw, dict) and raw:
         return tuple(sorted({str(k).upper() for k in raw.keys() if k}))
     # Degraded/incomplete catalogs: union of hostable + hosted tables.
     return tuple(sorted(hostable_types() | hosted_types()))
+
+
+def _component_type_entries() -> Dict[str, Dict[str, Any]]:
+    raw = load_catalog().get("component_types")
+    if not isinstance(raw, dict):
+        return {}
+    out: Dict[str, Dict[str, Any]] = {}
+    for key, entry in raw.items():
+        name = str(key or "").strip().upper()
+        if not name or not isinstance(entry, dict):
+            continue
+        out[name] = entry
+    return out
+
+
+def plannable_component_types() -> Tuple[str, ...]:
+    """Component types Stage P may freely recommend (implementation_status=supported)."""
+    entries = _component_type_entries()
+    if not entries:
+        return listed_component_types()
+    direct = [
+        name
+        for name, entry in entries.items()
+        if str(entry.get("implementation_status") or "").strip() in _DIRECT_PLAN_STATUSES
+    ]
+    return tuple(sorted(direct))
+
+
+def conditional_component_contracts() -> Dict[str, Dict[str, str]]:
+    """Conditional/routed types and the params they require before planning."""
+    entries = _component_type_entries()
+    out: Dict[str, Dict[str, str]] = {}
+    for name, entry in entries.items():
+        status = str(entry.get("implementation_status") or "").strip()
+        if status not in _CONDITIONAL_PLAN_STATUSES:
+            continue
+        contract = entry.get("planning_contract")
+        if isinstance(contract, dict) and contract.get("requires"):
+            requires = str(contract.get("requires"))
+            meta = {"status": status, "requires": requires}
+            routes = contract.get("routes")
+            if isinstance(routes, list) and routes:
+                meta["routes"] = [str(r) for r in routes if r]
+            out[name] = meta
+            continue
+        if name in _DEFAULT_CONDITIONAL_CONTRACTS:
+            requires = _DEFAULT_CONDITIONAL_CONTRACTS[name]["requires"]
+        else:
+            requires = f"status={status}; provide required route/params before use"
+        out[name] = {"status": status, "requires": requires}
+    # Ensure known conditional types remain visible even in degraded snapshots.
+    for name, fallback in _DEFAULT_CONDITIONAL_CONTRACTS.items():
+        out.setdefault(name, dict(fallback))
+    return {k: out[k] for k in sorted(out)}
+
+
+def planning_component_exposure() -> Dict[str, Any]:
+    """Single-catalog planning view: direct types + conditional contracts."""
+    return {
+        "direct": list(plannable_component_types()),
+        "conditional": conditional_component_contracts(),
+        "registered": list(listed_component_types()),
+    }
 
 
 def normalize_roof_type(raw: Any) -> Optional[str]:

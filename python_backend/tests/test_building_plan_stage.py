@@ -35,20 +35,45 @@ class PlanStagePromptTest(unittest.TestCase):
         self.assertNotIn("profile wins for form/style", PLAN_STAGE_SYSTEM_ADDON)
 
     def test_stage_p_component_types_come_from_capability_catalog(self):
-        from app.services.building_plan_stage import registered_component_types
-        from app.services.generation_capability import listed_component_types, load_catalog
+        from app.services.building_plan_stage import (
+            build_plan_stage_user_block,
+            plannable_component_types,
+            registered_component_types,
+        )
+        from app.services.generation_capability import (
+            listed_component_types,
+            load_catalog,
+            planning_component_exposure,
+        )
 
         catalog = load_catalog(force=True, allow_fallback=False)
         catalog_keys = {str(k).upper() for k in (catalog.get("component_types") or {})}
         listed = set(listed_component_types())
-        stage_p = set(registered_component_types())
+        registered = set(registered_component_types())
+        plannable = set(plannable_component_types())
+        exposure = planning_component_exposure()
         self.assertEqual(listed, catalog_keys)
-        self.assertEqual(stage_p, catalog_keys)
-        # Former hard-coded list was incomplete; catalog must expose bridge/tower family.
+        self.assertEqual(registered, catalog_keys)
+        # Direct planning set is the supported subset, not every registered type.
         for required in ("BRIDGE", "BRIDGE_CONNECTOR", "PAVING", "TOWER_BASE", "ROOF_STRUCTURE"):
-            self.assertIn(required, stage_p)
-        self.assertNotIn("MASS_ANCILLARY", stage_p)
-        self.assertNotIn("PLAZA_CORE", stage_p)
+            self.assertIn(required, plannable)
+        self.assertNotIn("ASSEMBLY", plannable)
+        self.assertNotIn("MODULE", plannable)
+        self.assertNotIn("STRUCTURE", plannable)
+        self.assertIn("ASSEMBLY", exposure["conditional"])
+        self.assertIn("STRUCTURE", exposure["conditional"])
+        self.assertIn(
+            "native_typology",
+            str(exposure["conditional"]["STRUCTURE"].get("routes") or []),
+        )
+        self.assertIn("structure_type", exposure["conditional"]["STRUCTURE"]["requires"])
+        profile = BuildingProfile(query="test")
+        block = build_plan_stage_user_block(profile, "build test")
+        self.assertIn("Directly plannable component_type values", block)
+        self.assertIn("Conditional catalog types", block)
+        self.assertIn("ASSEMBLY", block)
+        self.assertNotIn("MASS_ANCILLARY", registered)
+        self.assertNotIn("PLAZA_CORE", registered)
 
     def test_two_phase_default_on(self):
         with patch.dict(os.environ, {}, clear=False):
@@ -78,8 +103,8 @@ class PlanStagePromptTest(unittest.TestCase):
         self.assertIn("Model-designed landmark", block)
         self.assertIn("no fixed typology executor", block)
         self.assertIn("TERRACE", block)
-        self.assertIn("Capability-catalog component_type values", block)
-        self.assertIn("BRIDGE", block)  # catalog-backed whitelist, not the old short list
+        self.assertIn("Directly plannable component_type values", block)
+        self.assertIn("BRIDGE", block)  # supported catalog types remain visible
         self.assertIn("建造天坛", block)
         self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
         self.assertIsNone(profile.minecraft_strategy.structural_typology)

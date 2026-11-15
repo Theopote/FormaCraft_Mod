@@ -5,7 +5,10 @@
     "ASSEMBLY": {
       "implementation_status": "fbd_or_empty",
       "can_host": false,
-      "hosted": true
+      "hosted": true,
+      "planning_contract": {
+        "requires": "FBD/assembly program params; otherwise generator returns empty geometry"
+      }
     },
     "BALCONY": {
       "implementation_status": "supported",
@@ -130,7 +133,10 @@
     "MODULE": {
       "implementation_status": "typology_routed",
       "can_host": true,
-      "hosted": false
+      "hosted": false,
+      "planning_contract": {
+        "requires": "explicit non-migrated preset landmark_module / landmark:* only"
+      }
     },
     "PATH": {
       "implementation_status": "supported",
@@ -187,7 +193,14 @@
     "STRUCTURE": {
       "implementation_status": "typology_routed",
       "can_host": true,
-      "hosted": true
+      "hosted": true,
+      "planning_contract": {
+        "requires": "typology_id / typology:* feature, OR parametric structure_type (colonnade/truss/spiral/...); empty typology STRUCTURE is invalid",
+        "routes": [
+          "native_typology",
+          "parametric_structure_type"
+        ]
+      }
     },
     "TERRACE": {
       "implementation_status": "supported",

@@ -21,10 +21,17 @@ from .typology_registry import is_compositional_typology
 
 
 def registered_component_types() -> Tuple[str, ...]:
-    """Authoritative Stage P component_type list from the capability catalog."""
+    """All catalog-registered component types (not all are freely plannable)."""
     from .generation_capability import listed_component_types
 
     return listed_component_types()
+
+
+def plannable_component_types() -> Tuple[str, ...]:
+    """Directly plannable component types (implementation_status=supported)."""
+    from .generation_capability import plannable_component_types as _plannable
+
+    return _plannable()
 
 
 PLAN_STAGE_SYSTEM_ADDON = (
@@ -32,7 +39,8 @@ PLAN_STAGE_SYSTEM_ADDON = (
     "- Convert BuildingProfile to a valid LlmPlan JSON.\n"
     "- Routing is authoritative in OPEN-WORLD RESEARCH OVERRIDE (system) — do not follow conflicting landmark hints.\n"
     "- Copy profile.structure.distinguishing_features → plan.distinguishing_features[].\n"
-    "- Use ONLY capability-catalog component_type values listed in the user message.\n"
+    "- Prefer directly plannable (supported) component_type values from the user message.\n"
+    "- Conditional catalog types (typology_routed / fbd_or_empty) need their required params.\n"
     "- Respect scale_hints; set layout.skeleton_type from minecraft_strategy.\n"
     "- Do NOT output block ids; semantic components only.\n"
     "- global_constraints.symmetry MUST be one of: NONE, MIRROR_X, MIRROR_Z, RADIAL.\n"
@@ -147,14 +155,16 @@ def profile_routing_summary(profile: BuildingProfile) -> str:
     lm = (mc.landmark_module or "").strip()
     ref = (mc.reference_landmark or "").strip()
     rec = ", ".join(str(c) for c in (mc.recommended_components or []) if c)
-    if not rec:
-        rec = "MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE"
     if mc.model_designed_landmark:
         sk = (mc.skeleton_type or "COMPOUND").strip() or "COMPOUND"
+        if not rec:
+            rec = "open/catalog"
         return (
             f"Model-designed landmark; skeleton={sk}; landmark_module=null; "
             f"no fixed typology executor; recommended_components=[{rec}]."
         )
+    if not rec:
+        rec = "MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE"
     if stid and not is_compositional_typology(stid):
         hint = f"STRUCTURE + typology:{stid}; landmark_module=null"
         if ref:
@@ -284,11 +294,23 @@ def build_plan_stage_user_block(
         "",
     ])
     if include_registered_types:
-        types = registered_component_types()
+        from .generation_capability import planning_component_exposure
+
+        exposure = planning_component_exposure()
+        direct = exposure.get("direct") or []
+        conditional = exposure.get("conditional") or {}
         lines.append(
-            "Capability-catalog component_type values (ONLY these): "
-            + ", ".join(types)
+            "Directly plannable component_type values (supported): "
+            + ", ".join(direct)
         )
+        if conditional:
+            lines.append(
+                "Conditional catalog types (not freely interchangeable with supported):"
+            )
+            for name, meta in conditional.items():
+                status = (meta or {}).get("status") or "conditional"
+                requires = (meta or {}).get("requires") or "see capability catalog"
+                lines.append(f"- {name} [{status}]: {requires}")
         lines.append("")
     lines.extend([
         "USER REQUEST (authoritative for intent, form, style, materials and dimensions):",

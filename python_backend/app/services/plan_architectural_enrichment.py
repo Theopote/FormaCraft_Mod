@@ -149,6 +149,10 @@ def enrich_profile_architectural_detail(
 ) -> BuildingProfile:
     tier = detect_detail_tier(user_text, profile, {})
     mc = profile.minecraft_strategy.model_copy()
+    if mc.model_designed_landmark:
+        # Model-designed landmarks keep research / static structure hints; do not
+        # force residential MASS/ROOF/ENTRANCE enrichment on top.
+        return profile
     if mc.structural_typology:
         note = (mc.notes or "").strip()
         exclusive = typology_exclusive_component_note(mc.structural_typology, mc.reference_landmark)
