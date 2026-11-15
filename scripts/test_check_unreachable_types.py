@@ -8,6 +8,29 @@ import check_unreachable_types as C
 
 
 class UnreachableTypeTests(unittest.TestCase):
+    def test_duplicate_unreachable_names_report_every_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._scaffold(root)
+            self._write(root, "src/main/java/Entry.java", "public class Entry {}")
+            for package in ("a", "b"):
+                self._write(root, f"src/main/java/{package}/Duplicate.java",
+                            f"package {package};\npublic class Duplicate {{}}")
+            duplicates = [path for name, path in C.scan(root) if name == "Duplicate"]
+            self.assertEqual(len(duplicates), 2)
+
+    def test_duplicate_reachable_names_traverse_both_dependencies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._scaffold(root)
+            self._write(root, "src/main/java/Entry.java", "public class Entry { Duplicate value; }")
+            for package, dependency in (("a", "Left"), ("b", "Right")):
+                self._write(root, f"src/main/java/{package}/Duplicate.java",
+                            f"package {package};\npublic class Duplicate {{ {dependency} value; }}")
+                self._write(root, f"src/main/java/{package}/{dependency}.java",
+                            f"package {package};\npublic class {dependency} {{}}")
+            self.assertEqual(C.scan(root), [])
+
     def _write(self, root: Path, rel: str, text: str) -> None:
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)

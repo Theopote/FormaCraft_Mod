@@ -210,6 +210,10 @@ OrchestratorClient 的 editCity/editBuilding 旧名称删除，改为 editLegacy
 
 调试覆盖层子系统 common/debug/（728 行）已删除。它是典型的"互引死脚手架"：ClientInitializer 确实调用了 DebugOverlayRegistry.initialize() 完成注册，因此零引用扫描完全看不出问题；但没有任何调用方会调用 render，所有渲染方法都是未实现的 TODO 存根（绘制调用全在注释里）。同类问题还有 client/preview/OutlineRenderer——其 register() 整体被注释掉，只留一句 debug 日志，功能早已被 Mixin 注入点驱动的 BuildingOutlineRenderer 取代。现行预览渲染器族是 PatchPreviewRenderer / SkeletonPreviewRenderer / BuildingOutlineRenderer / LayoutSiteHudOverlay。
 
+## 近期清理复核与门禁修正（2026-11-15）
+
+复核 25ca73ff 及此前删除批次，现有边界、入口、活文档、死符号、防复活、接口调用与可达性门禁通过。修复 check_unreachable_types 中同名顶层类型被 setdefault 丢弃的问题：保留全部声明，对同名引用保守遍历全部文件，并逐文件报告不可达类型。新增双声明报告和双分支依赖回归。扫描仍为简单名 token 图，不作为自动删除或“全部存活”的证明。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

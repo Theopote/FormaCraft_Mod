@@ -5,6 +5,11 @@
 other looks "used" to a per-class reference count, yet the whole group is
 unreachable from the real entry points.
 
+The graph uses simple-name tokens, not Java import/type resolution. Duplicate
+names are retained and traversed conservatively; comments and unrelated tokens
+can also introduce edges. A clean scan is not proof that every type is live,
+and reported candidates still require call-path/framework-loading review.
+
 This gate closes that gap with a reachability analysis:
 
   1. Build a reference graph over the top-level types in ``src/main/java``.
@@ -102,18 +107,18 @@ def scan(root: Path | None = None) -> list[tuple[str, str]]:
     files = sorted(java_root.rglob("*.java"))
     sources = {p: p.read_text(encoding="utf-8", errors="replace") for p in files}
 
-    # type name -> declaring file
-    decls: dict[str, Path] = {}
+    # Keep all declarations: simple names can occur in different packages.
+    decls: dict[str, set[Path]] = {}
     for path, text in sources.items():
         for match in DECL.finditer(text):
-            decls.setdefault(match.group(1), path)
+            decls.setdefault(match.group(1), set()).add(path)
 
     # file -> referenced type names (excluding its own declarations)
     file_edges: dict[Path, set[str]] = {}
     for path, text in sources.items():
         tokens = set(TOKEN.findall(text))
         file_edges[path] = {
-            tok for tok in tokens if tok in decls and decls[tok] != path
+            tok for tok in tokens if tok in decls and any(p != path for p in decls[tok])
         }
 
     roots, _ = _load_roots(base)
@@ -125,11 +130,15 @@ def scan(root: Path | None = None) -> list[tuple[str, str]]:
         if name in reachable or name not in decls:
             continue
         reachable.add(name)
-        worklist.extend(file_edges.get(decls[name], ()))
+        # This token-based gate cannot resolve imports. Conservatively visit
+        # every matching declaration rather than silently dropping duplicates.
+        for path in decls[name]:
+            worklist.extend(file_edges.get(path, ()))
 
     results = [
-        (name, decls[name].relative_to(base).as_posix())
+        (name, path.relative_to(base).as_posix())
         for name in sorted(set(decls) - reachable)
+        for path in sorted(decls[name])
     ]
     return results
 
