@@ -355,6 +355,7 @@ public final class PatchOccupancyIndex {
                         && !isHostedStairJoin(writer, existing, pos)
                         && !isBoundUpperMassSeam(writer, existing, pos)
                         && !isHostedMassSecondaryCarve(writer, existing)
+                        && !isHostedDormerRoofJoin(writer, existing)
                         && !isHostedStructuralJoin(writer, existing)
                         && !connectorAccess.contains(pos)) {
                     return Optional.of(new Conflict(pos, existing.writerType(), existing.targetBlock(),
@@ -421,6 +422,7 @@ public final class PatchOccupancyIndex {
                         && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)
+                        && !isHostedDormerRoofJoin(writer, prev)
                         && !isSameSlotCrownPeerJoin(writer, prev, pos)
                         && !isSoftFoliageOverRail(writer, prev, p.targetBlock())) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
@@ -435,6 +437,15 @@ public final class PatchOccupancyIndex {
 
     static String canonical(String target) {
         return com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.canonical(target);
+    }
+
+    /** Dormer geometry may intersect only its explicitly named roof in the same slot frame. */
+    private static boolean isHostedDormerRoofJoin(Component writer, PlaceRecord previous) {
+        if (!ComponentSatelliteAligner.isDormer(writer) || previous == null || previous.owner() == null
+                || !ComponentPlanTypes.isRoofType(ComponentPlanTypes.normalizeType(previous.writerType()))
+                || !java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
+        String host = ComponentPlanTypes.getParamString(writer.params(), "host_id", "hostId");
+        return host != null && host.equals(ComponentPlanTypes.getParamString(previous.owner().params(), "component_id"));
     }
 
     private static boolean isBoundUpperMassSeam(Component writer, PlaceRecord previous, BlockPos pos) {

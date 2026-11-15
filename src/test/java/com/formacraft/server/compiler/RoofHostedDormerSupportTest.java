@@ -31,7 +31,7 @@ class RoofHostedDormerSupportTest {
                 String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var finalAt = new HashMap<BlockPos, BlockPatch>();
         for (var patch : result) finalAt.put(new BlockPos(patch.dx(), patch.dy(), patch.dz()), patch);
-        assertTrue(finalAt.values().stream().anyMatch(p -> p.dx() == 2 && p.dz() == 2 && p.dy() < 15
+        assertTrue(finalAt.values().stream().anyMatch(p -> p.dx() == 3 && p.dz() == 2 && p.dy() < 15
                 && "minecraft:white_concrete".equals(p.targetBlock())),
                 "The emission pass must generate the new lower wall, not only adjust a helper DTO");
         assertEquals(new Vec3i(2, 15, 2), window.relativePosition(), "Keep the authored plan immutable");
@@ -91,5 +91,23 @@ class RoofHostedDormerSupportTest {
     @Test void hostedDormersDoNotPunchOutTheirOwnSupportSkin() {
         var own = dormer("roof", "main");
         assertTrue(ComponentEmitPass.roofOccluders(roof(), List.of(own), Map.of()).isEmpty());
+    }
+
+    @Test void dormerJoinAuthorityIsLimitedToItsNamedRoofAndSlot() {
+        var index = new PatchOccupancyIndex();
+        var cell = new BlockPatch(BlockPatch.PLACE, 1, 12, 2, "minecraft:stone");
+        index.commit(roof(), List.of(cell));
+        var replacement = new BlockPatch(BlockPatch.PLACE, 1, 12, 2, "minecraft:bricks");
+        var carve = new BlockPatch(BlockPatch.REMOVE, 1, 12, 2, null);
+        assertTrue(index.validate(dormer("roof", "main"), List.of(replacement)).isEmpty());
+        assertTrue(index.validate(dormer("roof", "main"), List.of(carve)).isEmpty());
+        for (var foreign : List.of(dormer("other", "main"), dormer("roof", "other"))) {
+            assertTrue(index.validate(foreign, List.of(replacement)).isPresent());
+            assertTrue(index.validate(foreign, List.of(carve)).isPresent());
+        }
+        var ordinary = new Component("MASS_SECONDARY", "main", new Vec3i(1, 12, 2), new Dimensions(3, 3, 3),
+                List.of(), Map.of("host_id", "roof"));
+        assertTrue(index.validate(ordinary, List.of(replacement)).isPresent());
+        assertTrue(index.validate(ordinary, List.of(carve)).isPresent());
     }
 }
