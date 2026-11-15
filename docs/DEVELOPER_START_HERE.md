@@ -94,3 +94,5 @@ LlmPlan 构件类型别名、features 表示归一和未转义请求字符串修
 LlmPlan 输出规范化主流程位于 `services/llm_plan_normalization.py`，按现有顺序组合布局、尺寸、用户合同、能力修复与细节补全。`ai_planner.py` 负责模型调用编排，不另写一套输出修复。
 
 现有语义空间规划阶段的提示词由 `services/semantic_plan_prompts.py` 构造；城市/复合兼容入口使用该阶段，不能把它扩展为第二条默认生成主干。
+
+BuildingSpec、CitySpec、CompositeSpec 兼容入口的系统提示词统一在 `services/building_spec_prompts.py`，不得作为新生成能力入口。

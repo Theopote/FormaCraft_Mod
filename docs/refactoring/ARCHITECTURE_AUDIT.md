@@ -126,6 +126,8 @@ LlmPlan 输出规范化主流程与最小角锚点识别迁至 llm_plan_normaliz
 
 语义空间规划提示词构造迁至 semantic_plan_prompts.py，模型调用与 SemanticSpatialPlan 校验保留在原入口。原提示词文本与上下文构造顺序保留，新增选区、规模、地形及真实入口发送消息回归。
 
+城市/复合兼容入口的静态系统提示词集中到现有 building_spec_prompts.py，原入口只调用 builder。提示词文本与 HEAD 基线逐字一致；没有扩展兼容协议或改变语义规划前置阶段。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

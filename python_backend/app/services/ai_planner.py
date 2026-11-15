@@ -68,6 +68,8 @@ _LLMPLAN_TWO_STAGE = (os.getenv("LLMPLAN_TWO_STAGE") or "off").strip().lower() =
 
 from .rag_budget import resolve_rag_budget as _resolve_rag_budget
 from .building_spec_prompts import (
+    build_city_system_prompt,
+    build_composite_system_prompt,
     build_system_prompt as _build_system_prompt,
     build_user_prompt as _build_user_prompt,
     )
@@ -153,26 +155,7 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
     # This is used both as prompt context and as a source of spec.extra knobs (terrain/semantic scoring).
     semantic_plan = generate_semantic_spatial_plan(req)
     
-    system_prompt = (
-        "You are FormaCraft AI City Planner.\n\n"
-        "Your job is to generate a complete CitySpec JSON that describes an entire city layout.\n\n"
-        "Requirements:\n"
-        "- Always respond with pure JSON (no comments, no extra text).\n"
-        "- Generate a CitySpec with: cityName, style, size, biome, zones, structures, roads, bridges.\n"
-        "- cityName: A creative name for the city.\n"
-        "- style: MEDIEVAL / MODERN / ASIAN / FUTURISTIC\n"
-        "- size: SMALL / MEDIUM / LARGE\n"
-        "- biome: plains / forest / desert / etc.\n"
-        "- zones: List of zones (PLAZA, RESIDENTIAL, MARKET, WALL, GATE, INDUSTRIAL, COMMERCIAL)\n"
-        "  Each zone has: name, type, radius, center (Point with x, y, z)\n"
-        "- structures: List of buildings with type, spec (BuildingSpec), offset (Point), zone (optional)\n"
-        "- roads: List of PathSpec connecting zones and structures\n"
-        "- bridges: List of BridgePlan with from_pos, to_pos, bridgeType\n"
-        "- All coordinates are relative to city center (0, 0, 0).\n"
-        "- Avoid overlapping zones.\n"
-        "- Only use block IDs that exist in vanilla Minecraft.\n"
-        "- Each structure spec must be a complete BuildingSpec with all required fields.\n"
-    )
+    system_prompt = build_city_system_prompt()
     
     user_prompt = _build_user_prompt(req)
     if semantic_plan is not None:
@@ -280,24 +263,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
     # I-layer: best-effort semantic plan as context for composite generation (clusters/courtyards/compounds).
     semantic_plan = generate_semantic_spatial_plan(req)
     
-    system_prompt = (
-        "You are FormaCraft city planner. Your job is to generate a CompositeSpec JSON "
-        "containing multiple structures (towers, houses, bridges, walls) with their relative positions "
-        "and paths connecting them.\n\n"
-        "Requirements:\n"
-        "- Always respond with pure JSON (no comments, no extra text).\n"
-        "- Return a CompositeSpec with a 'structures' array and a 'paths' array.\n"
-        "- Each structure must have: type (TOWER/HOUSE/BRIDGE/WALL/CASTLE/CUSTOM), spec (BuildingSpec), offset (Vec3i with x, y, z).\n"
-        "- Each path must have: from_pos (Vec3i), to_pos (Vec3i), width (int, default 3), "
-        "material (string, e.g. 'minecraft:gravel'), style (string, default 'default').\n"
-        "- Generate paths to connect structures logically (house to house, house to tower, bridge to gate, etc.).\n"
-        "- Use reasonable offsets to position structures relative to the origin.\n"
-        "- Only use block IDs that exist in vanilla Minecraft.\n"
-        "- Each spec in structures must be a complete BuildingSpec with EXACT field names.\n"
-        "- BuildingSpec.type MUST be one of: HOUSE/TOWER/BRIDGE/CASTLE/WALL/CUSTOM (NOT 'ASIAN').\n"
-        "- BuildingSpec.style MUST be one of: MEDIEVAL/MODERN/ASIAN/FUTURISTIC/RUSTIC/DEFAULT (NOT 'chinese_palace').\n"
-        "- BuildingSpec.features MUST be an object (NOT a list).\n"
-    )
+    system_prompt = build_composite_system_prompt()
     
     user_prompt = _build_user_prompt(req)
     if semantic_plan is not None:
