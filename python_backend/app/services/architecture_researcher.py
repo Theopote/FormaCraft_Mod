@@ -1,6 +1,6 @@
 """
 Architecture Researcher Service
-网络搜索服务：为强类型建筑获取参考资料
+建筑研究的底层搜索 provider；请求分类、查询规划与提示词由 BuildingResearchAgent 负责。
 """
 import os
 import re
@@ -29,92 +29,6 @@ _ARCHITECTURE_SIGNALS = (
     "建筑", "设计", "体育场", "体育馆", "球场", "立面", "结构", "建筑师",
     "奥体", "奥运", "足球场", "wikipedia.org",
 )
-
-# 强类型建筑关键词列表（需要搜索参考资料的建筑类型）
-LANDMARK_BUILDINGS = [
-    "埃菲尔铁塔", "eiffel tower", "eiffel",
-    "巴黎铁塔", "tower eiffel",
-    "自由女神像", "statue of liberty",
-    "大本钟", "big ben", "westminster",
-    "悉尼歌剧院", "sydney opera house",
-    "金字塔", "pyramid", "古埃及",
-    "长城", "great wall", "中国长城",
-    "天坛", "temple of heaven", "天坛公园",
-    "法门寺", "famen temple", "法门寺舍利塔", "famen pagoda",
-    "佛光寺", "foguang temple", "佛光寺大殿", "wutai foguang",
-    "故宫", "forbidden city", "紫禁城",
-    "布达拉宫", "potala palace",
-    "比萨斜塔", "leaning tower of pisa",
-    "泰姬陵", "taj mahal",
-    "罗马斗兽场", "colosseum", "coliseum",
-    "白宫", "white house",
-    "大教堂", "cathedral", "gothic cathedral",
-    "哥特式", "gothic",
-    "巴洛克", "baroque",
-    "新古典", "neoclassical",
-    "包豪斯", "bauhaus",
-    "现代主义", "modernism", "modern architecture",
-]
-
-# 建筑风格关键词
-ARCHITECTURE_STYLES = [
-    "中式", "chinese architecture", "traditional chinese",
-    "日式", "japanese architecture", "traditional japanese",
-    "欧式", "european architecture",
-    "希腊", "greek architecture",
-    "罗马", "roman architecture",
-    "拜占庭", "byzantine",
-    "伊斯兰", "islamic architecture", "mosque",
-    "印度", "indian architecture",
-    "东南亚", "southeast asian",
-]
-
-
-def _detect_landmark_or_style(text: str, landmark_only: bool = False) -> Optional[str]:
-    """
-    检测文本中是否包含强类型建筑或建筑风格关键词
-    返回匹配的关键词（用于搜索）
-
-    landmark_only=True 时只匹配地标建筑（埃菲尔/故宫…），跳过风格词（中式/欧式…）。
-    风格特征应由 style profile / prompt 表达，不值得为其付出联网搜索的延迟。
-    """
-    text_lower = text.lower()
-    
-    # 优先匹配地标建筑
-    for keyword in LANDMARK_BUILDINGS:
-        if keyword.lower() in text_lower:
-            return keyword
-
-    if landmark_only:
-        return None
-
-    # 然后匹配建筑风格
-    for keyword in ARCHITECTURE_STYLES:
-        if keyword.lower() in text_lower:
-            return keyword
-    
-    return None
-
-
-def search_architecture_queries(
-    queries: List[str],
-    max_results_per_query: int = 3,
-) -> List[Dict[str, str]]:
-    """
-    多 query 搜索并合并去重（供 BuildingResearchAgent 调用）。
-    """
-    merged: List[Dict[str, str]] = []
-    seen: set[str] = set()
-    for query in queries:
-        for item in search_architecture_reference(query, max_results_per_query):
-            url = (item.get("url") or "").strip()
-            snippet = (item.get("snippet") or "").strip()[:160]
-            key = url or snippet
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            merged.append(item)
-    return merged
 
 
 def is_relevant_architecture_result(item: Dict[str, str]) -> bool:
@@ -610,65 +524,3 @@ def _search_with_bing(
         })
     
     return results
-
-
-def get_architecture_reference_context(text: str, landmark_only: bool = False) -> Optional[str]:
-    """
-    为给定的文本生成建筑参考资料上下文
-    
-    Args:
-        text: 用户请求文本
-        landmark_only: 只对地标建筑联网搜索（跳过普通风格词），默认 False。
-    
-    Returns:
-        格式化的参考资料上下文（如果没有找到相关信息则返回 None）
-    """
-    keyword = _detect_landmark_or_style(text, landmark_only=landmark_only)
-    if not keyword:
-        return None
-    
-    # 构建搜索查询
-    # 针对中文查询，使用中文关键词；针对英文查询，使用英文关键词
-    if any(ord(c) > 127 for c in keyword):
-        # 中文关键词
-        query = f"{keyword} 建筑结构 设计特点 尺寸规格"
-    else:
-        # 英文关键词
-        query = f"{keyword} architecture structure design characteristics dimensions specifications"
-    
-    logger.info(f"Searching architecture reference for: {keyword} (query: {query})")
-    
-    # 执行搜索
-    results = search_architecture_reference(query, max_results=3)
-    
-    if not results:
-        logger.info(f"No search results found for: {keyword}")
-        return None
-    
-    # 格式化搜索结果作为上下文
-    context_parts = [
-        f"=== Architecture Reference: {keyword} ===\n",
-        "The following information is gathered from architecture references to help generate accurate building plans:\n"
-    ]
-    
-    for i, result in enumerate(results, 1):
-        context_parts.append(f"\n[{i}] {result['title']}")
-        if result['snippet']:
-            # 限制 snippet 长度，避免 token 过多
-            snippet = result['snippet'][:300]
-            if len(result['snippet']) > 300:
-                snippet += "..."
-            context_parts.append(f"   {snippet}")
-        if result['url']:
-            context_parts.append(f"   Source: {result['url']}")
-    
-    context_parts.append(
-        "\n"
-        "Please use this reference information to inform your building plan generation:\n"
-        "- Ensure structural proportions are accurate\n"
-        "- Include characteristic architectural elements\n"
-        "- Respect typical dimensions and scaling\n"
-        "- Incorporate distinctive design features\n"
-    )
-    
-    return "\n".join(context_parts)

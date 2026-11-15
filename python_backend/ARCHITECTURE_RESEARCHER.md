@@ -1,141 +1,39 @@
-# 建筑参考资料搜索功能
+# 建筑参考资料搜索 provider
 
-> **2026-07 更新**：LlmPlan 主路径已升级为 [BuildingResearchAgent](../docs/BUILDING_RESEARCH_AGENT.md)（`building_research_agent.py`）。  
-> 本模块保留为 **search provider**（`search_architecture_reference`）；`get_architecture_reference_context()` 仍可用于独立调用。
+状态：维护中；更新：2026-11-15。
 
-## 概述
+`app/services/architecture_researcher.py` 提供底层搜索能力。请求分类、查询规划、研究结果合成和提示词注入由 [BuildingResearchAgent](../docs/BUILDING_RESEARCH_AGENT.md) 负责。
 
-`architecture_researcher.py` 为 FormaCraft 后端添加了网络搜索功能，用于为强类型建筑（如埃菲尔铁塔、中国古建筑等）自动获取参考资料，提升生成质量。
+## 当前调用链
 
-## 功能特性
+`ai_planner.generate_llm_plan → building_research_agent.research_building_profile → search_architecture_reference`
 
-- **自动检测强类型建筑**：识别用户请求中的地标建筑或建筑风格关键词
-- **智能搜索**：自动构建搜索查询，获取建筑结构、设计特点、尺寸规格等信息
-- **多搜索源支持**：
-  - 优先使用 DuckDuckGo（免费，无需 API key）
-  - 可选使用 Bing Search API（需要 API key，结果更准确）
-- **结果整合**：将搜索结果格式化为上下文，添加到 LLM prompt 中
+研究代理接收玩家意图，组织查询并返回结构化 BuildingProfile；规划器消费该 profile。搜索 provider 返回 `title`、`snippet`、`url`，不决定生成路由，也不自行拼接 LLM 提示词。
 
-## 使用方法
-
-### 1. 安装依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-依赖包括：
-- `requests` - HTTP 请求
-- `duckduckgo-search` - DuckDuckGo 搜索库（可选，未安装时会使用 HTTP 回退方案）
-
-### 2. 配置（可选）
-
-如果需要使用 Bing Search API（更准确的结果），设置环境变量：
-
-```bash
-export BING_SEARCH_API_KEY="your_bing_api_key"
-```
-
-### 3. 自动触发
-
-当用户请求包含以下类型的建筑时，系统会自动搜索参考资料：
-
-**地标建筑：**
-- 埃菲尔铁塔、自由女神像、大本钟、悉尼歌剧院
-- 金字塔、长城、天坛、故宫、布达拉宫
-- 比萨斜塔、泰姬陵、罗马斗兽场等
-
-**建筑风格：**
-- 中式、日式、欧式建筑
-- 希腊、罗马、拜占庭风格
-- 伊斯兰、印度、东南亚建筑等
-
-## 工作流程
-
-1. **检测阶段**：`get_architecture_reference_context()` 检测用户请求是否包含强类型建筑关键词
-2. **搜索阶段**：如果检测到关键词，自动构建搜索查询并执行搜索
-3. **整合阶段**：将搜索结果格式化为上下文，添加到 LLM prompt 的前面
-4. **生成阶段**：LLM 使用参考资料生成更准确的建筑规划
-
-## API 说明
-
-### `get_architecture_reference_context(text: str) -> Optional[str]`
-
-为主要入口函数，检测文本中的建筑关键词并返回格式化的参考资料上下文。
-
-**参数：**
-- `text`: 用户请求文本
-
-**返回：**
-- 如果找到相关建筑，返回格式化的参考资料上下文字符串
-- 如果未找到，返回 `None`
-
-**示例：**
+## 搜索接口
 
 ```python
-from app.services.architecture_researcher import get_architecture_reference_context
+from app.services.architecture_researcher import search_architecture_reference
 
-context = get_architecture_reference_context("在锚点位置生埃菲尔铁塔")
-if context:
-    print(context)  # 输出格式化的参考资料
+results = search_architecture_reference("Suzhou Museum architecture", max_results=3)
 ```
 
-### `search_architecture_reference(query: str, max_results: int = 3) -> List[Dict[str, str]]`
+`cfg` 可传入 `SearchRuntimeConfig`；未传入时使用 `search_config.resolve_search_config()`。客户端搜索设置及环境变量的解析统一由 `search_config.py` 负责。
 
-执行搜索并返回原始结果。
+支持的 provider 为 `auto`、`duckduckgo`、`bing`、`google_cse`、`tavily`、`serpapi`、`wikipedia_only`。当前搜索先尝试 Wikipedia，再按配置继续 provider 链；结果经过建筑相关性过滤和去重。实际搜索链以函数实现及测试为准。
 
-**参数：**
-- `query`: 搜索查询字符串
-- `max_results`: 最大结果数量（默认 3）
+## 配置与开发边界
 
-**返回：**
-- 搜索结果列表，每个结果包含 `title`, `snippet`, `url`
+研究启用使用 `BUILDING_RESEARCH`，研究模式使用 `BUILDING_RESEARCH_MODE`，研究总超时使用 `BUILDING_RESEARCH_TIMEOUT_SEC`。明确设置的 on/off 优先于旧 `ARCHITECTURE_SEARCH` 开关。配置样例见 [.env.example](.env.example)。
 
-## 扩展关键词
+新增搜索源在 provider 层接入；调整研究触发、查询或证据处理，在 BuildingResearchAgent 及其分类模块中修改。新增生成能力走 LlmPlan 主干，参见 [开发入口](../docs/DEVELOPER_START_HERE.md)。
 
-要添加新的建筑类型或风格，编辑 `architecture_researcher.py` 中的关键词列表：
+旧 `get_architecture_reference_context`、固定地标/风格关键词表及无调用者的 `search_architecture_queries` 已删除。不要恢复“固定关键词命中后直接向 prompt 拼搜索摘要”的并行研究流程。
 
-```python
-LANDMARK_BUILDINGS = [
-    "你的新关键词",
-    # ...
-]
+## 离线验证
 
-ARCHITECTURE_STYLES = [
-    "你的新风格",
-    # ...
-]
+在 `python_backend` 目录使用项目虚拟环境运行以下测试。搜索传输由 mock 替代，不需要真实 API key。
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q tests/test_reference_blueprint.py tests/test_search_config.py tests/test_building_research_agent.py tests/test_research_config_authority.py
 ```
-
-## 注意事项
-
-1. **搜索失败不影响生成**：如果搜索失败（网络问题、API key 缺失等），系统会记录警告但不会阻塞建筑生成
-2. **Token 限制**：搜索结果会被截断以避免超过 LLM token 限制
-3. **隐私**：搜索查询会发送到外部服务（DuckDuckGo 或 Bing），请确保符合隐私政策
-4. **性能**：搜索会增加生成延迟（通常 1-3 秒），但对于强类型建筑，准确性的提升值得这个代价
-
-## 故障排除
-
-### 搜索无结果
-
-- 检查网络连接
-- 确认关键词是否正确匹配
-- 查看日志中的警告信息
-
-### DuckDuckGo 搜索失败
-
-- 确保已安装 `duckduckgo-search`：`pip install duckduckgo-search`
-- 或使用 Bing Search API（需要 API key）
-
-### 搜索结果不相关
-
-- 可以调整搜索查询构建逻辑（在 `get_architecture_reference_context()` 中）
-- 可以添加更多关键词到检测列表
-
-## 未来改进
-
-- [ ] 支持更多搜索引擎（Google Custom Search API）
-- [ ] 缓存搜索结果，避免重复搜索
-- [ ] 支持图像搜索结果（用于建筑外观参考）
-- [ ] 智能提取建筑尺寸和比例信息
-- [ ] 支持多语言搜索（当前主要支持中英文）

@@ -96,6 +96,8 @@ BuildingSpec 的基因补全、材质语义映射及默认构件参数已迁至 
 
 研究启用策略现统一由 building_research_agent.is_building_research_enabled 解析。规划器移除启动时缓存的 _ARCHITECTURE_SEARCH_MODE 外层门控，修复 BUILDING_RESEARCH=on 仍被旧 ARCHITECTURE_SEARCH=off 提前拦截的问题；显式 off 仍关闭研究，未显式设置时保留旧开关回退。回归覆盖配置优先级及真实规划入口到研究阶段的调用。
 
+architecture_researcher 已删除无业务/工具/测试调用者的旧 get_architecture_reference_context 链路、专用地标/风格关键词表和 search_architecture_queries 包装。保留研究代理、search_config 实际调用的搜索 provider、相关性过滤及去重。ARCHITECTURE_RESEARCHER.md 重写为当前 provider 职责与调用链，移除旧主要入口和扩充固定关键词的指导。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
