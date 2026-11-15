@@ -413,13 +413,20 @@ def resolve_landmark_module_for_intent(user_text: str) -> Optional[str]:
     """
     Return a fixed compatibility module only for explicit preset:<registered_id>.
     Landmark names alone are research evidence, not executor selection.
+    Negations such as "不要使用 preset:…" never authorize MODULE routing.
     """
     if not isinstance(user_text, str):
         return None
     text = user_text.strip()
     if not text:
         return None
-    explicit = re.search(r"(?:^|\s)preset:([a-z0-9_]+)(?=$|\s|[,.，。])", text.lower())
+    lowered = text.lower()
+    if re.search(
+        r"(?:不要(?:使用|用)?|不使用|不用|禁用|关闭)\s*preset\s*:|do\s+not\s+use\s+preset\s*:",
+        lowered,
+    ):
+        return None
+    explicit = re.search(r"(?:^|\s)preset:([a-z0-9_]+)(?=$|\s|[,.，。])", lowered)
     if not explicit:
         return None
     from .archetype_registry import get_archetype_def
@@ -483,11 +490,12 @@ _MODEL_DESIGNED_STRUCTURE_HINTS: Dict[str, Dict[str, Any]] = {
         ),
     },
     "sydney_opera_house": {
-        "skeleton_type": "CLUSTER",
+        "skeleton_type": "COMPOUND",
         "recommended_components": ["MASS_MAIN", "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "PLAZA"],
         "notes": (
             "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve shell-roof cluster massing on a podium — not a conventional house box."
+            "Preserve shell-roof cluster massing on a podium via COMPOUND slots/masses — "
+            "not a conventional house box and not an unsupported CLUSTER skeleton."
         ),
     },
     "stadium_bowl": {
@@ -1124,20 +1132,32 @@ def synthesize_profile_rule_based(
 
 def _research_synthesis_system_prompt() -> str:
     """Stage R system prompt — structural evidence only; no second component whitelist."""
-    try:
-        from .generation_capability import (
-            conditional_component_contracts,
-            plannable_component_types,
-        )
+    from .generation_capability import (
+        CapabilityCatalogUnavailable,
+        _fallback_permitted,
+        conditional_component_contracts,
+        plannable_component_types,
+    )
 
+    try:
         direct = ", ".join(plannable_component_types())
         conditional = conditional_component_contracts()
         conditional_lines = "; ".join(
             f"{name}[{meta.get('status')}] requires {meta.get('requires')}"
             for name, meta in conditional.items()
         )
+    except CapabilityCatalogUnavailable:
+        if not _fallback_permitted():
+            raise
+        direct = "MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE, TOWER, BRIDGE, TERRACE"
+        conditional_lines = (
+            "STRUCTURE/MODULE/ASSEMBLY are conditional — prefer supported types in research"
+        )
     except Exception:
-        direct = "MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE, TOWER, BRIDGE, TERRACE, ..."
+        # Unexpected catalog errors must not silently widen capability in strict mode.
+        if not _fallback_permitted():
+            raise
+        direct = "MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE, TOWER, BRIDGE, TERRACE"
         conditional_lines = (
             "STRUCTURE/MODULE/ASSEMBLY are conditional — prefer supported types in research"
         )

@@ -13,7 +13,7 @@ from app.services.landmark_design_policy import reject_fixed_landmark_plan
     [
         ("Eiffel Tower", {"TOWER", "STRUCTURE"}, "VERTICAL_TAPER"),
         ("天坛", {"MASS_MAIN", "TERRACE", "ROOF"}, "RADIAL_RING"),
-        ("悉尼歌剧院", {"MASS_MAIN", "ROOF", "ROOF_STRUCTURE"}, "CLUSTER"),
+        ("悉尼歌剧院", {"MASS_MAIN", "ROOF", "ROOF_STRUCTURE"}, "COMPOUND"),
         ("生成金门大桥", {"BRIDGE", "TOWER", "BRIDGE_CONNECTOR"}, "SPAN_SUSPENSION"),
     ],
 )
@@ -133,6 +133,49 @@ def test_model_designed_stage_p_hides_fixed_module_route():
     assert "typology:* and fixed landmark executors are disallowed" in block or (
         "parametric structure_type only" in block
     )
+
+
+def test_fbd_negation_does_not_expose_assembly():
+    from app.services.generation_capability import planning_component_exposure
+
+    profile = BuildingProfile(query="古典宫殿")
+    profile.minecraft_strategy.model_designed_landmark = True
+    exposure = planning_component_exposure(
+        profile,
+        user_request="建造一座大型古典宫殿，不要使用 FBD，使用常规构件。",
+    )
+    assert not exposure["context"]["explicit_fbd"]
+    assert "ASSEMBLY" not in exposure["conditional"]
+    assert "- MODULE" not in str(exposure["conditional"])
+
+
+def test_preset_mention_under_model_designed_still_hides_module():
+    from app.services.building_research_agent import resolve_landmark_module_for_intent
+    from app.services.generation_capability import planning_component_exposure
+
+    text = "建造天坛，不要使用 preset:temple_of_heaven"
+    assert resolve_landmark_module_for_intent(text) is None
+    profile = finalize_profile_minecraft_strategy(BuildingProfile(query="天坛"), text)
+    assert profile.minecraft_strategy.model_designed_landmark
+    exposure = planning_component_exposure(profile, user_request=text)
+    assert not exposure["context"]["preset_module"]
+    assert "MODULE" not in exposure["conditional"]
+
+
+def test_llm_cannot_self_declare_user_component_source():
+    from app.models.building_profile import profile_from_llm_dict
+
+    profile = profile_from_llm_dict(
+        {
+            "query": "纪念堂",
+            "minecraft_strategy": {
+                "recommended_components": ["MASS_MAIN", "ROOF", "TERRACE"],
+                "recommended_components_source": "user",
+            },
+        },
+        fallback_query="纪念堂",
+    )
+    assert profile.minecraft_strategy.recommended_components_source == "research"
 
 
 def test_two_model_designs_are_not_replaced_by_a_shared_template():

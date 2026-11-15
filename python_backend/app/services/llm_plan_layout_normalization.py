@@ -55,6 +55,9 @@ _SKELETON_ALIASES = {
     "LOOP": "PERIMETER_LOOP",
     "WALL": "ENCLOSURE",
     "BAY": "GRID_BAY",
+    # Unsupported research shorthand → executable COMPOUND multi-mass composition.
+    "CLUSTER": "COMPOUND",
+    "CLUSTERED": "COMPOUND",
 }
 
 

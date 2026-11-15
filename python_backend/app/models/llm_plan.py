@@ -144,6 +144,8 @@ class LayoutModel(BaseModel):
             "LOOP": "PERIMETER_LOOP",
             "WALL": "ENCLOSURE",
             "BAY": "GRID_BAY",
+            "CLUSTER": "COMPOUND",
+            "CLUSTERED": "COMPOUND",
         }
         if text in aliases:
             return aliases[text]

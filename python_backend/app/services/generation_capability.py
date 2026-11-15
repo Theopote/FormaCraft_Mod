@@ -464,19 +464,28 @@ def planning_component_exposure(
     Model-designed landmarks must not see fixed MODULE / native typology STRUCTURE
     options that later gates will reject. Preset and typology-first contexts keep
     the matching conditional routes.
+
+    Intent detection reuses the shared parsers (``requests_fbd``,
+    ``resolve_landmark_module_for_intent``) — never raw substring checks that
+    ignore negations such as "不要使用 FBD".
     """
+    from .building_research_agent import resolve_landmark_module_for_intent
+    from .fbd_capabilities import requests_fbd
+
     direct = list(plannable_component_types())
     conditional = dict(conditional_component_contracts())
     mc = getattr(profile, "minecraft_strategy", None) if profile is not None else None
     model_designed = bool(getattr(mc, "model_designed_landmark", False))
-    has_preset = bool(str(getattr(mc, "landmark_module", None) or "").strip())
     text = user_request if isinstance(user_request, str) else ""
-    if not has_preset and "preset:" in text.lower():
-        has_preset = True
+    explicit_preset = resolve_landmark_module_for_intent(text)
+    profile_preset = str(getattr(mc, "landmark_module", None) or "").strip()
+    # Model-designed landmarks never re-expose fixed MODULE, even if the text
+    # mentions preset: in a negation, citation, or stale fragment.
+    has_preset = (not model_designed) and bool(profile_preset or explicit_preset)
     has_typology = bool(str(getattr(mc, "structural_typology", None) or "").strip()) and not model_designed
-    wants_fbd = any(tok in text.lower() for tok in ("fbd", "assembly program", "assembly:"))
+    wants_fbd = requests_fbd(text)
 
-    if model_designed and not has_preset:
+    if model_designed:
         conditional.pop("MODULE", None)
         if "STRUCTURE" in conditional:
             conditional["STRUCTURE"] = {
@@ -496,8 +505,9 @@ def planning_component_exposure(
             conditional.pop("MODULE", None)
         if not wants_fbd:
             conditional.pop("ASSEMBLY", None)
-    elif not has_preset:
-        conditional.pop("MODULE", None)
+    else:
+        if not has_preset:
+            conditional.pop("MODULE", None)
         if not wants_fbd:
             conditional.pop("ASSEMBLY", None)
 

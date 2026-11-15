@@ -6,9 +6,13 @@ Research Agent 从网络检索 + 规则/LLM 归纳生成；Plan 阶段作为 Llm
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+
+RecommendedComponentsSource = Literal["default", "research", "hint", "user", "rule"]
+_ALLOWED_COMPONENT_SOURCES = frozenset({"default", "research", "hint", "user", "rule"})
 
 
 class ProfileIdentity(BaseModel):
@@ -48,18 +52,29 @@ class ProfileMinecraftStrategy(BaseModel):
     recommended_components: List[str] = Field(
         default_factory=lambda: ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
     )
-    recommended_components_source: Optional[str] = Field(
+    recommended_components_source: Optional[RecommendedComponentsSource] = Field(
         default=None,
         description=(
-            "Provenance for recommended_components: "
+            "Trusted-layer provenance for recommended_components: "
             "default | research | hint | user | rule. "
-            "Research/user sources must not be wiped by residential heuristics."
+            "Only orchestration may set 'user'; LLM output is always 'research'."
         ),
     )
     structural_typology: Optional[str] = None
     reference_landmark: Optional[str] = None
     landmark_module: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator("recommended_components_source", mode="before")
+    @classmethod
+    def _coerce_components_source(cls, value: Any) -> Any:
+        if value is None or value == "":
+            return None
+        token = str(value).strip().lower()
+        if token in _ALLOWED_COMPONENT_SOURCES:
+            return token
+        # Unknown / model-invented labels are not trusted as user intent.
+        return "research"
 
 
 class ProfileSource(BaseModel):
@@ -142,12 +157,12 @@ def profile_from_llm_dict(data: Dict[str, Any], *, fallback_query: str = "") -> 
         if struct.get("distinctive_elements") and not struct.get("distinguishing_features"):
             struct["distinguishing_features"] = struct["distinctive_elements"]
             merged["structure"] = struct
-        # LLM-provided recommended_components are research evidence, not factory defaults.
+        # LLM-provided recommended_components are always research evidence.
+        # Never trust the model to self-declare source="user".
         raw_mc = data.get("minecraft_strategy")
         if isinstance(raw_mc, dict) and "recommended_components" in raw_mc:
             mc = dict(merged.get("minecraft_strategy") or {})
-            if not mc.get("recommended_components_source"):
-                mc["recommended_components_source"] = "research"
+            mc["recommended_components_source"] = "research"
             merged["minecraft_strategy"] = mc
         if data.get("query"):
             merged["query"] = data["query"]
