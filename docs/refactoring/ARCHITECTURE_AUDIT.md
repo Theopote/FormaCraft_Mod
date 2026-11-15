@@ -62,7 +62,8 @@ flowchart LR
 - ~~PR-2 指标误记账~~：已改为 `recordError(..., preview_unhandled_no_structure_fallback)`；勿用修复前历史 fallback 率做迁移决策
 - ~~PR-3 compat 拆分~~：`LegacySpecPreviewHandler` / `LegacyBuildingEditHandler`（工作区待提交）
 - ~~PR-4 双栈语义冻结~~：见 [PREVIEW_UNDO_INVARIANTS](../PREVIEW_UNDO_INVARIANTS.md)；**未**合并 Preview/Undo 存储
-- PR-5+：无消费者实现删除；Preview/Undo 存储合并（需 Memory 原子）
+- ~~PR-5 首批无消费者删除~~：MassAssembly 孤儿子图 + 死 fallback 指标 API（LEGACY-017/018）
+- 后续：更多 REMOVABLE 小批；Preview/Undo 存储合并（需 Memory 原子）
 
 ## 已落地（2026-10-31 审查整改）
 
@@ -220,5 +221,8 @@ AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替
 | LEGACY-014 | MIGRATED | 指标原 `recordStructureAfterFallback` 误记账 | 原 `BuildRequestProcessor` 预览失败回调 | 现记 `recordError(..., preview_unhandled_no_structure_fallback)`；`recordStructureAfterFallback` 仅真实整栋回退时用 | 历史日志污染 | — | `LlmPlanRoutingMetricsTest` |
 | LEGACY-015 | REMOVED | `BuildingSpecRoutingPolicy` / `requestBuildingSpec` | 无生产调用者（类已删） | `requestAiPlan` + `FormaRequest.requestsLegacyBuildingSpec()` | 文档若仍引用会误导 | — | 已删；见迁移文档警告 |
 | LEGACY-016 | REMOVED | 客户端 `PromptAssembler.java` | 无 | `prompt_assembly.py` + `llm_plan_system_prompt.py` | 文档旧路径 | — | 已删 |
+| LEGACY-017 | REMOVED | `MassAssembly*` 孤儿子图（Example/Builder/MassTo*Deriver/Relationship/Definition/Prototype） | 删除前仅示例自引用；生产路径用 `BuildingMassComposition` + `BuildingMassPipeline` | BuildingMass 集成路径 | 勿整包删 `common.mass` | 入口消费者为 0；`PlanDomainValidator` **保留**（Pipeline 仍用） | PR-5 删除 + compile |
+| LEGACY-018 | REMOVED | `LlmPlanRoutingMetrics.recordFallback` / `recordStructureAfterFallback` / `FallbackReason` | 生产调用者为 0（PR-2 后仅测试） | `recordError` / `recordDirectStructurePreview` | 历史日志仍可能含旧字段 | — | 指标类精简 + 分析脚本双格式 |
 
-**退出决策规则**：状态 ≠ `REMOVABLE`/`REMOVED` 时禁止删实现；`ACTIVE_COMPAT` 禁止扩展为新功能默认入口；消费者证据过期时先更新本表再改代码。
+**退出决策规则**：状态 ≠ `REMOVABLE`/`REMOVED` 时禁止删实现；`ACTIVE_COMPAT` 禁止扩展为新功能默认入口；消费者证据过期时先更新本表再改代码。  
+**PR-5 明确不删**：`CityBuilder`、`StructureGenerator` 族、`UndoService`、`PatchHistoryManager`、仍接线的 `BuildingMass*` / `BuildingMassPipeline`。

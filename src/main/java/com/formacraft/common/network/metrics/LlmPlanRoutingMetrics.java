@@ -10,30 +10,18 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * LlmPlan 预览链路指标（进程内累计 + 结构化日志）。
  * <p>
- * 日志前缀：{@code [LlmPlanMetrics]}。grep 示例：
- * <pre>{@code
- * Select-String "\[LlmPlanMetrics\]" logs/latest.log
- * }</pre>
+ * 日志前缀：{@code [LlmPlanMetrics]}。
  * <p>
- * <b>语义（2026-11-15）</b>：LlmPlan 预览失败<strong>不再</strong>回退假 BuildingSpec。
- * 未产出预览时记 {@code error}（如 {@code preview_unhandled_no_structure_fallback}），
- * <strong>不要</strong>记 {@code structure_after_fallback}。
- * {@link #recordFallback} / {@link #recordStructureAfterFallback} 仅在真实发生整栋回退时使用；
- * 现行主干不应再调用后者。迁移决策勿使用修复前被污染的历史 fallback 率。
+ * <b>语义（2026-11-15 PR-5）</b>：假 BuildingSpec 回退已退出。预览失败记 {@code error}；
+ * 显式 buildingspec 兼容预览记 {@code structure_direct}。
+ * 已删除无生产调用者的 {@code fallback} / {@code structure_after_fallback} 记账 API。
  */
 public final class LlmPlanRoutingMetrics {
-
-    public enum FallbackReason {
-        ROUTING_POLICY,
-        EMPTY_OUTPUT
-    }
 
     private static final AtomicLong taggedRequests = new AtomicLong();
     private static final AtomicLong llmSuccess = new AtomicLong();
     private static final AtomicLong llmError = new AtomicLong();
-    private static final AtomicLong llmFallback = new AtomicLong();
     private static final AtomicLong directStructure = new AtomicLong();
-    private static final AtomicLong structureAfterFallback = new AtomicLong();
 
     private LlmPlanRoutingMetrics() {}
 
@@ -53,32 +41,10 @@ public final class LlmPlanRoutingMetrics {
         log("error", errorKind, player, req);
     }
 
-    /**
-     * 主动放弃 LlmPlan 并<strong>实际</strong>进入整栋预览前记录。
-     * 现行路径已取消假 BuildingSpec 回退；无真实回退时请用 {@link #recordError}。
-     */
-    public static void recordFallback(
-            FallbackReason reason,
-            String player,
-            FormaRequest req
-    ) {
-        llmFallback.incrementAndGet();
-        log("fallback", reason.name(), player, req);
-    }
-
     /** 从未标记 LlmPlan，直接走整栋预览（显式 buildingspec compat） */
     public static void recordDirectStructurePreview(String player, FormaRequest req) {
         directStructure.incrementAndGet();
         log("structure_direct", null, player, req);
-    }
-
-    /**
-     * 仅在 {@link #recordFallback} 之后<strong>确实</strong>执行了整栋预览时调用。
-     * 预览失败且无回退时禁止调用——改用 {@link #recordError}。
-     */
-    public static void recordStructureAfterFallback(String player, FormaRequest req) {
-        structureAfterFallback.incrementAndGet();
-        log("structure_after_fallback", null, player, req);
     }
 
     /** Test / diagnostics: reset process-local counters. */
@@ -86,26 +52,19 @@ public final class LlmPlanRoutingMetrics {
         taggedRequests.set(0);
         llmSuccess.set(0);
         llmError.set(0);
-        llmFallback.set(0);
         directStructure.set(0);
-        structureAfterFallback.set(0);
     }
 
     public static Snapshot snapshot() {
         long tagged = taggedRequests.get();
-        long fallback = llmFallback.get();
-        double fallbackRate = tagged > 0 ? (100.0 * fallback / tagged) : 0.0;
         long success = llmSuccess.get();
         double successRate = tagged > 0 ? (100.0 * success / tagged) : 0.0;
         return new Snapshot(
                 tagged,
                 success,
                 llmError.get(),
-                fallback,
-                fallbackRate,
                 successRate,
-                directStructure.get(),
-                structureAfterFallback.get()
+                directStructure.get()
         );
     }
 
@@ -140,19 +99,15 @@ public final class LlmPlanRoutingMetrics {
             long tagged,
             long success,
             long errors,
-            long fallback,
-            double fallbackRatePercent,
             double successRatePercent,
-            long directStructure,
-            long structureAfterFallback
+            long directStructure
     ) {
         @Override
         public @NotNull String toString() {
             return String.format(
                     Locale.ROOT,
-                    "tagged=%d success=%d errors=%d fallback=%d fallback_rate=%.1f%% success_rate=%.1f%% direct_structure=%d structure_after_fallback=%d",
-                    tagged, success, errors, fallback, fallbackRatePercent, successRatePercent,
-                    directStructure, structureAfterFallback
+                    "tagged=%d success=%d errors=%d success_rate=%.1f%% direct_structure=%d",
+                    tagged, success, errors, successRatePercent, directStructure
             );
         }
     }

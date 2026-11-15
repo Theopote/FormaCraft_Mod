@@ -7,8 +7,9 @@ Usage:
   python scripts/analyze_llmplan_metrics.py run/logs/*.log
   Get-Content run/logs/latest.log | python scripts/analyze_llmplan_metrics.py -
 
-Example log line:
-  [LlmPlanMetrics] event=fallback detail=ROUTING_POLICY player=Steve prompt="..." tagged=3 ...
+Example log line (current):
+  [LlmPlanMetrics] event=error detail=preview_unhandled_no_structure_fallback ... tagged=3 success=1 ...
+Historical lines may still contain fallback=/structure_after_fallback= fields.
 """
 
 from __future__ import annotations
@@ -24,7 +25,13 @@ from pathlib import Path
 METRICS_MARKER = "[LlmPlanMetrics]"
 EVENT_RE = re.compile(r"\bevent=(\w+)")
 DETAIL_RE = re.compile(r"\bdetail=(\S+)")
-SNAPSHOT_RE = re.compile(
+# PR-5+ current snapshot (no fake-BuildingSpec fallback counters).
+SNAPSHOT_RE_V2 = re.compile(
+    r"tagged=(\d+) success=(\d+) errors=(\d+) success_rate=([\d.]+)% "
+    r"direct_structure=(\d+)"
+)
+# Pre-PR-5 snapshot (kept for historical log analysis only).
+SNAPSHOT_RE_V1 = re.compile(
     r"tagged=(\d+) success=(\d+) errors=(\d+) fallback=(\d+) "
     r"fallback_rate=([\d.]+)% success_rate=([\d.]+)% "
     r"direct_structure=(\d+) structure_after_fallback=(\d+)"
@@ -46,18 +53,27 @@ class Snapshot:
 
 
 def parse_snapshot(line: str) -> Snapshot | None:
-    match = SNAPSHOT_RE.search(line)
+    match = SNAPSHOT_RE_V1.search(line)
+    if match:
+        return Snapshot(
+            tagged=int(match.group(1)),
+            success=int(match.group(2)),
+            errors=int(match.group(3)),
+            fallback=int(match.group(4)),
+            fallback_rate_percent=float(match.group(5)),
+            success_rate_percent=float(match.group(6)),
+            direct_structure=int(match.group(7)),
+            structure_after_fallback=int(match.group(8)),
+        )
+    match = SNAPSHOT_RE_V2.search(line)
     if not match:
         return None
     return Snapshot(
         tagged=int(match.group(1)),
         success=int(match.group(2)),
         errors=int(match.group(3)),
-        fallback=int(match.group(4)),
-        fallback_rate_percent=float(match.group(5)),
-        success_rate_percent=float(match.group(6)),
-        direct_structure=int(match.group(7)),
-        structure_after_fallback=int(match.group(8)),
+        success_rate_percent=float(match.group(4)),
+        direct_structure=int(match.group(5)),
     )
 
 
@@ -154,25 +170,25 @@ def analyze(lines: list[str]) -> int:
         s = last_snapshot
         tagged = s.tagged
         print("Latest cumulative snapshot (from last matching line):")
-        print(f"  tagged={tagged}  success={s.success}  errors={s.errors}  fallback={s.fallback}")
-        print(f"  fallback_rate={s.fallback_rate_percent:.1f}%  success_rate={s.success_rate_percent:.1f}%")
-        print(f"  direct_structure={s.direct_structure}  structure_after_fallback={s.structure_after_fallback}")
+        print(f"  tagged={tagged}  success={s.success}  errors={s.errors}  success_rate={s.success_rate_percent:.1f}%")
+        print(f"  direct_structure={s.direct_structure}")
+        if s.fallback or s.structure_after_fallback:
+            print(
+                f"  (historical) fallback={s.fallback} fallback_rate={s.fallback_rate_percent:.1f}% "
+                f"structure_after_fallback={s.structure_after_fallback}"
+            )
         print()
 
         if tagged > 0:
-            actionable_rate = 100.0 * actionable / tagged
-            policy_count = fallback_by_detail.get("ROUTING_POLICY", 0)
-            policy_share = pct(policy_count, total_fallback_events) if total_fallback_events else "n/a"
-            print("Derived (see docs/MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md §9):")
-            print(f"  actionable_fallback_lines={actionable}  ({pct(actionable, total_fallback_events)} of fallback lines)")
-            print(f"  actionable_rate_vs_tagged≈{actionable_rate:.1f}%  (use snapshot tagged for decisions)")
-            print(f"  ROUTING_POLICY share of fallback lines={policy_share}")
+            print("Notes:")
+            print("  Prefer error/success events over historical fallback counters (PR-2/PR-5).")
+            if total_fallback_events:
+                print(
+                    f"  historical_fallback_lines={total_fallback_events} "
+                    f"actionable={actionable} ({pct(actionable, total_fallback_events)})"
+                )
             if tagged < 50:
-                print("  note: tagged < 50 — observe only, avoid routing changes")
-            elif tagged < 200:
-                print("  note: tagged >= 50 — initial review OK")
-            else:
-                print("  note: tagged >= 200 — eligible for retirement-candidate review if stable")
+                print("  tagged < 50 — observe only")
     else:
         print("No snapshot fields found on metric lines (unexpected format).", file=sys.stderr)
 

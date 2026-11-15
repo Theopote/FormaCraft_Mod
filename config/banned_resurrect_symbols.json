@@ -9,7 +9,10 @@
     "com.formacraft.ai.prompt.PromptAssembler",
     "ai/prompt/PromptAssembler",
     ".editCity(",
-    ".editBuilding("
+    ".editBuilding(",
+    "MassAssemblyExample",
+    "MassToStructuralDeriver",
+    "recordStructureAfterFallback("
   ],
   "allow_path_substrings": [
     "/test/",
