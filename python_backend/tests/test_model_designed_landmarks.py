@@ -222,3 +222,155 @@ def test_fixed_executor_becomes_explicit_gap(component):
     result = reject_fixed_landmark_plan({"components": [component]}, profile)
     assert result["plan_status"] == "capability_gap"
     assert result["components"] == []
+
+
+def test_weak_residential_research_does_not_override_golden_gate_hints():
+    """Research source alone is not enough when content lacks bridge structure."""
+    profile = BuildingProfile(
+        query="建造金门大桥",
+        minecraft_strategy={
+            "skeleton_type": "COMPOUND",
+            "recommended_components": ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"],
+            "recommended_components_source": "research",
+            "notes": "Generic civic massing with windows and a main entrance.",
+        },
+        request_classification={
+            "is_specific_real_building": True,
+            "building_name_normalized": "golden_gate_bridge",
+            "confidence": 0.95,
+            "reasoning_hint": "named landmark",
+            "source": "rules",
+        },
+    )
+    result = finalize_profile_minecraft_strategy(profile, "建造金门大桥")
+    strategy = result.minecraft_strategy
+    assert strategy.model_designed_landmark
+    assert strategy.skeleton_type == "SPAN_SUSPENSION"
+    assert {"BRIDGE", "TOWER", "BRIDGE_CONNECTOR"} <= set(strategy.recommended_components)
+    assert strategy.recommended_components_source == "hint"
+    assert "ROOF" not in strategy.recommended_components or "BRIDGE" in strategy.recommended_components
+    assert "ENTRANCE" not in strategy.recommended_components
+
+
+def test_invalid_sydney_opera_plan_does_not_swap_to_generic_template():
+    """Model-designed landmarks may repair or gap — never silent MASS_MAIN kits."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from app.services.llm_plan_normalization import _normalize_llm_plan_output
+    from app.services.llm_plan_repair import repair_llm_plan_validation
+
+    profile = finalize_profile_minecraft_strategy(
+        BuildingProfile(query="悉尼歌剧院"),
+        "建造悉尼歌剧院",
+    )
+    assert profile.minecraft_strategy.model_designed_landmark
+
+    bad_plan = {
+        "mode": "build",
+        "style_profile": "DEFAULT",
+        # Missing components / dimensions → validation failure
+    }
+    req = SimpleNamespace(
+        userMessage="建造悉尼歌剧院",
+        selection=None,
+        brushSelection=None,
+        world=None,
+        outline=None,
+        symmetry=None,
+        player=SimpleNamespace(pos=SimpleNamespace(x=10, y=64, z=20), facing="EAST"),
+    )
+
+    def normalize_fn(plan, build_req, **_kwargs):
+        return _normalize_llm_plan_output(plan, build_req, building_profile=profile)
+
+    with patch("app.services.llm_plan_repair.LLMPLAN_VALIDATION_REPAIR_LLM", False):
+        with patch(
+            "app.services.llm_plan_repair.build_minimal_plan_from_profile"
+        ) as fallback:
+            with patch(
+                "app.services.request_intent.scaffold_plan_for_intent"
+            ) as scaffold:
+                out = repair_llm_plan_validation(
+                    bad_plan,
+                    req,
+                    user_text="建造悉尼歌剧院",
+                    building_profile=profile,
+                    normalize_fn=normalize_fn,
+                )
+                fallback.assert_not_called()
+                scaffold.assert_not_called()
+    assert out.get("plan_status") == "capability_gap"
+    assert out.get("capability_gap", {}).get("code") == "E_LLMPLAN_VALIDATION"
+
+
+def test_pagoda_model_designed_repair_prompt_forbids_typology_id():
+    import json
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from app.services import llm_plan_repair as repair
+
+    profile = finalize_profile_minecraft_strategy(
+        BuildingProfile(query="佛塔"),
+        "建造一座七层重檐佛塔",
+    )
+    assert profile.minecraft_strategy.model_designed_landmark
+
+    bad = {
+        "mode": "build",
+        "style_profile": "DEFAULT",
+        "anchor": {"x": 1, "y": 64, "z": 2},
+        "global_constraints": {"facing": "SOUTH", "symmetry": "NONE", "terrain_strategy": "ADAPTIVE"},
+        "layout": {"skeleton_type": "VERTICAL_STACK", "path_based": False, "slots": []},
+        "components": [],
+        "genome": {"genomeVersion": "1.0", "symmetry": {"type": "none", "order": None, "mirror": None}},
+    }
+    valid = dict(bad)
+    valid["components"] = [
+        {
+            "component_type": "TOWER",
+            "relative_position": {"x": 0, "y": 0, "z": 0},
+            "dimensions": {"width": 12, "depth": 12, "height": 40},
+            "features": [],
+            "params": {"component_id": "pagoda_main", "floor_count": 7},
+        }
+    ]
+    req = SimpleNamespace(
+        player=SimpleNamespace(pos=SimpleNamespace(x=1, y=64, z=2), facing="SOUTH"),
+        symmetry=None,
+    )
+    call = patch(
+        "app.models.llm_plan_json_schema.call_chat_with_llm_plan_response_formats"
+    ).start()
+    try:
+        call.return_value = (
+            SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(content=json.dumps(valid))
+                    )
+                ]
+            ),
+            "json_object",
+        )
+        with patch.object(repair, "LLMPLAN_VALIDATION_REPAIR_LLM", True):
+            out = repair.repair_llm_plan_validation(
+                bad,
+                req,
+                user_text="建造一座七层重檐佛塔",
+                building_profile=profile,
+                normalize_fn=lambda plan, _req: plan,
+                client=object(),
+                model="test-model",
+                messages=[{"role": "user", "content": "建造一座七层重檐佛塔"}],
+                call_with_timeout=lambda fn, timeout: fn(),
+            )
+        assert call.call_count >= 1
+        prompt = call.call_args.kwargs["messages"][-1]["content"]
+        assert "typology_id" not in prompt or "Do NOT emit params.typology_id" in prompt
+        assert "dense_eaves_pagoda" not in prompt
+        assert "model-designed" in prompt.lower() or "Do NOT emit params.typology_id" in prompt
+        assert out.get("plan_status") != "capability_gap"
+    finally:
+        patch.stopall()

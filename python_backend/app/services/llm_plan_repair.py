@@ -33,10 +33,37 @@ def build_validation_capability_gap(
 ) -> Dict[str, Any]:
     suggestions = list(errors[:4])
     if profile is not None and not profile.minecraft_strategy.landmark_module:
-        suggestions.append(
-            "Compose with MASS_MAIN / ROOF / ENTRANCE from BuildingProfile.recommended_components; "
-            "do not use landmark MODULE presets."
+        raw_rec = getattr(profile.minecraft_strategy, "recommended_components", None)
+        rec = (
+            [str(c).upper() for c in raw_rec if c]
+            if isinstance(raw_rec, (list, tuple))
+            else []
         )
+        model_designed = (
+            getattr(profile.minecraft_strategy, "model_designed_landmark", False) is True
+        )
+        if model_designed:
+            if rec:
+                suggestions.append(
+                    "Model-designed landmark: repair the original compositional plan using "
+                    f"recommended_components=[{', '.join(rec[:6])}]; "
+                    "do not substitute typology_id / MODULE / whole-building presets."
+                )
+            else:
+                suggestions.append(
+                    "Model-designed landmark: fix missing fields only; "
+                    "do not substitute typology_id / MODULE / residential MASS_MAIN kits."
+                )
+        elif rec:
+            suggestions.append(
+                f"Compose with {', '.join(rec[:6])} from BuildingProfile.recommended_components; "
+                "do not use landmark MODULE presets."
+            )
+        else:
+            suggestions.append(
+                "Compose with MASS_MAIN / ROOF / ENTRANCE from BuildingProfile.recommended_components; "
+                "do not use landmark MODULE presets."
+            )
     suggestions.extend([
         "Ensure global_constraints.symmetry is NONE|MIRROR_X|MIRROR_Z|RADIAL.",
         "Ensure layout.slots[].slot_id and anchor are present.",
@@ -78,12 +105,129 @@ def _anchor_from_request(req: Optional[BuildRequest]) -> Optional[Dict[str, int]
         return None
 
 
+_FALLBACK_SKELETONS = frozenset({
+    "LINEAR_PATH",
+    "RADIAL_RING",
+    "RADIAL_SPOKE",
+    "GRID",
+    "GRID_BAY",
+    "COMPOUND",
+    "COURTYARD",
+    "PATH_POLYLINE",
+    "SPAN_SUSPENSION",
+    "VERTICAL_TAPER",
+    "VERTICAL_STACK",
+    "PERIMETER_LOOP",
+    "ENCLOSURE",
+    "LINEAR",  # legacy alias normalized later
+})
+
+
+_VALID_FACINGS = frozenset({"NORTH", "SOUTH", "EAST", "WEST"})
+_VALID_SYMMETRIES = frozenset({"NONE", "MIRROR_X", "MIRROR_Z", "RADIAL"})
+_VALID_TERRAIN = frozenset({"PRESERVE", "ADAPTIVE", "TERRACE", "FLATTEN"})
+
+
+def _constraints_from_request(
+    req: Optional[BuildRequest],
+    *,
+    prior_plan: Optional[Dict[str, Any]] = None,
+    user_text: str = "",
+) -> Dict[str, str]:
+    """Preserve player-facing / symmetry / terrain hard constraints in fallbacks."""
+    facing = "SOUTH"
+    symmetry = "NONE"
+    terrain_strategy = "ADAPTIVE"
+    facing_from_req = False
+    symmetry_from_req = False
+    terrain_from_prior = False
+
+    prior_gc = {}
+    if isinstance(prior_plan, dict):
+        raw_gc = prior_plan.get("global_constraints")
+        if isinstance(raw_gc, dict):
+            prior_gc = raw_gc
+
+    # 1) Prefer structured BuildRequest hard constraints.
+    if req is not None:
+        player = getattr(req, "player", None)
+        if player is None and isinstance(req, dict):
+            player = req.get("player")
+        raw_facing = None
+        if player is not None:
+            raw_facing = getattr(player, "facing", None)
+            if raw_facing is None and isinstance(player, dict):
+                raw_facing = player.get("facing")
+        if isinstance(raw_facing, str) and raw_facing.strip():
+            token = raw_facing.strip().upper()
+            token = {
+                "N": "NORTH", "S": "SOUTH", "E": "EAST", "W": "WEST",
+                "北": "NORTH", "南": "SOUTH", "东": "EAST", "西": "WEST",
+            }.get(token, token)
+            if token in _VALID_FACINGS:
+                facing = token
+                facing_from_req = True
+
+        raw_sym = getattr(req, "symmetry", None)
+        if raw_sym is None and isinstance(req, dict):
+            raw_sym = req.get("symmetry")
+        mode = None
+        if raw_sym is not None:
+            mode = getattr(raw_sym, "mode", None)
+            if mode is None and isinstance(raw_sym, dict):
+                mode = raw_sym.get("mode")
+        if isinstance(mode, str) and mode.strip():
+            token = mode.strip().upper().replace("-", "_")
+            if token in _VALID_SYMMETRIES:
+                symmetry = token
+                symmetry_from_req = True
+            elif token in {"MIRROR_Y", "BOTH", "CUSTOM_AXIS"}:
+                # LlmPlan global_constraints only accepts the closed enum above.
+                symmetry = "MIRROR_X"
+                symmetry_from_req = True
+
+    # 2) Fill gaps from the failed plan's authored constraints (never override request).
+    if not facing_from_req:
+        prior_facing = str(prior_gc.get("facing") or "").strip().upper()
+        if prior_facing in _VALID_FACINGS:
+            facing = prior_facing
+    if not symmetry_from_req:
+        prior_sym = str(prior_gc.get("symmetry") or "").strip().upper().replace("-", "_")
+        if prior_sym in _VALID_SYMMETRIES:
+            symmetry = prior_sym
+    prior_terrain = str(prior_gc.get("terrain_strategy") or "").strip().upper()
+    if prior_terrain in _VALID_TERRAIN:
+        terrain_strategy = prior_terrain
+        terrain_from_prior = True
+
+    # 3) Light user-text terrain cues when nothing was authored.
+    if not terrain_from_prior and terrain_strategy == "ADAPTIVE" and user_text:
+        text = user_text.lower()
+        if any(t in text for t in ("flatten", "平整", "夷平", "推平")):
+            terrain_strategy = "FLATTEN"
+        elif any(t in text for t in ("preserve terrain", "preserve", "保留地形", "不改地形", "贴地")):
+            terrain_strategy = "PRESERVE"
+        elif any(t in text for t in ("terrace", "梯田", "台地")):
+            terrain_strategy = "TERRACE"
+
+    return {
+        "facing": facing,
+        "symmetry": symmetry,
+        "terrain_strategy": terrain_strategy,
+    }
+
+
 def build_minimal_plan_from_profile(
     profile: BuildingProfile,
     req: Optional[BuildRequest],
     user_text: str,
+    *,
+    prior_plan: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Deterministic compositional fallback when LLM output cannot validate."""
+    """Deterministic compositional fallback when LLM output cannot validate.
+
+    Not used for model-designed landmarks (those must repair or capability_gap).
+    """
     sh = profile.scale_hints
     width = int(sh.typical_width_blocks or 32)
     depth = int(sh.typical_depth_blocks or max(16, width * 3 // 4))
@@ -94,6 +238,9 @@ def build_minimal_plan_from_profile(
 
     # Never invent silent world spawn — leave unset so normalize injects player.pos.
     anchor = _anchor_from_request(req)
+    constraints = _constraints_from_request(
+        req, prior_plan=prior_plan, user_text=user_text or ""
+    )
 
     style_profile = profile.identity.style or "DEFAULT"
     skeleton = (profile.minecraft_strategy.skeleton_type or "COMPOUND").upper()
@@ -156,20 +303,22 @@ def build_minimal_plan_from_profile(
     plan: Dict[str, Any] = {
         "mode": "build",
         "style_profile": style_profile,
-        "global_constraints": {
-            "facing": "SOUTH",
-            "symmetry": "NONE",
-            "terrain_strategy": "ADAPTIVE",
-        },
+        "global_constraints": dict(constraints),
         "layout": {
-            "skeleton_type": skeleton if skeleton in ("COMPOUND", "LINEAR", "RADIAL_RING") else "COMPOUND",
+            "skeleton_type": skeleton if skeleton in _FALLBACK_SKELETONS else "COMPOUND",
             "path_based": False,
             "slots": [],
         },
         "components": components,
         "genome": {
             "genomeVersion": "1.0",
-            "symmetry": {"type": "none", "order": None, "mirror": None},
+            "symmetry": {
+                "type": "radial" if constraints["symmetry"] == "RADIAL" else (
+                    "none" if constraints["symmetry"] == "NONE" else "bilateral"
+                ),
+                "order": None,
+                "mirror": constraints["symmetry"] in {"MIRROR_X", "MIRROR_Z"},
+            },
         },
     }
     if anchor is not None:
@@ -262,6 +411,16 @@ def repair_llm_plan_validation(
     from .fbd_capabilities import has_fbd_program, requests_fbd
     from .generation_capability import apply_stage_b_capability_repair
     preserve_fbd = has_fbd_program(plan) or requests_fbd(user_text)
+    strategy = (
+        getattr(building_profile, "minecraft_strategy", None)
+        if building_profile is not None
+        else None
+    )
+    model_designed = (
+        getattr(strategy, "model_designed_landmark", False) is True
+        if strategy is not None
+        else False
+    )
     normalized = resolve_delegated_entrances(normalize_fn(plan, req), user_text)
     normalized, _cap = apply_stage_b_capability_repair(normalized, user_text or "")
     preserve_design = bool(component_consistency_errors(normalized))
@@ -285,15 +444,37 @@ def repair_llm_plan_validation(
 
         for attempt in range(1, 3):
             try:
+                if model_designed:
+                    rec = []
+                    if strategy is not None:
+                        raw_rec = getattr(strategy, "recommended_components", None)
+                        if isinstance(raw_rec, (list, tuple)):
+                            rec = [str(c).upper() for c in raw_rec if c]
+                    morph_hint = (
+                        "If the error mentions tower/pagoda morphology: repair the original "
+                        "compositional massing (TOWER / TOWER_* / ROOF tiers) in place. "
+                        "Do NOT emit params.typology_id, MODULE, or whole-building presets — "
+                        "model-designed landmarks forbid fixed typology executors.\n"
+                    )
+                    if rec:
+                        morph_hint += (
+                            f"Prefer recommended_components=[{', '.join(rec[:6])}].\n"
+                        )
+                else:
+                    morph_hint = (
+                        "If the error mentions tower/pagoda morphology: emit ONE STRUCTURE "
+                        "component with params.typology_id=dense_eaves_pagoda "
+                        "(or tibetan_stupa for 藏式/覆钵), floor_count from the user text, "
+                        "and wall_block/roof_block matching the requested style. "
+                        "Do NOT emit a residential MASS_MAIN+gable house kit for 佛塔/古塔/宝塔.\n"
+                    )
                 repair_user = (
                     "Your previous LlmPlan JSON failed validation. Fix the reported issues.\n"
                     "Errors:\n- "
                     + "\n- ".join(errors[:8])
-                    + "\n\nIf the error mentions tower/pagoda morphology: emit ONE STRUCTURE component with "
-                    "params.typology_id=dense_eaves_pagoda (or tibetan_stupa for 藏式/覆钵), "
-                    "floor_count from the user text, and wall_block/roof_block matching the requested style. "
-                    "Do NOT emit a residential MASS_MAIN+gable house kit for 佛塔/古塔/宝塔.\n"
-                    "Keep the plan anchor at the player position already provided; do not reset to (0,64,0).\n"
+                    + "\n\n"
+                    + morph_hint
+                    + "Keep the plan anchor at the player position already provided; do not reset to (0,64,0).\n"
                     "Return a single corrected LlmPlan JSON object."
                 )
                 repair_messages = list(messages)
@@ -336,6 +517,7 @@ def repair_llm_plan_validation(
     # Directed re-plan from high-confidence request intent before emitting a hard gap.
     # Only scaffold when keyword/LLM merge is confident — never replace a plausible LLM
     # plan because of a weak lexical false positive (重檐→塔, 庭院→园林).
+    # Model-designed landmarks: never swap the whole design for a deterministic template.
     def _is_schema_field_fail(err: object) -> bool:
         e = str(err).lower()
         if "missing field" in e or "field required" in e:
@@ -352,7 +534,7 @@ def repair_llm_plan_validation(
         or _is_schema_field_fail(e)
         for e in (errors or [])
     )
-    if semantic_fail and not preserve_fbd:
+    if semantic_fail and not preserve_fbd and not model_designed:
         try:
             from .request_intent import (
                 attach_request_intent,
@@ -424,9 +606,20 @@ def repair_llm_plan_validation(
                 )
         except Exception:
             logger.exception("request_intent scaffold recovery failed")
+    elif model_designed:
+        logger.info(
+            "Skipping deterministic scaffold/profile fallback for model-designed landmark"
+        )
 
-    if building_profile is not None and not preserve_fbd and not preserve_design:
-        fallback = build_minimal_plan_from_profile(building_profile, req, user_text)
+    if (
+        building_profile is not None
+        and not preserve_fbd
+        and not preserve_design
+        and not model_designed
+    ):
+        fallback = build_minimal_plan_from_profile(
+            building_profile, req, user_text, prior_plan=normalized
+        )
         fallback_norm = normalize_fn(fallback, req)
         fallback_errors = _try_validate(fallback_norm, user_text)
         if not fallback_errors:

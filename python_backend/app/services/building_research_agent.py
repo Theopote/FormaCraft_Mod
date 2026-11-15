@@ -551,6 +551,21 @@ _MODEL_DESIGNED_STRUCTURE_HINTS: Dict[str, Dict[str, Any]] = {
 
 _FACTORY_DEFAULT_COMPONENTS = ("MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE")
 
+# Ordinary house/enrichment tokens — valid for many buildings, but insufficient when a
+# landmark hint requires bridge/tower/shell-specific structure.
+_GENERIC_RESIDENTIAL_COMPONENT_SET = frozenset({
+    "MASS_MAIN",
+    "MASS_SECONDARY",
+    "ROOF",
+    "FACADE_WINDOWS",
+    "ENTRANCE",
+    "FOUNDATION",
+    "DECOR_DETAIL",
+    "BALCONY",
+    "TERRACE",
+    "CHIMNEY",
+})
+
 _OPEN_MODEL_DESIGNED_NOTES = (
     "AI-designed landmark: research is evidence, not a fixed generator instruction. "
     "Choose layout, massing, proportions and details independently; "
@@ -613,11 +628,31 @@ def _recommended_components_are_authoritative(mc: Any, components: List[str]) ->
     return not _is_factory_default_components(components)
 
 
+def _research_lacks_landmark_structure(
+    research_comps: List[str],
+    hint_comps: List[str],
+) -> bool:
+    """True when research is residential-only while the landmark hint needs special structure."""
+    if not hint_comps:
+        return False
+    hint_special = [c for c in hint_comps if c not in _GENERIC_RESIDENTIAL_COMPONENT_SET]
+    if not hint_special:
+        return False
+    research_special = [c for c in research_comps if c not in _GENERIC_RESIDENTIAL_COMPONENT_SET]
+    if research_special:
+        return False
+    return (
+        not research_comps
+        or _is_factory_default_components(research_comps)
+        or set(research_comps) <= _GENERIC_RESIDENTIAL_COMPONENT_SET
+    )
+
+
 def _merge_model_designed_strategy(
     mc: Any,
     hint: Optional[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    """Clear fixed executors; preserve research structure; fill gaps from hints only."""
+    """Clear fixed executors; preserve quality research; supplement weak research from hints."""
     research_comps = _normalize_recommended_components(getattr(mc, "recommended_components", None))
     research_skel = str(getattr(mc, "skeleton_type", None) or "").strip()
     research_notes = str(getattr(mc, "notes", None) or "").strip()
@@ -627,10 +662,14 @@ def _merge_model_designed_strategy(
     hint_skel = str((hint or {}).get("skeleton_type") or "").strip()
     hint_notes = str((hint or {}).get("notes") or "").strip()
 
-    if _recommended_components_are_authoritative(mc, research_comps):
+    if (
+        _recommended_components_are_authoritative(mc, research_comps)
+        and not _research_lacks_landmark_structure(research_comps, hint_comps)
+    ):
         components = research_comps
         source = prior_source or "research"
     elif hint_comps:
+        # Weak residential research (even with source=research) yields to landmark structure hints.
         components = hint_comps
         source = "hint"
     else:
@@ -638,20 +677,34 @@ def _merge_model_designed_strategy(
         components = []
         source = "default"
 
+    # Prefer a specific research skeleton; otherwise take the landmark hint.
     if research_skel and not _is_default_skeleton(research_skel):
-        skeleton = research_skel
+        if hint_skel and _research_lacks_landmark_structure(research_comps, hint_comps):
+            # Weak residential research + COMPOUND-like body must not override bridge/tower skeleton.
+            skeleton = hint_skel
+        else:
+            skeleton = research_skel
     elif hint_skel:
         skeleton = hint_skel
     else:
         skeleton = research_skel or "COMPOUND"
 
-    if research_notes and "landmark_module is null: compositional only" not in research_notes.lower():
+    if (
+        research_notes
+        and "landmark_module is null: compositional only" not in research_notes.lower()
+        and not _research_lacks_landmark_structure(research_comps, hint_comps)
+    ):
         if research_notes.startswith("AI-designed landmark"):
             notes = research_notes
         else:
             notes = f"AI-designed landmark: research is evidence, not a fixed generator. {research_notes}".strip()
     elif hint_notes:
         notes = hint_notes
+        if prior_source == "research" and research_comps:
+            notes = (
+                f"{hint_notes} "
+                "(Research returned residential-only components; landmark structure hint supplemented.)"
+            ).strip()
     else:
         notes = _OPEN_MODEL_DESIGNED_NOTES
 

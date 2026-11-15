@@ -62,6 +62,72 @@ class TestLlmPlanRepair(unittest.TestCase):
         self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
         self.assertIsNone(profile.minecraft_strategy.reference_landmark)
 
+    def test_profile_fallback_preserves_facing_and_symmetry(self):
+        from types import SimpleNamespace
+
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy, ProfileScaleHints
+        from app.models.request import SymmetryConstraint
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
+        from app.services.llm_plan_repair import (
+            build_minimal_plan_from_profile,
+            repair_llm_plan_validation,
+        )
+
+        profile = BuildingProfile(
+            query="memorial hall",
+            minecraft_strategy=ProfileMinecraftStrategy(
+                landmark_module=None,
+                recommended_components=["MASS_MAIN", "ROOF", "ENTRANCE"],
+            ),
+            scale_hints=ProfileScaleHints(
+                typical_width_blocks=36, typical_depth_blocks=24, typical_height_blocks=16
+            ),
+        )
+        req = SimpleNamespace(
+            userMessage="建造东西轴线对称纪念馆，面朝东方",
+            selection=None,
+            brushSelection=None,
+            world=None,
+            outline=None,
+            symmetry=SymmetryConstraint(mode="MIRROR_X"),
+            player=SimpleNamespace(
+                pos=SimpleNamespace(x=100, y=70, z=200),
+                facing="EAST",
+            ),
+        )
+        minimal = build_minimal_plan_from_profile(
+            profile,
+            req,
+            "建造东西轴线对称纪念馆，面朝东方，保留地形",
+            prior_plan={
+                "global_constraints": {
+                    "facing": "SOUTH",
+                    "symmetry": "NONE",
+                    "terrain_strategy": "PRESERVE",
+                }
+            },
+        )
+        gc = minimal["global_constraints"]
+        self.assertEqual(gc["facing"], "EAST")
+        self.assertEqual(gc["symmetry"], "MIRROR_X")
+        self.assertEqual(gc["terrain_strategy"], "PRESERVE")
+        self.assertTrue(minimal["genome"]["symmetry"]["mirror"])
+
+        def normalize_fn(plan, build_req, **_kwargs):
+            return _normalize_llm_plan_output(plan, build_req, building_profile=profile)
+
+        out = repair_llm_plan_validation(
+            {"mode": "build", "style_profile": "DEFAULT"},
+            req,
+            user_text="建造东西轴线对称纪念馆，面朝东方，保留地形",
+            building_profile=profile,
+            normalize_fn=normalize_fn,
+        )
+        self.assertNotEqual(out.get("plan_status"), "capability_gap")
+        out_gc = out.get("global_constraints") or {}
+        self.assertEqual(out_gc.get("facing"), "EAST")
+        self.assertEqual(out_gc.get("symmetry"), "MIRROR_X")
+
 
 if __name__ == "__main__":
     unittest.main()
