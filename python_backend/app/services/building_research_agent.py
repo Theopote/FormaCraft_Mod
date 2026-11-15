@@ -436,159 +436,14 @@ def resolve_landmark_module_for_intent(user_text: str) -> Optional[str]:
     return None
 
 
-# Model-designed landmarks clear fixed executors, but keep research structure semantics.
-# Keys are archetype ids (preferred) or structural typology ids (fallback evidence).
-_MODEL_DESIGNED_STRUCTURE_HINTS: Dict[str, Dict[str, Any]] = {
-    "golden_gate_bridge": {
-        "skeleton_type": "SPAN_SUSPENSION",
-        "recommended_components": ["BRIDGE", "TOWER", "BRIDGE_CONNECTOR", "STRUCTURE", "PAVING"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve bridge structure — deck span, twin towers, cables/suspenders, anchorage. "
-            "Prefer span_to_tower_height / cable_sag_ratio; forbid house roof/entrance defaults."
-        ),
-    },
-    "suspension_bridge": {
-        "skeleton_type": "SPAN_SUSPENSION",
-        "recommended_components": ["BRIDGE", "TOWER", "BRIDGE_CONNECTOR", "STRUCTURE", "PAVING"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve bridge structure — deck span, towers, cable/suspender system, anchorage. "
-            "Prefer bridge ratios; forbid residential MASS/ROOF/ENTRANCE defaults."
-        ),
-    },
-    "temple_of_heaven": {
-        "skeleton_type": "RADIAL_RING",
-        "recommended_components": ["MASS_MAIN", "TERRACE", "ROOF", "FOUNDATION", "PLAZA"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve radial terrace-hall structure — circular tiers, central hall, axial RADIAL layout."
-        ),
-    },
-    "radial_terrace_hall": {
-        "skeleton_type": "RADIAL_RING",
-        "recommended_components": ["MASS_MAIN", "TERRACE", "ROOF", "FOUNDATION", "PLAZA"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve radial terrace-hall structure — circular tiers and central hall, not a rectangular house."
-        ),
-    },
-    "eiffel_tower": {
-        "skeleton_type": "VERTICAL_TAPER",
-        "recommended_components": ["TOWER", "TOWER_BASE", "TOWER_MID", "TOWER_TOP", "STRUCTURE"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve vertical lattice-tower structure — tapering truss legs, platforms, open ironwork."
-        ),
-    },
-    "truss_tower": {
-        "skeleton_type": "VERTICAL_TAPER",
-        "recommended_components": ["TOWER", "TOWER_BASE", "TOWER_MID", "TOWER_TOP", "STRUCTURE"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve vertical truss/lattice tower structure and platform relationships."
-        ),
-    },
-    "sydney_opera_house": {
-        "skeleton_type": "COMPOUND",
-        "recommended_components": ["MASS_MAIN", "ROOF", "ROOF_STRUCTURE", "FOUNDATION", "PLAZA"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve shell-roof cluster massing on a podium via COMPOUND slots/masses — "
-            "not a conventional house box and not an unsupported CLUSTER skeleton."
-        ),
-    },
-    "stadium_bowl": {
-        "skeleton_type": "RADIAL_RING",
-        "recommended_components": ["STRUCTURE", "MASS_MAIN", "TERRACE", "ROOF"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve bowl/arena structure — elliptical seating bowl and spanning roof/mesh."
-        ),
-    },
-    "dense_eaves_pagoda": {
-        "skeleton_type": "VERTICAL_STACK",
-        "recommended_components": ["TOWER", "TOWER_BASE", "TOWER_MID", "TOWER_TOP", "ROOF"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve stacked dense-eaves pagoda tiers and vertical taper."
-        ),
-    },
-    "setback_tower": {
-        "skeleton_type": "VERTICAL_STACK",
-        "recommended_components": ["TOWER", "MASS_MAIN", "CROWN", "FACADE_WINDOWS", "ENTRANCE"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve vertical setback tower massing and curtain-wall rhythm."
-        ),
-    },
-    "gothic_cathedral_hall": {
-        "skeleton_type": "COMPOUND",
-        "recommended_components": ["MASS_MAIN", "TOWER", "ROOF", "ENTRANCE", "FOUNDATION"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve cathedral nave/transept/tower composition and vertical gothic massing."
-        ),
-    },
-    "courtyard_compound": {
-        "skeleton_type": "COURTYARD",
-        "recommended_components": ["MASS_MAIN", "COURTYARD_SPACE", "ROOF", "ENTRANCE", "GATE"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve courtyard compound organization — wings around an open court."
-        ),
-    },
-    "radial_fortress": {
-        "skeleton_type": "COMPOUND",
-        "recommended_components": ["KEEP", "WALL", "TOWER", "GATE", "MASS_MAIN"],
-        "notes": (
-            "AI-designed landmark: research is evidence, not a fixed generator. "
-            "Preserve fortress keep/wall/tower/gate relationships."
-        ),
-    },
-}
-
-
 _FACTORY_DEFAULT_COMPONENTS = ("MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE")
-
-# Ordinary house/enrichment tokens — valid for many buildings, but insufficient when a
-# landmark hint requires bridge/tower/shell-specific structure.
-_GENERIC_RESIDENTIAL_COMPONENT_SET = frozenset({
-    "MASS_MAIN",
-    "MASS_SECONDARY",
-    "ROOF",
-    "FACADE_WINDOWS",
-    "ENTRANCE",
-    "FOUNDATION",
-    "DECOR_DETAIL",
-    "BALCONY",
-    "TERRACE",
-    "CHIMNEY",
-})
 
 _OPEN_MODEL_DESIGNED_NOTES = (
     "AI-designed landmark: research is evidence, not a fixed generator instruction. "
-    "Choose layout, massing, proportions and details independently; "
-    "do not assume a residential MASS/ROOF/ENTRANCE template."
+    "Choose layout, massing, proportions, skeleton and components yourself from evidence "
+    "and the user brief; do not assume a residential MASS/ROOF/ENTRANCE template or any "
+    "name-bound component kit."
 )
-
-
-def _model_designed_structure_hint(
-    user_text: str,
-    *,
-    archetype_id: Optional[str] = None,
-    research_typology_id: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
-    """Optional static structure hint for known landmarks (never a fixed executor).
-
-    Returns ``None`` for unknown landmarks so callers keep research semantics or
-    an open compositional strategy instead of forcing a residential default.
-    """
-    del user_text  # reserved for future text-driven hints
-    for key in (archetype_id, research_typology_id):
-        if key and key in _MODEL_DESIGNED_STRUCTURE_HINTS:
-            return dict(_MODEL_DESIGNED_STRUCTURE_HINTS[key])
-    return None
 
 
 def _normalize_recommended_components(raw: Any) -> List[str]:
@@ -616,7 +471,7 @@ def _is_default_skeleton(skeleton_type: Optional[str]) -> bool:
 
 
 def _recommended_components_are_authoritative(mc: Any, components: List[str]) -> bool:
-    """Keep research/user recommendations even when they look 'ordinary' (MASS/ROOF/TERRACE)."""
+    """Keep research/user recommendations; drop rule/default/hint kits."""
     if not components:
         return False
     source = str(getattr(mc, "recommended_components_source", None) or "").strip().lower()
@@ -628,82 +483,43 @@ def _recommended_components_are_authoritative(mc: Any, components: List[str]) ->
     return not _is_factory_default_components(components)
 
 
-def _research_lacks_landmark_structure(
-    research_comps: List[str],
-    hint_comps: List[str],
-) -> bool:
-    """True when research is residential-only while the landmark hint needs special structure."""
-    if not hint_comps:
-        return False
-    hint_special = [c for c in hint_comps if c not in _GENERIC_RESIDENTIAL_COMPONENT_SET]
-    if not hint_special:
-        return False
-    research_special = [c for c in research_comps if c not in _GENERIC_RESIDENTIAL_COMPONENT_SET]
-    if research_special:
-        return False
-    return (
-        not research_comps
-        or _is_factory_default_components(research_comps)
-        or set(research_comps) <= _GENERIC_RESIDENTIAL_COMPONENT_SET
-    )
-
-
-def _merge_model_designed_strategy(
-    mc: Any,
-    hint: Optional[Dict[str, Any]],
-) -> Dict[str, Any]:
-    """Clear fixed executors; preserve quality research; supplement weak research from hints."""
+def _merge_model_designed_strategy(mc: Any) -> Dict[str, Any]:
+    """Clear fixed executors; keep research evidence only — never inject name-bound kits."""
     research_comps = _normalize_recommended_components(getattr(mc, "recommended_components", None))
     research_skel = str(getattr(mc, "skeleton_type", None) or "").strip()
     research_notes = str(getattr(mc, "notes", None) or "").strip()
     prior_source = str(getattr(mc, "recommended_components_source", None) or "").strip().lower()
 
-    hint_comps = _normalize_recommended_components((hint or {}).get("recommended_components"))
-    hint_skel = str((hint or {}).get("skeleton_type") or "").strip()
-    hint_notes = str((hint or {}).get("notes") or "").strip()
-
-    if (
-        _recommended_components_are_authoritative(mc, research_comps)
-        and not _research_lacks_landmark_structure(research_comps, hint_comps)
-    ):
+    if _recommended_components_are_authoritative(mc, research_comps):
         components = research_comps
         source = prior_source or "research"
-    elif hint_comps:
-        # Weak residential research (even with source=research) yields to landmark structure hints.
-        components = hint_comps
-        source = "hint"
     else:
-        # Factory/rule defaults are not structural evidence — leave open.
+        # Factory/rule/hint kits are not structural evidence — leave open for Stage P.
         components = []
         source = "default"
 
-    # Prefer a specific research skeleton; otherwise take the landmark hint.
-    if research_skel and not _is_default_skeleton(research_skel):
-        if hint_skel and _research_lacks_landmark_structure(research_comps, hint_comps):
-            # Weak residential research + COMPOUND-like body must not override bridge/tower skeleton.
-            skeleton = hint_skel
-        else:
-            skeleton = research_skel
-    elif hint_skel:
-        skeleton = hint_skel
+    if research_skel and not _is_default_skeleton(research_skel) and (
+        prior_source in ("research", "user") or _recommended_components_are_authoritative(mc, research_comps)
+    ):
+        skeleton = research_skel
+    elif research_skel and prior_source in ("research", "user"):
+        skeleton = research_skel
     else:
-        skeleton = research_skel or "COMPOUND"
+        # Open default — Stage P chooses; COMPOUND is a neutral layout token, not a design kit.
+        skeleton = research_skel if (prior_source in ("research", "user") and research_skel) else "COMPOUND"
 
     if (
         research_notes
         and "landmark_module is null: compositional only" not in research_notes.lower()
-        and not _research_lacks_landmark_structure(research_comps, hint_comps)
+        and prior_source in ("research", "user", "")
+        and not research_notes.startswith("[LandmarkSeed:")
     ):
         if research_notes.startswith("AI-designed landmark"):
             notes = research_notes
         else:
-            notes = f"AI-designed landmark: research is evidence, not a fixed generator. {research_notes}".strip()
-    elif hint_notes:
-        notes = hint_notes
-        if prior_source == "research" and research_comps:
             notes = (
-                f"{hint_notes} "
-                "(Research returned residential-only components; landmark structure hint supplemented.)"
+                "AI-designed landmark: research is evidence, not a fixed generator. "
+                f"{research_notes}"
             ).strip()
     else:
         notes = _OPEN_MODEL_DESIGNED_NOTES
@@ -832,12 +648,9 @@ def finalize_profile_minecraft_strategy(
         identified.is_specific_real_building or (match is not None and "generic_typology" not in match.reason_tags))
     mc.model_designed_landmark = bool(model_designed)
     research_typology_id = resolve_structural_typology_for_intent(user_text)
+    # Named / model-designed landmarks never auto-bind whole-building typology executors.
+    # Keyword typology remains only for non-named compositional intents (and never from seeds).
     typology_id = None if model_designed else research_typology_id
-    archetype_id = (
-        match.id
-        if match is not None and "generic_typology" not in match.reason_tags
-        else None
-    )
     resolved = resolve_landmark_module_for_intent(user_text)
     from .typology_registry import is_compositional_typology
     # An authored style card must not replace an explicitly requested preset.
@@ -901,7 +714,7 @@ def finalize_profile_minecraft_strategy(
                     + note
                 ).strip()
         # model_designed: leave components as research-provided (possibly empty) —
-        # final merge fills known hints or keeps an open strategy.
+        # final merge clears executors and keeps evidence only (no name-bound kits).
         mc.recommended_components = components
         if source:
             mc.recommended_components_source = source
@@ -909,9 +722,10 @@ def finalize_profile_minecraft_strategy(
     try:
         from .research_landmark_seeds import apply_research_landmark_seed
 
+        # Seeds are non-binding curated references only (notes), not design commands.
         profile, seed_id = apply_research_landmark_seed(profile, user_text)
         if seed_id:
-            logger.info("Applied research landmark seed for %r", seed_id)
+            logger.info("Recorded non-binding research landmark reference for %r", seed_id)
     except Exception as exc:
         logger.warning("Research landmark seed skipped: %s", exc)
     tier, msg = _compute_fidelity_message(profile, user_text, resolved)
@@ -923,13 +737,8 @@ def finalize_profile_minecraft_strategy(
     except Exception as exc:
         logger.warning("Profile architectural enrichment skipped: %s", exc)
     if model_designed:
-        hint = _model_designed_structure_hint(
-            user_text,
-            archetype_id=archetype_id,
-            research_typology_id=research_typology_id,
-        )
         mc = profile.minecraft_strategy.model_copy(
-            update=_merge_model_designed_strategy(profile.minecraft_strategy, hint)
+            update=_merge_model_designed_strategy(profile.minecraft_strategy)
         )
         profile = profile.model_copy(update={"minecraft_strategy": mc})
     return profile

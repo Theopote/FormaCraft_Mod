@@ -178,7 +178,9 @@ class BroadTypologyAliasTest(unittest.TestCase):
         self.assertIsNone(resolve_landmark_module_for_intent("迪士尼城堡"))
         updated, lid = apply_research_landmark_seed(BuildingProfile(), "迪士尼城堡")
         self.assertEqual(lid, "disney_castle")
-        self.assertTrue(any("fairytale" in f.lower() for f in updated.structure.distinguishing_features))
+        self.assertIn("[LandmarkSeed:disney_castle]", updated.research_notes or "")
+        self.assertIn("non-binding", (updated.research_notes or "").lower())
+        self.assertEqual(updated.structure.distinguishing_features, [])
 
 
 if __name__ == "__main__":

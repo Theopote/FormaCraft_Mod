@@ -421,6 +421,12 @@ def repair_llm_plan_validation(
         if strategy is not None
         else False
     )
+    # Fixed executor routes (explicit preset MODULE or bound typology) may rebuild;
+    # open-world AI designs must preserve the original plan or emit capability_gap.
+    lm = str(getattr(strategy, "landmark_module", None) or "").strip() if strategy else ""
+    stid = str(getattr(strategy, "structural_typology", None) or "").strip() if strategy else ""
+    fixed_executor_route = bool(lm or stid)
+    preserve_open_design = (not fixed_executor_route) or model_designed
     normalized = resolve_delegated_entrances(normalize_fn(plan, req), user_text)
     normalized, _cap = apply_stage_b_capability_repair(normalized, user_text or "")
     preserve_design = bool(component_consistency_errors(normalized))
@@ -444,7 +450,7 @@ def repair_llm_plan_validation(
 
         for attempt in range(1, 3):
             try:
-                if model_designed:
+                if preserve_open_design:
                     rec = []
                     if strategy is not None:
                         raw_rec = getattr(strategy, "recommended_components", None)
@@ -454,11 +460,12 @@ def repair_llm_plan_validation(
                         "If the error mentions tower/pagoda morphology: repair the original "
                         "compositional massing (TOWER / TOWER_* / ROOF tiers) in place. "
                         "Do NOT emit params.typology_id, MODULE, or whole-building presets — "
-                        "model-designed landmarks forbid fixed typology executors.\n"
+                        "open-world planning forbids fixed typology executors unless the user "
+                        "explicitly requested preset:<id>.\n"
                     )
                     if rec:
                         morph_hint += (
-                            f"Prefer recommended_components=[{', '.join(rec[:6])}].\n"
+                            f"recommended_components=[{', '.join(rec[:6])}] are optional evidence only.\n"
                         )
                 else:
                     morph_hint = (
@@ -517,7 +524,8 @@ def repair_llm_plan_validation(
     # Directed re-plan from high-confidence request intent before emitting a hard gap.
     # Only scaffold when keyword/LLM merge is confident — never replace a plausible LLM
     # plan because of a weak lexical false positive (重檐→塔, 庭院→园林).
-    # Model-designed landmarks: never swap the whole design for a deterministic template.
+    # Open-world designs (and model-designed landmarks): never swap the whole design
+    # for a deterministic template unless an explicit fixed executor route is active.
     def _is_schema_field_fail(err: object) -> bool:
         e = str(err).lower()
         if "missing field" in e or "field required" in e:
@@ -534,7 +542,7 @@ def repair_llm_plan_validation(
         or _is_schema_field_fail(e)
         for e in (errors or [])
     )
-    if semantic_fail and not preserve_fbd and not model_designed:
+    if semantic_fail and not preserve_fbd and not preserve_open_design:
         try:
             from .request_intent import (
                 attach_request_intent,
@@ -606,16 +614,19 @@ def repair_llm_plan_validation(
                 )
         except Exception:
             logger.exception("request_intent scaffold recovery failed")
-    elif model_designed:
+    elif preserve_open_design:
         logger.info(
-            "Skipping deterministic scaffold/profile fallback for model-designed landmark"
+            "Skipping deterministic scaffold/profile fallback for open-world AI design "
+            "(fixed_executor_route=%s model_designed=%s)",
+            fixed_executor_route,
+            model_designed,
         )
 
     if (
         building_profile is not None
         and not preserve_fbd
         and not preserve_design
-        and not model_designed
+        and not preserve_open_design
     ):
         fallback = build_minimal_plan_from_profile(
             building_profile, req, user_text, prior_plan=normalized

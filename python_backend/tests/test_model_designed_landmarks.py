@@ -9,24 +9,31 @@ from app.services.landmark_design_policy import reject_fixed_landmark_plan
 
 
 @pytest.mark.parametrize(
-    "name,expected_components,skeleton",
+    "name",
     [
-        ("Eiffel Tower", {"TOWER", "STRUCTURE"}, "VERTICAL_TAPER"),
-        ("天坛", {"MASS_MAIN", "TERRACE", "ROOF"}, "RADIAL_RING"),
-        ("悉尼歌剧院", {"MASS_MAIN", "ROOF", "ROOF_STRUCTURE"}, "COMPOUND"),
-        ("生成金门大桥", {"BRIDGE", "TOWER", "BRIDGE_CONNECTOR"}, "SPAN_SUSPENSION"),
+        "Eiffel Tower",
+        "天坛",
+        "悉尼歌剧院",
+        "生成金门大桥",
     ],
 )
-def test_landmark_name_is_evidence_not_executor(name, expected_components, skeleton):
+def test_landmark_name_is_evidence_not_executor(name):
+    """Named landmarks clear fixed executors; no name-bound component/skeleton kit."""
     profile = finalize_profile_minecraft_strategy(BuildingProfile(query=name), name)
     strategy = profile.minecraft_strategy
     assert strategy.model_designed_landmark
     assert strategy.landmark_module is None
     assert strategy.structural_typology is None
     assert resolve_landmark_module_for_intent(name) is None
-    assert "Design this landmark yourself" in research_landmark_override_block(profile)
-    assert strategy.skeleton_type == skeleton
-    assert expected_components <= set(strategy.recommended_components)
+    override = research_landmark_override_block(profile)
+    assert "optional evidence" in override.lower() or "Design this landmark yourself" in override or (
+        "Open-world AI design" in override
+    )
+    assert "typology:" not in override or "unless the user explicitly requested" in override
+    # No forced name-bound kits when research did not provide components.
+    assert strategy.recommended_components_source != "hint"
+    if not strategy.recommended_components:
+        assert strategy.recommended_components_source in ("default", None)
 
 
 def test_explicit_preset_compatibility():
@@ -38,7 +45,7 @@ def test_explicit_preset_compatibility():
 
 
 def test_unknown_landmark_keeps_research_structure_semantics():
-    """Open-world research must not be overwritten by the residential default table."""
+    """Open-world research must not be overwritten by residential defaults or name kits."""
     profile = BuildingProfile(
         query="建造千禧桥",
         minecraft_strategy={
@@ -89,6 +96,8 @@ def test_unknown_landmark_without_research_stays_open():
     strategy = result.minecraft_strategy
     assert strategy.model_designed_landmark
     assert strategy.recommended_components == []
+    assert strategy.landmark_module is None
+    assert strategy.structural_typology is None
     assert "residential" in (strategy.notes or "").lower() or "MASS/ROOF/ENTRANCE" in (strategy.notes or "")
 
 
@@ -117,6 +126,85 @@ def test_unknown_classical_research_components_are_not_cleared():
     assert strategy.recommended_components_source == "research"
 
 
+def test_weak_residential_research_is_not_replaced_by_name_kit():
+    """Weak research stays open — no Golden Gate hint table overwrite."""
+    profile = BuildingProfile(
+        query="建造金门大桥",
+        minecraft_strategy={
+            "skeleton_type": "COMPOUND",
+            "recommended_components": ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"],
+            "recommended_components_source": "research",
+            "notes": "Generic civic massing with windows and a main entrance.",
+        },
+        request_classification={
+            "is_specific_real_building": True,
+            "building_name_normalized": "golden_gate_bridge",
+            "confidence": 0.95,
+            "reasoning_hint": "named landmark",
+            "source": "rules",
+        },
+    )
+    result = finalize_profile_minecraft_strategy(profile, "建造金门大桥")
+    strategy = result.minecraft_strategy
+    assert strategy.model_designed_landmark
+    assert strategy.structural_typology is None
+    assert strategy.landmark_module is None
+    # Research residential comps are kept as evidence (AI may reinterpret in Stage P),
+    # but code must NOT inject a bridge kit from a name table.
+    assert strategy.recommended_components_source != "hint"
+    assert "TOWER_BASE" not in strategy.recommended_components
+    assert not (
+        strategy.skeleton_type == "SPAN_SUSPENSION"
+        and {"BRIDGE", "TOWER", "BRIDGE_CONNECTOR"} <= set(strategy.recommended_components)
+        and strategy.recommended_components_source == "hint"
+    )
+
+
+def test_dual_research_plans_are_not_forced_identical():
+    """Two different research interpretations of the same landmark stay distinct."""
+    text = "建造埃菲尔铁塔"
+    lattice = finalize_profile_minecraft_strategy(
+        BuildingProfile(
+            query=text,
+            minecraft_strategy={
+                "skeleton_type": "VERTICAL_TAPER",
+                "recommended_components": ["TOWER", "STRUCTURE", "PAVING"],
+                "recommended_components_source": "research",
+                "notes": "Four tapering lattice legs with platforms.",
+            },
+            request_classification={
+                "is_specific_real_building": True,
+                "building_name_normalized": "eiffel_tower",
+                "confidence": 0.95,
+                "source": "rules",
+            },
+        ),
+        text,
+    )
+    bold = finalize_profile_minecraft_strategy(
+        BuildingProfile(
+            query=text,
+            minecraft_strategy={
+                "skeleton_type": "COMPOUND",
+                "recommended_components": ["MASS_MAIN", "TOWER", "DECOR_DETAIL"],
+                "recommended_components_source": "research",
+                "notes": "Bold geometric simplification of iron lattice silhouette.",
+            },
+            request_classification={
+                "is_specific_real_building": True,
+                "building_name_normalized": "eiffel_tower",
+                "confidence": 0.95,
+                "source": "rules",
+            },
+        ),
+        text,
+    )
+    assert lattice.minecraft_strategy.landmark_module is None
+    assert bold.minecraft_strategy.landmark_module is None
+    assert lattice.minecraft_strategy.recommended_components != bold.minecraft_strategy.recommended_components
+    assert lattice.minecraft_strategy.skeleton_type != bold.minecraft_strategy.skeleton_type
+
+
 def test_model_designed_stage_p_hides_fixed_module_route():
     from app.services.building_plan_stage import build_plan_stage_user_block
 
@@ -127,12 +215,9 @@ def test_model_designed_stage_p_hides_fixed_module_route():
     assert profile.minecraft_strategy.model_designed_landmark
     block = build_plan_stage_user_block(profile, "建造千禧桥")
     assert "Directly plannable component_type values" in block
-    assert "BRIDGE" in block
-    # Fixed MODULE route must not be offered for model-designed landmarks.
+    assert "optional evidence" in block.lower()
     assert "- MODULE [" not in block
-    assert "typology:* and fixed landmark executors are disallowed" in block or (
-        "parametric structure_type only" in block
-    )
+    assert "must" not in block.lower() or "USER REQUEST is authoritative" in block
 
 
 def test_fbd_negation_does_not_expose_assembly():
@@ -224,36 +309,8 @@ def test_fixed_executor_becomes_explicit_gap(component):
     assert result["components"] == []
 
 
-def test_weak_residential_research_does_not_override_golden_gate_hints():
-    """Research source alone is not enough when content lacks bridge structure."""
-    profile = BuildingProfile(
-        query="建造金门大桥",
-        minecraft_strategy={
-            "skeleton_type": "COMPOUND",
-            "recommended_components": ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"],
-            "recommended_components_source": "research",
-            "notes": "Generic civic massing with windows and a main entrance.",
-        },
-        request_classification={
-            "is_specific_real_building": True,
-            "building_name_normalized": "golden_gate_bridge",
-            "confidence": 0.95,
-            "reasoning_hint": "named landmark",
-            "source": "rules",
-        },
-    )
-    result = finalize_profile_minecraft_strategy(profile, "建造金门大桥")
-    strategy = result.minecraft_strategy
-    assert strategy.model_designed_landmark
-    assert strategy.skeleton_type == "SPAN_SUSPENSION"
-    assert {"BRIDGE", "TOWER", "BRIDGE_CONNECTOR"} <= set(strategy.recommended_components)
-    assert strategy.recommended_components_source == "hint"
-    assert "ROOF" not in strategy.recommended_components or "BRIDGE" in strategy.recommended_components
-    assert "ENTRANCE" not in strategy.recommended_components
-
-
 def test_invalid_sydney_opera_plan_does_not_swap_to_generic_template():
-    """Model-designed landmarks may repair or gap — never silent MASS_MAIN kits."""
+    """Open-world landmarks may repair or gap — never silent MASS_MAIN kits."""
     from types import SimpleNamespace
     from unittest.mock import patch
 
@@ -269,7 +326,6 @@ def test_invalid_sydney_opera_plan_does_not_swap_to_generic_template():
     bad_plan = {
         "mode": "build",
         "style_profile": "DEFAULT",
-        # Missing components / dimensions → validation failure
     }
     req = SimpleNamespace(
         userMessage="建造悉尼歌剧院",
@@ -302,6 +358,40 @@ def test_invalid_sydney_opera_plan_does_not_swap_to_generic_template():
                 scaffold.assert_not_called()
     assert out.get("plan_status") == "capability_gap"
     assert out.get("capability_gap", {}).get("code") == "E_LLMPLAN_VALIDATION"
+
+
+def test_open_world_creative_plan_also_skips_house_kit_fallback():
+    """Non-landmark creative requests also preserve design — no silent MASS_MAIN swap."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from app.services.llm_plan_repair import repair_llm_plan_validation
+
+    profile = BuildingProfile(
+        query="漂浮峡谷图书馆",
+        minecraft_strategy={
+            "model_designed_landmark": False,
+            "landmark_module": None,
+            "structural_typology": None,
+            "recommended_components": [],
+        },
+    )
+    bad = {"mode": "build", "style_profile": "DEFAULT"}
+    req = SimpleNamespace(
+        player=SimpleNamespace(pos=SimpleNamespace(x=1, y=64, z=2), facing="NORTH"),
+        symmetry=None,
+    )
+    with patch("app.services.llm_plan_repair.LLMPLAN_VALIDATION_REPAIR_LLM", False):
+        with patch("app.services.llm_plan_repair.build_minimal_plan_from_profile") as fallback:
+            out = repair_llm_plan_validation(
+                bad,
+                req,
+                user_text="建造一座漂浮在峡谷上方的未来主义图书馆",
+                building_profile=profile,
+                normalize_fn=lambda plan, _req: plan,
+            )
+            fallback.assert_not_called()
+    assert out.get("plan_status") == "capability_gap"
 
 
 def test_pagoda_model_designed_repair_prompt_forbids_typology_id():
@@ -368,9 +458,8 @@ def test_pagoda_model_designed_repair_prompt_forbids_typology_id():
             )
         assert call.call_count >= 1
         prompt = call.call_args.kwargs["messages"][-1]["content"]
-        assert "typology_id" not in prompt or "Do NOT emit params.typology_id" in prompt
         assert "dense_eaves_pagoda" not in prompt
-        assert "model-designed" in prompt.lower() or "Do NOT emit params.typology_id" in prompt
+        assert "Do NOT emit params.typology_id" in prompt or "open-world" in prompt.lower()
         assert out.get("plan_status") != "capability_gap"
     finally:
         patch.stopall()

@@ -92,12 +92,10 @@ class PrACultureFewshotTest(unittest.TestCase):
         self.assertIsNone(mc.structural_typology)
         self.assertIsNone(mc.reference_landmark)
         self.assertTrue(mc.model_designed_landmark)
-        self.assertIn("BRIDGE", mc.recommended_components)
-        self.assertIn("TOWER", mc.recommended_components)
-        self.assertNotIn("ROOF", mc.recommended_components)
-        self.assertEqual(mc.skeleton_type, "SPAN_SUSPENSION")
+        # Open-world: no name-bound bridge kit when research did not supply components.
+        self.assertIsNone(mc.landmark_module)
+        self.assertNotEqual(mc.recommended_components_source, "hint")
         self.assertIn("AI-designed landmark", mc.notes or "")
-        self.assertIn("bridge", (mc.notes or "").lower())
 
     def test_golden_gate_research_override_preserves_model_choice(self):
         from app.services.building_plan_stage import research_landmark_override_block
@@ -112,10 +110,12 @@ class PrACultureFewshotTest(unittest.TestCase):
             "在锚点位置生成金门大桥",
         )
         block = research_landmark_override_block(profile)
-        self.assertIn("Design this landmark yourself", block)
-        # Override clears fixed executors; bridge ratios live in strategy notes/components.
+        self.assertTrue(
+            "Open-world AI design" in block or "Design this landmark yourself" in block
+        )
+        # Override clears fixed executors; no name-forced typology route.
         self.assertNotIn("typology:suspension_bridge", block)
-        self.assertIn("bridge", (profile.minecraft_strategy.notes or "").lower())
+        self.assertIn("optional evidence", block.lower())
 
     def test_gothic_cathedral_typology_fewshot(self):
         from app.services.keyword_culture_retriever import retrieve
@@ -169,9 +169,10 @@ class PrAResearchPromptTest(unittest.TestCase):
         self.assertIsNone(mc.structural_typology)
         self.assertIsNone(mc.landmark_module)
         self.assertIsNone(mc.reference_landmark)
-        self.assertIn("MASS_MAIN", mc.recommended_components)
-        self.assertIn("TERRACE", mc.recommended_components)
-        self.assertEqual(mc.skeleton_type, "RADIAL_RING")
+        self.assertTrue(mc.model_designed_landmark)
+        # Open-world: no name-bound terrace-hall kit when research did not supply components.
+        self.assertNotEqual(mc.recommended_components_source, "hint")
+        self.assertNotIn("typology:radial_terrace_hall", mc.notes or "")
 
     def test_format_profile_model_designed_landmark_text(self):
         profile = finalize_profile_minecraft_strategy(
@@ -209,8 +210,10 @@ class PrAResearchPromptTest(unittest.TestCase):
             self.TEMPLE_PROMPT,
         )
         block = research_landmark_override_block(profile)
-        self.assertIn("Design this landmark yourself", block)
-        self.assertIn("Do not call MODULE", block)
+        self.assertTrue(
+            "Open-world AI design" in block or "Design this landmark yourself" in block
+        )
+        self.assertIn("Do NOT call MODULE", block)
         self.assertNotIn('landmark_module = "temple_of_heaven"', block)
 
 

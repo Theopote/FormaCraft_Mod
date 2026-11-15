@@ -80,20 +80,21 @@ class CritiqueLoopTests(unittest.TestCase):
                 self.assertEqual(self.call.call_count, 2)
                 self.assertEqual(result['plan_status'], 'capability_gap')
 
-    def test_transport_failure_stops_and_falls_back(self):
+    def test_transport_failure_stops_without_house_kit_swap(self):
         self.call.side_effect = TimeoutError('test timeout')
         self.options['building_profile'] = self.profile
         result = repair.repair_llm_plan_validation(self.bad, self.player_req, **self.options)
-        self.assertNotEqual(result.get('plan_status'), 'capability_gap')
+        # Open-world path: preserve design — capability_gap instead of silent MASS_MAIN kit.
+        self.assertEqual(result.get('plan_status'), 'capability_gap')
         self.assertEqual(self.call.call_count, 1)
 
-    def test_disabled_or_offline_uses_profile_without_remote_call(self):
+    def test_disabled_or_offline_emits_gap_without_remote_call(self):
         self.options['building_profile'] = self.profile
         for disabled in (True, False):
             with patch.object(repair, 'LLMPLAN_VALIDATION_REPAIR_LLM', not disabled):
                 self.options['client'] = object() if disabled else None
                 result = repair.repair_llm_plan_validation(self.bad, self.player_req, **self.options)
-                self.assertNotEqual(result.get('plan_status'), 'capability_gap')
+                self.assertEqual(result.get('plan_status'), 'capability_gap')
         self.call.assert_not_called()
 
     def test_response_adapter_forwards_completion_budget(self):

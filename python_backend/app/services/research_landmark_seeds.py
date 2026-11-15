@@ -267,8 +267,11 @@ def apply_research_landmark_seed(
     user_text: str,
 ) -> Tuple[BuildingProfile, Optional[str]]:
     """
-    Merge curated seeds for researchOnly landmarks.
-    Returns (updated_profile, landmark_id or None).
+    Record a non-binding curated reference for researchOnly landmarks.
+
+    Does NOT inject identity, distinguishing_features, scale_hints, skeleton, or
+    recommended_components — those are Stage R/P evidence produced by AI, not
+    name-bound design commands. Returns (updated_profile, landmark_id or None).
     """
     landmark_id = resolve_research_landmark_id(user_text)
     if not landmark_id:
@@ -278,59 +281,26 @@ def apply_research_landmark_seed(
     if not seed:
         return profile, landmark_id
 
-    identity = profile.identity.model_copy()
-    if seed.get("display_name") and (
-        not identity.name or identity.name in ("unknown", "") or len(identity.name) < 3
-    ):
-        identity.name = str(seed["display_name"])
-    if seed.get("architect") and not identity.architect:
-        identity.architect = str(seed["architect"])
-    if seed.get("style") and not identity.style:
-        identity.style = str(seed["style"])
-    if identity.confidence < 0.6:
-        identity.confidence = 0.6
-
-    structure = profile.structure.model_copy()
-    structure.distinguishing_features = _merge_unique_strings(
-        structure.distinguishing_features,
-        list(seed.get("distinguishing_features") or []),
+    display = str(seed.get("display_name") or landmark_id).strip()
+    feature_preview = "; ".join(
+        str(f).strip() for f in (seed.get("distinguishing_features") or [])[:5] if f
     )
-    structure.distinctive_elements = _merge_unique_strings(
-        structure.distinctive_elements,
-        list(seed.get("distinguishing_features") or []),
-    )
-
-    scale = profile.scale_hints.model_copy()
-    for key, val in (seed.get("scale_hints") or {}).items():
-        if val is not None and getattr(scale, key, None) is None:
-            try:
-                setattr(scale, key, int(val))
-            except (TypeError, ValueError):
-                pass
-
     notes = (profile.research_notes or "").strip()
     seed_note = (
-        f"[LandmarkSeed:{landmark_id}] Curated distinguishing features: "
-        + "; ".join(structure.distinguishing_features[:5])
-    )
-    if seed_note not in notes:
+        f"[LandmarkSeed:{landmark_id}] Curated reference (non-binding): {display}. "
+        "Use only as optional research evidence; do not treat as required massing, "
+        "component kit, or scale. "
+        + (f"Reference traits: {feature_preview}." if feature_preview else "")
+    ).strip()
+    if seed_note not in notes and f"[LandmarkSeed:{landmark_id}]" not in notes:
         notes = f"{notes}\n{seed_note}".strip() if notes else seed_note
 
     mc = profile.minecraft_strategy.model_copy()
     mc.landmark_module = None
-    note = (mc.notes or "").strip()
-    seed_mc = (
-        f"researchOnly landmark {landmark_id}: compositional rebuild; "
-        "prioritize distinguishing_features over generic style keywords."
-    )
-    if seed_mc not in note:
-        mc.notes = f"{seed_mc} {note}".strip()
+    # Never write recommended_components / skeleton from seeds.
 
     return profile.model_copy(
         update={
-            "identity": identity,
-            "structure": structure,
-            "scale_hints": scale,
             "research_notes": notes[:1200] if notes else None,
             "minecraft_strategy": mc,
         }

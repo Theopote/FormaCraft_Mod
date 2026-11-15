@@ -4,8 +4,8 @@ import unittest
 
 
 class TestLlmPlanRepair(unittest.TestCase):
-    def test_invalid_plan_falls_back_to_profile(self):
-        from unittest.mock import Mock
+    def test_invalid_open_world_plan_emits_gap_not_house_kit(self):
+        from unittest.mock import Mock, patch
 
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy, ProfileScaleHints
         from app.services.llm_plan_normalization import _normalize_llm_plan_output
@@ -15,6 +15,7 @@ class TestLlmPlanRepair(unittest.TestCase):
             query="louvre",
             minecraft_strategy=ProfileMinecraftStrategy(
                 landmark_module=None,
+                structural_typology=None,
                 recommended_components=["MASS_MAIN", "ROOF", "ENTRANCE"],
             ),
             scale_hints=ProfileScaleHints(typical_width_blocks=40, typical_depth_blocks=30, typical_height_blocks=14),
@@ -36,21 +37,61 @@ class TestLlmPlanRepair(unittest.TestCase):
         def normalize_fn(plan, build_req, **_kwargs):
             return _normalize_llm_plan_output(plan, build_req, building_profile=profile)
 
+        with patch("app.services.llm_plan_repair.build_minimal_plan_from_profile") as fallback:
+            out = repair_llm_plan_validation(
+                bad_plan,
+                req,
+                user_text="louvre museum",
+                building_profile=profile,
+                normalize_fn=normalize_fn,
+            )
+            fallback.assert_not_called()
+        self.assertEqual(out.get("plan_status"), "capability_gap")
+
+    def test_fixed_typology_route_may_still_use_profile_fallback(self):
+        from unittest.mock import Mock
+
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy, ProfileScaleHints
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
+        from app.services.llm_plan_repair import repair_llm_plan_validation
+
+        profile = BuildingProfile(
+            query="pagoda",
+            minecraft_strategy=ProfileMinecraftStrategy(
+                landmark_module=None,
+                structural_typology="dense_eaves_pagoda",
+                recommended_components=["STRUCTURE"],
+            ),
+            scale_hints=ProfileScaleHints(typical_width_blocks=20, typical_depth_blocks=20, typical_height_blocks=40),
+        )
+        bad_plan = {"mode": "build", "style_profile": "DEFAULT"}
+        req = Mock()
+        req.userMessage = "dense eaves pagoda"
+        req.selection = None
+        req.brushSelection = None
+        req.world = None
+        req.outline = None
+        req.symmetry = None
+        req.player = Mock()
+        req.player.pos = Mock(x=10, y=64, z=10)
+        req.player.facing = "SOUTH"
+
+        def normalize_fn(plan, build_req, **_kwargs):
+            return _normalize_llm_plan_output(plan, build_req, building_profile=profile)
+
         out = repair_llm_plan_validation(
             bad_plan,
             req,
-            user_text="louvre museum",
+            user_text="dense eaves pagoda",
             building_profile=profile,
             normalize_fn=normalize_fn,
         )
         self.assertNotEqual(out.get("plan_status"), "capability_gap")
-        self.assertTrue(out.get("components"))
-        self.assertEqual(out.get("anchor"), {"x": 1280, "y": 71, "z": -220})
-        types = [c["component_type"] for c in out["components"]]
-        self.assertIn("MASS_MAIN", types)
+        types = [c["component_type"] for c in out.get("components") or []]
+        self.assertIn("STRUCTURE", types)
 
     def test_golden_gate_profile_typology_first(self):
-        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
+        from app.models.building_profile import BuildingProfile
         from app.services.building_research_agent import finalize_profile_minecraft_strategy
 
         profile = finalize_profile_minecraft_strategy(
@@ -67,11 +108,7 @@ class TestLlmPlanRepair(unittest.TestCase):
 
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy, ProfileScaleHints
         from app.models.request import SymmetryConstraint
-        from app.services.llm_plan_normalization import _normalize_llm_plan_output
-        from app.services.llm_plan_repair import (
-            build_minimal_plan_from_profile,
-            repair_llm_plan_validation,
-        )
+        from app.services.llm_plan_repair import build_minimal_plan_from_profile
 
         profile = BuildingProfile(
             query="memorial hall",
@@ -112,21 +149,6 @@ class TestLlmPlanRepair(unittest.TestCase):
         self.assertEqual(gc["symmetry"], "MIRROR_X")
         self.assertEqual(gc["terrain_strategy"], "PRESERVE")
         self.assertTrue(minimal["genome"]["symmetry"]["mirror"])
-
-        def normalize_fn(plan, build_req, **_kwargs):
-            return _normalize_llm_plan_output(plan, build_req, building_profile=profile)
-
-        out = repair_llm_plan_validation(
-            {"mode": "build", "style_profile": "DEFAULT"},
-            req,
-            user_text="建造东西轴线对称纪念馆，面朝东方，保留地形",
-            building_profile=profile,
-            normalize_fn=normalize_fn,
-        )
-        self.assertNotEqual(out.get("plan_status"), "capability_gap")
-        out_gc = out.get("global_constraints") or {}
-        self.assertEqual(out_gc.get("facing"), "EAST")
-        self.assertEqual(out_gc.get("symmetry"), "MIRROR_X")
 
 
 if __name__ == "__main__":

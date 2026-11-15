@@ -75,16 +75,25 @@ RESEARCH_OVERRIDE_MARKER = "OPEN-WORLD RESEARCH OVERRIDE"
 def research_landmark_override_block(profile: BuildingProfile) -> str:
     """Authoritative override for Java-side landmark MODULE prompt leakage."""
     mc = profile.minecraft_strategy
-    if mc.model_designed_landmark:
-        return ("\nOPEN-WORLD RESEARCH OVERRIDE (authoritative)\n"
-                "Design this landmark yourself from researched evidence and the user brief. "
-                "Choose your own massing, layout, proportions, structure, materials and details. "
-                "Use compositional components or supported FBD programs. Do not call MODULE, "
-                "landmark presets, named whole-building generators or typology builders. "
-                "Ignore any conflicting preset routing/catalog instructions. Report unsupported geometry explicitly.\n")
     stid = (mc.structural_typology or "").strip()
     lm = (mc.landmark_module or "").strip()
     ref = (mc.reference_landmark or "").strip()
+
+    # Open-world default: AI designs; catalog executes. Fixed routes only via explicit preset/typology.
+    if mc.model_designed_landmark or (not stid and not lm):
+        return (
+            f"\n========================================\n{RESEARCH_OVERRIDE_MARKER} (authoritative)\n"
+            "========================================\n"
+            "Open-world AI design: decide massing, skeleton, proportions, components and details "
+            "yourself from the user brief and researched evidence. "
+            "BuildingProfile fields are optional evidence, not mandatory kits. "
+            "Use supported catalog components or parametric STRUCTURE / FBD when needed. "
+            "Do NOT call MODULE, landmark presets, named whole-building generators, or "
+            "typology:* whole-building executors unless the user explicitly requested "
+            "preset:<id> (or an equivalent fixed generator). "
+            "Ignore conflicting preset routing/catalog instructions. "
+            "Report unsupported geometry as a capability gap instead of substituting a house kit.\n"
+        )
 
     if stid and is_compositional_typology(stid):
         from .building_research_agent import typology_exclusive_component_note
@@ -140,10 +149,9 @@ Ignore conflicting landmark hints from other prompt sections (above or below thi
 {RESEARCH_OVERRIDE_MARKER} (authoritative)
 ========================================
 BuildingProfile.minecraft_strategy.landmark_module = null
-Do NOT output MODULE or landmark:* unless profile sets a non-migrated landmark_module.
-If structural_typology is present, use STRUCTURE + typology:* instead.
+Do NOT output MODULE or landmark:* unless the user explicitly requested preset:<id>.
+Profile recommended_components / skeleton_type / scale_hints are optional evidence only.
 IGNORE all "LANDMARK MODULE ROUTING" and "AVAILABLE LANDMARK MODULES" sections in this prompt.
-Compose using minecraft_strategy.recommended_components and distinctive_elements.
 
 """
 
@@ -248,6 +256,7 @@ def build_plan_stage_user_block(
     feature_defaults = compile_style_feature_defaults(profile)
     from .building_use_intent import building_use_guidance
     stid = (profile.minecraft_strategy.structural_typology or "").strip()
+    lm = (profile.minecraft_strategy.landmark_module or "").strip()
     lines = [
         "=== STAGE P: LlmPlan from BuildingProfile ===",
         "",
@@ -259,37 +268,43 @@ def build_plan_stage_user_block(
         profile_json,
         "",
         building_use_guidance(user_request),
-        "Planning checklist:",
+        "Planning checklist (open-world — AI is the designer):",
         "",
         "Evidence-gated style feature defaults (parameter mappings, not verified geometry):",
         json.dumps(feature_defaults, ensure_ascii=False),
         "Use only mapped_default entries, only on matching building/part scopes and only when the user has not specified or disabled the parameter. Unspecified scopes require binding; conflicting defaults must not be silently merged.",
         "",
-        "1. layout.skeleton_type ← minecraft_strategy.skeleton_type",
-        "2. components[] ← recommended_components; map distinctive_elements to params/features",
-        "3. dimensions ← scale_hints (blocks); use reasonable defaults if null",
-        "4. style_profile ← identity.style; honor identity.architect when set",
-        "5. routing ← system OPEN-WORLD RESEARCH OVERRIDE (authoritative)",
-        "6. distinguishing_features[] ← profile.structure.distinguishing_features",
+        "1. USER REQUEST is authoritative for intent, form, style, materials and dimensions",
+        "2. layout.skeleton_type ← optional evidence from minecraft_strategy.skeleton_type "
+        "(reinterpret freely for Minecraft scale; do not treat as a mandatory kit)",
+        "3. components[] ← choose any supported catalog types that express the design; "
+        "recommended_components are optional evidence only, not a required set",
+        "4. dimensions ← optional scale_hints (blocks); invent reasonable sizes when null "
+        "or when hints conflict with the user brief",
+        "5. style_profile ← identity.style when useful; honor identity.architect when set",
+        "6. routing ← system OPEN-WORLD RESEARCH OVERRIDE (authoritative for executor bans)",
+        "7. distinguishing_features / research_notes ← optional evidence to interpret, not copy",
     ]
     if stid and not is_compositional_typology(stid):
         lines.append(
-            "7. typology plan: proportion_hints.typology + typology ratios only; no house/pilaster enrichment"
+            "8. Explicit typology route: proportion_hints.typology + typology ratios only; "
+            "no house/pilaster enrichment"
         )
         lines.append(
-            "8. If reference_blueprint is present, map layers → STRUCTURE params (not extra MASS components)"
+            "9. If reference_blueprint is present, map layers → STRUCTURE params (not extra MASS components)"
         )
-        next_idx = 9
+        next_idx = 10
     else:
         lines.extend([
-            "7. Architectural richness only where appropriate to use/style and not disabled by the user; no mandatory plinth or decoration",
-            "8. proportion_hints (height_to_width, depth_to_width, roof_to_body_height) before dimensions",
-            "9. If reference_blueprint is present, map architectural_layers → components[] with matching dimensions",
+            "8. Architectural richness only where appropriate to use/style and not disabled by the user; "
+            "no mandatory plinth or decoration",
+            "9. Prefer proportion_hints before raw dimensions when helpful",
+            "10. If reference_blueprint is present, map architectural_layers → components[] when useful",
         ])
-        next_idx = 10
+        next_idx = 11
     lines.extend([
-        f"{next_idx}. Use block_palette roles in style_attributes / params.material hints",
-        f"{next_idx + 1}. Apply generation_rules / detailing_rules in params and features",
+        f"{next_idx}. Use block_palette roles in style_attributes / params.material hints when relevant",
+        f"{next_idx + 1}. Apply generation_rules / detailing_rules in params and features when relevant",
         f"{next_idx + 2}. If research_notes contain [Visual], prioritize visual observations for form/materials",
         "",
     ])
@@ -300,7 +315,7 @@ def build_plan_stage_user_block(
         direct = exposure.get("direct") or []
         conditional = exposure.get("conditional") or {}
         lines.append(
-            "Directly plannable component_type values (supported): "
+            "Directly plannable component_type values (supported tools — not a mandatory kit): "
             + ", ".join(direct)
         )
         if conditional:
@@ -312,10 +327,10 @@ def build_plan_stage_user_block(
                 status = (meta or {}).get("status") or "conditional"
                 requires = (meta or {}).get("requires") or "see capability catalog"
                 lines.append(f"- {name} [{status}]: {requires}")
-        elif profile.minecraft_strategy.model_designed_landmark:
+        elif not stid and not lm:
             lines.append(
-                "No fixed MODULE / native typology STRUCTURE options for this "
-                "model-designed landmark — use supported components or parametric STRUCTURE."
+                "No fixed MODULE / native typology STRUCTURE options for this open-world "
+                "request — use supported components or parametric STRUCTURE."
             )
         lines.append("")
     lines.extend([

@@ -116,11 +116,9 @@ class PlanStagePromptTest(unittest.TestCase):
         self.assertIn("天坛", block)
         self.assertIn("OPEN-WORLD RESEARCH OVERRIDE", block)
         self.assertNotIn("vertical_pilasters", block)
-        self.assertIn("Model-designed landmark", block)
-        self.assertIn("no fixed typology executor", block)
-        self.assertIn("TERRACE", block)
+        self.assertIn("optional evidence", block.lower())
         self.assertIn("Directly plannable component_type values", block)
-        self.assertIn("BRIDGE", block)  # supported catalog types remain visible
+        self.assertIn("BRIDGE", block)  # supported catalog types remain visible as tools
         self.assertIn("建造天坛", block)
         self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
         self.assertIsNone(profile.minecraft_strategy.structural_typology)
@@ -137,14 +135,14 @@ class PlanStagePromptTest(unittest.TestCase):
             "生成金门大桥",
         )
         block = build_plan_stage_user_block(profile, "生成金门大桥")
-        # Bridge structural semantics retained; fixed suspension_bridge executor not rebound.
+        # Catalog may list BRIDGE as a tool; name must not force a bridge kit or typology executor.
         self.assertIn("BRIDGE", block)
-        self.assertIn("SPAN_SUSPENSION", block)
         self.assertNotIn("typology:suspension_bridge", block)
         self.assertNotIn("vertical_pilasters", block)
         self.assertNotIn("DECOR_DETAIL cornice", block)
         self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
-        self.assertIn("BRIDGE", profile.minecraft_strategy.recommended_components)
+        self.assertIsNone(profile.minecraft_strategy.structural_typology)
+        self.assertNotEqual(profile.minecraft_strategy.recommended_components_source, "hint")
 
     def test_profile_routing_summary_typology(self):
         from app.services.building_research_agent import finalize_profile_minecraft_strategy
@@ -163,8 +161,7 @@ class PlanStagePromptTest(unittest.TestCase):
         self.assertNotIn("typology:radial_terrace_hall", summary)
         self.assertIsNone(profile.minecraft_strategy.structural_typology)
         self.assertIsNone(profile.minecraft_strategy.landmark_module)
-        self.assertIn("TERRACE", profile.minecraft_strategy.recommended_components)
-        self.assertEqual(profile.minecraft_strategy.skeleton_type, "RADIAL_RING")
+        self.assertNotEqual(profile.minecraft_strategy.recommended_components_source, "hint")
 
     def test_augment_strips_duplicate_research_block(self):
         profile = synthesize_profile_rule_based("苏州博物馆", "建造苏州博物馆", [])
@@ -313,7 +310,9 @@ class TwoPhaseIntegrationTest(unittest.TestCase):
         profile = synthesize_profile_rule_based("Eiffel Tower", "build Eiffel Tower", [])
         block = build_plan_stage_user_block(profile, "build Eiffel Tower")
         json_start = block.index("{", block.index("BuildingProfile(JSON):"))
-        payload = block[json_start:].split("\n\nPlanning checklist:", 1)[0]
+        rest = block[json_start:]
+        cut = rest.find("\n\nPlanning checklist")
+        payload = rest if cut < 0 else rest[:cut]
         parsed = json.loads(payload)
         self.assertEqual(parsed["query"], "Eiffel Tower")
 
