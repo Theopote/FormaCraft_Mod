@@ -118,6 +118,7 @@ LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhand
 - 以完成报告 / 过期 SUMMARY 文档覆盖 Tier 0 契约。
 - 暗示再接第三套通用过滤主干（`PatchFilterPipeline` / `ToolPatchFilter` 设计稿已删除；现行过滤只有 `ServerPatchFilter` 与 `BuildConstraints`，共用 `MutationRegionPolicy`，见 WORLD_MUTATION_CONTRACT）。
 - 删除仍有消费者的 compat 路径（先更新审计退出清单）。
+- 新增「注册后从不渲染」的脚手架：注册表/枚举/接口齐备但无实际调用方的子系统，等同死代码（见 `common/debug/` 的历史教训）。
 
 ---
 

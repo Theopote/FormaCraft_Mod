@@ -208,6 +208,8 @@ OrchestratorClient 的 editCity/editBuilding 旧名称删除，改为 editLegacy
 
 能力目录改为单一真相源：assets/formacraft/generation_capability_catalog.json 曾是手工维护的漂移文件（只含 5 个 component type，而 Java 实际注册 43 个；typology 7 vs 18），而 GenerationCapabilityCatalog.build() 没有生产调用者。现由 ExportGenerationCapabilityCatalogMain 从 ComponentGeneratorRegistry/RoofTypeCatalog/StructuralTypologyRegistry 导出，build.gradle 注册 exportGenerationCapabilityCatalog 任务，单元测试锁定签入 JSON 与生成结果字节级一致。导出必须字节可复现：Java 21+ 的 Map.of()/Map.ofEntries() 带每 JVM 随机迭代盐，会让 JSON 键序漂移，故改用 LinkedHashMap。
 
+调试覆盖层子系统 common/debug/（728 行）已删除。它是典型的"互引死脚手架"：ClientInitializer 确实调用了 DebugOverlayRegistry.initialize() 完成注册，因此零引用扫描完全看不出问题；但没有任何调用方会调用 render，所有渲染方法都是未实现的 TODO 存根（绘制调用全在注释里）。同类问题还有 client/preview/OutlineRenderer——其 register() 整体被注释掉，只留一句 debug 日志，功能早已被 Mixin 注入点驱动的 BuildingOutlineRenderer 取代。现行预览渲染器族是 PatchPreviewRenderer / SkeletonPreviewRenderer / BuildingOutlineRenderer / LayoutSiteHudOverlay。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
@@ -252,6 +254,7 @@ AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替
 | LEGACY-031 | REMOVED | 零消费者 `common/proportion/ProportionValidator`（仅被同名测试调用）；快照侧对称镜像字段 `ToolConstraintSnapshot.symmetry` 与 `common/tool/MirrorSymmetryMode`（只写入、无读取者） | 生产调用者 0 | 比例卡真实消费者是 `ProportionCardRegistry` / `OpeningGrammarResolver` / `RepeatingPatternDefaults`；对称唯一载体为 `FormaRequest.symmetryMode` | 出现两个对称真相源；比例校验器给人"已在运行时校验"的错觉 | — | 入口消费者为 0 | 零引用扫描 + compile + 全量测试 |
 | LEGACY-032 | CANONICAL | 能力目录单一真相源：`assets/formacraft/generation_capability_catalog.json` 曾是手工维护的漂移文件（仅 5 个 component type，而 Java 实际注册 43 个；typology 7 vs 18），且 `GenerationCapabilityCatalog.build()` 无生产调用者 | JSON 与 Java 注册表漂移；后续开发者按 JSON 读到的能力是错的 | `./gradlew exportGenerationCapabilityCatalog`（`ExportGenerationCapabilityCatalogMain`）从 `ComponentGeneratorRegistry` / `RoofTypeCatalog` / `StructuralTypologyRegistry` 确定性导出；测试锁定字节级一致 | JSON 与注册表再次漂移 | 导出必须字节可复现（用 `LinkedHashMap`，避免 `Map.of` 的随机迭代盐） | `GenerationCapabilityCatalogTest`（`checkedInAssetIsExactlyTheGeneratedCatalog` 等） |
 | LEGACY-033 | CANONICAL | 零消费者 Java 类型防回退门禁 | `scripts/check_dead_code.py` + `config/dead_code_allowlist.json` | 框架加载型入口（fabric.mod.json 入口、mixin 配置、Gradle 工具任务）走 allowlist 豁免 | 死代码复现后无人察觉；后来者把"看起来在用"的类当成现行实现 | 误报阻塞 CI | allowlist 需随新入口点更新 | 单测 `scripts/test_check_dead_code.py` + CI `architecture` job |
+| LEGACY-034 | REMOVED | 调试覆盖层子系统 `common/debug/`（`DebugLayer` / `DebugContext` / `DebugOverlayRegistry` / `DebugOverlayRenderer` / `color/DebugColors` / `renderer/PlanDebugRenderer` / `renderer/StructuralDebugRenderer`，共 728 行）+ 已停用的 `client/preview/OutlineRenderer` | 表面有调用者、实则自循环：`ClientInitializer` 调用 `DebugOverlayRegistry.initialize()` 完成注册，但**没有任何调用方会调用 `render`**；所有渲染方法都是未实现的 TODO 存根（绘制调用全在注释里）。`OutlineRenderer.register()` 整体被注释掉，功能已被 Mixin 驱动的 `BuildingOutlineRenderer` 取代 | 客户端预览渲染器族：`PatchPreviewRenderer` / `SkeletonPreviewRenderer` / `BuildingOutlineRenderer` / `LayoutSiteHudOverlay`（由 `SelectionBoxRenderMixin` 注入点驱动） | 后来者以为"调试可视化已实现可用"；实际打开是空白 | 本项属**互引死脚手架**，`check_dead_code.py` 的"无外部引用"判据抓不到（类之间互相引用），需按"注册但从不渲染 + 全为 TODO 存根"人工判定 | 入口消费者为 0；`docs/DEBUG_OVERLAY_V1.md` 归档 | 零引用扫描 + compile + 全量测试 |
 
 **退出决策规则**：状态 ≠ `REMOVABLE`/`REMOVED` 时禁止删实现；`ACTIVE_COMPAT` 禁止扩展为新功能默认入口；消费者证据过期时先更新本表再改代码。  
 **PR-5 明确不删**：`CityBuilder`、`StructureGenerator` 族、`UndoService`、`PatchHistoryManager`、仍接线的 `BuildingMass*` / `BuildingMassPipeline`。  

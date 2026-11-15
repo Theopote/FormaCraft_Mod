@@ -240,7 +240,7 @@ TerrainAdaptationPostProcessor（地形适应）
 - `PatchPreviewRenderer` - 补丁预览渲染器
 - `LayoutSiteHudOverlay` - 布局站点 HUD 覆盖层
 - `SkeletonPreviewRenderer` - 骨架预览渲染器
-- `OutlineRenderer` - 轮廓渲染器
+- `BuildingOutlineRenderer` - 建筑占用轮廓渲染器（由 `SelectionBoxRenderMixin` 注入点驱动）
 
 ### 6. 执行系统
 

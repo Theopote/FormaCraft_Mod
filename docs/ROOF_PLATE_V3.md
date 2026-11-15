@@ -175,9 +175,12 @@ Socket {
 - 戗脊终点 = 檐角
 - 在该点自动放置：角吻、翘角构件
 
-## 🎨 Debug Overlay v3
+## 🎨 Debug Overlay v3（已删除的子系统）
 
-**新增层：**
+> 本节描述的 Debug Overlay 可视化系统已在架构迁移中删除：它的渲染方法全是未实现的 TODO 存根，且注册后没有任何调用方会真正调用 `render`。
+> 若要实现下面的可视化，请新建渲染器并接入 `client/preview/` 的注入点，而不是复活已删的 `common/debug/` 脚手架。
+
+**新增层（历史设计）：**
 - `ROOF_RIDGE_MAIN` - 正脊（粗红）
 - `ROOF_RIDGE_HIP` - 垂脊（橙）
 - `ROOF_RIDGE_DIAGONAL` - 戗脊（紫）

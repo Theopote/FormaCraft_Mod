@@ -1,7 +1,6 @@
 package com.formacraft.client;
 
 import com.formacraft.client.network.FormaCraftClientNetworking;
-import com.formacraft.client.preview.OutlineRenderer;
 import com.formacraft.client.preview.LayoutSiteHudOverlay;
 import com.formacraft.client.backend.BackendAutoStarter;
 import com.formacraft.client.ui.FormaCraftHudOverlay;
@@ -50,8 +49,6 @@ public class ClientInitializer implements ClientModInitializer {
         // 因此需要在客户端侧也注册 C2S 接收器与 BuildRequest 处理器，确保请求链路在单机可用。
         FormaCraftServerNetworking.registerC2S();
         BuildRequestProcessor.register();
-        // 注册预览线框渲染器
-        OutlineRenderer.register();
         // 注册 HUD Overlay
         FormaCraftHudOverlay.register();
         // 注册站点预览 HUD Overlay
@@ -61,9 +58,6 @@ public class ClientInitializer implements ClientModInitializer {
         com.formacraft.client.item.FormaCraftToolInteraction.register();
         // 注册输入事件处理器
         InputEventHandler.register();
-
-        // 初始化 Debug Overlay Renderers（PlanDebugRenderer, StructuralDebugRenderer）
-        com.formacraft.common.debug.DebugOverlayRegistry.initialize();
     }
 }
 

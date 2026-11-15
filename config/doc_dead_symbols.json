@@ -109,7 +109,15 @@
     "ProtectedZoneRule",
     "SelectionOnlyRule",
     "MirrorSymmetryMode",
-    "ProportionValidator"
+    "ProportionValidator",
+    "DebugOverlayRegistry",
+    "DebugOverlayRenderer",
+    "DebugLayer",
+    "DebugContext",
+    "DebugColors",
+    "PlanDebugRenderer",
+    "StructuralDebugRenderer",
+    "client.preview.OutlineRenderer"
   ],
   "allow_line_substrings": [
     "已删除",

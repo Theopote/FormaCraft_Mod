@@ -158,9 +158,12 @@ Component Ranker 再决定：
 - 用格栅
 - 是否带窗台
 
-## 🎨 Debug Overlay
+## 🎨 Debug Overlay（已删除的子系统）
 
-### Socket 可视化建议
+> 本节描述的 Debug Overlay 可视化系统已在架构迁移中删除：它的渲染方法全是未实现的 TODO 存根，且注册后没有任何调用方会真正调用 `render`。
+> 若要恢复该能力，请新建渲染器并接入 `client/preview/` 的注入点，而不是复活已删的 `common/debug/` 脚手架。
+
+### Socket 可视化建议（历史设计）
 
 | Socket  | 显示   |
 | ------- | ---- |

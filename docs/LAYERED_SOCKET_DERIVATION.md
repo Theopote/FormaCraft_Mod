@@ -201,9 +201,12 @@ if (random < 0.2) {
 GROUND 层规则 > STANDARD 层规则 > TOP 层规则
 ```
 
-## 🎨 Debug Overlay（多层一定要看）
+## 🎨 Debug Overlay（已删除的子系统）
 
-### 新增显示
+> 本节描述的 Debug Overlay 可视化系统已在架构迁移中删除：它的渲染方法全是未实现的 TODO 存根，且注册后没有任何调用方会真正调用 `render`。
+> 若要恢复该能力，请新建渲染器并接入 `client/preview/` 的注入点，而不是复活已删的 `common/debug/` 脚手架。
+
+### 新增显示（历史设计）
 
 每层不同颜色的 Socket 框
 

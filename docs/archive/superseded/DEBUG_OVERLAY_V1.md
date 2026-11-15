@@ -1,3 +1,9 @@
+> **归档（ARCHIVED）**：本文描述的 Debug Overlay 可视化系统已在架构迁移中**整体删除**，**不是现行接线指南**。
+> 该系统虽然有完整的图层枚举、渲染器接口与注册表，但所有渲染方法都是未实现的 TODO 存根，且没有任何调用方会真正调用 `render`——注册后即成为死代码。
+> 现行预览渲染见 `client/preview/`（`PatchPreviewRenderer`、`SkeletonPreviewRenderer`、`BuildingOutlineRenderer`、`LayoutSiteHudOverlay`），由 `SelectionBoxRenderMixin` 注入点驱动。
+> 现行流程见 [GENERATION_PIPELINE.md](../../GENERATION_PIPELINE.md) 与 [ARCHITECTURE.md](../../../ARCHITECTURE.md)；删除台账见 [ARCHITECTURE_AUDIT.md](../../refactoring/ARCHITECTURE_AUDIT.md)。
+> 保留原因：记录历史设计思路，不代表可恢复的代码位置。
+
 # Debug Overlay 可视化系统 v1
 
 ## 🎯 核心目标

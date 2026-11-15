@@ -60,7 +60,12 @@
     "client.patch.filter.rules.SelectionOnlyRule",
     "com.formacraft.common.tool.MirrorSymmetryMode",
     "ProportionValidator",
-    "com.formacraft.common.proportion.ProportionValidator"
+    "com.formacraft.common.proportion.ProportionValidator",
+    "com.formacraft.common.debug",
+    "DebugOverlayRegistry",
+    "PlanDebugRenderer",
+    "StructuralDebugRenderer",
+    "com.formacraft.client.preview.OutlineRenderer"
   ],
   "allow_path_substrings": [
     "/test/",

@@ -236,7 +236,10 @@ for (Direction facing : facings) {
 现在 `BuildingMassPipelineResult` 包含：
 - `facadeHierarchies` - 每个朝向的立面层次处理结果
 
-## 🐛 Debug Overlay（未来）
+## 🐛 Debug Overlay（未来；原 Debug Overlay 子系统已删除）
+
+> 原 Debug Overlay 可视化系统已在架构迁移中删除：它的渲染方法全是未实现的 TODO 存根，且注册后没有任何调用方会真正调用 `render`。
+> 若要实现下面的可视化，请新建渲染器并接入 `client/preview/` 的注入点，而不是复活已删的 `common/debug/` 脚手架。
 
 强烈建议显示：
 - Bay 边界（竖线）
