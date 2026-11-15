@@ -60,20 +60,36 @@ class PlanStagePromptTest(unittest.TestCase):
         self.assertNotIn("ASSEMBLY", plannable)
         self.assertNotIn("MODULE", plannable)
         self.assertNotIn("STRUCTURE", plannable)
-        self.assertIn("ASSEMBLY", exposure["conditional"])
-        self.assertIn("STRUCTURE", exposure["conditional"])
+        from app.services.generation_capability import conditional_component_contracts
+
+        catalog_conditional = conditional_component_contracts()
+        self.assertIn("ASSEMBLY", catalog_conditional)
+        self.assertIn("STRUCTURE", catalog_conditional)
         self.assertIn(
             "native_typology",
-            str(exposure["conditional"]["STRUCTURE"].get("routes") or []),
+            str(catalog_conditional["STRUCTURE"].get("routes") or []),
         )
-        self.assertIn("structure_type", exposure["conditional"]["STRUCTURE"]["requires"])
+        self.assertIn("structure_type", catalog_conditional["STRUCTURE"]["requires"])
+        # Default exposure without preset/FBD hides MODULE/ASSEMBLY.
+        self.assertNotIn("MODULE", exposure["conditional"])
+        self.assertNotIn("ASSEMBLY", exposure["conditional"])
         profile = BuildingProfile(query="test")
         block = build_plan_stage_user_block(profile, "build test")
         self.assertIn("Directly plannable component_type values", block)
         self.assertIn("Conditional catalog types", block)
-        self.assertIn("ASSEMBLY", block)
+        self.assertNotIn("- MODULE [", block)
+        self.assertNotIn("- ASSEMBLY [", block)
         self.assertNotIn("MASS_ANCILLARY", registered)
         self.assertNotIn("PLAZA_CORE", registered)
+
+        designed = BuildingProfile(query="landmark")
+        designed.minecraft_strategy.model_designed_landmark = True
+        designed_exposure = planning_component_exposure(designed, user_request="build landmark")
+        self.assertNotIn("MODULE", designed_exposure["conditional"])
+        self.assertEqual(
+            designed_exposure["conditional"]["STRUCTURE"].get("routes"),
+            ["parametric_structure_type"],
+        )
 
     def test_two_phase_default_on(self):
         with patch.dict(os.environ, {}, clear=False):

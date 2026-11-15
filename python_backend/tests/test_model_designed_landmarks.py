@@ -44,6 +44,7 @@ def test_unknown_landmark_keeps_research_structure_semantics():
         minecraft_strategy={
             "skeleton_type": "SPAN_SUSPENSION",
             "recommended_components": ["BRIDGE", "TOWER", "BRIDGE_CONNECTOR", "PAVING"],
+            "recommended_components_source": "research",
             "notes": "Research: blade piers, shallow suspension deck, twin Y-towers.",
         },
         structure={
@@ -89,6 +90,49 @@ def test_unknown_landmark_without_research_stays_open():
     assert strategy.model_designed_landmark
     assert strategy.recommended_components == []
     assert "residential" in (strategy.notes or "").lower() or "MASS/ROOF/ENTRANCE" in (strategy.notes or "")
+
+
+def test_unknown_classical_research_components_are_not_cleared():
+    """Ordinary-looking research comps must survive when provenance is research."""
+    profile = BuildingProfile(
+        query="建造未收录古典纪念堂",
+        minecraft_strategy={
+            "skeleton_type": "COMPOUND",
+            "recommended_components": ["MASS_MAIN", "ROOF", "TERRACE"],
+            "recommended_components_source": "research",
+            "notes": "Research: raised podium terrace, gabled cella, axial stair.",
+        },
+        request_classification={
+            "is_specific_real_building": True,
+            "building_name_normalized": "unknown_classical_memorial",
+            "confidence": 0.9,
+            "reasoning_hint": "named real landmark outside static hint table",
+            "source": "rules",
+        },
+    )
+    result = finalize_profile_minecraft_strategy(profile, "建造未收录古典纪念堂")
+    strategy = result.minecraft_strategy
+    assert strategy.model_designed_landmark
+    assert strategy.recommended_components == ["MASS_MAIN", "ROOF", "TERRACE"]
+    assert strategy.recommended_components_source == "research"
+
+
+def test_model_designed_stage_p_hides_fixed_module_route():
+    from app.services.building_plan_stage import build_plan_stage_user_block
+
+    profile = finalize_profile_minecraft_strategy(
+        BuildingProfile(query="建造千禧桥"),
+        "建造千禧桥",
+    )
+    assert profile.minecraft_strategy.model_designed_landmark
+    block = build_plan_stage_user_block(profile, "建造千禧桥")
+    assert "Directly plannable component_type values" in block
+    assert "BRIDGE" in block
+    # Fixed MODULE route must not be offered for model-designed landmarks.
+    assert "- MODULE [" not in block
+    assert "typology:* and fixed landmark executors are disallowed" in block or (
+        "parametric structure_type only" in block
+    )
 
 
 def test_two_model_designs_are_not_replaced_by_a_shared_template():

@@ -48,6 +48,14 @@ class ProfileMinecraftStrategy(BaseModel):
     recommended_components: List[str] = Field(
         default_factory=lambda: ["MASS_MAIN", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
     )
+    recommended_components_source: Optional[str] = Field(
+        default=None,
+        description=(
+            "Provenance for recommended_components: "
+            "default | research | hint | user | rule. "
+            "Research/user sources must not be wiped by residential heuristics."
+        ),
+    )
     structural_typology: Optional[str] = None
     reference_landmark: Optional[str] = None
     landmark_module: Optional[str] = None
@@ -134,6 +142,13 @@ def profile_from_llm_dict(data: Dict[str, Any], *, fallback_query: str = "") -> 
         if struct.get("distinctive_elements") and not struct.get("distinguishing_features"):
             struct["distinguishing_features"] = struct["distinctive_elements"]
             merged["structure"] = struct
+        # LLM-provided recommended_components are research evidence, not factory defaults.
+        raw_mc = data.get("minecraft_strategy")
+        if isinstance(raw_mc, dict) and "recommended_components" in raw_mc:
+            mc = dict(merged.get("minecraft_strategy") or {})
+            if not mc.get("recommended_components_source"):
+                mc["recommended_components_source"] = "research"
+            merged["minecraft_strategy"] = mc
         if data.get("query"):
             merged["query"] = data["query"]
         if isinstance(data.get("sources"), list):

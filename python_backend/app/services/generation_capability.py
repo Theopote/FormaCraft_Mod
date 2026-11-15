@@ -233,6 +233,13 @@ def _validate_catalog(data: Any) -> Optional[str]:
                 f"component_types[{type_name!r}].implementation_status="
                 f"{status!r} not in {sorted(_ALLOWED_IMPLEMENTATION_STATUSES)}"
             )
+        if status in _CONDITIONAL_PLAN_STATUSES:
+            contract = entry.get("planning_contract")
+            if not isinstance(contract, dict) or not str(contract.get("requires") or "").strip():
+                return (
+                    f"component_types[{type_name!r}] status={status!r} "
+                    "requires a planning_contract.requires string"
+                )
     typologies = data.get("typologies")
     if not isinstance(typologies, list) or not typologies:
         return "missing/invalid section 'typologies'"
@@ -303,6 +310,16 @@ def load_catalog(*, force: bool = False, allow_fallback: Optional[bool] = None) 
         name: {"implementation_status": "supported"}
         for name in sorted(_FALLBACK_HOSTABLE | _FALLBACK_HOSTED)
     }
+    for name, meta in _DEFAULT_CONDITIONAL_CONTRACTS.items():
+        entry = dict(fallback_component_types.get(name) or {})
+        entry["implementation_status"] = meta["status"]
+        entry["planning_contract"] = {"requires": meta["requires"]}
+        if name == "STRUCTURE":
+            entry["planning_contract"]["routes"] = [
+                "native_typology",
+                "parametric_structure_type",
+            ]
+        fallback_component_types[name] = entry
     _CATALOG = {
         "schema": _SCHEMA,
         "version": _SUPPORTED_VERSION,
@@ -403,10 +420,14 @@ def plannable_component_types() -> Tuple[str, ...]:
     return tuple(sorted(direct))
 
 
-def conditional_component_contracts() -> Dict[str, Dict[str, str]]:
-    """Conditional/routed types and the params they require before planning."""
+def conditional_component_contracts() -> Dict[str, Dict[str, Any]]:
+    """Conditional/routed types and the params they require before planning.
+
+    Strict/authoritative mode derives this set only from the loaded catalog.
+    Built-in snapshots are used only when the catalog is explicitly degraded.
+    """
     entries = _component_type_entries()
-    out: Dict[str, Dict[str, str]] = {}
+    out: Dict[str, Dict[str, Any]] = {}
     for name, entry in entries.items():
         status = str(entry.get("implementation_status") or "").strip()
         if status not in _CONDITIONAL_PLAN_STATUSES:
@@ -414,29 +435,82 @@ def conditional_component_contracts() -> Dict[str, Dict[str, str]]:
         contract = entry.get("planning_contract")
         if isinstance(contract, dict) and contract.get("requires"):
             requires = str(contract.get("requires"))
-            meta = {"status": status, "requires": requires}
+            meta: Dict[str, Any] = {"status": status, "requires": requires}
             routes = contract.get("routes")
             if isinstance(routes, list) and routes:
                 meta["routes"] = [str(r) for r in routes if r]
             out[name] = meta
             continue
-        if name in _DEFAULT_CONDITIONAL_CONTRACTS:
-            requires = _DEFAULT_CONDITIONAL_CONTRACTS[name]["requires"]
+        if is_degraded() and name in _DEFAULT_CONDITIONAL_CONTRACTS:
+            out[name] = dict(_DEFAULT_CONDITIONAL_CONTRACTS[name])
         else:
-            requires = f"status={status}; provide required route/params before use"
-        out[name] = {"status": status, "requires": requires}
-    # Ensure known conditional types remain visible even in degraded snapshots.
-    for name, fallback in _DEFAULT_CONDITIONAL_CONTRACTS.items():
-        out.setdefault(name, dict(fallback))
+            out[name] = {
+                "status": status,
+                "requires": f"status={status}; provide required route/params before use",
+            }
+    if is_degraded():
+        for name, fallback in _DEFAULT_CONDITIONAL_CONTRACTS.items():
+            out.setdefault(name, dict(fallback))
     return {k: out[k] for k in sorted(out)}
 
 
-def planning_component_exposure() -> Dict[str, Any]:
-    """Single-catalog planning view: direct types + conditional contracts."""
+def planning_component_exposure(
+    profile: Any = None,
+    *,
+    user_request: str = "",
+) -> Dict[str, Any]:
+    """Single-catalog planning view, filtered by request/profile context.
+
+    Model-designed landmarks must not see fixed MODULE / native typology STRUCTURE
+    options that later gates will reject. Preset and typology-first contexts keep
+    the matching conditional routes.
+    """
+    direct = list(plannable_component_types())
+    conditional = dict(conditional_component_contracts())
+    mc = getattr(profile, "minecraft_strategy", None) if profile is not None else None
+    model_designed = bool(getattr(mc, "model_designed_landmark", False))
+    has_preset = bool(str(getattr(mc, "landmark_module", None) or "").strip())
+    text = user_request if isinstance(user_request, str) else ""
+    if not has_preset and "preset:" in text.lower():
+        has_preset = True
+    has_typology = bool(str(getattr(mc, "structural_typology", None) or "").strip()) and not model_designed
+    wants_fbd = any(tok in text.lower() for tok in ("fbd", "assembly program", "assembly:"))
+
+    if model_designed and not has_preset:
+        conditional.pop("MODULE", None)
+        if "STRUCTURE" in conditional:
+            conditional["STRUCTURE"] = {
+                "status": conditional["STRUCTURE"].get("status") or "typology_routed",
+                "requires": (
+                    "parametric structure_type only (colonnade/truss/spiral/...); "
+                    "typology:* and fixed landmark executors are disallowed for "
+                    "model-designed landmarks"
+                ),
+                "routes": ["parametric_structure_type"],
+            }
+        if not wants_fbd:
+            conditional.pop("ASSEMBLY", None)
+    elif has_typology:
+        # Typology-first: keep STRUCTURE native route; MODULE stays out unless preset.
+        if not has_preset:
+            conditional.pop("MODULE", None)
+        if not wants_fbd:
+            conditional.pop("ASSEMBLY", None)
+    elif not has_preset:
+        conditional.pop("MODULE", None)
+        if not wants_fbd:
+            conditional.pop("ASSEMBLY", None)
+
     return {
-        "direct": list(plannable_component_types()),
-        "conditional": conditional_component_contracts(),
+        "direct": direct,
+        "conditional": conditional,
         "registered": list(listed_component_types()),
+        "context": {
+            "model_designed_landmark": model_designed,
+            "preset_module": has_preset,
+            "typology_first": has_typology,
+            "explicit_fbd": wants_fbd,
+        },
     }
 
 

@@ -172,6 +172,66 @@ class CapabilityDeploymentContractTest(_EnvGuard):
             f"env override must be a candidate path, got {paths}",
         )
 
+    def test_strict_mode_does_not_reinject_missing_conditional_types(self):
+        """Authoritative catalogs must not be widened by Python built-in snapshots."""
+        import tempfile
+
+        slim = {
+            "schema": "formacraft.generation_capability.v1",
+            "version": 1,
+            "hostable_component_types": ["MASS_MAIN", "STRUCTURE"],
+            "hosted_component_types": ["ROOF"],
+            "component_types": {
+                "MASS_MAIN": {"implementation_status": "supported"},
+                "ROOF": {"implementation_status": "supported"},
+                "STRUCTURE": {
+                    "implementation_status": "typology_routed",
+                    "planning_contract": {
+                        "requires": "parametric structure_type only",
+                        "routes": ["parametric_structure_type"],
+                    },
+                },
+            },
+            "typologies": ["radial_terrace_hall"],
+            "building_classes": {"generic": {}},
+            "roof": {"aliases": {}, "supported_tokens": ["gable"]},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "generation_capability_catalog.json"
+            path.write_text(json.dumps(slim), encoding="utf-8")
+            os.environ["FORMACRAFT_CAPABILITY_MODE"] = "strict"
+            gc._catalog_paths = lambda: [path]
+            catalog = load_catalog(force=True)
+            self.assertFalse(catalog.get("_fallback"))
+            conditional = gc.conditional_component_contracts()
+            self.assertIn("STRUCTURE", conditional)
+            self.assertNotIn("MODULE", conditional)
+            self.assertNotIn("ASSEMBLY", conditional)
+
+    def test_conditional_type_without_planning_contract_is_rejected(self):
+        import tempfile
+
+        bad = {
+            "schema": "formacraft.generation_capability.v1",
+            "version": 1,
+            "hostable_component_types": ["MASS_MAIN"],
+            "hosted_component_types": ["ROOF"],
+            "component_types": {
+                "ASSEMBLY": {"implementation_status": "fbd_or_empty"},
+            },
+            "typologies": ["radial_terrace_hall"],
+            "building_classes": {"generic": {}},
+            "roof": {"aliases": {}, "supported_tokens": ["gable"]},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "generation_capability_catalog.json"
+            path.write_text(json.dumps(bad), encoding="utf-8")
+            os.environ["FORMACRAFT_CAPABILITY_MODE"] = "strict"
+            gc._catalog_paths = lambda: [path]
+            with self.assertRaises(CapabilityCatalogUnavailable) as ctx:
+                load_catalog(force=True)
+            self.assertIn("planning_contract", str(ctx.exception))
+
 
 class CapabilitySingleSourceOfTruthTest(unittest.TestCase):
     """The authoritative catalog must be used verbatim."""
@@ -242,11 +302,19 @@ class CapabilitySingleSourceOfTruthTest(unittest.TestCase):
         self.assertIn("structure_type", conditional["STRUCTURE"]["requires"])
         self.assertIn("parametric_structure_type", conditional["STRUCTURE"].get("routes") or [])
         self.assertEqual(set(exposure["direct"]), plannable)
-        self.assertIn("ASSEMBLY", exposure["conditional"])
+        # Unfiltered catalog contracts still include ASSEMBLY; request context may hide it.
+        self.assertIn("ASSEMBLY", conditional)
+        self.assertNotIn("MODULE", exposure["conditional"])
 
 
 class CapabilityHealthEndpointTest(unittest.TestCase):
     """The deployment status must be observable from outside the process."""
+
+    def setUp(self):
+        # Ensure prior catalog path stubs do not leak into the ASGI app process state.
+        gc._CATALOG = None
+        gc._CATALOG_SOURCE = None
+        load_catalog(force=True, allow_fallback=False)
 
     def _get(self, path: str):
         import asyncio

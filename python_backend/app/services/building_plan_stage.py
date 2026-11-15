@@ -296,7 +296,7 @@ def build_plan_stage_user_block(
     if include_registered_types:
         from .generation_capability import planning_component_exposure
 
-        exposure = planning_component_exposure()
+        exposure = planning_component_exposure(profile, user_request=user_request)
         direct = exposure.get("direct") or []
         conditional = exposure.get("conditional") or {}
         lines.append(
@@ -305,12 +305,18 @@ def build_plan_stage_user_block(
         )
         if conditional:
             lines.append(
-                "Conditional catalog types (not freely interchangeable with supported):"
+                "Conditional catalog types for this request context "
+                "(not freely interchangeable with supported):"
             )
             for name, meta in conditional.items():
                 status = (meta or {}).get("status") or "conditional"
                 requires = (meta or {}).get("requires") or "see capability catalog"
                 lines.append(f"- {name} [{status}]: {requires}")
+        elif profile.minecraft_strategy.model_designed_landmark:
+            lines.append(
+                "No fixed MODULE / native typology STRUCTURE options for this "
+                "model-designed landmark — use supported components or parametric STRUCTURE."
+            )
         lines.append("")
     lines.extend([
         "USER REQUEST (authoritative for intent, form, style, materials and dimensions):",
