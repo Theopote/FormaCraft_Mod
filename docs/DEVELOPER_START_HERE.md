@@ -50,6 +50,12 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 
 LLM 客户端创建与 provider、模型、密钥解析统一由 `services/llm_client.py` 负责；规划、兼容编辑和历史摘要均使用该工厂。新增调用应复用此入口，不恢复路由内的 OpenAI 专用客户端或独立环境变量解析。
 
+模型调用等待及规划任务超时预算归 `services/inference_call.py`。现有 `LLM_CALL_TIMEOUT_*` 在模块导入时读取；任务预算与 provider 预算取较大值。等待超时不会强制终止已运行的线程，不能据此假定容量或外部调用已释放。
+
+LlmPlan 构件类型别名、features 表示归一和未转义请求字符串修复归 `services/llm_plan_wire_normalization.py`；该层只处理表示兼容，不选择生成路由。字段合法性仍由 LlmPlan 模型校验，几何和能力约束沿现有规范化、编译链处理。
+
+规划输出的选区尺寸、相对边界和构件位置裁剪归 `services/planning_selection_bounds.py`。选区端点为闭区间世界坐标，裁剪位置相对计划锚点；普通选区优先于笔刷选区。服务端编译与落地校验仍须执行，不以这些后端裁剪 helper 替代权威校验。
+
 验证细节和下一轮检查顺序见 [测试与建筑验收](TESTING_AND_BUILDING_ACCEPTANCE.md)。
 
 当前产品阶段（Golden Path 稳定化）见 [Phase 1 审计](phase1/GOLDEN_PATH_AUDIT.md) 与 [游戏内验收矩阵](phase1/INGAME_ACCEPTANCE_MATRIX.md)；离线 CI 不能代替矩阵填写。

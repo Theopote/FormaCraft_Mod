@@ -47,10 +47,26 @@ from .semantic_plan_adapters import (
 from .planning_request_hints import (
     _infer_scale, _infer_terrain, _parse_levels_from_text, _derive_structured_intent,
 )
+from .llm_plan_wire_normalization import (
+    _normalize_component_type,
+    _normalize_features,
+    _repair_component_request_strings,
+)
+from .planning_selection_bounds import (
+    _selection_dimensions,
+    _clamp_dimensions_to_selection,
+    _selection_bounds_relative,
+    _clamp_value,
+    _clamp_relative_position,
+)
 from .planning_route_policy import _should_generate_city, _should_generate_composite
 from .llm_client import get_client, build_config, resolve_provider
 # Compatibility alias: existing callers and test patches keep the same facade.
-from .inference_call import call_with_timeout as _call_with_timeout
+from .inference_call import (
+    call_with_timeout as _call_with_timeout,
+    _resolve_timeout_sec,
+    _resolve_timeout_sec_for_task,
+)
 from ..models.building_spec import BuildingSpec
 from ..models.building_genome import BuildingGenome
 from ..models.llm_plan import LlmPlanValidationError, validate_llm_plan_dict
@@ -64,15 +80,6 @@ from ..models.semantic_spatial_plan import SemanticSpatialPlan
 from .archetype_detector import detect_archetype_local, should_force_strong_mode
 from .archetype_registry import get_archetype_def
 
-_LLM_CALL_TIMEOUT_SEC = float(os.getenv("LLM_CALL_TIMEOUT_SEC", "45"))
-_LLM_CALL_TIMEOUT_DEEPSEEK_SEC = float(os.getenv("LLM_CALL_TIMEOUT_DEEPSEEK_SEC", "60"))
-_LLM_CALL_TIMEOUT_REASONER_SEC = float(os.getenv("LLM_CALL_TIMEOUT_REASONER_SEC", "120"))
-# LlmPlan tends to be more verbose; allow longer timeouts by default.
-# LlmPlan 通常需要更长的处理时间，特别是对于复杂的 prompt 和大型 JSON 输出
-_LLM_CALL_TIMEOUT_LLMPLAN_SEC = float(os.getenv("LLM_CALL_TIMEOUT_LLMPLAN_SEC", "180"))  # 增加到 180 秒
-# Composite/City 往往比单体 BuildingSpec 更慢；默认给更长时间（可通过环境变量覆盖）
-_LLM_CALL_TIMEOUT_COMPOSITE_SEC = float(os.getenv("LLM_CALL_TIMEOUT_COMPOSITE_SEC", "600"))
-_LLM_CALL_TIMEOUT_CITY_SEC = float(os.getenv("LLM_CALL_TIMEOUT_CITY_SEC", "600"))
 
 # ---- Phase 6 延迟治理开关 ----
 # 研究开关与旧 ARCHITECTURE_SEARCH 兼容策略由 BuildingResearchAgent 统一解析。
@@ -89,7 +96,7 @@ _NON_JSON_SCHEMA_PROVIDERS = {
 # ---- Track B 输入理解与多步规划 开关 ----
 # B1 意图解析/扩写（规则版，零额外网络延迟）：on（默认）| off
 _LLMPLAN_INTENT_ENRICH = (os.getenv("LLMPLAN_INTENT_ENRICH") or "on").strip().lower() != "off"
-# B3 在 LlmPlan 路径注入 chatHistory（当前主路径未注入）：on（默认）| off
+# B3 在 LlmPlan 路径注入 chatHistory：on（默认）| off
 _LLMPLAN_INJECT_CHAT_HISTORY = (os.getenv("LLMPLAN_CHAT_HISTORY") or "on").strip().lower() != "off"
 # B3 在 LlmPlan 路径注入文化 RAG（本地检索，非网络）：on（默认）| off
 _LLMPLAN_INJECT_CULTURE_RAG = (os.getenv("LLMPLAN_CULTURE_RAG") or "on").strip().lower() != "off"
@@ -237,10 +244,6 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
             params["door_height"] = min(4, int(dims.get("height", 4)))
 
 
-_COMPONENT_TYPE_ALIASES = {
-    "MAIN_MASS": "MASS_MAIN",
-    "BUTTRESS": "WALL",
-}
 
 _MASS_COMPONENT_TYPES = {
     "MASS_MAIN",
@@ -274,105 +277,10 @@ _ROOF_COMPONENT_TYPES = {
 }
 
 
-def _normalize_component_type(value: Any) -> str:
-    if value is None:
-        return ""
-    upper = str(value).strip().upper()
-    return _COMPONENT_TYPE_ALIASES.get(upper, upper)
 
 
-def _normalize_features(value: Any) -> List[str]:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        out: List[str] = []
-        for v in value:
-            if v is None:
-                continue
-            if isinstance(v, dict):
-                if "component_request" in v:
-                    payload = v.get("component_request")
-                    if payload is not None:
-                        out.append("component_request:" + json.dumps(payload, ensure_ascii=False))
-                        continue
-                if "group_request" in v:
-                    payload = v.get("group_request")
-                    if payload is not None:
-                        out.append("group_request:" + json.dumps(payload, ensure_ascii=False))
-                        continue
-                try:
-                    s = json.dumps(v, ensure_ascii=False)
-                except Exception:
-                    s = str(v)
-                if s.strip():
-                    out.append(s)
-                continue
-            s = str(v)
-            if s.strip():
-                out.append(s)
-        return out
-    if isinstance(value, dict):
-        return _normalize_features([value])
-    if isinstance(value, str):
-        return [value]
-    return []
 
 
-def _repair_component_request_strings(raw: str) -> str:
-    if not raw:
-        return raw
-    if "component_request:" not in raw and "group_request:" not in raw:
-        return raw
-    prefixes = ("\"component_request:", "\"group_request:")
-    i = 0
-    n = len(raw)
-    out: List[str] = []
-    while i < n:
-        matched = None
-        for prefix in prefixes:
-            if raw.startswith(prefix, i):
-                matched = prefix
-                break
-        if matched is None:
-            out.append(raw[i])
-            i += 1
-            continue
-        key = "component_request" if matched.startswith("\"component_request") else "group_request"
-        out.append("{\"")
-        out.append(key)
-        out.append("\":")
-        i += len(matched)
-        if i >= n or raw[i] != "{":
-            if i < n:
-                out.append(raw[i])
-                i += 1
-            continue
-        start = i
-        depth = 0
-        in_str = False
-        escape = False
-        while i < n:
-            ch = raw[i]
-            if escape:
-                escape = False
-            elif ch == "\\":
-                escape = True
-            elif ch == "\"":
-                in_str = not in_str
-            elif not in_str:
-                if ch == "{":
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                    if depth == 0:
-                        i += 1
-                        break
-            i += 1
-        out.append(raw[start:i])
-        out.append("}")
-        if i < n and raw[i] == "\"":
-            i += 1
-    return "".join(out)
 
 
 def _coerce_int(value: Any, fallback: Optional[int]) -> Optional[int]:
@@ -439,84 +347,14 @@ def _param_string(params: Dict[str, Any], *keys: str) -> Optional[str]:
     return None
 
 
-def _selection_dimensions(req: Optional[BuildRequest]) -> Optional[Dict[str, int]]:
-    if req is None:
-        return None
-    sel = req.selection or req.brushSelection
-    if sel is None:
-        return None
-    dx = abs(sel.max.x - sel.min.x) + 1
-    dy = abs(sel.max.y - sel.min.y) + 1
-    dz = abs(sel.max.z - sel.min.z) + 1
-    return {"width": max(1, dx), "height": max(1, dy), "depth": max(1, dz)}
 
 
-def _clamp_dimensions_to_selection(dims: Dict[str, int], selection_dims: Optional[Dict[str, int]]) -> Dict[str, int]:
-    if not selection_dims:
-        return dims
-    return {
-        "width": max(1, min(dims.get("width", 1), selection_dims["width"])),
-        "height": max(1, min(dims.get("height", 1), selection_dims["height"])),
-        "depth": max(1, min(dims.get("depth", 1), selection_dims["depth"])),
-    }
 
 
-def _selection_bounds_relative(req: Optional[BuildRequest], anchor: Optional[Dict[str, int]]) -> Optional[Dict[str, int]]:
-    if req is None:
-        return None
-    sel = req.selection or req.brushSelection
-    if sel is None:
-        return None
-    if anchor is None:
-        anchor = {"x": req.player.pos.x, "y": req.player.pos.y, "z": req.player.pos.z}
-    min_x = min(sel.min.x, sel.max.x) - anchor["x"]
-    max_x = max(sel.min.x, sel.max.x) - anchor["x"]
-    min_y = min(sel.min.y, sel.max.y) - anchor["y"]
-    max_y = max(sel.min.y, sel.max.y) - anchor["y"]
-    min_z = min(sel.min.z, sel.max.z) - anchor["z"]
-    max_z = max(sel.min.z, sel.max.z) - anchor["z"]
-    return {"min_x": min_x, "max_x": max_x, "min_y": min_y, "max_y": max_y, "min_z": min_z, "max_z": max_z}
 
 
-def _clamp_value(value: int, min_value: int, max_value: int) -> int:
-    return max(min_value, min(max_value, value))
 
 
-def _clamp_relative_position(
-    rp: Dict[str, int],
-    dims: Dict[str, int],
-    anchor_mode: str,
-    bounds: Optional[Dict[str, int]],
-) -> Dict[str, int]:
-    if not bounds:
-        return rp
-    width = max(1, dims.get("width", 1))
-    depth = max(1, dims.get("depth", 1))
-    height = max(1, dims.get("height", 1))
-    if anchor_mode == "min_corner":
-        min_x = bounds["min_x"]
-        max_x = bounds["max_x"] - (width - 1)
-        min_z = bounds["min_z"]
-        max_z = bounds["max_z"] - (depth - 1)
-    else:
-        half_x = width // 2
-        half_z = depth // 2
-        min_x = bounds["min_x"] + half_x
-        max_x = bounds["max_x"] - (width - 1 - half_x)
-        min_z = bounds["min_z"] + half_z
-        max_z = bounds["max_z"] - (depth - 1 - half_z)
-    if max_x < min_x:
-        max_x = min_x
-    if max_z < min_z:
-        max_z = min_z
-    min_y = bounds["min_y"]
-    max_y = bounds["max_y"] - (height - 1)
-    if max_y < min_y:
-        max_y = min_y
-    rp["x"] = _clamp_value(rp.get("x", 0), min_x, max_x)
-    rp["y"] = _clamp_value(rp.get("y", 0), min_y, max_y)
-    rp["z"] = _clamp_value(rp.get("z", 0), min_z, max_z)
-    return rp
 
 
 def _looks_like_min_corner_anchor(rp: Dict[str, int], dims: Dict[str, int]) -> bool:
@@ -1316,42 +1154,8 @@ def generate_semantic_spatial_plan(req: BuildRequest) -> Optional[SemanticSpatia
 
 
 
-def _resolve_timeout_sec(req: Optional[BuildRequest], model: Optional[str]) -> float:
-    """
-    Some providers/models are slower (e.g. deepseek-reasoner). We allow longer timeouts there.
-    """
-    base = _LLM_CALL_TIMEOUT_SEC
-    try:
-        provider = (getattr(req, "llmProvider", None) or "").strip().lower() if req is not None else ""
-    except Exception:
-        provider = ""
-    m = (model or "").strip().lower()
-
-    if provider == "deepseek":
-        # deepseek reasoner can easily exceed 45s
-        if "reasoner" in m:
-            return max(base, _LLM_CALL_TIMEOUT_REASONER_SEC)
-        return max(base, _LLM_CALL_TIMEOUT_DEEPSEEK_SEC)
-
-    # default
-    return base
 
 
-def _resolve_timeout_sec_for_task(task: str, req: Optional[BuildRequest], model: Optional[str]) -> float:
-    """
-    task: building / composite / city / llmplan
-    """
-    t = (task or "").strip().lower()
-    base = _resolve_timeout_sec(req, model)
-    if t == "composite":
-        return max(base, _LLM_CALL_TIMEOUT_COMPOSITE_SEC)
-    if t == "city":
-        return max(base, _LLM_CALL_TIMEOUT_CITY_SEC)
-    if t == "llmplan":
-        # LlmPlan 通常需要更长的处理时间，特别是对于复杂的 prompt 和大型 JSON 输出
-        # 确保使用足够的超时时间（默认 180 秒）
-        return max(base, _LLM_CALL_TIMEOUT_LLMPLAN_SEC)
-    return base
 
 
 # Retired Python landmark BuildingSpec templates removed (2026-10-31).

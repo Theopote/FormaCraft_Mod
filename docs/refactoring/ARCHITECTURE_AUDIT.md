@@ -104,6 +104,12 @@ research_building_context 仅剩测试调用，已删除。对应回归改为覆
 
 楼层提取和规则软意图提示迁到现有 planning_request_hints.py，ai_planner 保留导入别名；函数体保持原实现。开发入口与设计决策清单同步职责位置，明确软提示不能替代用户要求。新增楼层中英文表达、匹配优先级、软意图材质顺序与空输入回归。
 
+规划超时预算的六个配置和两个解析函数迁至现有 inference_call.py，集中管理等待策略；ai_planner 保留函数导入别名。默认值、导入时环境读取、DeepSeek/reasoner 规则和任务预算下限保持原实现。新增 provider/任务组合、全局下限与独立进程环境覆盖回归。聊天历史注入开关的过时注释同步修正。
+
+构件类型别名、features 归一和 component/group_request 字符串修复迁至 llm_plan_wire_normalization.py，ai_planner 保留三个导入别名。原有 MAIN_MASS/BUTTRESS 兼容映射和字符串修复算法保留；新增未知类型、features 对象/标量、嵌套花括号与转义引号回归，模块不承担生成路由选择。
+
+选区尺寸、相对边界与位置裁剪的五个函数迁至 planning_selection_bounds.py，ai_planner 保留导入别名，裁剪算法不变。回归覆盖反向端点、闭区间尺寸、选区/笔刷优先级、显式/玩家锚点、两种锚定下奇偶尺寸的边界及无选区引用语义。开发入口明确坐标与服务端权威校验边界。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
