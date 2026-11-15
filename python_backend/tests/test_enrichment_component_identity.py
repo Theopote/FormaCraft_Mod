@@ -1,5 +1,7 @@
 from copy import deepcopy
+import os
 import unittest
+from unittest.mock import patch
 
 from app.services.building_contract import apply_building_contract
 from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail
@@ -19,23 +21,21 @@ class EnrichmentIdentityTest(unittest.TestCase):
              "params": {"component_id": "roof_trim", "host_id": "mass_a", "attachment_host_id": "roof_a"}},
         ]}
 
-    def test_refinement_preserves_authored_roof_and_attachment_identity(self):
+    def test_open_world_default_preserves_authored_plan(self):
         plan = self.plan()
+        before = deepcopy(plan)
         out = enrich_llm_plan_architectural_detail(plan, user_text="louvre museum")
+        self.assertEqual(out["components"], before["components"])
         roof = next(c for c in out["components"] if c["component_type"] == "ROOF")
         self.assertEqual(roof["params"]["component_id"], "roof_a")
-        self.assertEqual(roof["params"]["host_id"], "mass_a")
         self.assertEqual(roof["params"]["roof_type"], "flat")
-        self.assertEqual(roof["params"]["material"], "minecraft:white_concrete")
-        self.assertIs(roof["params"]["horse_head_walls"], False)
-        self.assertIn("authored_roof", roof["features"])
         normalized = apply_building_contract(out, "")
         trim = next(c for c in normalized["components"] if c["params"]["component_id"] == "roof_trim")
         self.assertEqual(trim["params"]["attachment_host_id"], "roof_a")
-        self.assertTrue(any(c["params"]["component_id"] == "roof_a" for c in normalized["components"]))
 
-    def test_generated_details_have_explicit_owner_and_slot(self):
-        out = enrich_llm_plan_architectural_detail(self.plan(), user_text="louvre museum")
+    def test_opt_in_classical_enrichment_assigns_owner_to_new_details(self):
+        with patch.dict(os.environ, {"FORMACRAFT_CLASSICAL_ENRICHMENT": "on"}):
+            out = enrich_llm_plan_architectural_detail(self.plan(), user_text="louvre museum")
         generated = [c for c in out["components"] if not c["params"].get("component_id")]
         self.assertTrue(generated)
         self.assertTrue(all(c["params"].get("host_id") == "mass_a" for c in generated))

@@ -1,11 +1,16 @@
 """
 Post-research / post-normalize architectural enrichment for open-world LlmPlan.
 
-Goals: richer facades (pilasters, plinth, cornice), sane footprint/roof ratios,
-and proportion_hints when no proportion card matched.
+Default policy (open-world): non-destructive only — strip classical pollution when
+guarded, apply authored distinguishing features, never resize AI massing or inject
+ROOF / FOUNDATION / FACADE / DECOR / CROWN kits the model did not choose.
+
+Legacy classical reshape remains available behind FORMACRAFT_CLASSICAL_ENRICHMENT=on
+as an optional design-assist tool, not the default pipeline.
 """
 from __future__ import annotations
 
+import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -15,6 +20,15 @@ from .plan_specificity_guard import (
     apply_profile_features_to_plan,
     should_skip_classical_enrichment,
 )
+
+
+def classical_enrichment_enabled() -> bool:
+    return (os.getenv("FORMACRAFT_CLASSICAL_ENRICHMENT") or "off").strip().lower() in (
+        "on",
+        "1",
+        "true",
+        "yes",
+    )
 
 _CLASSICAL_MARKERS = (
     "palace", "museum", "cathedral", "church", "temple", "monument", "classical",
@@ -147,11 +161,13 @@ def enrich_profile_architectural_detail(
     profile: BuildingProfile,
     user_text: str,
 ) -> BuildingProfile:
-    tier = detect_detail_tier(user_text, profile, {})
+    """Profile-side enrichment.
+
+    Open-world default: never expand recommended_components / scale / classical notes.
+    Fixed executor routes (explicit typology / MODULE) still get routing notes only.
+    """
     mc = profile.minecraft_strategy.model_copy()
     if mc.model_designed_landmark:
-        # Model-designed landmarks keep research / static structure hints; do not
-        # force residential MASS/ROOF/ENTRANCE enrichment on top.
         return profile
     if mc.structural_typology:
         note = (mc.notes or "").strip()
@@ -167,19 +183,13 @@ def enrich_profile_architectural_detail(
         mc.recommended_components = ["MODULE"]
         return profile.model_copy(update={"minecraft_strategy": mc})
 
+    if not classical_enrichment_enabled():
+        return profile
+
+    # Opt-in legacy classical profile assist (not used in open-world default).
+    tier = detect_detail_tier(user_text, profile, {})
     skip_classical, skip_reason = should_skip_classical_enrichment(user_text, profile)
     if skip_classical:
-        base = [
-            str(c).upper()
-            for c in (mc.recommended_components or [])
-            if str(c).upper() != "MODULE"
-        ]
-        extras = ["FOUNDATION", "ROOF", "FACADE_WINDOWS", "ENTRANCE"]
-        merged: List[str] = []
-        for c in base + extras:
-            if c not in merged:
-                merged.append(c)
-        mc.recommended_components = merged[:8]
         note = (mc.notes or "").strip()
         guard_note = (
             f"Specificity guard ({skip_reason}): preserve profile distinguishing_features; "
@@ -187,27 +197,7 @@ def enrich_profile_architectural_detail(
         )
         if guard_note not in note:
             mc.notes = f"{guard_note} {note}".strip()
-        card = infer_heuristic_proportion_card(user_text, profile)
-        scale = profile.scale_hints.model_copy()
-        ratios = card.get("ratios") or {}
-        hw = ratios.get("height_to_width") or {}
-        dw = ratios.get("depth_to_width") or {}
-        if scale.typical_width_blocks and not scale.typical_height_blocks:
-            ideal = hw.get("ideal", 0.65)
-            scale = scale.model_copy(
-                update={"typical_height_blocks": max(8, int(scale.typical_width_blocks * ideal))}
-            )
-        if scale.typical_width_blocks and not scale.typical_depth_blocks:
-            ideal_d = dw.get("ideal", 1.0)
-            scale = scale.model_copy(
-                update={"typical_depth_blocks": max(8, int(scale.typical_width_blocks * ideal_d))}
-            )
-        return profile.model_copy(
-            update={
-                "minecraft_strategy": mc,
-                "scale_hints": scale,
-            }
-        )
+        return profile.model_copy(update={"minecraft_strategy": mc})
 
     base = [
         str(c).upper()
@@ -222,54 +212,13 @@ def enrich_profile_architectural_detail(
         if c not in merged:
             merged.append(c)
     mc.recommended_components = merged[:8]
-
-    elements = list(profile.structure.distinctive_elements or [])
-    blob = _text_blob(user_text, profile, {})
-    for hint, token in (
-        ("colonnade", "colonnade"),
-        ("pilaster", "pilaster"),
-        ("cornice", "cornice"),
-        ("portico", "portico"),
-        ("柱廊", "colonnade"),
-        ("柱", "column"),
-        ("装饰", "ornament"),
-    ):
-        if hint in blob and token not in elements:
-            elements.append(token)
-    structure = profile.structure.model_copy(update={"distinctive_elements": elements[:12]})
-
     note = (mc.notes or "").strip()
     richness = (
-        f"Detail tier={tier}: require facade_profile on MASS (vertical_pilasters/base_plinth), "
-        "wall_pattern gradient/striped, FOUNDATION plinth, ROOF with overhang, "
-        "FACADE_WINDOWS with rhythm, ≥1 DECOR_DETAIL cornice/ornament band."
+        f"Detail tier={tier}: optional classical assist (FORMACRAFT_CLASSICAL_ENRICHMENT=on)."
     )
     if richness not in note:
         mc.notes = f"{richness} {note}".strip()
-
-    card = infer_heuristic_proportion_card(user_text, profile)
-    scale = profile.scale_hints.model_copy()
-    ratios = card.get("ratios") or {}
-    hw = ratios.get("height_to_width") or {}
-    dw = ratios.get("depth_to_width") or {}
-    if scale.typical_width_blocks and not scale.typical_height_blocks:
-        ideal = hw.get("ideal", 0.65)
-        scale = scale.model_copy(
-            update={"typical_height_blocks": max(8, int(scale.typical_width_blocks * ideal))}
-        )
-    if scale.typical_width_blocks and not scale.typical_depth_blocks:
-        ideal_d = dw.get("ideal", 1.0)
-        scale = scale.model_copy(
-            update={"typical_depth_blocks": max(8, int(scale.typical_width_blocks * ideal_d))}
-        )
-
-    return profile.model_copy(
-        update={
-            "minecraft_strategy": mc,
-            "structure": structure,
-            "scale_hints": scale,
-        }
-    )
+    return profile.model_copy(update={"minecraft_strategy": mc})
 
 
 def _ratio(spec: Any, key: str, default: float) -> float:
@@ -442,8 +391,10 @@ def enrich_llm_plan_architectural_detail(
     roofs = [c for c in components if isinstance(c, dict)
              and str(c.get("component_type") or "").upper() == "ROOF"]
     if sum(str(c.get("component_type") or "").upper() == "MASS_MAIN" for c in masses) > 1:
-        from .hosted_style_enrichment import enrich_hosted_styles
-        return enrich_hosted_styles(plan, profile)
+        if classical_enrichment_enabled():
+            from .hosted_style_enrichment import enrich_hosted_styles
+            return enrich_hosted_styles(plan, profile)
+        return plan
     if len(masses) != 1 or len(roofs) > 1:
         return plan
     # A storey schedule owns its vertical envelope. Resizing only the shell and
@@ -492,6 +443,10 @@ def enrich_llm_plan_architectural_detail(
                     merged["typology"] = str(card.get("typology") or "chinese_timber_hall")
                 plan["proportion_hints"] = merged
         plan["enrichment_guard"] = skip_reason
+        return plan
+
+    # Open-world default: stop here — do not resize mass or inject classical kits.
+    if not classical_enrichment_enabled():
         return plan
 
     tier = detect_detail_tier(user_text, profile, plan)

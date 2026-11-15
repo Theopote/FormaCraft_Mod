@@ -63,6 +63,37 @@ class FamenTypologyMigrationTest(unittest.TestCase):
         assert match is not None
         self.assertEqual(match.typology_id, "dense_eaves_pagoda")
 
+    def test_generic_pagoda_finalize_does_not_auto_bind_typology_executor(self):
+        from app.models.building_profile import BuildingProfile
+        from app.services.building_research_agent import (
+            finalize_profile_minecraft_strategy,
+            resolve_explicit_structural_typology,
+            resolve_structural_typology_for_intent,
+        )
+
+        # Keyword research may still resolve a typology id as evidence…
+        self.assertEqual(
+            resolve_structural_typology_for_intent(self.GENERIC_PROMPT),
+            "dense_eaves_pagoda",
+        )
+        # …but open-world finalize must not bind it as a whole-building executor.
+        self.assertIsNone(resolve_explicit_structural_typology(self.GENERIC_PROMPT))
+        profile = finalize_profile_minecraft_strategy(BuildingProfile(), self.GENERIC_PROMPT)
+        self.assertIsNone(profile.minecraft_strategy.structural_typology)
+        self.assertIsNone(profile.minecraft_strategy.landmark_module)
+
+    def test_explicit_typology_request_still_binds(self):
+        from app.models.building_profile import BuildingProfile
+        from app.services.building_research_agent import finalize_profile_minecraft_strategy
+
+        plain = finalize_profile_minecraft_strategy(
+            BuildingProfile(),
+            "建造一座塔 typology_id=dense_eaves_pagoda",
+        )
+        self.assertFalse(plain.minecraft_strategy.model_designed_landmark)
+        self.assertEqual(plain.minecraft_strategy.structural_typology, "dense_eaves_pagoda")
+        self.assertEqual(plain.minecraft_strategy.recommended_components, ["STRUCTURE"])
+
     def test_famen_archetype_research_only(self):
         from app.services.archetype_detector import detect_archetype_local, PRESET_IDENTITY_MIN_CONFIDENCE
         from app.services.archetype_registry import get_archetype_def

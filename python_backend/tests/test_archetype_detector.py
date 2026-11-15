@@ -176,11 +176,13 @@ class BroadTypologyAliasTest(unittest.TestCase):
 
     def test_disney_castle_research_not_medieval_module(self):
         self.assertIsNone(resolve_landmark_module_for_intent("迪士尼城堡"))
+        # Offline seed helper remains available; finalize must not inject it.
         updated, lid = apply_research_landmark_seed(BuildingProfile(), "迪士尼城堡")
         self.assertEqual(lid, "disney_castle")
-        self.assertIn("[LandmarkSeed:disney_castle]", updated.research_notes or "")
-        self.assertIn("non-binding", (updated.research_notes or "").lower())
-        self.assertEqual(updated.structure.distinguishing_features, [])
+        from app.services.building_research_agent import finalize_profile_minecraft_strategy
+        final = finalize_profile_minecraft_strategy(BuildingProfile(query="迪士尼城堡"), "迪士尼城堡")
+        self.assertNotIn("[LandmarkSeed:", final.research_notes or "")
+        self.assertIsNone(final.minecraft_strategy.landmark_module)
 
 
 if __name__ == "__main__":

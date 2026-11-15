@@ -50,7 +50,8 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
         original = copy.deepcopy(plan)
         self.assertEqual(original, enrich_llm_plan_architectural_detail(plan, user_text="两层住宅，楼梯，平屋顶"))
 
-    def test_enrich_adds_facade_and_decor_for_louvre(self):
+    def test_open_world_default_does_not_reshape_louvre_mass(self):
+        import copy
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
         from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail
 
@@ -75,29 +76,22 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
                 },
             ],
         }
+        original = copy.deepcopy(plan)
         profile = BuildingProfile(
             query="louvre",
             minecraft_strategy=ProfileMinecraftStrategy(landmark_module=None),
         )
         out = enrich_llm_plan_architectural_detail(plan, user_text="louvre museum", profile=profile)
         types = [c["component_type"] for c in out["components"]]
-        self.assertIn("FOUNDATION", types)
-        self.assertIn("ROOF", types)
-        self.assertIn("DECOR_DETAIL", types)
-        self.assertIn("proportion_hints", out)
-        hints = out.get("proportion_hints") or {}
-        if "louvre" in "louvre museum".lower():
-            self.assertIn("CROWN", types)
-            self.assertEqual(hints.get("crown_template"), "CLASSICAL_CUPOLA")
-            self.assertEqual(hints.get("roof_specialty"), "mansard_dormer")
-        roof = next(c for c in out["components"] if c["component_type"] == "ROOF")
-        self.assertEqual(roof["params"].get("roof_type"), "mansard")
-        self.assertTrue(roof["params"].get("roof_dormers"))
+        self.assertNotIn("FOUNDATION", types)
+        self.assertNotIn("ROOF", types)
+        self.assertNotIn("DECOR_DETAIL", types)
+        self.assertNotIn("CROWN", types)
         mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
-        self.assertEqual(mass["params"].get("facade_profile"), "vertical_pilasters")
-        self.assertGreaterEqual(mass["dimensions"]["height"], 10)
+        self.assertEqual(mass["dimensions"], original["components"][0]["dimensions"])
+        self.assertNotEqual(mass.get("params", {}).get("facade_profile"), "vertical_pilasters")
 
-    def test_profile_enrichment_expands_recommended_components(self):
+    def test_profile_enrichment_does_not_expand_kits_by_default(self):
         from app.models.building_profile import BuildingProfile
         from app.services.plan_architectural_enrichment import enrich_profile_architectural_detail
 
@@ -106,8 +100,8 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
             "生成一座古典宫殿",
         )
         rec = [c.upper() for c in profile.minecraft_strategy.recommended_components]
-        self.assertIn("DECOR_DETAIL", rec)
-        self.assertIn("FOUNDATION", rec)
+        self.assertNotIn("DECOR_DETAIL", rec)
+        self.assertNotIn("FOUNDATION", rec)
 
     def test_typology_profile_skips_compositional_enrichment(self):
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
@@ -211,8 +205,9 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
         )
         notes = profile.minecraft_strategy.notes or ""
         self.assertNotIn("vertical_pilasters", notes)
-        self.assertIn("Specificity guard", notes)
+        self.assertNotIn("Detail tier=", notes)
         self.assertNotIn("DECOR_DETAIL", profile.minecraft_strategy.recommended_components)
+        self.assertNotIn("FOUNDATION", profile.minecraft_strategy.recommended_components)
 
 
 if __name__ == "__main__":

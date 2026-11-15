@@ -523,9 +523,9 @@ def alignment_hard_failures(
     *,
     hard_names: Optional[frozenset[str]] = None,
 ) -> List[str]:
+    # Open-world: research skeleton / recommended_components are observational only.
+    # Hard failures remain executor contracts (explicit MODULE / bound typology policy).
     hard = hard_names or frozenset({
-        "plan_reflects_skeleton",
-        "plan_uses_recommended_components",
         "plan_uses_landmark_module",
         "plan_respects_typology_policy",
     })

@@ -195,12 +195,6 @@ _BUILDING_SEARCH_ALIASES: Dict[str, List[str]] = {
     "佛光寺大殿": ["Foguang Temple Main Hall", "East Main Hall", "Tang timber hall"],
 }
 
-_ZAHA_FORM_ELEMENTS = (
-    "flowing curves", "organic form", "parametric facade",
-    "ribbon glazing", "deconstructivist massing", "流线型曲面", "流动形态", "参数化立面",
-)
-
-
 def _has_build_intent(text: str) -> bool:
     t = (text or "").strip()
     if not t:
@@ -358,7 +352,7 @@ def _expand_search_queries(subject: str, user_text: str) -> List[str]:
 
 
 def _enrich_profile_from_user_text(profile: BuildingProfile, user_text: str) -> BuildingProfile:
-    """搜索失败或不足时，从用户话术注入建筑师/风格/形体约束。"""
+    """从用户话术注入建筑师身份/风格检索线索 — 不决定骨架或构件套件。"""
     hint = _detect_architect_hint(user_text)
     if not hint:
         return profile
@@ -371,30 +365,19 @@ def _enrich_profile_from_user_text(profile: BuildingProfile, user_text: str) -> 
     if profile.identity.confidence < 0.55:
         identity["confidence"] = 0.55
 
-    structure = profile.structure.model_dump()
-    elements = list(structure.get("distinctive_elements") or [])
-    for el in _ZAHA_FORM_ELEMENTS:
-        if el not in elements:
-            elements.append(el)
-    structure["distinctive_elements"] = elements[:10]
-
-    form = profile.form.model_dump()
-    if hint.get("style") == "Deconstructivism":
-        form["footprint"] = "freeform"
-        form["massing"] = list(form.get("massing") or []) + ["curved", "organic"]
-
     mc = profile.minecraft_strategy.model_dump()
     mc["landmark_module"] = None
-    mc["skeleton_type"] = "RADIAL_RING"
-    mc["recommended_components"] = [
-        "MASS_MAIN", "MASS_SECONDARY", "ROOF", "FACADE_WINDOWS", "ENTRANCE", "PAVING",
-    ]
+    # Never assign skeleton_type / recommended_components from architect name.
     style_profile = hint.get("style_profile") or ""
-    mc["notes"] = (
-        f"Architect-led design ({hint.get('architect')}): use style_profile={style_profile}, "
-        "compositional curved MASS with params.shape=ellipse/rounded_rect, params.curvature; "
-        "Do NOT use landmark:birds_nest_stadium (wrong architect/landmark)."
+    note = (mc.get("notes") or "").strip()
+    arch_note = (
+        f"Architect reference ({hint.get('architect')}): identity/style_profile={style_profile} "
+        "are optional research evidence only — choose massing, skeleton and components "
+        "independently for this building use. Do NOT use landmark:birds_nest_stadium "
+        "as a substitute for an architect-led design."
     )
+    if "Architect reference" not in note:
+        mc["notes"] = f"{arch_note} {note}".strip()
 
     notes = profile.research_notes or user_text[:400]
     if hint.get("architect") and hint["architect"] not in notes:
@@ -402,8 +385,6 @@ def _enrich_profile_from_user_text(profile: BuildingProfile, user_text: str) -> 
 
     return profile.model_copy(update={
         "identity": profile.identity.model_copy(update=identity),
-        "form": profile.form.model_copy(update=form),
-        "structure": profile.structure.model_copy(update=structure),
         "minecraft_strategy": profile.minecraft_strategy.model_copy(update=mc),
         "research_notes": notes[:1200],
     })
@@ -591,7 +572,11 @@ def _compute_fidelity_message(
 
 
 def resolve_structural_typology_for_intent(user_text: str) -> Optional[str]:
-    """Return structural typology id when culture/RAG/keyword resolution succeeds."""
+    """Return structural typology id when culture/RAG/keyword resolution succeeds.
+
+    Research/evidence helper only — finalize must not auto-bind this as a whole-building
+    executor unless the user explicitly requested a typology/preset route.
+    """
     text = (user_text or "").strip()
     if not text:
         return None
@@ -609,6 +594,29 @@ def resolve_structural_typology_for_intent(user_text: str) -> Optional[str]:
         return match.typology_id if match else None
     except Exception:
         return None
+
+
+_EXPLICIT_TYPOLOGY_RE = re.compile(
+    r"(?:typology|structural_typology|typology_id)\s*[:=]\s*([A-Za-z][A-Za-z0-9_]*)",
+    re.IGNORECASE,
+)
+
+
+def resolve_explicit_structural_typology(user_text: str) -> Optional[str]:
+    """Whole-building typology only when the user explicitly requests it."""
+    text = (user_text or "").strip()
+    if not text:
+        return None
+    match = _EXPLICIT_TYPOLOGY_RE.search(text)
+    if not match:
+        return None
+    token = match.group(1).strip()
+    try:
+        from .typology_registry import get_typology
+
+        return token if get_typology(token) is not None else None
+    except Exception:
+        return token or None
 
 
 def finalize_profile_minecraft_strategy(
@@ -647,12 +655,20 @@ def finalize_profile_minecraft_strategy(
     model_designed = not resolve_landmark_module_for_intent(user_text) and (
         identified.is_specific_real_building or (match is not None and "generic_typology" not in match.reason_tags))
     mc.model_designed_landmark = bool(model_designed)
-    research_typology_id = resolve_structural_typology_for_intent(user_text)
-    # Named / model-designed landmarks never auto-bind whole-building typology executors.
-    # Keyword typology remains only for non-named compositional intents (and never from seeds).
-    typology_id = None if model_designed else research_typology_id
-    resolved = resolve_landmark_module_for_intent(user_text)
+    # Open-world: whole-building STRUCTURE typology binds only on explicit typology:<id>
+    # (or preset MODULE). Keyword/culture matches may still bind compositional_only style
+    # packs as composition guidance — never as a fixed whole-building executor.
     from .typology_registry import is_compositional_typology
+    typology_id = resolve_explicit_structural_typology(user_text)
+    if typology_id:
+        # Explicit fixed-executor / typology request wins over open model-designed composition.
+        model_designed = False
+        mc.model_designed_landmark = False
+    elif not model_designed:
+        candidate = resolve_structural_typology_for_intent(user_text)
+        if candidate and is_compositional_typology(candidate):
+            typology_id = candidate
+    resolved = resolve_landmark_module_for_intent(user_text)
     # An authored style card must not replace an explicitly requested preset.
     if resolved:
         typology_id = None
@@ -719,15 +735,7 @@ def finalize_profile_minecraft_strategy(
         if source:
             mc.recommended_components_source = source
     profile = profile.model_copy(update={"minecraft_strategy": mc})
-    try:
-        from .research_landmark_seeds import apply_research_landmark_seed
-
-        # Seeds are non-binding curated references only (notes), not design commands.
-        profile, seed_id = apply_research_landmark_seed(profile, user_text)
-        if seed_id:
-            logger.info("Recorded non-binding research landmark reference for %r", seed_id)
-    except Exception as exc:
-        logger.warning("Research landmark seed skipped: %s", exc)
+    # Landmark seed tables are offline/test reference only — not injected into default generation.
     tier, msg = _compute_fidelity_message(profile, user_text, resolved)
     profile = profile.model_copy(update={"fidelity_tier": tier, "fidelity_message_zh": msg})
     try:
@@ -1150,8 +1158,7 @@ def format_profile_for_prompt(
             "Model-designed landmark: research supplies evidence, not a fixed execution recipe.",
             f"Routing summary: {profile_routing_summary(profile)}",
             "Independently design massing, layout, proportions, materials and distinctive details.",
-            "Honor recommended_components and distinguishing_features as structural semantics, "
-            "not as a fixed generator binding.",
+            "Treat recommended_components and distinguishing_features as optional evidence only.",
             "Do not substitute landmark MODULE or whole-building typology presets for your plan.",
             "Use supported components/FBD; report unsupported geometry explicitly.",
             "",

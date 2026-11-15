@@ -8,6 +8,35 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RoofHostedDormerSupportTest {
+    @Test void emissionPassBuildsDormerWallsDownToItsGeneratedRoof() {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var body = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0), new Dimensions(15, 15, 8),
+                List.of("hollow"), Map.of("component_id", "body", "anchor_mode", "min_corner",
+                        "suppress_windows", true, "suppress_doors", true));
+        var roof = new Component("ROOF", "main", new Vec3i(0, 7, 0), new Dimensions(15, 15, 6),
+                List.of(), Map.of("component_id", "roof", "host_id", "body", "anchor_mode", "min_corner",
+                        "roof_type", "mansard", "roof_dormers", false, "roof_block", "minecraft:stone"));
+        var window = ComponentSatelliteInference.normalizeComponent(new Component("MASS_ANCILLARY", "main", new Vec3i(2, 15, 2), new Dimensions(3, 3, 3),
+                List.of("dormer", "hollow"), Map.of("component_id", "window", "host_id", "roof",
+                        "anchor_mode", "min_corner", "wall_block", "minecraft:white_concrete",
+                        "suppress_windows", true, "suppress_doors", true)));
+        var components = List.of(body, window, roof);
+        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
+        var result = new ArrayList<BlockPatch>();
+        ComponentEmitPass.compileComponents(plan, null, null, false, components, Set.of(), Map.of(), result,
+                new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new ArrayList<>(), new HashSet<>(),
+                new HashSet<>(), new HashMap<>());
+        assertFalse(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap(),
+                String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
+        var finalAt = new HashMap<BlockPos, BlockPatch>();
+        for (var patch : result) finalAt.put(new BlockPos(patch.dx(), patch.dy(), patch.dz()), patch);
+        assertTrue(finalAt.values().stream().anyMatch(p -> p.dx() == 2 && p.dz() == 2 && p.dy() < 15
+                && "minecraft:white_concrete".equals(p.targetBlock())),
+                "The emission pass must generate the new lower wall, not only adjust a helper DTO");
+        assertEquals(new Vec3i(2, 15, 2), window.relativePosition(), "Keep the authored plan immutable");
+    }
+
     private Component roof() {
         return new Component("ROOF", "main", new Vec3i(0, 10, 0), new Dimensions(10, 10, 6),
                 List.of(), Map.of("component_id", "roof", "host_id", "body"));

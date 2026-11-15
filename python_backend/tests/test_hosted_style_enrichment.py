@@ -18,11 +18,16 @@ class HostedStyleTest(unittest.TestCase):
             ])
         return {"mode": "build", "components": components}
 
-    def test_mixed_styles_apply_per_host_without_geometry_or_input_changes(self):
+    def test_open_world_default_skips_hosted_style_reshape(self):
         plan = self.plan()
         before = deepcopy(plan)
         result = enrich_llm_plan_architectural_detail(plan)
-        self.assertEqual(plan, before)
+        self.assertEqual(result, before)
+
+    def test_mixed_styles_apply_per_host_without_geometry_or_input_changes(self):
+        plan = self.plan()
+        before = deepcopy(plan)
+        result = enrich_hosted_styles(plan)
         for a, b in zip(before["components"], result["components"]):
             self.assertEqual(a["dimensions"], b["dimensions"])
             self.assertEqual(a["relative_position"], b["relative_position"])

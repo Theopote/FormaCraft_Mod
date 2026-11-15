@@ -74,7 +74,34 @@ class QueryPlannerTest(unittest.TestCase):
         self.assertEqual(enriched.identity.style, "Deconstructivism")
         self.assertIsNone(enriched.minecraft_strategy.landmark_module)
         self.assertIn("birds_nest", (enriched.minecraft_strategy.notes or "").lower())
-        self.assertTrue(enriched.structure.distinctive_elements)
+        # Architect name must not force skeleton/components or Zaha form kits.
+        self.assertNotEqual(enriched.minecraft_strategy.skeleton_type, "RADIAL_RING")
+        self.assertNotIn("MASS_SECONDARY", enriched.minecraft_strategy.recommended_components or [])
+        self.assertFalse(
+            any("parametric" in str(e).lower() for e in (enriched.structure.distinctive_elements or []))
+        )
+
+    def test_architect_hints_do_not_share_one_form_kit(self):
+        enrich = __import__(
+            "app.services.building_research_agent", fromlist=["_enrich_profile_from_user_text"]
+        )._enrich_profile_from_user_text
+        cases = (
+            ("扎哈设计的体育场", "Zaha Hadid"),
+            ("贝聿铭风格的博物馆", "I.M. Pei"),
+            ("安藤忠雄风格的极简混凝土礼拜堂", "Tadao Ando"),
+        )
+        for text, architect in cases:
+            with self.subTest(text=text):
+                enriched = enrich(BuildingProfile(query=text), text)
+                self.assertEqual(enriched.identity.architect, architect)
+                self.assertNotEqual(enriched.minecraft_strategy.skeleton_type, "RADIAL_RING")
+                self.assertNotEqual(
+                    list(enriched.minecraft_strategy.recommended_components or []),
+                    ["MASS_MAIN", "MASS_SECONDARY", "ROOF", "FACADE_WINDOWS", "ENTRANCE", "PAVING"],
+                )
+                joined = " ".join(enriched.structure.distinctive_elements or []).lower()
+                self.assertNotIn("parametric facade", joined)
+                self.assertNotIn("流线型曲面", joined)
 
 
 class ProfileSynthesisTest(unittest.TestCase):
