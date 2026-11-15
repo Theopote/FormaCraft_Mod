@@ -435,13 +435,13 @@ public class OrchestratorClient {
     }
 
     /**
-     * 增量编辑城市规格
+     * 旧 CitySpec 整份规格编辑；新编辑能力使用 requestAiPlan 的 LlmPlan patch。
      * @param cityId 城市 ID
      * @param currentJson 当前 CitySpec 的 JSON 字符串
      * @param editCommand 编辑指令（自然语言）
      * @return CompletableFuture<String> 更新后的 CitySpec JSON
      */
-    public CompletableFuture<String> editCity(String cityId, String currentJson, String editCommand) {
+    public CompletableFuture<String> editLegacyCitySpec(String cityId, String currentJson, String editCommand) {
         try {
             // 构建请求体
             java.util.Map<String, Object> requestBody = new java.util.HashMap<>();
@@ -496,13 +496,13 @@ public class OrchestratorClient {
     }
 
     /**
-     * 增量编辑建筑规格
+     * 旧 BuildingSpec 整份规格编辑；新编辑能力使用 requestAiPlan 的 LlmPlan patch。
      * @param buildingId 建筑 ID
      * @param currentJson 当前 BuildingSpec 的 JSON 字符串
      * @param editCommand 编辑指令（自然语言）
      * @return CompletableFuture<String> 更新后的 BuildingSpec JSON
      */
-    public CompletableFuture<String> editBuilding(String buildingId, String currentJson, String editCommand) {
+    public CompletableFuture<String> editLegacyBuildingSpec(String buildingId, String currentJson, String editCommand) {
         try {
             // 构建请求体
             java.util.Map<String, Object> requestBody = new java.util.HashMap<>();

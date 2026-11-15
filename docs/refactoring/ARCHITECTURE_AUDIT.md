@@ -150,6 +150,8 @@ OrchestratorClient 在 HTTP /build 响应解析后校验请求格式：非显式
 
 旧整栋编辑分流收窄为 isPatch && requestsLegacyBuildingSpec，未知格式不再被反向归类为旧编辑。/edit/city 与 /edit/building 因仍有命令和显式兼容调用者而保留，OpenAPI 标记 deprecated，说明新编辑统一走 /build LlmPlan patch。
 
+OrchestratorClient 的 editCity/editBuilding 旧名称删除，改为 editLegacyCitySpec/editLegacyBuildingSpec 并同步所有生产调用。原 HTTP 协议与行为保留；剩余退出依赖明确为两条 forma_edit 命令和显式 buildingspec 聊天分支，新编辑不得接入旧 API。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

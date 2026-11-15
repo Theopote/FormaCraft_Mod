@@ -240,7 +240,7 @@ public class FormaCraftCommands {
 
                     final ServerWorld finalServerWorld = serverWorld;
                     OrchestratorClient orchestrator = new OrchestratorClient("http://localhost:8000");
-                    orchestrator.editCity(cityId, currentJson, editCommand)
+                    orchestrator.editLegacyCitySpec(cityId, currentJson, editCommand)
                             .thenAcceptAsync(updatedJson -> {
                                 if (updatedJson == null) {
                                     player.sendMessage(Text.literal("Failed to edit city. Please try again."), false);
@@ -314,7 +314,7 @@ public class FormaCraftCommands {
 
                     final ServerWorld finalServerWorld = serverWorld;
                     OrchestratorClient orchestrator = new OrchestratorClient("http://localhost:8000");
-                    orchestrator.editBuilding(buildingId, currentJson, editCommand)
+                    orchestrator.editLegacyBuildingSpec(buildingId, currentJson, editCommand)
                             .thenAcceptAsync(updatedJson -> {
                                 if (updatedJson == null) {
                                     player.sendMessage(Text.literal("Failed to edit building. Please try again."), false);

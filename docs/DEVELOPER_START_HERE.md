@@ -100,3 +100,5 @@ BuildingSpec、CitySpec、CompositeSpec 兼容入口的系统提示词统一在 
 退出 BuildingSpec 的第一步：`/build` 未指定格式或选择 `auto` 时，各 promptMode 统一走 LlmPlan，不再按城市/村庄关键词隐式进入旧 spec 路径。只有显式 `outputFormat="buildingspec"` 保留旧城市/复合/单体分流。旧消费者迁移时删除该显式选择；不得在 LlmPlan 失败时恢复 spec 回退。
 
 后端 BuildRequest 与 FormaRequestAdapter 默认 outputFormat 为 llmplan；合法取值为 llmplan、auto、buildingspec（兼容），显式 null 仍走默认主干。未知字符串按无效请求处理。
+
+旧整份规格编辑的 Java API 明确命名为 `editLegacyCitySpec` / `editLegacyBuildingSpec`。剩余消费者为 `/forma_edit_city`、`/forma_edit_building` 命令和显式 buildingspec 的聊天编辑分支；新编辑调用 `requestAiPlan`，不新增旧编辑 API 消费者。

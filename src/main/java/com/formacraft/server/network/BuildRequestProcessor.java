@@ -125,7 +125,7 @@ public final class BuildRequestProcessor {
                                 return;
                             }
                             asyncStarted[0] = true;
-                            orchestrator.editBuilding(buildingId, currentJson, req.getRequestText())
+                            orchestrator.editLegacyBuildingSpec(buildingId, currentJson, req.getRequestText())
                                     .orTimeout(605, TimeUnit.SECONDS)
                                     .whenComplete((r, e) -> BuildRequestGate.release(gateTicket))
                                     .exceptionally(ex -> {
