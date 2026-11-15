@@ -138,6 +138,8 @@ BuildingSpec 退出迁移第一步已实施：/build 隐式/auto 请求在所有
 
 旧格式生产调用核查：当前仓库 Java 发送入口与评估脚本显式选择 llmplan，未发现显式发送 buildingspec 的生产请求；旧格式消费者/解析器仍保留。BuildRequest 与 FormaRequestAdapter 共享 PlanOutputFormat 取值并默认 llmplan，保留显式 null/auto/buildingspec；未知格式不再静默进入默认路径，按请求校验失败处理。
 
+Java BuildingSpecRoutingPolicy 已删除无生产调用者的 shouldUseCompositeOrchestrator、forcesSingleBuildingSpec、注册地标 template 检测和复合关键词链，移除旧 force 标记常量及仅覆盖死入口的测试。保留当前使用的显式格式判断、意图提取、模板默认值；不再保留暗示可强制旧单体主干的死 API。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

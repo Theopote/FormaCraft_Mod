@@ -4,8 +4,6 @@ import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,22 +33,6 @@ class BuildingSpecRoutingPolicyTest {
     }
 
     @Test
-    void forcesSingleBuildingSpec_notTriggeredByIntentAlone() {
-        assertFalse(BuildingSpecRoutingPolicy.forcesSingleBuildingSpec(
-                "明清官式四合院", null));
-    }
-
-    @Test
-    void forcesSingleBuildingSpec_whenSpecHasExplicitForceFlag() {
-        BuildingSpec spec = new BuildingSpec();
-        Map<String, Object> extra = new HashMap<>();
-        extra.put(BuildingSpecRoutingPolicy.EXTRA_FORCE_BUILDING_SPEC_PATH, true);
-        spec.setExtra(extra);
-
-        assertTrue(BuildingSpecRoutingPolicy.forcesSingleBuildingSpec("", spec));
-    }
-
-    @Test
     void applySpecDefaults_setsTemplateButNotForceFlag() {
         FormaRequest req = new FormaRequest();
         req.setUserMessage("明清官式四合院");
@@ -62,7 +44,7 @@ class BuildingSpecRoutingPolicyTest {
                 spec.getExtra().get("template")
         );
         assertFalse(Boolean.TRUE.equals(
-                spec.getExtra().get(BuildingSpecRoutingPolicy.EXTRA_FORCE_BUILDING_SPEC_PATH)
+                spec.getExtra().get("forceBuildingSpecPath")
         ));
     }
 }

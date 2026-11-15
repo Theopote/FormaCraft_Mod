@@ -1,7 +1,6 @@
 package com.formacraft.common.generation.routing;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.common.archetype.LandmarkModuleRegistry;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.request.FormaRequest;
 
@@ -23,24 +22,7 @@ public final class BuildingSpecRoutingPolicy {
     /** {@link com.formacraft.server.generation.typology.builder.CourtyardCompoundBuilder} 路由键（template → courtyard_compound） */
     public static final String TEMPLATE_MINGQING_COURTYARD = "mingqing_courtyard";
 
-    /** Python / 客户端可显式要求走整栋链路（跳过 LlmPlan 预览） */
-    public static final String EXTRA_FORCE_BUILDING_SPEC_PATH = "forceBuildingSpecPath";
-
     private BuildingSpecRoutingPolicy() {}
-
-    /**
-     * 是否应请求 {@code CompositeSpec}（而非单体 {@code BuildingSpec}）。
-     */
-    public static boolean shouldUseCompositeOrchestrator(String requestText, boolean isCityRequest) {
-        if (isCityRequest) {
-            return false;
-        }
-        String normalized = normalize(requestText);
-        if (forcesSingleBuildingSpec(normalized, null)) {
-            return false;
-        }
-        return matchesCompositeKeywords(normalized);
-    }
 
     /**
      * 收到 LlmPlan 后是否跳过构件预览，直接走 {@code GenerationHub.routeStructure()}。
@@ -104,7 +86,7 @@ public final class BuildingSpecRoutingPolicy {
     /**
      * 在整栋生成前为 {@link BuildingSpec} 写入路由提示（不覆盖 LLM / 用户已显式设置的字段）。
      * <p>
-     * 仅写入 {@code extra.template} 提示，不再自动设置 {@link #EXTRA_FORCE_BUILDING_SPEC_PATH}。
+     * 仅写入 {@code extra.template} 提示，不再自动设置旧 force 标记。
      *
      * @return {@code true} 若修改了 spec
      */
@@ -128,27 +110,6 @@ public final class BuildingSpecRoutingPolicy {
         }
 
         return changed;
-    }
-
-    /**
-     * 是否强制单体 BuildingSpec 链路（不走 Composite；收到 spec 后跳过 LlmPlan）。
-     * <p>
-     * P1：仅当 spec 上已有显式 force 标记或已登记的地标 template/landmark 时返回 true；
-     * 不再凭用户意图关键词强制整栋。
-     */
-    public static boolean forcesSingleBuildingSpec(String normalizedRequestText, BuildingSpec spec) {
-        if (spec == null || spec.getExtra() == null) {
-            return false;
-        }
-        Map<String, Object> extra = spec.getExtra();
-        if (Boolean.TRUE.equals(extra.get(EXTRA_FORCE_BUILDING_SPEC_PATH))) {
-            return true;
-        }
-        if (hasRegisteredLandmarkTemplate(spec)) {
-            return true;
-        }
-        return extraValueContains(extra, "landmark", TEMPLATE_MINGQING_COURTYARD)
-                || extraValueContains(extra, "template", TEMPLATE_MINGQING_COURTYARD);
     }
 
     static String normalize(String requestText) {
@@ -177,42 +138,6 @@ public final class BuildingSpecRoutingPolicy {
                 || (normalizedRequestText.contains("院落") && !normalizedRequestText.contains("院落群"));
         boolean period = normalizedRequestText.contains("明清") || normalizedRequestText.contains("官式");
         return courtyard && period;
-    }
-
-    private static boolean hasRegisteredLandmarkTemplate(BuildingSpec spec) {
-        if (spec == null || spec.getExtra() == null) {
-            return false;
-        }
-        Object template = spec.getExtra().get("template");
-        if (template == null) {
-            return false;
-        }
-        String tid = String.valueOf(template).trim();
-        if (tid.isEmpty()) {
-            return false;
-        }
-        return LandmarkModuleRegistry.isModule(tid);
-    }
-
-    private static boolean matchesCompositeKeywords(String normalizedRequestText) {
-        if (normalizedRequestText.isBlank()) {
-            return false;
-        }
-        return normalizedRequestText.contains("要塞")
-                || normalizedRequestText.contains("fort")
-                || normalizedRequestText.contains("复合")
-                || normalizedRequestText.contains("组合")
-                || normalizedRequestText.contains("village")
-                || normalizedRequestText.contains("multiple")
-                || normalizedRequestText.contains("群落")
-                || normalizedRequestText.contains("建筑群")
-                || normalizedRequestText.contains("建筑群落")
-                || normalizedRequestText.contains("组团")
-                || normalizedRequestText.contains("组群")
-                || normalizedRequestText.contains("聚落")
-                || normalizedRequestText.contains("多栋")
-                || normalizedRequestText.contains("多座")
-                || normalizedRequestText.contains("院落群");
     }
 
     private static boolean hasTemplate(BuildingSpec spec, String templateId) {
