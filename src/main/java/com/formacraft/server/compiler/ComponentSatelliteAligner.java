@@ -63,11 +63,12 @@ final class ComponentSatelliteAligner {
         }
 
         int realigned = 0;
-        // Resolve roof frames before their chimneys without reordering the plan itself.
+        // Resolve roof frames before their attached details without reordering the plan itself.
         List<Integer> alignmentOrder = new ArrayList<>();
         for (int i = 0; i < components.size(); i++) alignmentOrder.add(i);
         alignmentOrder.sort(java.util.Comparator.comparingInt(i -> components.get(i) != null
-                && "CHIMNEY".equals(ComponentPlanTypes.normalizeType(components.get(i).componentType())) ? 1 : 0));
+                && ("CHIMNEY".equals(ComponentPlanTypes.normalizeType(components.get(i).componentType()))
+                    || isDormer(components.get(i))) ? 1 : 0));
         for (int i : alignmentOrder) {
             Component c = components.get(i);
             if (c == null) {
@@ -79,7 +80,19 @@ final class ComponentSatelliteAligner {
             }
             String type = ComponentPlanTypes.normalizeType(c.componentType());
             // Small roof-top masses (palace gold finials) skip the satellite path unless centered here.
-            if (ComponentPlanTypes.isMassType(type) || "TOWER".equals(type)) {
+            if (ComponentPlanTypes.isMassType(type) || "TOWER".equals(type) || isDormer(c)) {
+                if (isDormer(c)) {
+                    Component roof = explicitDormerRoof(c, components, slotKey);
+                    if (roof != null) {
+                        Component bounded = boundDormerToRoof(c, roof);
+                        if (bounded != c) {
+                            components.set(i, bounded);
+                            realigned++;
+                        }
+                    }
+                    // Dormers are separate openings, never a shared central roof ornament.
+                    continue;
+                }
                 Component ornamentHost = resolveRoofOrnamentHost(c, components, slotKey);
                 if (ornamentHost != null) {
                     Component centered = alignHostedDetail(c, ornamentHost);
@@ -221,6 +234,45 @@ final class ComponentSatelliteAligner {
         params.put("resolved_host_attachment", true);
         return new Component(chimney.componentType(), chimney.slotId(), new Vec3i(x, bottom, z),
                 new Dimensions(dims.width(), dims.depth(), Math.max(1, top - bottom)), chimney.features(), params);
+    }
+
+    private static boolean isDormer(Component component) {
+        if (component == null) return false;
+        String type = ComponentPlanTypes.normalizeType(component.componentType());
+        if (!ComponentPlanTypes.isMassType(type) && !"MASS_ANCILLARY".equals(type)) return false;
+        String id = ComponentPlanTypes.getParamString(component.params(), "component_id");
+        String kind = ComponentPlanTypes.getParamString(component.params(), "detail_kind");
+        String text = ((id == null ? "" : id) + " " + (kind == null ? "" : kind)
+                + " " + (component.features() == null ? "" : String.join(" ", component.features())))
+                .toLowerCase(Locale.ROOT);
+        return text.contains("dormer") || text.contains("老虎窗");
+    }
+
+    private static Component explicitDormerRoof(Component dormer, List<Component> components, String slotKey) {
+        String host = ComponentPlanTypes.getParamString(dormer.params(), "host_id", "hostId");
+        if (host == null) return null;
+        for (Component candidate : components) {
+            if (candidate != null && ComponentPlanTypes.isRoofType(ComponentPlanTypes.normalizeType(candidate.componentType()))
+                    && slotKey.equals(ComponentPlanTypes.slotKey(candidate))
+                    && host.equals(ComponentPlanTypes.getParamString(candidate.params(), "component_id"))) return candidate;
+        }
+        return null;
+    }
+
+    /** Constrain the authored footprint only; roof-slope support needs a separate surface contract. */
+    private static Component boundDormerToRoof(Component dormer, Component roof) {
+        Vec3i origin = ComponentPlanCompiler.resolveMassOrigin(roof);
+        Vec3i position = ComponentPlanCompiler.resolveMassOrigin(dormer);
+        Dimensions body = roof.dimensions(), dims = dormer.dimensions();
+        if (origin == null || position == null || body == null || dims == null
+                || dims.width() > body.width() || dims.depth() > body.depth()) return dormer;
+        int x = Math.max(origin.x(), Math.min(origin.x() + body.width() - dims.width(), position.x()));
+        int z = Math.max(origin.z(), Math.min(origin.z() + body.depth() - dims.depth(), position.z()));
+        var params = new HashMap<String, Object>();
+        if (dormer.params() != null) params.putAll(dormer.params());
+        params.put("anchor_mode", "min_corner");
+        return new Component(dormer.componentType(), dormer.slotId(), new Vec3i(x, position.y(), z),
+                dims, dormer.features(), params);
     }
 
     private static Component alignHostedDetail(Component detail, Component mass) {
