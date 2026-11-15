@@ -4,7 +4,12 @@ import com.formacraft.common.json.JsonUtil;
 
 import java.io.File;
 import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * FormaCraft 设置的全局配置（持久化到 JSON）
@@ -168,12 +173,40 @@ public class SettingsConfig {
         }
     }
 
+    public SettingsConfig copy() {
+        SettingsConfig copy = new SettingsConfig();
+        copy.copyFrom(this);
+        return copy;
+    }
+
+    /** Publish a draft only after its complete UTF-8 file has been replaced successfully. */
+    public static void commit(SettingsConfig draft) throws IOException {
+        commit(draft, CONFIG_FILE.toPath());
+    }
+
+    static synchronized void commit(SettingsConfig draft, Path target) throws IOException {
+        SettingsConfig snapshot = draft.copy();
+        Path absolute = target.toAbsolutePath();
+        Files.createDirectories(absolute.getParent());
+        Path temporary = Files.createTempFile(absolute.getParent(), "formacraft-settings-", ".tmp");
+        try {
+            try (var writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
+                JsonUtil.get().toJson(snapshot, writer);
+            }
+            try {
+                Files.move(temporary, absolute, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temporary, absolute, StandardCopyOption.REPLACE_EXISTING);
+            }
+            INSTANCE.copyFrom(snapshot);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+    }
+
     public static void save() {
         try {
-            CONFIG_FILE.getParentFile().mkdirs();
-            FileWriter writer = new FileWriter(CONFIG_FILE);
-            JsonUtil.get().toJson(INSTANCE, writer);
-            writer.close();
+            commit(INSTANCE);
         } catch (Exception e) {
             System.err.println("[FormaCraft] Failed to save settings: " + e.getMessage());
         }

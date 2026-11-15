@@ -3,8 +3,6 @@ package com.formacraft.client.ui.panel.settings;
 import com.formacraft.config.SettingsConfig;
 import net.minecraft.text.Text;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 
 /**
  * 设置面板的配置读写协调器：负责把 {@link SettingsConfig} 与面板草稿态互相同步。
@@ -16,15 +14,13 @@ import java.net.URISyntaxException;
 public final class SettingsConfigCoordinator {
     private SettingsConfigCoordinator() {}
 
-    /** 从磁盘配置载入并同步到草稿态 + 控件。 */
+    /** 从已提交配置载入草稿；取消编辑不写盘、不重载全局状态。 */
     public static void load(SettingsPanelRenderHost host) {
-        SettingsConfig.load();
         SettingsConfig cfg = SettingsConfig.INSTANCE;
 
         host.apiKeyInput().setText(cfg.apiKey != null ? cfg.apiKey : "");
         host.orchestratorInput().setText(cfg.orchestratorEndpoint != null ? cfg.orchestratorEndpoint : "http://localhost:8000");
-        // UX：即便选择了隐藏，也在编辑时显示明文，避免“看不到输入内容”
-        host.apiKeyInput().setPasswordMode(host.hideKey() && !host.apiKeyInput().isFocused());
+        host.apiKeyInput().setPasswordMode(host.hideKey());
         host.apiKeyInput().setMaxLength(256);
         host.orchestratorInput().setMaxLength(256);
         host.llmBaseUrlInput().setMaxLength(256);
@@ -56,51 +52,39 @@ public final class SettingsConfigCoordinator {
         host.setDraftTemperature(clamp01(cfg.temperature));
         host.setDraftInteractionReach(clampReach(cfg.interactionReach));
 
-        host.loadBackendSettings();
+        host.loadBackendSettings(cfg);
         host.syncWidgetStateFromDraft();
     }
 
     /** 校验并保存草稿态到磁盘；成功后重新载入以确保一致。返回是否保存成功。 */
     public static boolean save(SettingsPanelRenderHost host) {
-        String apiKey = host.apiKeyInput().getText().trim();
-        String endpoint = sanitizeEndpoint(host.orchestratorInput().getText());
-        String llmBaseUrlRaw = host.llmBaseUrlInput().getText() != null ? host.llmBaseUrlInput().getText().trim() : "";
-        String llmBaseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(llmBaseUrlRaw);
-        if (llmBaseUrl == null && !llmBaseUrlRaw.isBlank()) {
-            host.showToast("Base URL 无效：请填写 HTTP(S) 服务地址（不含查询参数或片段）", true);
-            return false;
-        }
-        String draftProvider = host.draftLlmProvider();
-        String provider = (draftProvider == null || draftProvider.isBlank()) ? "auto" : draftProvider.trim();
-        // 模型以输入框为准（留空=自动）
-        String model = host.modelInput().getText() == null ? "" : host.modelInput().getText().trim();
-        host.setDraftModel(model);
-
-        // Key requirements belong to the endpoint. Custom servers may use short keys,
-        // no authentication, or credentials configured on the backend.
-
-        if (!host.saveBackendSettings()) return false;
-
         try {
-            SettingsConfig.INSTANCE.apiKey = apiKey;
-            SettingsConfig.INSTANCE.orchestratorEndpoint = endpoint;
-            SettingsConfig.INSTANCE.model = model;
-            SettingsConfig.INSTANCE.llmProvider = provider;
-            SettingsConfig.INSTANCE.llmBaseUrl = llmBaseUrl;
-            SettingsConfig.INSTANCE.showDebugWarnings = host.draftShowDebugWarnings();
-            String searchProvider = host.draftSearchProvider();
-            SettingsConfig.INSTANCE.searchProvider = (searchProvider == null || searchProvider.isBlank()) ? "auto" : searchProvider.trim();
-            SettingsConfig.INSTANCE.searchApiKey = host.searchApiKeyInput().getText() != null ? host.searchApiKeyInput().getText().trim() : "";
-            SettingsConfig.INSTANCE.googleCseCx = host.googleCseCxInput().getText() != null ? host.googleCseCxInput().getText().trim() : "";
-            SettingsConfig.INSTANCE.temperature = clamp01(host.draftTemperature());
-            SettingsConfig.INSTANCE.interactionReach = clampReach(host.draftInteractionReach());
-            SettingsConfig.save();
-            load(host); // 重新加载以确保同步
-            host.showToast(Text.translatable("formacraft.settings.saved").getString(), false);
+            SettingsPreferenceValues values = SettingsPreferenceValues.parse(host.reachInput().getText(),host.temperatureInput().getText());
+            SettingsConfig draft = SettingsConfig.INSTANCE.copy();
+            host.stageBackendSettings(draft);
+            String endpointRaw = host.orchestratorInput().getText().trim();
+            if (endpointRaw.isBlank()) endpointRaw = "http://localhost:" + draft.backendPort;
+            String endpoint = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(endpointRaw.contains("://") ? endpointRaw : "http://" + endpointRaw);
+            if (endpoint == null) throw new IllegalArgumentException("后端地址无效，请填写完整的 HTTP(S) 服务地址");
+            String baseUrl = SettingsModelCatalog.sanitizeLlmBaseUrlOrNull(host.llmBaseUrlInput().getText());
+            if (baseUrl == null) throw new IllegalArgumentException("Base URL 无效，请填写 HTTP(S) 服务地址");
+            draft.apiKey = host.apiKeyInput().getText().trim();
+            draft.orchestratorEndpoint = endpoint;
+            draft.model = host.modelInput().getText().trim();
+            draft.llmProvider = host.draftLlmProvider();
+            draft.llmBaseUrl = baseUrl;
+            draft.showDebugWarnings = host.draftShowDebugWarnings();
+            draft.searchProvider = host.draftSearchProvider();
+            draft.searchApiKey = host.searchApiKeyInput().getText().trim();
+            draft.googleCseCx = host.googleCseCxInput().getText().trim();
+            draft.temperature = values.temperature();
+            draft.interactionReach = values.reach();
+            SettingsConfig.commit(draft);
+            load(host);
+            host.showToast(Text.translatable("formacraft.settings.saved").getString(),false);
             return true;
         } catch (Exception e) {
-            String msg = e.getMessage() == null ? "unknown" : e.getMessage();
-            host.showToast(Text.translatable("formacraft.settings.error.save_failed", msg).getString(), true);
+            host.showToast("保存失败：" + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()),true);
             return false;
         }
     }
@@ -115,32 +99,6 @@ public final class SettingsConfigCoordinator {
     private static int clampReach(int v) {
         if (v < SettingsPanelLayout.MIN_INTERACTION_REACH) return SettingsPanelLayout.MIN_INTERACTION_REACH;
         return Math.min(v, SettingsPanelLayout.MAX_INTERACTION_REACH);
-    }
-
-    private static String sanitizeEndpoint(String endpoint) {
-        if (endpoint == null || endpoint.trim().isEmpty()) {
-            return "http://localhost:8000";
-        }
-        String v = endpoint.trim();
-        // 简单容错：如果用户只填了 localhost:8000，则补协议
-        if (!v.startsWith("http://") && !v.startsWith("https://")) {
-            v = "http://" + v;
-        }
-        // 移除末尾斜杠
-        while (v.endsWith("/")) {
-            v = v.substring(0, v.length() - 1);
-        }
-        // 验证URL格式（使用URI避免弃用警告）
-        try {
-            URI uri = new URI(v);
-            String scheme = uri.getScheme();
-            if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) {
-                return "http://localhost:8000";
-            }
-        } catch (URISyntaxException e) {
-            return "http://localhost:8000";
-        }
-        return v;
     }
 
 }

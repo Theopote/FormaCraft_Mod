@@ -1,52 +1,23 @@
 package com.formacraft.client.ui.panel.settings;
 
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
-
-import static com.formacraft.client.ui.panel.settings.SettingsPanelDrawSupport.drawSmallLabel;
-import static com.formacraft.client.ui.panel.settings.SettingsPanelDrawSupport.scaledMouseX;
-import static com.formacraft.client.ui.panel.settings.SettingsPanelDrawSupport.scaledMouseY;
 import static com.formacraft.client.ui.panel.settings.SettingsPanelLayout.*;
 
-/** UI / gameplay preference fields in the settings panel. */
 public final class SettingsPreferencesSection {
     private SettingsPreferencesSection() {}
-
     public static int drawSection(SettingsPanelRenderHost host, DrawContext ctx, int x, int y, int w) {
-        var client = host.client();
-        host.ensureWidgets();
-
-        drawSmallLabel(client, ctx, Text.literal("Debug Warnings"), x, y);
-        int debugLabelY = y;
-        y += LABEL_OFFSET;
+        var ui=host.ui(); var client=host.client();
         host.debugWarningsButton().setMessage(host.debugWarningsButtonText());
-        host.debugWarningsButton().setPosition(x, y);
-        host.debugWarningsButton().setWidth(w);
-        host.debugWarningsButton().visible = true;
-        host.debugWarningsButton().active = true;
-        host.debugWarningsButton().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-        y = afterTwoRowField(debugLabelY);
-
-        drawSmallLabel(client, ctx, Text.translatable("formacraft.settings.interaction_reach", host.draftInteractionReach()), x, y);
-        int reachLabelY = y;
-        y += LABEL_OFFSET;
-        host.interactionReachSlider().setPosition(x, y);
-        host.interactionReachSlider().setWidth(w);
-        host.interactionReachSlider().visible = true;
-        host.interactionReachSlider().active = true;
-        host.interactionReachSlider().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-        y = afterTwoRowField(reachLabelY);
-
-        drawSmallLabel(client, ctx,
-                Text.translatable("formacraft.settings.temperature", String.format("%.2f", host.draftTemperature())),
-                x, y);
-        int tempLabelY = y;
-        y += LABEL_OFFSET;
-        host.temperatureSlider().setPosition(x, y);
-        host.temperatureSlider().setWidth(w);
-        host.temperatureSlider().visible = true;
-        host.temperatureSlider().active = true;
-        host.temperatureSlider().render(ctx, (int) scaledMouseX(client), (int) scaledMouseY(client), 0.0f);
-        return afterTwoRowField(tempLabelY);
+        ui.widget(ctx,client,host.debugWarningsButton(),x,y,w,BUTTON_HEIGHT); y+=FIELD_SPACING;
+        int fieldWidth=46, sliderWidth=Math.max(16,w-fieldWidth-BUTTON_GAP);
+        ui.label(ctx,client,"交互距离（5–100 格）",x,y,w,COLOR_GRAY); y+=LABEL_OFFSET;
+        ui.widget(ctx,client,host.interactionReachSlider(),x,y,sliderWidth,INPUT_HEIGHT);
+        ui.input(ctx,host.reachInput(),x+sliderWidth+BUTTON_GAP,y,fieldWidth,INPUT_HEIGHT); y+=FIELD_SPACING;
+        ui.label(ctx,client,"模型温度（0–1）",x,y,w,COLOR_GRAY); y+=LABEL_OFFSET;
+        ui.widget(ctx,client,host.temperatureSlider(),x,y,sliderWidth,INPUT_HEIGHT);
+        ui.input(ctx,host.temperatureInput(),x+sliderWidth+BUTTON_GAP,y,fieldWidth,INPUT_HEIGHT); y+=FIELD_SPACING;
+        String error=host.preferenceError();
+        if (error != null) { ui.label(ctx,client,error,x,y,w,0xFFFF8888); y+=LABEL_OFFSET; }
+        return y;
     }
 }

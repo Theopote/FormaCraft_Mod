@@ -9,8 +9,13 @@ import net.minecraft.text.Text;
 
 /** Draw-time callbacks from section classes back to {@link com.formacraft.client.ui.panel.SettingsPanel}. */
 public interface SettingsPanelRenderHost {
-    default void loadBackendSettings() {}
-    default boolean saveBackendSettings() { return true; }
+    void loadBackendSettings(com.formacraft.config.SettingsConfig cfg);
+    void stageBackendSettings(com.formacraft.config.SettingsConfig cfg);
+    SettingsUiBindings ui();
+    HudTextInput reachInput();
+    HudTextInput temperatureInput();
+    void openDetails(String message);
+    String preferenceError();
 
     MinecraftClient client();
 

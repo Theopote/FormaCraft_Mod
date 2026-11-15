@@ -16,6 +16,9 @@ public final class SettingsSearchProviders {
             new Entry("wikipedia_only", "仅 Wikipedia")
     );
 
+    public static boolean showsCredentials(String provider) { return "auto".equalsIgnoreCase(provider) || requiresApiKey(provider); }
+    public static boolean showsGoogleCx(String provider) { return "auto".equalsIgnoreCase(provider) || "google_cse".equalsIgnoreCase(provider); }
+
     private SettingsSearchProviders() {}
 
     /** Whether the selected provider typically requires Search API Key in settings. */

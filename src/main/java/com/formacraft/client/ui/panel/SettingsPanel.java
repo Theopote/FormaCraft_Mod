@@ -34,14 +34,21 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     private static final FcaLog LOG = FcaLog.of("SettingsPanel");
 
-    // Toast 持续时间（毫秒）
-    private static final long TOAST_DURATION_MS = 2500L;
 
     private final MinecraftClient client = MinecraftClient.getInstance();
 
     // 输入组件（HUD 模式，不依赖 Screen）
     private final SettingsBackendSection backendSection = new SettingsBackendSection(this);
     private final SettingsChoicePanel choices = new SettingsChoicePanel();
+    private final SettingsDetailsPanel details = new SettingsDetailsPanel();
+    private final SettingsUiBindings ui = new SettingsUiBindings();
+    private final java.util.EnumMap<SettingsGroup,ButtonWidget> groupButtons = new java.util.EnumMap<>(SettingsGroup.class);
+    private final java.util.EnumSet<SettingsGroup> collapsed = java.util.EnumSet.of(SettingsGroup.BACKEND);
+    private final HudTextInput reachInput = new HudTextInput(), temperatureInput = new HudTextInput();
+    private ButtonWidget statusButton;
+    private long searchRevision;
+    private SearchIdentity searchIdentity;
+    private record SearchIdentity(String backend,String provider,String key,String cx) {}
     private long connectionRevision;
     private record ConnectionIdentity(String backend, String key, String provider, String baseUrl) {}
     private ConnectionIdentity connectionIdentity;
@@ -71,7 +78,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     // 简易提示（保存成功/失败）
     private String toast = null;
-    private long toastUntilMs = 0L;
     private boolean isToastError = false;
 
     // 原版风格控件（参考 Pushdozer：ButtonWidget / SliderWidget）
@@ -118,8 +124,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     // 缓存的计算值（性能优化）
-    private int cachedContentX = -1;
-    private int cachedContentWidth = -1;
 
     // 面板滚动（Settings 内容较多时允许滚轮上下滚动）
     private int scrollY = 0;
@@ -130,15 +134,21 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     private long availableModelsUpdatedAtMs = 0L;
 
     public SettingsPanel() {
+        SettingsConfig.load();
         loadFromConfig();
         initWidgets();
     }
 
     private void loadFromConfig() {
+        blurInputs();
         choices.close();
+        details.close();
+        searchRevision++;
+        validatingSearchKey = false;
         connectionRevision++;
         SettingsConfigCoordinator.load(this);
         connectionIdentity = currentConnectionIdentity();
+        searchIdentity = currentSearchIdentity();
         detectingModel = false;
         validatingKey = false;
         if (testKeyButton != null) testKeyButton.setMessage(Text.literal("校验 Key"));
@@ -160,55 +170,40 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     protected void drawContents(DrawContext ctx) {
         ensureWidgets();
-        syncConnectionIdentity();
-        // 缓存计算值（性能优化）
-        if (cachedContentX < 0 || cachedContentWidth != panelWidth) {
-            cachedContentX = panelX + CONTENT_PADDING;
-            cachedContentWidth = panelWidth;
-        }
-        int x = cachedContentX;
-        int y = getContentY() + CONTENT_PADDING - scrollY;
-        int w = panelWidth - CONTENT_PADDING * 2;
-
+        syncConnectionIdentity(); syncSearchIdentity();
+        int x=panelX+CONTENT_PADDING, w=panelWidth-CONTENT_PADDING*2;
+        int contentTop=getContentY()+CONTENT_PADDING;
+        int footerY=panelY+panelHeight-SettingsActionsSection.HEIGHT-CONTENT_PADDING;
+        int clipBottom=Math.max(contentTop+1,footerY-4);
+        ui.begin(getContentY()+1,clipBottom);
         drawContentBackground(ctx);
-
-        // 内容裁剪（避免滚动时画出边界）
-        int sx0 = panelX + 1;
-        int sy0 = getContentY() + 1;
-        int sx1 = panelX + panelWidth - 1;
-        int sy1 = panelY + panelHeight - 1;
-        if (sx1 > sx0 && sy1 > sy0) ctx.enableScissor(sx0, sy0, sx1, sy1);
+        int y=contentTop-scrollY;
+        ctx.enableScissor(panelX+1,getContentY()+1,panelX+panelWidth-1,clipBottom);
         try {
-
-            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("LLM 与后端"), x, y, w);
-            y = SettingsConnectionSection.drawSection(this, ctx, x, y, w);
-            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("建筑研究搜索"), x, y, w);
-            y = SettingsSearchSection.drawSection(this, ctx, x, y, w);
-            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("界面与偏好"), x, y, w);
-            y = SettingsPreferencesSection.drawSection(this, ctx, x, y, w);
-            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("操作"), x, y, w);
-            y = SettingsActionsSection.drawSection(this, ctx, x, y, w);
-            y = SettingsPanelDrawSupport.drawSectionHeader(client, ctx, Text.literal("本机后端服务"), x, y, w);
-            y = backendSection.draw(ctx,x,y,w);
-
-            // 计算最大滚动（基于未滚动起点）
-            int contentTop = getContentY() + CONTENT_PADDING;
-            int visibleH = getContentHeight() - CONTENT_PADDING * 2;
-            int totalH = (y + scrollY) - contentTop + LABEL_OFFSET; // y 是已减 scrollY 的
-            maxScrollY = Math.max(0, totalH - visibleH);
-            if (scrollY > maxScrollY) scrollY = maxScrollY;
-            if (scrollY < 0) scrollY = 0;
-        } finally {
-            if (sx1 > sx0 && sy1 > sy0) ctx.disableScissor();
-        }
-
-        // Toast：不参与滚动，也不被 scissor 裁剪（否则用户会觉得“点了没反应”）
-        int toastY = getContentY() + getContentHeight() - CONTENT_PADDING - client.textRenderer.fontHeight - 2;
-        if (toast != null && System.currentTimeMillis() > toastUntilMs) {
-            toast = null;
-        }
-        SettingsPanelDrawSupport.drawToast(client, ctx, toast, toastUntilMs, isToastError, x, toastY);
-        choices.render(ctx, client, panelX + panelWidth, getContentY());
+            for (var group:SettingsGroup.values()) {
+                ButtonWidget header=groupButtons.get(group);
+                header.setMessage(Text.literal((collapsed.contains(group)?"▶ ":"▼ ")+group.label));
+                ui.widget(ctx,client,header,x,y,w,BUTTON_HEIGHT); y+=BUTTON_ROW_HEIGHT;
+                if (collapsed.contains(group)) continue;
+                y=switch(group) {
+                    case CONNECTION -> SettingsConnectionSection.drawSection(this,ctx,x,y,w);
+                    case SEARCH -> SettingsSearchSection.drawSection(this,ctx,x,y,w);
+                    case PREFERENCES -> SettingsPreferencesSection.drawSection(this,ctx,x,y,w);
+                    case BACKEND -> backendSection.draw(ctx,x,y,w);
+                };
+                y+=GROUP_GAP;
+            }
+        } finally { ctx.disableScissor(); }
+        maxScrollY=Math.max(0,y+scrollY-contentTop-(clipBottom-contentTop));
+        scrollY=Math.max(0,Math.min(scrollY,maxScrollY));
+        ctx.fill(panelX+1,footerY-3,panelX+panelWidth-1,panelY+panelHeight-1,0xFF171B24);
+        int statusY=SettingsActionsSection.drawSection(this,ctx,x,footerY,w);
+        String message=toast==null?"修改后保存；取消撤销草稿":toast;
+        statusButton.setMessage(Text.literal(client.textRenderer.trimToWidth((isToastError?"错误：":"")+message+" [详情]",w-8)));
+        ui.widget(ctx,client,statusButton,x,statusY,w,BUTTON_HEIGHT);
+        ui.fixed(false); ui.finish();
+        choices.render(ctx,client,panelX+panelWidth,getContentY());
+        details.render(ctx,client,panelX+panelWidth,getContentY());
     }
 
     // =======================
@@ -216,17 +211,11 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     // =======================
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (choices.isOpen()) { choices.click(mouseX, mouseY, button); return true; }
-        if (super.mouseClicked(mouseX, mouseY, button)) return true; // 处理顶部 Tab 切换
-        if (isMouseOver(mouseX,mouseY)
-                && mouseY >= getContentY() && mouseY < panelY+panelHeight
-                && backendSection.click(mouseX,mouseY,button)) {
-            for (var input : List.of(orchestratorInput,apiKeyInput,llmBaseUrlInput,modelInput,searchApiKeyInput,googleCseCxInput)) input.setFocused(false);
-            return true;
-        }
-        backendSection.blur();
-        return SettingsInputController.handleClick(this, mouseX, mouseY, button);
+    public boolean mouseClicked(double mouseX,double mouseY,int button) {
+        if(details.isOpen()) { details.click(mouseX,mouseY,button); return true; }
+        if(choices.isOpen()) { choices.click(mouseX,mouseY,button); return true; }
+        if(super.mouseClicked(mouseX,mouseY,button)) return true;
+        return SettingsInputController.handleClick(this,mouseX,mouseY,button);
     }
 
     @Override
@@ -241,132 +230,18 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public void mouseScrolled(double mouseX, double mouseY, double amount) {
+        if (details.isOpen()) { details.scroll(amount); return; }
         if (choices.isOpen()) { choices.scroll(amount); return; }
         SettingsInputController.handleScroll(this, mouseX, mouseY, amount);
     }
 
     @Override
-    protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
-        if (choices.isOpen()) {
-            String option = choices.hoveredLabel(mouseX, mouseY);
-            if (option != null) drawTooltipCompat(ctx, List.of(Text.literal(option)), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        String backendTip = backendSection.tooltip(mouseX,mouseY);
-        if (backendTip != null && isMouseOver(mouseX,mouseY)) {
-            drawTooltipCompat(ctx, java.util.Arrays.stream(backendTip.split("\\n")).map(Text::literal).map(t -> (Text)t).toList(),(int)mouseX,(int)mouseY);
-            return true;
-        }
-        ensureWidgets();
-
-        // HUD 场景不会像 Screen 一样自动渲染 Tooltip，这里手动做一层（参考 Pushdozer 的使用习惯）
-        // 优先级：小按钮/滑条/下拉/底部按钮
-        if (showHideButton != null && showHideButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.show_hide")), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        if (pasteButton != null && pasteButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.paste")), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        if (testKeyButton != null && testKeyButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.literal("校验当前 API Key（provider/base URL 组合）")), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        if (temperatureSlider != null && temperatureSlider.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.temperature")), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        if (interactionReachSlider != null && interactionReachSlider.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.interaction_reach")), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        if (detectModelButton != null && detectModelButton.isMouseOver(mouseX, mouseY)) {
-            int n = (availableModels == null) ? 0 : availableModels.size();
-            String t = (modelInput.getText() == null) ? "" : modelInput.getText().trim();
-            String cur = t.isBlank() ? "自动" : t;
-            String age = (availableModelsUpdatedAtMs <= 0L) ? "未刷新" : ((System.currentTimeMillis() - availableModelsUpdatedAtMs) / 1000 + "s前");
-            drawTooltipCompat(
-                    ctx,
-                    java.util.List.of(
-                            Text.literal("刷新模型列表（/models）"),
-                            Text.literal("当前：" + cur),
-                            Text.literal("缓存：" + n + "（" + age + "）")
-                    ),
-                    (int) mouseX,
-                    (int) mouseY
-            );
-            return true;
-        }
-        if (modelChoicesButton != null && modelChoicesButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(
-                    ctx,
-                    java.util.List.of(Text.literal("打开完整模型列表，也可手动填写模型 ID（留空=自动）")),
-                    (int) mouseX,
-                    (int) mouseY
-            );
-            return true;
-        }
-        if (llmProviderButton != null && llmProviderButton.isMouseOver(mouseX, mouseY)) {
-            String p = (draftLlmProvider == null || draftLlmProvider.isBlank()) ? "auto" : draftLlmProvider.trim();
-            drawTooltipCompat(
-                    ctx,
-                    java.util.List.of(Text.literal("LLM Provider（选择）"), Text.literal("当前：" + p)),
-                    (int) mouseX,
-                    (int) mouseY
-            );
-            return true;
-        }
-        if (llmBaseUrlPresetButton != null && llmBaseUrlPresetButton.isMouseOver(mouseX, mouseY)) {
-            BaseUrlPreset p = getSelectedBaseUrlPreset();
-            String name = (p == null) ? "自动" : p.label;
-            String u = llmBaseUrlInput.getText().isBlank() ? "(自动)" : llmBaseUrlInput.getText();
-            drawTooltipCompat(
-                    ctx,
-                    java.util.List.of(Text.literal("LLM Base URL（选择预设）"), Text.literal("当前：" + name), Text.literal("URL: " + u)),
-                    (int) mouseX,
-                    (int) mouseY
-            );
-            return true;
-        }
-        if (debugWarningsButton != null && debugWarningsButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(
-                    ctx,
-                    java.util.List.of(
-                            Text.literal("Debug Warnings（切换）"),
-                            Text.literal("当前：" + (draftShowDebugWarnings ? "ON" : "OFF")),
-                            Text.literal("用于显示后端 debugWarnings（LLM 纠错/回退信息）")
-                    ),
-                    (int) mouseX,
-                    (int) mouseY
-            );
-            return true;
-        }
-        if (testSearchKeyButton != null && testSearchKeyButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(
-                    ctx,
-                    java.util.List.of(
-                            Text.literal("测试搜索 Key"),
-                            Text.literal("调用 /search/validate 探测当前搜索引擎")
-                    ),
-                    (int) mouseX,
-                    (int) mouseY
-            );
-            return true;
-        }
-        if (saveButton != null && saveButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.save")), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        if (cancelButton != null && cancelButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.cancel")), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        if (resetButton != null && resetButton.isMouseOver(mouseX, mouseY)) {
-            drawTooltipCompat(ctx, java.util.Collections.singletonList(Text.translatable("formacraft.settings.tooltip.reset")), (int) mouseX, (int) mouseY);
-            return true;
-        }
-        return false;
+    protected boolean drawCustomTooltip(DrawContext ctx,double mouseX,double mouseY) {
+        if(details.isOpen()) return true;
+        String tip=choices.isOpen()?choices.hoveredLabel(mouseX,mouseY):ui.tooltip(mouseX,mouseY);
+        if(tip==null) return false;
+        drawTooltipCompat(ctx,List.of(Text.literal(tip)),(int)mouseX,(int)mouseY);
+        return true;
     }
 
     // =======================
@@ -375,6 +250,13 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     private void initWidgets() {
         llmBaseUrlInput.setPlaceholder("https://服务地址/v1");
+        reachInput.setMaxLength(4); temperatureInput.setMaxLength(8);
+        for(var group:SettingsGroup.values()) groupButtons.put(group,ButtonWidget.builder(Text.literal(group.label),b -> {
+            if(!collapsed.add(group)) collapsed.remove(group);
+            blurInputs();
+        }).dimensions(0,0,100,BUTTON_HEIGHT).build());
+        statusButton=ButtonWidget.builder(Text.literal("状态详情"),b -> openDetails(toast==null?"普通设置仅在保存后生效。取消会撤销草稿。后端启动、停止与检查立即执行。":toast))
+                .dimensions(0,0,100,BUTTON_HEIGHT).build();
         // API Key：Show/Hide
         showHideButton = ButtonWidget.builder(getShowHideText(), b -> toggleHideKey())
                 .dimensions(0, 0, SHOW_HIDE_BUTTON_WIDTH, INPUT_HEIGHT)
@@ -425,7 +307,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 .tooltip(Tooltip.of(Text.literal("建筑研究联网搜索：选择搜索引擎或 API")))
                 .build();
 
-        testSearchKeyButton = ButtonWidget.builder(Text.literal("测试搜索 Key"), b -> startValidateSearchKey())
+        testSearchKeyButton = ButtonWidget.builder(Text.literal("测试搜索配置"), b -> startValidateSearchKey())
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("调用后端 /search/validate 探测当前搜索引擎配置")))
                 .build();
@@ -439,8 +321,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         // Buttons row
         saveButton = ButtonWidget.builder(Text.translatable("formacraft.settings.save"), b -> {
                     if (saveSettings()) {
-                        orchestratorInput.setFocused(false);
-                        apiKeyInput.setFocused(false);
+                        blurInputs();
                     }
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
@@ -448,35 +329,24 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 .build();
         cancelButton = ButtonWidget.builder(Text.translatable("formacraft.settings.cancel"), b -> {
                     loadFromConfig();
-                    orchestratorInput.setFocused(false);
-                    apiKeyInput.setFocused(false);
+                    blurInputs();
                     showToast(Text.translatable("formacraft.settings.cancelled").getString());
                 })
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.cancel")))
                 .build();
-        resetButton = ButtonWidget.builder(Text.translatable("formacraft.settings.reset"), b -> {
-                    SettingsConfig.INSTANCE.resetToDefault();
-                    SettingsConfig.save();
-                    loadFromConfig();
-                    orchestratorInput.setFocused(false);
-                    apiKeyInput.setFocused(false);
-                    showToast(Text.translatable("formacraft.settings.reset_success").getString());
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.translatable("formacraft.settings.tooltip.reset")))
-                .build();
+        resetButton = ButtonWidget.builder(Text.literal("恢复分组默认…"),b -> openResetGroups())
+                .dimensions(0,0,0,BUTTON_HEIGHT).build();
 
         syncWidgetStateFromDraft();
     }
 
     private Text getDebugWarningsButtonText() {
-        return Text.literal(draftShowDebugWarnings ? "开启：显示后端 debugWarnings" : "关闭：不显示 debugWarnings");
+        return Text.literal("调试信息：" + (draftShowDebugWarnings ? "开启" : "关闭"));
     }
 
     private void toggleDebugWarnings() {
         draftShowDebugWarnings = !draftShowDebugWarnings;
-        SettingsConfig.INSTANCE.showDebugWarnings = draftShowDebugWarnings;
         if (debugWarningsButton != null) {
             debugWarningsButton.setMessage(getDebugWarningsButtonText());
         }
@@ -506,8 +376,63 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         return Text.literal("搜索：" + p);
     }
 
+
+    private void openResetGroups() {
+        blurInputs();
+        choices.open("恢复哪个分组？保存后生效",java.util.Arrays.stream(SettingsGroup.values())
+                .map(g -> new SettingsChoicePanel.Option(g.name(),g.label)).toList(),"",false,value -> {
+            SettingsConfig defaults=new SettingsConfig();
+            SettingsGroup group=SettingsGroup.valueOf(value);
+            switch(group) {
+                case CONNECTION -> {
+                    apiKeyInput.setText(defaults.apiKey); modelInput.setText(defaults.model); draftModel=defaults.model;
+                    orchestratorInput.setText(defaults.orchestratorEndpoint);
+                    draftLlmProvider=defaults.llmProvider; draftLlmBaseUrl=defaults.llmBaseUrl;
+                    llmBaseUrlInput.setText(defaults.llmBaseUrl); syncConnectionIdentity(); modelNeedsConfirmation=false;
+                    llmProviderButton.setMessage(getLlmProviderButtonText());
+                }
+                case SEARCH -> {
+                    draftSearchProvider=defaults.searchProvider; searchApiKeyInput.setText(defaults.searchApiKey); googleCseCxInput.setText(defaults.googleCseCx);
+                    syncSearchIdentity(); searchProviderButton.setMessage(getSearchProviderButtonText());
+                }
+                case PREFERENCES -> {
+                    draftShowDebugWarnings=defaults.showDebugWarnings;
+                    interactionReachSlider.setCustomValue(reachToValue(defaults.interactionReach));
+                    temperatureSlider.setCustomValue(defaults.temperature);
+                }
+                case BACKEND -> backendSection.load(defaults);
+            }
+            collapsed.remove(group);
+            showToast("已恢复“"+group.label+"”草稿；保存后生效",false);
+        });
+    }
+
+    private void afterTextEdit(HudTextInput input,String before) {
+        if(before.equals(input.getText())) return;
+        if(input==modelInput) { draftModel=input.getText().trim(); modelNeedsConfirmation=false; }
+        if(input==reachInput || input==temperatureInput) {
+            try {
+                var values=SettingsPreferenceValues.parse(reachInput.getText(),temperatureInput.getText());
+                interactionReachSlider.setCustomValue(reachToValue(values.reach()));
+                temperatureSlider.setCustomValue(values.temperature());
+            } catch(IllegalArgumentException ignored) { }
+        }
+    }
+
+    private SearchIdentity currentSearchIdentity() {
+        return new SearchIdentity(orchestratorInput.getText().trim(),draftSearchProvider,searchApiKeyInput.getText().trim(),googleCseCxInput.getText().trim());
+    }
+    private void syncSearchIdentity() {
+        SearchIdentity next=currentSearchIdentity();
+        if(next.equals(searchIdentity)) return;
+        searchIdentity=next; searchRevision++; validatingSearchKey=false;
+    }
+
     private void startValidateSearchKey() {
+        syncSearchIdentity();
         if (validatingSearchKey) return;
+        long revision=searchRevision;
+        SearchIdentity identity=currentSearchIdentity();
         validatingSearchKey = true;
         if (testSearchKeyButton != null) {
             testSearchKeyButton.setMessage(Text.literal("测试中..."));
@@ -516,27 +441,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
         String base = sanitizeEndpoint(orchestratorInput.getText());
         String provider = (draftSearchProvider == null || draftSearchProvider.isBlank()) ? "auto" : draftSearchProvider.trim();
-        String searchApiKey = searchApiKeyInput.getText() != null ? searchApiKeyInput.getText().trim() : "";
-        String googleCx = googleCseCxInput.getText() != null ? googleCseCxInput.getText().trim() : "";
-
-        if (SettingsSearchProviders.requiresApiKey(provider) && searchApiKey.isBlank()) {
-            validatingSearchKey = false;
-            if (testSearchKeyButton != null) {
-                testSearchKeyButton.setMessage(Text.literal("测试搜索 Key"));
-                testSearchKeyButton.active = true;
-            }
-            showToast("当前搜索引擎需要填写 Search API Key", true);
-            return;
-        }
-        if ("google_cse".equalsIgnoreCase(provider) && googleCx.isBlank()) {
-            validatingSearchKey = false;
-            if (testSearchKeyButton != null) {
-                testSearchKeyButton.setMessage(Text.literal("测试搜索 Key"));
-                testSearchKeyButton.active = true;
-            }
-            showToast("Google 自定义搜索需要填写 CSE CX", true);
-            return;
-        }
+        String searchApiKey = SettingsSearchProviders.showsCredentials(provider) ? searchApiKeyInput.getText().trim() : "";
+        String googleCx = SettingsSearchProviders.showsGoogleCx(provider) ? googleCseCxInput.getText().trim() : "";
 
         String computedUrl = base + "/search/validate";
         try {
@@ -555,9 +461,10 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             var r = SettingsHttpProbe.get(httpClient, finalUrl, searchApiKey, Duration.ofSeconds(15));
             return new DetectResponse(r.status(), r.body());
         }).thenAccept(resp -> client.execute(() -> {
+            if(revision!=searchRevision || !identity.equals(currentSearchIdentity())) return;
             validatingSearchKey = false;
             if (testSearchKeyButton != null) {
-                testSearchKeyButton.setMessage(Text.literal("测试搜索 Key"));
+                testSearchKeyButton.setMessage(Text.literal("测试搜索配置"));
                 testSearchKeyButton.active = true;
             }
             if (resp == null) {
@@ -565,16 +472,16 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 return;
             }
             if (resp.status < 0) {
-                showToast("搜索校验失败：" + SettingsModelCatalog.shortErr(resp.body), true);
+                showToast("搜索校验失败：" + (resp.body == null ? "" : resp.body), true);
                 return;
             }
             if (resp.status < 200 || resp.status >= 300) {
-                showToast("搜索校验 HTTP " + resp.status + "：" + SettingsModelCatalog.shortErr(resp.body), true);
+                showToast("搜索校验 HTTP " + resp.status + "：" + (resp.body == null ? "" : resp.body), true);
                 return;
             }
             String msg = readSearchValidateMessage(resp.body);
             boolean ok = readSearchValidateOk(resp.body);
-            showToast(msg != null && !msg.isBlank() ? msg : (ok ? "搜索 Key 校验通过" : "搜索 Key 校验失败"), !ok);
+            showToast(msg != null && !msg.isBlank() ? msg : (ok ? "搜索配置校验通过" : "搜索配置校验失败"), !ok);
         }));
     }
 
@@ -699,8 +606,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override public boolean modelNeedsConfirmation() { return modelNeedsConfirmation; }
 
     private void blurInputs() {
-        backendSection.blur();
-        for (var input : List.of(orchestratorInput, apiKeyInput, llmBaseUrlInput, modelInput, searchApiKeyInput, googleCseCxInput)) input.setFocused(false);
+        ui.blur();
+        for(var input:List.of(orchestratorInput,apiKeyInput,llmBaseUrlInput,modelInput,searchApiKeyInput,googleCseCxInput,reachInput,temperatureInput)) input.setFocused(false);
     }
 
     private void openModels() {
@@ -807,7 +714,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
             // 本地异常（URI.create/连接失败等）
             if (resp.status < 0) {
-                String err = SettingsModelCatalog.shortErr(resp.body);
+                String err = (resp.body == null ? "" : resp.body);
                 // 针对超时做更友好的提示：后端可能健康，但上游模型列表探测不可达/太慢
                 if (err.toLowerCase().contains("httptimeoutexception") || err.toLowerCase().contains("request timed out")) {
                     showToast("刷新超时：上游模型列表可能不可达（仍可手动输入模型）", true);
@@ -930,7 +837,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             }
 
             if (resp.status < 0) {
-                showToast("校验失败：请求异常 " + SettingsModelCatalog.shortErr(resp.body), true);
+                showToast("校验失败：请求异常 " + (resp.body == null ? "" : resp.body), true);
                 return;
             }
 
@@ -951,14 +858,14 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
                 return;
             }
 
-            showToast("校验失败：" + resp.status + "。当前 LLM：" + llmHint + "。" + SettingsModelCatalog.shortErr(resp.body), true);
+            showToast("校验失败：" + resp.status + "。当前 LLM：" + llmHint + "。" + (resp.body == null ? "" : resp.body), true);
         }));
     }
 
     private void toggleHideKey() {
         hideKey = !hideKey;
-        apiKeyInput.setPasswordMode(hideKey && !apiKeyInput.isFocused());
-        searchApiKeyInput.setPasswordMode(hideKey && !searchApiKeyInput.isFocused());
+        apiKeyInput.setPasswordMode(hideKey);
+        searchApiKeyInput.setPasswordMode(hideKey);
         if (showHideButton != null) {
             showHideButton.setMessage(getShowHideText());
         }
@@ -972,6 +879,8 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public void syncWidgetStateFromDraft() {
+        reachInput.setText(Integer.toString(draftInteractionReach));
+        temperatureInput.setText(String.format(java.util.Locale.ROOT,"%.2f",draftTemperature));
         if (showHideButton != null) {
             showHideButton.setMessage(getShowHideText());
         }
@@ -988,7 +897,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
             searchProviderButton.setMessage(getSearchProviderButtonText());
         }
         if (testSearchKeyButton != null) {
-            testSearchKeyButton.setMessage(validatingSearchKey ? Text.literal("测试中...") : Text.literal("测试搜索 Key"));
+            testSearchKeyButton.setMessage(validatingSearchKey ? Text.literal("测试中...") : Text.literal("测试搜索配置"));
             testSearchKeyButton.active = !validatingSearchKey;
         }
         if (draftLlmBaseUrl != null) {
@@ -1074,8 +983,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     public void showToast(String msg, boolean isError) {
         this.toast = msg;
         this.isToastError = isError;
-        long toastStartMs = System.currentTimeMillis();
-        this.toastUntilMs = toastStartMs + TOAST_DURATION_MS;
+
     }
 
     private void showToast(String msg) {
@@ -1088,20 +996,13 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public void charTyped(char chr) {
-        syncConnectionIdentity();
-        if (choices.isOpen()) { choices.charTyped(chr); return; }
-        if (backendSection.focused()) { backendSection.charTyped(chr); return; }
-        if (orchestratorInput.isFocused()) orchestratorInput.charTyped(chr);
-        if (apiKeyInput.isFocused()) apiKeyInput.charTyped(chr);
-        if (llmBaseUrlInput.isFocused()) llmBaseUrlInput.charTyped(chr);
-        if (modelInput.isFocused()) {
-            modelInput.charTyped(chr);
-            draftModel = modelInput.getText() == null ? "" : modelInput.getText().trim();
-            modelNeedsConfirmation = false;
-
-        }
-        if (searchApiKeyInput.isFocused()) searchApiKeyInput.charTyped(chr);
-        if (googleCseCxInput.isFocused()) googleCseCxInput.charTyped(chr);
+        syncConnectionIdentity(); syncSearchIdentity();
+        if(details.isOpen()) return;
+        if(choices.isOpen()) { choices.charTyped(chr); return; }
+        var focused=ui.focused();
+        if(focused==null) return;
+        String before=focused.getText(); focused.charTyped(chr);
+        afterTextEdit(focused,before);
     }
 
     @Override
@@ -1111,51 +1012,34 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     }
 
     @Override
-    public void keyPressed(int keyCode, int scanCode, int modifiers) {
-        syncConnectionIdentity();
-        if (choices.isOpen()) { choices.keyPressed(keyCode, modifiers); return; }
-        if (backendSection.focused()) {
-            backendSection.keyPressed(keyCode,modifiers);
-            if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_TAB) backendSection.blur();
+    public void keyPressed(int keyCode,int scanCode,int modifiers) {
+        syncConnectionIdentity(); syncSearchIdentity();
+        if(details.isOpen()) { if(keyCode==GLFW.GLFW_KEY_ESCAPE) details.close(); return; }
+        if(choices.isOpen()) { choices.keyPressed(keyCode,modifiers); return; }
+        if(keyCode==GLFW.GLFW_KEY_TAB) {
+            setScrollY(Math.max(0,Math.min(maxScrollY,scrollY+ui.tab((modifiers&GLFW.GLFW_MOD_SHIFT)!=0))));
             return;
         }
-        // 关键：要拿到 modifiers，才能支持 Ctrl+V / Shift 选区 等
-        if (orchestratorInput.isFocused()) orchestratorInput.keyPressed(keyCode, modifiers);
-        if (apiKeyInput.isFocused()) apiKeyInput.keyPressed(keyCode, modifiers);
-        if (llmBaseUrlInput.isFocused()) llmBaseUrlInput.keyPressed(keyCode, modifiers);
-        if (modelInput.isFocused()) {
-            String previous = modelInput.getText();
-            modelInput.keyPressed(keyCode, modifiers);
-            draftModel = modelInput.getText().trim();
-            if (!previous.equals(modelInput.getText())) modelNeedsConfirmation = false;
-
+        var focused=ui.focused();
+        if(focused!=null) {
+            String before=focused.getText(); focused.keyPressed(keyCode,modifiers); afterTextEdit(focused,before);
         }
-        if (searchApiKeyInput.isFocused()) searchApiKeyInput.keyPressed(keyCode, modifiers);
-        if (googleCseCxInput.isFocused()) googleCseCxInput.keyPressed(keyCode, modifiers);
-
-        if (keyCode == GLFW.GLFW_KEY_TAB) {
-            var inputs = List.of(orchestratorInput, apiKeyInput, llmBaseUrlInput, modelInput, searchApiKeyInput, googleCseCxInput);
-            int focused = -1;
-            for (int i = 0; i < inputs.size(); i++) if (inputs.get(i).isFocused()) focused = i;
-            int next = Math.floorMod(focused + ((modifiers & GLFW.GLFW_MOD_SHIFT) != 0 ? -1 : 1), inputs.size());
-            for (int i = 0; i < inputs.size(); i++) inputs.get(i).setFocused(i == next);
-            return;
-        }
-
-        // Enter: 快速保存（可选，但很顺手）
-        if (keyCode == GLFW.GLFW_KEY_ENTER) {
-            saveSettings();
-        }
+        if(keyCode==GLFW.GLFW_KEY_ENTER) saveSettings();
     }
 
     @Override
-    public boolean wantsKeyboardInput() {
-        boolean baseUrlFocused = llmBaseUrlInput.isFocused();
-        return choices.isOpen() || searchApiKeyInput.isFocused() || googleCseCxInput.isFocused() || backendSection.focused() || apiKeyInput.isFocused() || orchestratorInput.isFocused() || baseUrlFocused || modelInput.isFocused();
-    }
+    public boolean wantsKeyboardInput() { return choices.isOpen() || details.isOpen() || ui.focused()!=null; }
 
-    @Override public void loadBackendSettings() { backendSection.load(); }
-    @Override public boolean saveBackendSettings() { return backendSection.save(); }
+    @Override public void loadBackendSettings(SettingsConfig cfg) { backendSection.load(cfg); }
+    @Override public void stageBackendSettings(SettingsConfig cfg) { backendSection.stage(cfg); }
+    @Override public SettingsUiBindings ui() { return ui; }
+    @Override public HudTextInput reachInput() { return reachInput; }
+    @Override public HudTextInput temperatureInput() { return temperatureInput; }
+    @Override public void openDetails(String text) { blurInputs(); choices.close(); details.open(text); }
+    @Override public String preferenceError() {
+        try { SettingsPreferenceValues.parse(reachInput.getText(),temperatureInput.getText()); return null; }
+        catch(IllegalArgumentException e) { return e.getMessage(); }
+    }
 
     // ---- SettingsPanelRenderHost ----
 
@@ -1278,7 +1162,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public Text testSearchKeyButtonText() {
-        return validatingSearchKey ? Text.literal("测试中...") : Text.literal("测试搜索 Key");
+        return validatingSearchKey ? Text.literal("测试中...") : Text.literal("测试搜索配置");
     }
 
     @Override
@@ -1345,7 +1229,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public int contentStartX() {
-        return cachedContentX >= 0 ? cachedContentX : (panelX + CONTENT_PADDING);
+        return panelX + CONTENT_PADDING;
     }
 
     @Override
@@ -1360,12 +1244,12 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public boolean isInteractiveArea(double mouseX, double mouseY) {
-        return visible && (choices.isOpen() || super.isInteractiveArea(mouseX, mouseY));
+        return visible && (choices.isOpen() || details.isOpen() || super.isInteractiveArea(mouseX, mouseY));
     }
 
     @Override
     public boolean isMouseOver(double mouseX, double mouseY) {
-        return super.isMouseOver(mouseX, mouseY) || choices.contains(mouseX, mouseY);
+        return super.isMouseOver(mouseX, mouseY) || choices.contains(mouseX, mouseY) || details.contains(mouseX,mouseY);
     }
 
     @Override
@@ -1401,13 +1285,13 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public void applyTemperatureFromSlider(double value) {
         draftTemperature = clamp01((float) value);
-        SettingsConfig.INSTANCE.temperature = draftTemperature;
+        if (!temperatureInput.isFocused()) temperatureInput.setText(String.format(java.util.Locale.ROOT,"%.2f",draftTemperature));
     }
 
     @Override
     public void applyInteractionReachFromSlider(double value) {
         draftInteractionReach = clampReach(valueToReach(value));
-        SettingsConfig.INSTANCE.interactionReach = draftInteractionReach;
+        if (!reachInput.isFocused()) reachInput.setText(Integer.toString(draftInteractionReach));
     }
 
     @Override
@@ -1438,7 +1322,6 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override
     public void setDraftTemperature(float temperature) {
         this.draftTemperature = clamp01(temperature);
-        SettingsConfig.INSTANCE.temperature = this.draftTemperature;
     }
 
     @Override

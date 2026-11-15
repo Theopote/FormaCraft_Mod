@@ -353,9 +353,9 @@ public class InputRouter {
             }
 
         boolean inside = isMouseInsideUI();
-        if (!inside) return false;
-
         BasePanel panel = getPanel();
+        if (!inside && (panel == null || !panel.wantsKeyboardInput())) return false;
+
             if (panel != null) {
                 panel.keyPressed(keyCode, scanCode, modifiers);
                 return true;
@@ -379,9 +379,9 @@ public class InputRouter {
         if (!FormacraftUIState.isOpen) return false;
 
         boolean inside = isMouseInsideUI();
-        if (!inside) return false;
-
         BasePanel panel = getPanel();
+        if (!inside && (panel == null || !panel.wantsKeyboardInput())) return false;
+
             if (panel != null) {
                 panel.charTyped(chr);
                 return true;
