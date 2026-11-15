@@ -42,6 +42,7 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 | `legacy_spec_genome.py` | 兼容 spec 的基因、默认构件参数补全；递归合并仍被 LlmPlan 复用 |
 | `semantic_plan_adapters.py` | 兼容城市/复合路径的语义计划转地形参数、骨架布局 |
 | `planning_route_policy.py` | 城市/复合兼容路由分类 |
+| `ai_editor.py` | `/edit/city`、`/edit/building` 的整份 spec 兼容编辑；新增增量编辑走 LlmPlan patch |
 
 `planning_request_hints.py` 保存规划请求的规模、地形提示推断。`ai_planner.py` 仍保留迁移函数的导入别名，以支持已有调用与测试；这些别名不代表另一份实现。删除兼容入口前须核对 `build.py` 的实际路由和消费者。
 

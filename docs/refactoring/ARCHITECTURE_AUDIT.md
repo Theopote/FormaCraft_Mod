@@ -92,6 +92,8 @@ BuildingSpec 的基因补全、材质语义映射及默认构件参数已迁至 
 
 历史摘要路由已删除无调用者的 _resolve_api_key、_resolve_model、_get_openai_client 及配套 SDK 检测；实际摘要继续走 llm_client 统一工厂。ai_editor 同步删除未使用的 SDK 检测与 os 导入。回归覆盖空输入、无客户端截断、provider 配置传递、模型解析和调用失败的原有 HTTP 响应。
 
+兼容 ai_editor 的模型参数桥接已改为显式 SimpleNamespace，修复临时类体中 model = model 引发 NameError、导致真实客户端调用前即返回原 spec 的问题。模型解析仍委托 llm_client；新编辑能力继续走 LlmPlan patch。回归覆盖城市/单体编辑成功、无客户端、无效响应及 provider 默认模型解析。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

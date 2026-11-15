@@ -1,10 +1,11 @@
 """
-AI Editor Service
-增量编辑 CitySpec 和 BuildingSpec
+Legacy AI Editor Service
+兼容 CitySpec / BuildingSpec 的整份 spec 编辑；新编辑能力走 LlmPlan patch。
 """
 import logging
 import json
 from typing import Optional
+from types import SimpleNamespace
 
 
 from ..models.city_spec import CitySpec
@@ -31,12 +32,9 @@ def _clamp_temperature(v: Optional[float], default: float) -> float:
 
 def _resolve_model_from_fields(model: Optional[str], llm_provider: Optional[str], llm_base_url: Optional[str], default: str) -> str:
     """按 provider/base_url 解析默认模型（DeepSeek 等）"""
-    class _Tmp:
-        apiKey = None
-        model = model
-        llmProvider = llm_provider
-        llmBaseUrl = llm_base_url
-    return build_config(_Tmp(), default_model=default).model
+    fields = SimpleNamespace(apiKey=None, model=model,
+                             llmProvider=llm_provider, llmBaseUrl=llm_base_url)
+    return build_config(fields, default_model=default).model
 
 
 def _build_city_edit_system_prompt() -> str:
@@ -131,7 +129,7 @@ def edit_city_spec(
     """
     client = get_client_from_fields(api_key, llm_provider, llm_base_url)
     if not client:
-        # 如果没有 OpenAI 客户端，返回原始 spec（或实现规则基础的回退）
+        # 无可用客户端时保留原 spec。
         return current
     
     system_prompt = _build_city_edit_system_prompt()
