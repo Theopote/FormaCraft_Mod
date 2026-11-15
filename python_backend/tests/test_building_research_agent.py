@@ -13,7 +13,6 @@ from app.services.building_research_agent import (
     is_building_research_enabled,
     multi_source_search,
     plan_search_queries,
-    research_building_context,
     research_building_profile,
     synthesize_profile_rule_based,
 )
@@ -148,21 +147,22 @@ class ResearchIntegrationTest(unittest.TestCase):
         assert profile is not None
         self.assertEqual(profile.query, "苏州博物馆")
 
-    def test_research_context_returns_prompt_block(self):
+    def test_researched_profile_can_be_formatted_for_planning(self):
         def fake_search(query: str, max_results: int):
             return MOCK_RESULTS
 
-        ctx = research_building_context(
+        profile = research_building_profile(
             "recreate Suzhou Museum",
             search_fn=fake_search,
         )
-        self.assertIsNotNone(ctx)
-        assert ctx is not None
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        ctx = format_profile_for_prompt(profile)
         self.assertIn("Building Research Profile", ctx)
 
     @patch.dict(os.environ, {"BUILDING_RESEARCH": "off"}, clear=False)
     def test_research_off_returns_none(self):
-        # 需要 reload 模块才能读 env — 直接测 is_building_research_enabled
+        # 开关按调用时的环境解析，无需 reload。
         self.assertFalse(is_building_research_enabled())
 
     def test_long_system_prompt_skipped(self):

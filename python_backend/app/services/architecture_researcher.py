@@ -411,11 +411,10 @@ def search_architecture_reference(
 def _search_with_duckduckgo(query: str, max_results: int) -> List[Dict[str, str]]:
     """
     使用 DuckDuckGo 搜索（无需 API key）
-    注意：这需要安装 duckduckgo-search 库
+    使用 ddgs，并显式限定 DuckDuckGo 后端。
     """
     try:
-        # 尝试导入 duckduckgo_search
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
         
         lower_q = query.lower()
         if "architecture" in lower_q or "建筑" in query or "设计" in query:
@@ -423,22 +422,22 @@ def _search_with_duckduckgo(query: str, max_results: int) -> List[Dict[str, str]
         else:
             search_q = query + " architecture structure design"
         region = "cn-zh" if any(ord(c) > 127 for c in query) else "wt-wt"
-        with DDGS() as ddgs:
-            results = []
-            for result in ddgs.text(
-                search_q,
-                max_results=max_results,
-                region=region,
-            ):
-                results.append({
-                    "title": result.get("title", ""),
-                    "snippet": result.get("body", ""),
-                    "url": result.get("href", "")
-                })
-            return results
+        results = []
+        for result in DDGS().text(
+            search_q,
+            max_results=max_results,
+            region=region,
+            backend="duckduckgo",
+        ):
+            results.append({
+                "title": result.get("title", ""),
+                "snippet": result.get("body", ""),
+                "url": result.get("href", "")
+            })
+        return results
     except ImportError:
-        # 如果未安装 duckduckgo-search，使用简单的 HTTP 请求
-        logger.info("duckduckgo_search not installed, using HTTP fallback")
+        # 如果未安装 ddgs，使用简单的 HTTP 请求。
+        logger.info("ddgs not installed, using HTTP fallback")
         return _search_with_http(query, max_results)
     except Exception as e:
         logger.error(f"DuckDuckGo search error: {e}")

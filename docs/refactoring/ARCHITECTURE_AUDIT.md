@@ -98,6 +98,10 @@ BuildingSpec 的基因补全、材质语义映射及默认构件参数已迁至 
 
 architecture_researcher 已删除无业务/工具/测试调用者的旧 get_architecture_reference_context 链路、专用地标/风格关键词表和 search_architecture_queries 包装。保留研究代理、search_config 实际调用的搜索 provider、相关性过滤及去重。ARCHITECTURE_RESEARCHER.md 重写为当前 provider 职责与调用链，移除旧主要入口和扩充固定关键词的指导。
 
+DuckDuckGo 搜索依赖由已更名的 duckduckgo-search 迁到 ddgs 9.16.1；直接依赖范围与锁定同步更新，解析确认复用现有 click、primp、lxml，无新增传递依赖。适配显式限定 duckduckgo 后端，保留查询扩写、地区选择、结果字段映射与缺包 HTTP 回退。Google CSE 回归补齐 DuckDuckGo mock，避免断言期间意外触发真实搜索。
+
+research_building_context 仅剩测试调用，已删除。对应回归改为覆盖主干实际采用的 research_building_profile → format_profile_for_prompt 组合。研究文档明确结构化入口、格式化/搜索职责、开关优先级与超时等待的实际限制；修正旧测试中“开关需要 reload”的误导注释。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

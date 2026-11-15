@@ -22,6 +22,8 @@ results = search_architecture_reference("Suzhou Museum architecture", max_result
 
 支持的 provider 为 `auto`、`duckduckgo`、`bing`、`google_cse`、`tavily`、`serpapi`、`wikipedia_only`。当前搜索先尝试 Wikipedia，再按配置继续 provider 链；结果经过建筑相关性过滤和去重。实际搜索链以函数实现及测试为准。
 
+DuckDuckGo 适配使用 `ddgs`，显式指定 `backend="duckduckgo"`，避免其默认聚合搜索改变 provider 选择。旧 `duckduckgo-search` 依赖已移除；从 `requirements.lock` 安装当前版本。缺包时仍保留 HTTP 回退。
+
 ## 配置与开发边界
 
 研究启用使用 `BUILDING_RESEARCH`，研究模式使用 `BUILDING_RESEARCH_MODE`，研究总超时使用 `BUILDING_RESEARCH_TIMEOUT_SEC`。明确设置的 on/off 优先于旧 `ARCHITECTURE_SEARCH` 开关。配置样例见 [.env.example](.env.example)。

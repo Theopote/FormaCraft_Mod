@@ -1226,22 +1226,3 @@ def research_building_profile(
     except Exception as e:
         logger.warning("Building research failed: %s", e)
         return None
-
-
-def research_building_context(
-    user_text: str,
-    *,
-    req: Optional[BuildRequest] = None,
-    call_with_timeout: Optional[Callable] = None,
-    search_fn: Optional[Callable[[str, int], List[Dict[str, str]]]] = None,
-) -> Optional[str]:
-    """Research 流程 → prompt 字符串；供 ai_planner 注入。"""
-    profile = research_building_profile(
-        user_text,
-        req=req,
-        call_with_timeout=call_with_timeout,
-        search_fn=search_fn,
-    )
-    if profile is None:
-        return None
-    return format_profile_for_prompt(profile)

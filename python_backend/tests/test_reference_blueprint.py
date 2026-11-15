@@ -98,6 +98,9 @@ class GoogleCseTest(unittest.TestCase):
         with patch(
             "app.services.architecture_researcher._search_wikipedia",
             return_value=[],
+        ), patch(
+            "app.services.architecture_researcher._search_with_duckduckgo",
+            return_value=[],
         ):
             results = search_architecture_reference("西安奥体中心 建筑", max_results=2)
         self.assertGreaterEqual(len(results), 1)

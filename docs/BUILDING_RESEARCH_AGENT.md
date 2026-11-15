@@ -1,8 +1,16 @@
 # Building Research Agent（PR-1）
 
+状态：维护中；入口复核：2026-11-15。
+
 开放世界建筑理解主路径：任意建筑名 → 网络检索 → **LLM 归纳** → 结构化 `BuildingProfile` → 注入 LlmPlan prompt。
 
 Culture Card / landmark 为旁路（eval、boost、精品加速），**不是**命中前提。
+
+## 实际入口与职责
+
+`ai_planner.generate_llm_plan` 调用 `research_building_profile` 获取结构化 BuildingProfile，再按单阶段或两阶段规划方式消费它。`format_profile_for_prompt` 只负责格式化已有 profile，不执行搜索。旧 `research_building_context` 包装入口已删除。
+
+搜索传输归 `architecture_researcher.search_architecture_reference`，provider 配置归 `search_config.py`。不要在搜索层恢复固定关键词分类或直接拼规划提示词；底层接口见 [搜索 provider 说明](../python_backend/ARCHITECTURE_RESEARCHER.md)。
 
 ## 流程
 
@@ -22,10 +30,10 @@ Culture Card / landmark 为旁路（eval、boost、精品加速），**不是**�
 
 | 变量 | 默认 | 说明 |
 |------|------|------|
-| `BUILDING_RESEARCH` | （未设时跟随 `ARCHITECTURE_SEARCH`） | `on` / `off` 总开关 |
-| `ARCHITECTURE_SEARCH` | `landmark` | `off` 关闭研究；其他值开启（兼容旧配置） |
+| `BUILDING_RESEARCH` | （未设时跟随 `ARCHITECTURE_SEARCH`） | 显式 `on` / `off` 优先于旧开关 |
+| `ARCHITECTURE_SEARCH` | `landmark` | 未显式设置新开关时，`off` 关闭研究；其他值启用，旧模式名不选择研究模式 |
 | `BUILDING_RESEARCH_MODE` | `always` | `always` / `named_only` / `off` |
-| `BUILDING_RESEARCH_TIMEOUT_SEC` | `15` | 硬超时（含 LLM synth），超时跳过不阻塞 |
+| `BUILDING_RESEARCH_TIMEOUT_SEC` | `15` | 规划器包裹研究调用的等待上限；超时跳过研究结果，不代表后台工作已被取消 |
 | `BUILDING_RESEARCH_LLM_SYNTH` | **`on`** | `off` 关闭 LLM 归纳，仅用规则 |
 | `BUILDING_RESEARCH_MAX_QUERIES` | `3` | 每请求最多 search query 数 |
 | `BUILDING_RESEARCH_MAX_RESULTS` | `4` | 合并后最多保留结果数 |
@@ -70,7 +78,7 @@ Plan 阶段应读取：
 
 | 失败 | 行为 |
 |------|------|
-| 搜索超时 | LLM synth 仍可用（仅用户话术 + vision） |
+| 研究总等待超时 | 返回/使用空研究结果；规划器后续仍可应用本地 profile 补全，不保证继续 LLM synth |
 | 零搜索结果 | LLM 靠预训练 + 用户描述 |
 | 用户上传 `reference_json` | 跳过 LLM synth，直传 blueprint |
 | patch 编辑 prompt | QueryPlanner 跳过 |
