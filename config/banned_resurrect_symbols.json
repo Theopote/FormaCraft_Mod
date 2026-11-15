@@ -16,7 +16,11 @@
     "PathClusterLayoutGenerator",
     "RectangularHouseGenerator",
     "WindowAspectConflictRepair",
-    "SkeletonPlanConverter"
+    "SkeletonPlanConverter",
+    "SocketRegistry",
+    "CursorWorldInteraction",
+    "SkeletonSemantics",
+    "ToolConstraintBuilder"
   ],
   "allow_path_substrings": [
     "/test/",
