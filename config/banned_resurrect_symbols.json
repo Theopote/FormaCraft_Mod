@@ -12,7 +12,11 @@
     ".editBuilding(",
     "MassAssemblyExample",
     "MassToStructuralDeriver",
-    "recordStructureAfterFallback("
+    "recordStructureAfterFallback(",
+    "PathClusterLayoutGenerator",
+    "RectangularHouseGenerator",
+    "WindowAspectConflictRepair",
+    "SkeletonPlanConverter"
   ],
   "allow_path_substrings": [
     "/test/",

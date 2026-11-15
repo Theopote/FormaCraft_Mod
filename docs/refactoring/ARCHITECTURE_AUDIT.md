@@ -63,7 +63,8 @@ flowchart LR
 - ~~PR-3 compat 拆分~~：`LegacySpecPreviewHandler` / `LegacyBuildingEditHandler`（工作区待提交）
 - ~~PR-4 双栈语义冻结~~：见 [PREVIEW_UNDO_INVARIANTS](../PREVIEW_UNDO_INVARIANTS.md)；**未**合并 Preview/Undo 存储
 - ~~PR-5 首批无消费者删除~~：MassAssembly 孤儿子图 + 死 fallback 指标 API（LEGACY-017/018）
-- 后续：更多 REMOVABLE 小批；Preview/Undo 存储合并（需 Memory 原子）
+- ~~PR-5b 无消费者删除~~：PathCluster K1 死路径 + 未注册/未接线孤类（LEGACY-019/020）
+- 后续：更多 REMOVABLE 小批（client socket/WIP 脚手架另核）；Preview/Undo 存储合并（需 Memory 原子）
 
 ## 已落地（2026-10-31 审查整改）
 
@@ -223,6 +224,8 @@ AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替
 | LEGACY-016 | REMOVED | 客户端 `PromptAssembler.java` | 无 | `prompt_assembly.py` + `llm_plan_system_prompt.py` | 文档旧路径 | — | 已删 |
 | LEGACY-017 | REMOVED | `MassAssembly*` 孤儿子图（Example/Builder/MassTo*Deriver/Relationship/Definition/Prototype） | 删除前仅示例自引用；生产路径用 `BuildingMassComposition` + `BuildingMassPipeline` | BuildingMass 集成路径 | 勿整包删 `common.mass` | 入口消费者为 0；`PlanDomainValidator` **保留**（Pipeline 仍用） | PR-5 删除 + compile |
 | LEGACY-018 | REMOVED | `LlmPlanRoutingMetrics.recordFallback` / `recordStructureAfterFallback` / `FallbackReason` | 生产调用者为 0（PR-2 后仅测试） | `recordError` / `recordDirectStructurePreview` | 历史日志仍可能含旧字段 | — | 指标类精简 + 分析脚本双格式 |
+| LEGACY-019 | REMOVED | PathCluster K1 死路径：`PathClusterLayoutGenerator` / `PathClusterLayoutToBuildingSpecs` / `PathClusterLayoutToZonedSlots` / `PathSample` | 生产调用者 0；K2+ 用 `PathStreetLayoutBuilder` + 仍活的 `PathClusterLayout` DTO | `PathStreetLayoutBuilder` | 勿删 `PathClusterLayout` / `PathStreetLayoutBuilder` | 入口消费者为 0 | PR-5b 删除 + compile |
+| LEGACY-020 | REMOVED | 未注册/未接线孤类：`RectangularHouseGenerator`、`WindowAspectConflictRepair`、`DesignFidelityValidator`、`BuildingEditPlan`、`ContinuousPlacementIntegration`、`PatchDiffGenerator`、`ConversationSummaryService`、`OutlineAttachmentContext`、`VerticalStackInterpreter`、`SkeletonPlanConverter`、`BlockUtils`、`FormaJson` | 生产调用者 0（`house` 注册的是 `HouseGenerator`；VerticalStack 生产走 `VerticalStackGenerator` 简柱） | 现网对应实现 / 无需替代 | 勿把 WIP client socket 脚手架一并删 | 入口消费者为 0 | PR-5b 删除 + compile |
 
 **退出决策规则**：状态 ≠ `REMOVABLE`/`REMOVED` 时禁止删实现；`ACTIVE_COMPAT` 禁止扩展为新功能默认入口；消费者证据过期时先更新本表再改代码。  
 **PR-5 明确不删**：`CityBuilder`、`StructureGenerator` 族、`UndoService`、`PatchHistoryManager`、仍接线的 `BuildingMass*` / `BuildingMassPipeline`。
