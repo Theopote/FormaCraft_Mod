@@ -45,6 +45,16 @@ public class FormaRequest {
     private java.util.List<BlockPos> pathNodes;
     /** 可选：路径走廊半径（水平方块数）；<=0 视为未设置 */
     private Integer pathRadius;
+    /**
+     * 可选：对称/镜像约束（SymmetryTool 同源）。
+     * 模式：NONE / MIRROR_X / MIRROR_Y / MIRROR_Z / BOTH / CUSTOM_AXIS。
+     * 后端据此注入规划约束；CUSTOM_AXIS 需同时给出 axisA / axisB。
+     */
+    private String symmetryMode;
+    /** 可选：自定义对称轴起点（CUSTOM_AXIS） */
+    private BlockPos symmetryAxisA;
+    /** 可选：自定义对称轴终点（CUSTOM_AXIS） */
+    private BlockPos symmetryAxisB;
     /** Explicit work-plane base for a new build; absent for terrain-following and edits. */
     private Integer fixedBaseY;
     /**
@@ -235,6 +245,30 @@ public class FormaRequest {
 
     public void setPathRadius(Integer pathRadius) {
         this.pathRadius = pathRadius;
+    }
+
+    public String getSymmetryMode() {
+        return symmetryMode;
+    }
+
+    public void setSymmetryMode(String symmetryMode) {
+        this.symmetryMode = symmetryMode;
+    }
+
+    public BlockPos getSymmetryAxisA() {
+        return symmetryAxisA;
+    }
+
+    public void setSymmetryAxisA(BlockPos symmetryAxisA) {
+        this.symmetryAxisA = symmetryAxisA;
+    }
+
+    public BlockPos getSymmetryAxisB() {
+        return symmetryAxisB;
+    }
+
+    public void setSymmetryAxisB(BlockPos symmetryAxisB) {
+        this.symmetryAxisB = symmetryAxisB;
     }
 
     public String getSessionId() {

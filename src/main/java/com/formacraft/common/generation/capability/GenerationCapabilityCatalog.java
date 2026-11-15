@@ -2,6 +2,7 @@ package com.formacraft.common.generation.capability;
 
 import com.formacraft.common.generation.component.ComponentGeneratorRegistry;
 import com.formacraft.common.generation.component.util.RoofTypeCatalog;
+import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.typology.StructuralTypologyRegistry;
 
 import java.util.ArrayList;
@@ -41,30 +42,36 @@ public final class GenerationCapabilityCatalog {
     /**
      * Planner tokens → executable roof_type. Keep in sync with {@link RoofTypeCatalog}
      * aliases; unknown tokens are rejected unless mapped here.
+     *
+     * <p>Uses an insertion-ordered map so the generated catalog asset is byte-reproducible.
      */
-    public static final Map<String, String> ROOF_ALIASES = Map.ofEntries(
-            Map.entry("irimoya", "xieshan"),
-            Map.entry("iri_moya", "xieshan"),
-            Map.entry("iri-moya", "xieshan"),
-            Map.entry("入母屋", "xieshan"),
-            Map.entry("入母屋造", "xieshan"),
-            Map.entry("hip_and_gable", "xieshan"),
-            Map.entry("hip-gable", "xieshan"),
-            Map.entry("hip_gable", "xieshan"),
-            Map.entry("歇山", "xieshan"),
-            Map.entry("庑殿", "hip"),
-            Map.entry("wu_dian", "hip"),
-            Map.entry("wudian", "hip"),
-            Map.entry("四坡", "hip"),
-            Map.entry("悬山", "xuanshan"),
-            Map.entry("硬山", "yingshan"),
-            Map.entry("双坡", "double_gable"),
-            Map.entry("gabled", "gable"),
-            Map.entry("hipped", "hip"),
-            Map.entry("pyramidal", "pyramid"),
-            Map.entry("conical", "cone"),
-            Map.entry("domed", "dome")
-    );
+    public static final Map<String, String> ROOF_ALIASES = buildRoofAliases();
+
+    private static Map<String, String> buildRoofAliases() {
+        Map<String, String> aliases = new LinkedHashMap<>();
+        aliases.put("irimoya", "xieshan");
+        aliases.put("iri_moya", "xieshan");
+        aliases.put("iri-moya", "xieshan");
+        aliases.put("入母屋", "xieshan");
+        aliases.put("入母屋造", "xieshan");
+        aliases.put("hip_and_gable", "xieshan");
+        aliases.put("hip-gable", "xieshan");
+        aliases.put("hip_gable", "xieshan");
+        aliases.put("歇山", "xieshan");
+        aliases.put("庑殿", "hip");
+        aliases.put("wu_dian", "hip");
+        aliases.put("wudian", "hip");
+        aliases.put("四坡", "hip");
+        aliases.put("悬山", "xuanshan");
+        aliases.put("硬山", "yingshan");
+        aliases.put("双坡", "double_gable");
+        aliases.put("gabled", "gable");
+        aliases.put("hipped", "hip");
+        aliases.put("pyramidal", "pyramid");
+        aliases.put("conical", "cone");
+        aliases.put("domed", "dome");
+        return java.util.Collections.unmodifiableMap(aliases);
+    }
 
     private GenerationCapabilityCatalog() {}
 
@@ -80,6 +87,26 @@ public final class GenerationCapabilityCatalog {
         root.put("typologies", typologyIds());
         root.put("building_classes", buildingClasses());
         return root;
+    }
+
+    /**
+     * Serialize {@link #build()} to a JSON document.
+     *
+     * <p>The Python backend consumes the exact same file, so the checked-in asset is
+     * generated from this method instead of being hand-maintained.
+     */
+    public static String toJson() {
+        return JsonUtil.get().toJson(build());
+    }
+
+    /** Write {@link #toJson()} to {@code path} as UTF-8. */
+    public static void writeToPath(java.nio.file.Path path) throws java.io.IOException {
+        java.nio.file.Path parent = path.getParent();
+        if (parent != null) {
+            java.nio.file.Files.createDirectories(parent);
+        }
+        java.nio.file.Files.writeString(path, toJson() + "\n",
+                java.nio.charset.StandardCharsets.UTF_8);
     }
 
     public static String normalizeRoofType(String raw) {
@@ -171,24 +198,36 @@ public final class GenerationCapabilityCatalog {
 
     private static Map<String, Object> buildingClasses() {
         Map<String, Object> classes = new LinkedHashMap<>();
-        classes.put("tower_like", Map.of(
+        classes.put("tower_like", ordered(
                 "preferred_components", List.of("STRUCTURE"),
                 "preferred_typologies", List.of("dense_eaves_pagoda", "tibetan_stupa"),
                 "composition", "single"));
-        classes.put("gate", Map.of(
+        classes.put("gate", ordered(
                 "preferred_components", List.of("GATE", "GATE_STRUCTURE", "STRUCTURE"),
                 "accept_mass_proportions", true,
                 "composition", "single"));
-        classes.put("temple", Map.of(
+        classes.put("temple", ordered(
                 "preferred_components", List.of("MASS_MAIN", "ROOF"),
                 "composition_default", "single",
                 "composition_compound_triggers", List.of("建筑群", "院落", "厢房", "配殿", "三进", "两进")));
-        classes.put("garden", Map.of(
+        classes.put("garden", ordered(
                 "preferred_components", List.of("COURTYARD", "PATH", "MASS_MAIN"),
                 "composition", "compound"));
-        classes.put("generic", Map.of(
+        classes.put("generic", ordered(
                 "preferred_components", List.of("MASS_MAIN", "ROOF", "ENTRANCE", "FACADE_WINDOWS"),
                 "composition", "single"));
         return classes;
+    }
+
+    /**
+     * Insertion-ordered map. {@link Map#of} randomizes iteration order per JVM run,
+     * which would make the generated catalog asset non-reproducible.
+     */
+    private static Map<String, Object> ordered(Object... keyValuePairs) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < keyValuePairs.length; i += 2) {
+            out.put(String.valueOf(keyValuePairs[i]), keyValuePairs[i + 1]);
+        }
+        return out;
     }
 }

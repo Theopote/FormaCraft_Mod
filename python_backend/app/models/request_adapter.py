@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from .request import (
     BuildRequest, PlayerInfo, WorldContext, Selection, Vec3i, PlanOutputFormat,
-    OutlineShape, ProtectedZone, PathConstraint, ReferenceInput,
+    OutlineShape, ProtectedZone, PathConstraint, ReferenceInput, SymmetryConstraint,
 )
 
 
@@ -31,6 +31,9 @@ class FormaRequestAdapter(BaseModel):
     protectedZones: Optional[list[ProtectedZone]] = None
     pathNodes: Optional[list[dict]] = None  # BlockPos 列表：[{"x":..,"y":..,"z":..}]
     pathRadius: Optional[int] = None
+    symmetryMode: Optional[str] = None
+    symmetryAxisA: Optional[dict] = None
+    symmetryAxisB: Optional[dict] = None
     sessionId: Optional[str] = None
     chatHistory: Optional[list[str]] = None
     promptMode: Optional[str] = None
@@ -73,6 +76,22 @@ class FormaRequestAdapter(BaseModel):
         ``player.facing`` / ``world.dimension`` / ``selection`` / ``path``。
         """
         return isinstance(self.player, dict) or isinstance(self.world, dict)
+
+    def _symmetry_constraint(self) -> Optional[SymmetryConstraint]:
+        """SymmetryTool 约束（扁平 Java 字段 → 嵌套 BuildRequest）。
+
+        无模式时返回 None；CUSTOM_AXIS 需要两个轴点，缺一则忽略轴点仅保留模式。
+        """
+        mode = (self.symmetryMode or "").strip().upper()
+        if not mode or mode == "NONE":
+            return None
+        axis_a = None
+        axis_b = None
+        if isinstance(self.symmetryAxisA, dict):
+            axis_a = Vec3i(**self.symmetryAxisA)
+        if isinstance(self.symmetryAxisB, dict):
+            axis_b = Vec3i(**self.symmetryAxisB)
+        return SymmetryConstraint(mode=mode, axisA=axis_a, axisB=axis_b)
 
     def to_build_request(self) -> BuildRequest:
         """转换为标准的 BuildRequest"""
@@ -144,6 +163,7 @@ class FormaRequestAdapter(BaseModel):
             outline=self.outline,
             protectedZones=self.protectedZones,
             path=path_obj,
+            symmetry=self._symmetry_constraint(),
             requestText=self.requestText or "",
             promptMode=self.promptMode,
             outputFormat=self.outputFormat,
@@ -254,6 +274,7 @@ class FormaRequestAdapter(BaseModel):
             outline=self.outline,
             protectedZones=self.protectedZones,
             path=path_obj,
+            symmetry=self._symmetry_constraint(),
             requestText=request_text,
             promptMode=self.promptMode,
             outputFormat=self.outputFormat,

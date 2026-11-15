@@ -121,9 +121,50 @@ def format_spatial_constraints(req: BuildRequest | None) -> str:
     if mode:
         parts.append(f"Prompt mode: {mode}")
 
+    parts.extend(_symmetry_lines(req))
+
     if not parts:
         return ""
     return "REQUEST CONTEXT (HARD — respect these constraints):\n" + "\n".join(parts)
+
+
+def _symmetry_lines(req: BuildRequest | None) -> list[str]:
+    """SymmetryTool 约束（对称/镜像）→ 规划约束行。
+
+    对称是**规划**约束（要求生成结果对称），不是客户端裁剪；因此必须由后端
+    注入提示词，否则客户端的对称工具对生成结果没有任何影响。
+    """
+    symmetry = getattr(req, "symmetry", None)
+    if symmetry is None:
+        return []
+    mode = str(getattr(symmetry, "mode", "") or "").strip().upper()
+    if not mode or mode == "NONE":
+        return []
+
+    axis_a = getattr(symmetry, "axisA", None)
+    axis_b = getattr(symmetry, "axisB", None)
+    if mode == "CUSTOM_AXIS":
+        if axis_a is None or axis_b is None:
+            return [
+                "Symmetry (HARD): custom axis requested but axis points are missing; "
+                "produce a layout that is symmetric about the anchor."
+            ]
+        return [
+            "Symmetry (HARD): custom axis through "
+            f"({axis_a.x},{axis_a.y},{axis_a.z}) -> ({axis_b.x},{axis_b.y},{axis_b.z}); "
+            "the layout MUST be mirrored across this axis."
+        ]
+
+    axis_hint = {
+        "MIRROR_X": "mirror across the X axis (left/right symmetry)",
+        "MIRROR_Y": "mirror across the Y axis (top/bottom symmetry)",
+        "MIRROR_Z": "mirror across the Z axis (front/back symmetry)",
+        "BOTH": "mirror across both X and Z axes (four-fold symmetry)",
+    }.get(mode, mode.lower())
+    return [
+        f"Symmetry (HARD): {axis_hint}. "
+        "Set global_constraints.symmetry to the matching enum and place components symmetrically."
+    ]
 
 
 def format_library_context(req: BuildRequest | None) -> str:

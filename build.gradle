@@ -125,6 +125,14 @@ tasks.register('demoCultureRetrieve', JavaExec) {
 	mainClass = 'com.formacraft.tools.DemoCultureRetrieveMain'
 }
 
+tasks.register('exportGenerationCapabilityCatalog', JavaExec) {
+	group = 'application'
+	description = 'Regenerate assets/formacraft/generation_capability_catalog.json from live Java registries.'
+	dependsOn tasks.named('classes')
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.formacraft.tools.ExportGenerationCapabilityCatalogMain'
+}
+
 tasks.named('check') {
 	dependsOn tasks.named('validateAssemblyExamples')
 	dependsOn tasks.named('validateCultureCards')

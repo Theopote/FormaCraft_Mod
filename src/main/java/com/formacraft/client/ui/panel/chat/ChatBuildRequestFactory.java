@@ -88,6 +88,22 @@ public final class ChatBuildRequestFactory {
             LOG.debug("enrich build request path corridor failed", t);
         }
 
+        try {
+            // SymmetryTool is a planning constraint, not a client-side clipper: forward it
+            // so the backend can require a symmetric layout instead of silently ignoring it.
+            var symmetry = com.formacraft.client.tool.SymmetryTool.INSTANCE;
+            var symmetryMode = symmetry.getMode();
+            if (symmetryMode != null && symmetryMode != com.formacraft.client.tool.SymmetryMode.NONE) {
+                req.setSymmetryMode(symmetryMode.name());
+                if (symmetry.hasAxis()) {
+                    req.setSymmetryAxisA(symmetry.getAxisA());
+                    req.setSymmetryAxisB(symmetry.getAxisB());
+                }
+            }
+        } catch (Throwable t) {
+            LOG.debug("enrich build request symmetry failed", t);
+        }
+
         req.setSessionId(sessionId);
         req.setChatHistory(chatHistory == null ? List.of() : chatHistory);
 

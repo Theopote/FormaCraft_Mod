@@ -95,6 +95,17 @@ class PathConstraint(BaseModel):
     radius: Optional[int] = None
 
 
+class SymmetryConstraint(BaseModel):
+    """对称/镜像约束（SymmetryTool），与 Java `FormaRequest.symmetryMode` 对齐。
+
+    模式：NONE / MIRROR_X / MIRROR_Y / MIRROR_Z / BOTH / CUSTOM_AXIS。
+    CUSTOM_AXIS 需同时给出 axisA / axisB 两个水平轴点。
+    """
+    mode: str = "NONE"
+    axisA: Optional[Vec3i] = None
+    axisB: Optional[Vec3i] = None
+
+
 class RagBudget(BaseModel):
     """
     P0: RAG prompt injection budget. If omitted, server env defaults apply.
@@ -120,6 +131,7 @@ class BuildRequest(BaseModel):
     outline: Optional[OutlineShape] = None
     protectedZones: Optional[list[ProtectedZone]] = None
     path: Optional[PathConstraint] = None  # 路径走廊（Phase 9）
+    symmetry: Optional[SymmetryConstraint] = None  # 对称/镜像约束（SymmetryTool）
     requestText: str
     # 可选：模式（BUILD/PATCH/MODIFY_REGION），用于后端决定生成/编辑策略
     promptMode: Optional[str] = None
