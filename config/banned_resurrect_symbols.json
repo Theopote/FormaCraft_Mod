@@ -20,7 +20,11 @@
     "SocketRegistry",
     "CursorWorldInteraction",
     "SkeletonSemantics",
-    "ToolConstraintBuilder"
+    "ToolConstraintBuilder",
+    "PathStreetLayoutBuilder",
+    "PathClusterLayout",
+    "ContinuousPlacementEngine",
+    "VerticalStackSkeleton"
   ],
   "allow_path_substrings": [
     "/test/",

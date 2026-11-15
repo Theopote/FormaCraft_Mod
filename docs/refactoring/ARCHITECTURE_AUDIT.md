@@ -65,6 +65,7 @@ flowchart LR
 - ~~PR-5 首批无消费者删除~~：MassAssembly 孤儿子图 + 死 fallback 指标 API（LEGACY-017/018）
 - ~~PR-5b 无消费者删除~~：PathCluster K1 死路径 + 未注册/未接线孤类（LEGACY-019/020）
 - ~~PR-5c 无消费者删除~~：未接线 socket/client/skeleton 脚手架（LEGACY-021）
+- ~~PR-5d 无消费者删除~~：PathCluster 整图级联 + continuous 包 + ToolConstraint 级联孤类（LEGACY-022）
 - 后续：残余 REMOVABLE（有测试/Python 引用的另核）；Preview/Undo 存储合并（需 Memory 原子）
 
 ## 已落地（2026-10-31 审查整改）
@@ -225,9 +226,10 @@ AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替
 | LEGACY-016 | REMOVED | 客户端 `PromptAssembler.java` | 无 | `prompt_assembly.py` + `llm_plan_system_prompt.py` | 文档旧路径 | — | 已删 |
 | LEGACY-017 | REMOVED | `MassAssembly*` 孤儿子图（Example/Builder/MassTo*Deriver/Relationship/Definition/Prototype） | 删除前仅示例自引用；生产路径用 `BuildingMassComposition` + `BuildingMassPipeline` | BuildingMass 集成路径 | 勿整包删 `common.mass` | 入口消费者为 0；`PlanDomainValidator` **保留**（Pipeline 仍用） | PR-5 删除 + compile |
 | LEGACY-018 | REMOVED | `LlmPlanRoutingMetrics.recordFallback` / `recordStructureAfterFallback` / `FallbackReason` | 生产调用者为 0（PR-2 后仅测试） | `recordError` / `recordDirectStructurePreview` | 历史日志仍可能含旧字段 | — | 指标类精简 + 分析脚本双格式 |
-| LEGACY-019 | REMOVED | PathCluster K1 死路径：`PathClusterLayoutGenerator` / `PathClusterLayoutToBuildingSpecs` / `PathClusterLayoutToZonedSlots` / `PathSample` | 生产调用者 0；K2+ 用 `PathStreetLayoutBuilder` + 仍活的 `PathClusterLayout` DTO | `PathStreetLayoutBuilder` | 勿删 `PathClusterLayout` / `PathStreetLayoutBuilder` | 入口消费者为 0 | PR-5b 删除 + compile |
+| LEGACY-019 | REMOVED | PathCluster K1 死路径：`PathClusterLayoutGenerator` / `PathClusterLayoutToBuildingSpecs` / `PathClusterLayoutToZonedSlots` / `PathSample` | 生产调用者 0 | （K2 入口后亦清零，见 LEGACY-022） | — | 入口消费者为 0 | PR-5b 删除 + compile |
 | LEGACY-020 | REMOVED | 未注册/未接线孤类：`RectangularHouseGenerator`、`WindowAspectConflictRepair`、`DesignFidelityValidator`、`BuildingEditPlan`、`ContinuousPlacementIntegration`、`PatchDiffGenerator`、`ConversationSummaryService`、`OutlineAttachmentContext`、`VerticalStackInterpreter`、`SkeletonPlanConverter`、`BlockUtils`、`FormaJson` | 生产调用者 0（`house` 注册的是 `HouseGenerator`；VerticalStack 生产走 `VerticalStackGenerator` 简柱） | 现网对应实现 / 无需替代 | 勿误删仍接线的 socket 生产路径 | 入口消费者为 0 | PR-5b 删除 + compile |
-| LEGACY-021 | REMOVED | 未接线脚手架：`SocketRegistry`/`WallSocketProvider`/`AttachTransform`/`ComponentMount`/`SocketSpecAdapter`/`PlacementContextAdapter`/`SocketAnchorResolver`/`SocketAwareTool`、`SkeletonComponentRules`/`SkeletonSemantics`/`SemanticResolver`、`SemanticLabelContext`/`SemanticLabelQueryAdapter`、`ToolConstraintBuilder`/`ToolLayoutConstraints`、`CursorWorldInteraction` | 生产调用者 0；`register()`/`initialize()` 未被入口调用 | 仍活：`SocketProviders`/`SocketHighlighter`/`ISemanticLabelQuery`/`PathStreetLayoutBuilder` | 勿整包删 `component.socket` | 入口消费者为 0 | PR-5c 删除 + compile |
+| LEGACY-021 | REMOVED | 未接线脚手架：`SocketRegistry`/`WallSocketProvider`/`AttachTransform`/`ComponentMount`/`SocketSpecAdapter`/`PlacementContextAdapter`/`SocketAnchorResolver`/`SocketAwareTool`、`SkeletonComponentRules`/`SkeletonSemantics`/`SemanticResolver`、`SemanticLabelContext`/`SemanticLabelQueryAdapter`、`ToolConstraintBuilder`/`ToolLayoutConstraints`、`CursorWorldInteraction` | 生产调用者 0；`register()`/`initialize()` 未被入口调用 | 仍活：`SocketProviders`/`SocketHighlighter`/`SelectionContext`/`ComponentPreset`/`LayoutSite` | 勿整包删 `component.socket` | 入口消费者为 0 | PR-5c 删除 + compile |
+| LEGACY-022 | REMOVED | PathCluster 整图级联（`PathStreetLayoutBuilder`/`PathClusterLayout`/`ZonedSlot`/`Street*`/`zoning.*`）、`socket.continuous.*`、ToolConstraint 级联（`Outline/ProtectedZone/SymmetryContext`、footprint/nobuild）、以及 `ComponentPlan`/`ComponentVariantAdapter`/`WeightedPicker`/`VerticalStackSkeleton`/`VerticalStackPlan`/`LayoutConstraints`/`ToolSnapshot`/`ComponentAnchor`/`ComponentInstanceTransform` | 生产调用者 0（级联自 PR-5b/c） | 仍活：路径生成器族、`GeometryConstraintPipeline`/symmetry、`ComponentPreset`/`LayoutSite`、`VerticalStackGenerator` | 勿删仍接线的 path/socket/geometry symmetry | 入口消费者为 0 | PR-5d 删除 + compile |
 
 **退出决策规则**：状态 ≠ `REMOVABLE`/`REMOVED` 时禁止删实现；`ACTIVE_COMPAT` 禁止扩展为新功能默认入口；消费者证据过期时先更新本表再改代码。  
 **PR-5 明确不删**：`CityBuilder`、`StructureGenerator` 族、`UndoService`、`PatchHistoryManager`、仍接线的 `BuildingMass*` / `BuildingMassPipeline`。
