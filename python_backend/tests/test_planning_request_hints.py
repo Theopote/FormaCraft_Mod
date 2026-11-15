@@ -2,6 +2,7 @@ import pytest
 
 from app.models.request import BuildRequest
 from app.services.planning_request_hints import _infer_scale, _infer_terrain
+from app.services.planning_request_hints import _parse_levels_from_text, _derive_structured_intent
 
 
 def request(text, selection=None):
@@ -46,3 +47,30 @@ def test_planner_compatibility_imports():
 
     assert ai_planner._infer_scale is _infer_scale
     assert ai_planner._infer_terrain is _infer_terrain
+    assert ai_planner._parse_levels_from_text is _parse_levels_from_text
+    assert ai_planner._derive_structured_intent is _derive_structured_intent
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("", None), ("ordinary house", None), ("7层", 7), ("层数为 8", 8),
+    ("LEVELS: 9", 9), ("3 floors", 3), ("七层", 7), ("两层", 2),
+    ("十二层", 12), ("二十层", 20), ("二十三层", 23), ("0层", None),
+    ("层数 4, 7层", 4),
+])
+def test_existing_floor_count_expressions_and_priority(text, expected):
+    assert _parse_levels_from_text(text) == expected
+
+
+def test_soft_intent_preserves_keyword_priority_and_material_order():
+    hint = _derive_structured_intent("a small modern wood stone glass house tower")
+    assert "the user's own text takes priority" in hint
+    assert "- purpose: residential house" in hint
+    assert "- scale: small / compact" in hint
+    assert "- style: Modern" in hint
+    assert "- materials: wood, stone/brick, glass" in hint
+    assert hint.endswith("and style-consistent materials.")
+
+
+def test_soft_intent_empty_and_default_scale():
+    assert _derive_structured_intent("  ") == ""
+    assert "- scale: medium" in _derive_structured_intent("a building")

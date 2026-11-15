@@ -102,6 +102,8 @@ DuckDuckGo 搜索依赖由已更名的 duckduckgo-search 迁到 ddgs 9.16.1；�
 
 research_building_context 仅剩测试调用，已删除。对应回归改为覆盖主干实际采用的 research_building_profile → format_profile_for_prompt 组合。研究文档明确结构化入口、格式化/搜索职责、开关优先级与超时等待的实际限制；修正旧测试中“开关需要 reload”的误导注释。
 
+楼层提取和规则软意图提示迁到现有 planning_request_hints.py，ai_planner 保留导入别名；函数体保持原实现。开发入口与设计决策清单同步职责位置，明确软提示不能替代用户要求。新增楼层中英文表达、匹配优先级、软意图材质顺序与空输入回归。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

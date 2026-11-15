@@ -40,7 +40,7 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | Location | Effect | Migration |
 |----------|--------|-----------|
 | `PromptAssembler` Assembly block | Forces ASSEMBLY component type | Soft hint by default |
-| `ai_planner._derive_structured_intent` | Structured intent block | Hint only (documented) |
+| `planning_request_hints._derive_structured_intent` (`ai_planner` retains import alias) | Structured intent block | Hint only (documented) |
 | `plan_architectural_enrichment.infer_heuristic_proportion_card` | Proportion card injection | AI_PLANNED or optional skip |
 
 ## Python planner inference
