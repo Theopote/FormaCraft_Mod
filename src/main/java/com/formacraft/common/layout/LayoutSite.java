@@ -10,7 +10,7 @@ import net.minecraft.util.math.Direction;
  * 
  * 用途：
  * - 道路、长城、办公楼组、沿路村落都靠这一层
- * - 供后续 Program/ComponentPreset 直接装配
+ * - 作为构件装配的定位输入
  */
 public class LayoutSite {
     public final BlockPos anchor;        // 站点锚点（世界坐标）

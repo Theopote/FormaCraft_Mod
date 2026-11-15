@@ -139,7 +139,13 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 Java 端的 `OrchestratorClient` 会发送 HTTP POST 请求到 `/build` 端点。
 
-请求和响应的 JSON 格式与 Java 端的 `FormaRequest` 和 `BuildingSpec` 完全对齐。
+请求格式与 Java 端的 `FormaRequest` 对齐。**响应默认是 `LlmPlan`**
+（`kind="llmplan"`），不是 `BuildingSpec`——旧的 BuildingSpec 协议只在请求
+显式声明 `outputFormat="buildingspec"` 时才启用（`kind="buildingspec"` /
+`"composite"` / `"city"`）。
+
+Java 端默认/auto/llmplan 请求若收到旧 spec 响应会被拒绝并报协议不匹配，
+不会静默回退到旧生成器。
 
 ## 开发说明
 

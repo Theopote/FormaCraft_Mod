@@ -159,3 +159,96 @@ def test_symmetry_absent_or_none_produces_no_constraint():
     assert FormaRequestAdapter(
         requestText="x", symmetryMode="NONE"
     ).to_build_request().symmetry is None
+
+
+def test_nested_symmetry_object_is_preserved():
+    """标准嵌套请求的 symmetry 对象必须真的到达后端。
+
+    回归：适配器曾经只读 Java 扁平字段 symmetryMode/AxisA/AxisB，
+    嵌套请求的 symmetry 被静默丢弃，对称规划约束丢失。
+    """
+    req = FormaRequestAdapter(
+        player={"name": "t", "pos": {"x": 0, "y": 64, "z": 0}, "facing": "SOUTH"},
+        world={"dimension": "minecraft:overworld"},
+        requestText="symmetric hall",
+        symmetry={"mode": "MIRROR_X"},
+    ).to_build_request()
+    assert req.symmetry is not None
+    assert req.symmetry.mode == "MIRROR_X"
+
+
+def test_nested_symmetry_custom_axis_preserved():
+    req = FormaRequestAdapter(
+        player={"name": "t", "pos": {"x": 0, "y": 64, "z": 0}, "facing": "SOUTH"},
+        world={"dimension": "minecraft:overworld"},
+        requestText="symmetric hall",
+        symmetry={"mode": "CUSTOM_AXIS", "axisA": {"x": 1, "y": 64, "z": 2},
+                  "axisB": {"x": 9, "y": 64, "z": 2}},
+    ).to_build_request()
+    assert req.symmetry is not None
+    assert req.symmetry.mode == "CUSTOM_AXIS"
+    assert req.symmetry.axisA is not None and req.symmetry.axisA.x == 1
+    assert req.symmetry.axisB is not None and req.symmetry.axisB.x == 9
+
+
+def test_rag_budget_passes_through_both_shapes():
+    """ragBudget 在两种线格式里都是独立对象，两条分支都必须透传。
+
+    回归：适配器声明了 ragBudget 却从未传给 BuildRequest，
+    显式预算会静默退回环境变量默认值。
+    """
+    flat = FormaRequestAdapter(
+        requestText="x", playerPos={"x": 0, "y": 64, "z": 0},
+        ragBudget={"topK": 7, "fewShotK": 1},
+    ).to_build_request()
+    assert flat.ragBudget is not None
+    assert flat.ragBudget.topK == 7
+    assert flat.ragBudget.fewShotK == 1
+
+    nested = FormaRequestAdapter(
+        player={"name": "t", "pos": {"x": 0, "y": 64, "z": 0}, "facing": "SOUTH"},
+        world={"dimension": "minecraft:overworld"},
+        requestText="x",
+        ragBudget={"topK": 7, "fewShotK": 1},
+    ).to_build_request()
+    assert nested.ragBudget is not None
+    assert nested.ragBudget.topK == 7
+    assert nested.ragBudget.fewShotK == 1
+
+
+def test_rag_budget_request_overrides_env(monkeypatch):
+    """resolve_rag_budget 的优先级：请求 > 环境变量 > 默认值。"""
+    from app.services.rag_budget import resolve_rag_budget
+
+    monkeypatch.setenv("RAG_TOPK", "2")
+    monkeypatch.setenv("RAG_MAX_CHARS", "5000")
+
+    req = FormaRequestAdapter(
+        player={"name": "t", "pos": {"x": 0, "y": 64, "z": 0}, "facing": "SOUTH"},
+        world={"dimension": "minecraft:overworld"},
+        requestText="x",
+        ragBudget={"topK": 11, "maxChars": 9999},
+    ).to_build_request()
+
+    resolved = resolve_rag_budget(req)
+    assert resolved["topK"] == 11
+    assert resolved["maxChars"] == 9999
+
+
+def test_nested_request_forwards_future_fields_without_code_change():
+    """嵌套分支整体交给 BuildRequest 校验，新增字段无需在适配器里补一遍。
+
+    这是"逐字段复制必然漏字段"的根治方式：任何 BuildRequest 新增的
+    选填字段，嵌套请求自动继承，扁平分支则需显式映射。
+    """
+    payload = {
+        "player": {"name": "t", "pos": {"x": 0, "y": 64, "z": 0}, "facing": "SOUTH"},
+        "world": {"dimension": "minecraft:overworld"},
+        "requestText": "x",
+        "someFutureOptionalField": "value",
+    }
+    req = FormaRequestAdapter(**payload).to_build_request()
+    # 未知字段被忽略，但已知字段必须完整保留（证明走的是 BuildRequest 校验路径）。
+    assert req.requestText == "x"
+    assert req.player.facing == "SOUTH"
+    assert req.world.dimension == "minecraft:overworld"

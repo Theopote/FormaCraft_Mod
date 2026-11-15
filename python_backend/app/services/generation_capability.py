@@ -1,9 +1,35 @@
-"""Stage-B generation capability contract shared with Java GenerationCapabilityCatalog."""
+"""Stage-B generation capability contract shared with Java GenerationCapabilityCatalog.
+
+Deployment contract
+------------------
+The **only** authoritative capability contract is the JSON exported by the Java
+side (``GenerationCapabilityCatalog`` → ``assets/formacraft/generation_capability_catalog.json``).
+Python must not keep a second, hand-maintained truth source.
+
+Therefore:
+
+* When the exported JSON is available it is used **verbatim** — never merged with
+  a Python-local table. A Python-only alias would silently widen the capability
+  set beyond what the Java runtime can execute.
+* The static tables below exist only so a *development/test* checkout without the
+  Java assets can still boot. They are a **degraded** mode, controlled by
+  ``FORMACRAFT_CAPABILITY_MODE``:
+
+  - ``strict`` (default): the exported catalog is a **required** deployment
+    resource. Missing/invalid ⇒ :class:`CapabilityCatalogUnavailable`.
+  - ``fallback``: the static snapshot is permitted (warning logged).
+  - ``auto``: exported catalog when present; degrade only under pytest/dev.
+
+The static tables are a **snapshot of the Java contract at export time**, not an
+independent source of truth. ``test_generation_capability_batch2.py`` locks the
+two against each other.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -11,6 +37,22 @@ logger = logging.getLogger(__name__)
 
 _SCHEMA = "formacraft.generation_capability.v1"
 _CATALOG: Optional[Dict[str, Any]] = None
+
+# ---------------------------------------------------------------------------
+# Static fallback snapshot (DEVELOPMENT/TEST ONLY).
+#
+# Mirrors the Java `GenerationCapabilityCatalog` / `RoofTypeCatalog` tables as
+# of the last export. NOT a second truth source: in `strict` mode the backend
+# refuses to start without the exported JSON.
+#
+# NOTE: the alias set here is intentionally the *Java* alias set. The Python
+# table historically also carried `eave` / `eaves` / `dense_eave` / `dense_eaves`
+# / `密檐` / `重檐`, which the Java `RoofTypeCatalog` does **not** accept as
+# executable roof types — keeping them let the planner emit a roof the Java
+# compiler cannot build. Eave *tiers* are expressed through `eaves_per_level` /
+# `eave_tiers` params and the `dense_eaves_pagoda` typology, never through a fake
+# `roof_type`.
+# ---------------------------------------------------------------------------
 
 _FALLBACK_ALIASES = {
     "irimoya": "xieshan",
@@ -34,13 +76,6 @@ _FALLBACK_ALIASES = {
     "pyramidal": "pyramid",
     "conical": "cone",
     "domed": "dome",
-    # LLM sometimes emits per-storey eave rings as a fake roof_type.
-    "eave": "xieshan",
-    "eaves": "xieshan",
-    "dense_eave": "xieshan",
-    "dense_eaves": "xieshan",
-    "密檐": "xieshan",
-    "重檐": "xieshan",
 }
 
 _FALLBACK_HOSTABLE = {
@@ -56,8 +91,62 @@ _FALLBACK_HOSTED = {
     "BALCONY", "TERRACE", "STRUCTURE", "ASSEMBLY",
 }
 
+# Mirrors `GenerationCapabilityCatalog.buildingClasses()`.
+_FALLBACK_BUILDING_CLASSES: Dict[str, Dict[str, Any]] = {
+    "tower_like": {
+        "preferred_components": ["STRUCTURE"],
+        "preferred_typologies": ["dense_eaves_pagoda", "tibetan_stupa"],
+        "composition": "single",
+    },
+    "gate": {
+        "preferred_components": ["GATE", "GATE_STRUCTURE", "STRUCTURE"],
+        "accept_mass_proportions": True,
+        "composition": "single",
+    },
+    "temple": {
+        "preferred_components": ["MASS_MAIN", "ROOF"],
+        "composition_default": "single",
+        "composition_compound_triggers": ["建筑群", "院落", "厢房", "配殿", "三进", "两进"],
+    },
+    "garden": {
+        "preferred_components": ["COURTYARD", "PATH", "MASS_MAIN"],
+        "composition": "compound",
+    },
+    "generic": {
+        "preferred_components": ["MASS_MAIN", "ROOF", "ENTRANCE", "FACADE_WINDOWS"],
+        "composition": "single",
+    },
+}
+
 
 _CATALOG_SOURCE: Optional[str] = None
+
+
+class CapabilityCatalogUnavailable(RuntimeError):
+    """The authoritative exported capability catalog is missing or invalid.
+
+    Raised in ``strict`` mode so a mis-deployed backend fails loudly instead of
+    silently planning against a divergent capability set.
+    """
+
+
+def capability_mode() -> str:
+    """Resolve the effective capability mode (``strict`` / ``fallback`` / ``auto``)."""
+    raw = (os.getenv("FORMACRAFT_CAPABILITY_MODE") or "").strip().lower()
+    if raw in {"strict", "fallback", "auto"}:
+        return raw
+    return "strict"
+
+
+def _fallback_permitted() -> bool:
+    """True when the static snapshot may be used instead of the exported catalog."""
+    mode = capability_mode()
+    if mode == "fallback":
+        return True
+    if mode == "auto":
+        # `auto` only degrades inside a test/dev process.
+        return "PYTEST_CURRENT_TEST" in os.environ or os.getenv("FORMACRAFT_DEV_MODE") == "1"
+    return False
 
 
 def _catalog_paths() -> List[Path]:
@@ -66,12 +155,20 @@ def _catalog_paths() -> List[Path]:
     # generation_capability.py → services → app → python_backend → repo root
     py_root = here.parents[2]
     repo_root = here.parents[3]
-    return [
+    candidates: List[Path] = []
+
+    # Explicit deployment override (standalone Python deployment).
+    env_path = (os.getenv("FORMACRAFT_CAPABILITY_CATALOG") or "").strip()
+    if env_path:
+        candidates.append(Path(env_path).expanduser())
+
+    candidates.extend([
         repo_root / "src" / "main" / "resources" / "assets" / "formacraft" / "generation_capability_catalog.json",
         repo_root / "build" / "resources" / "main" / "assets" / "formacraft" / "generation_capability_catalog.json",
         py_root / "data" / "generation_capability_catalog.json",
         here.parent.parent / "data" / "generation_capability_catalog.json",
-    ]
+    ])
+    return candidates
 
 
 def catalog_source_path() -> Optional[str]:
@@ -79,31 +176,77 @@ def catalog_source_path() -> Optional[str]:
     return _CATALOG_SOURCE
 
 
-def load_catalog(*, force: bool = False, allow_fallback: bool = True) -> Dict[str, Any]:
+def _validate_catalog(data: Any) -> Optional[str]:
+    """Validate schema + required sections. Returns an error message, or None if valid."""
+    if not isinstance(data, dict):
+        return "catalog root is not an object"
+    schema = data.get("schema")
+    if schema != _SCHEMA:
+        return f"unexpected schema {schema!r} (expected {_SCHEMA!r})"
+    if not isinstance(data.get("version"), int):
+        return f"missing/invalid version {data.get('version')!r}"
+    for key in ("hostable_component_types", "hosted_component_types"):
+        value = data.get(key)
+        if not isinstance(value, list) or not value:
+            return f"missing/invalid section {key!r}"
+    roof = data.get("roof")
+    if not isinstance(roof, dict):
+        return "missing/invalid section 'roof'"
+    if not isinstance(roof.get("aliases"), dict):
+        return "missing/invalid section 'roof.aliases'"
+    if not isinstance(roof.get("supported_tokens"), list):
+        return "missing/invalid section 'roof.supported_tokens'"
+    return None
+
+
+def load_catalog(*, force: bool = False, allow_fallback: Optional[bool] = None) -> Dict[str, Any]:
+    """Load the authoritative capability catalog.
+
+    Raises :class:`CapabilityCatalogUnavailable` when the exported JSON is absent
+    or invalid and the static snapshot is not permitted in the current mode.
+    """
     global _CATALOG, _CATALOG_SOURCE
     if _CATALOG is not None and not force:
         return _CATALOG
+
+    errors: List[str] = []
     for path in _catalog_paths():
         if not path.is_file():
             continue
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and data.get("schema") == _SCHEMA:
-                _CATALOG = data
-                _CATALOG_SOURCE = str(path)
-                logger.info("Loaded generation capability catalog from %s", path)
-                return _CATALOG
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"{path}: unreadable ({exc})")
             logger.warning("Failed reading capability catalog %s", path, exc_info=True)
+            continue
+        problem = _validate_catalog(data)
+        if problem:
+            errors.append(f"{path}: {problem}")
+            logger.warning("Invalid capability catalog %s: %s", path, problem)
+            continue
+        _CATALOG = data
+        _CATALOG_SOURCE = str(path)
+        logger.info("Loaded generation capability catalog from %s", path)
+        return _CATALOG
+
+    if allow_fallback is None:
+        allow_fallback = _fallback_permitted()
     if not allow_fallback:
-        raise FileNotFoundError(
-            "generation_capability_catalog.json not found under repo assets; "
-            f"searched: {[str(p) for p in _catalog_paths()]}"
+        raise CapabilityCatalogUnavailable(
+            "generation_capability_catalog.json is a REQUIRED deployment resource "
+            "(mode=strict). The Python backend must not plan against a divergent "
+            "capability set. Searched: "
+            f"{[str(p) for p in _catalog_paths()]}. "
+            "Set FORMACRAFT_CAPABILITY_MODE=fallback to allow the development-only "
+            "static snapshot, or point FORMACRAFT_CAPABILITY_CATALOG at the exported "
+            "file. Errors: " + ("; ".join(errors) if errors else "no candidate file found")
         )
+
     logger.error(
-        "generation_capability_catalog.json missing — using in-process fallback "
-        "(Python/Java capability tables may diverge). searched=%s",
+        "generation_capability_catalog.json missing — using DEVELOPMENT-ONLY static "
+        "snapshot (Python/Java capability tables may diverge). searched=%s errors=%s",
         [str(p) for p in _catalog_paths()],
+        errors,
     )
     _CATALOG_SOURCE = None
     _CATALOG = {
@@ -111,22 +254,39 @@ def load_catalog(*, force: bool = False, allow_fallback: bool = True) -> Dict[st
         "version": 1,
         "hostable_component_types": sorted(_FALLBACK_HOSTABLE),
         "hosted_component_types": sorted(_FALLBACK_HOSTED),
-        "roof": {"aliases": dict(_FALLBACK_ALIASES), "supported_tokens": list(_FALLBACK_ALIASES.values()) + ["gable", "hip", "xieshan", "flat", "none"]},
-        "typologies": ["dense_eaves_pagoda", "courtyard_compound", "tailiang_timber_hall"],
-        "building_classes": {},
+        "roof": {
+            "aliases": dict(_FALLBACK_ALIASES),
+            "supported_tokens": list(_FALLBACK_ALIASES.values()) + [
+                "gable", "hip", "xieshan", "flat", "none",
+            ],
+        },
+        "typologies": [
+            "dense_eaves_pagoda", "tibetan_stupa", "tailiang_timber_hall",
+            "radial_terrace_hall", "courtyard_compound",
+        ],
+        "building_classes": _FALLBACK_BUILDING_CLASSES,
         "_fallback": True,
     }
     return _CATALOG
 
 
+def is_degraded() -> bool:
+    """True when the backend is running on the development-only static snapshot."""
+    return bool(load_catalog().get("_fallback"))
+
+
 def roof_aliases() -> Dict[str, str]:
-    roof = load_catalog().get("roof") if isinstance(load_catalog().get("roof"), dict) else {}
+    """Authoritative planner-token → executable roof_type mapping.
+
+    Uses the exported catalog **verbatim** when available. The static snapshot is
+    used only in degraded mode — never merged on top of the authoritative set,
+    because a Python-only alias would advertise a roof the Java runtime cannot
+    execute.
+    """
+    catalog = load_catalog()
+    roof = catalog.get("roof") if isinstance(catalog.get("roof"), dict) else {}
     aliases = roof.get("aliases") if isinstance(roof.get("aliases"), dict) else {}
-    merged = dict(_FALLBACK_ALIASES)
-    for k, v in aliases.items():
-        if k and v:
-            merged[str(k)] = str(v)
-    return merged
+    return {str(k): str(v) for k, v in aliases.items() if k and v}
 
 
 def supported_roof_tokens() -> set[str]:

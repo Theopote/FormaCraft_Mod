@@ -90,7 +90,7 @@ public final class StructuralSkeletonToExecutablePlanConverter {
      * - COURTYARD → 生成 WALL Skeleton，context = COURTYARD
      * <p>
      * 自动触发的能力：
-     * - SkeletonSocketProfile.forWall() 会生成：
+     * - WALL 骨架会提供：
      *   - WALL_SURFACE
      *   - WALL_OPENING
      *   - EDGE_OUTER（仅 EXTERNAL）

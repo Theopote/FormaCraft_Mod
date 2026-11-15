@@ -6,9 +6,11 @@ other looks "used" to a per-class reference count, yet the whole group is
 unreachable from the real entry points.
 
 The graph uses simple-name tokens, not Java import/type resolution. Duplicate
-names are retained and traversed conservatively; comments and unrelated tokens
-can also introduce edges. A clean scan is not proof that every type is live,
-and reported candidates still require call-path/framework-loading review.
+names are retained and traversed conservatively. Comments and string literals
+are stripped before tokenization, so a type merely *mentioned* in a comment or
+in a string constant does not count as a live dependency edge. A clean scan is
+not proof that every type is live, and reported candidates still require
+call-path/framework-loading review.
 
 This gate closes that gap with a reachability analysis:
 
@@ -51,6 +53,82 @@ DECL = re.compile(
 )
 TOKEN = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
 GRADLE_MAIN = re.compile(r"mainClass\s*=\s*'([\w.]+)'")
+
+
+def strip_comments_and_strings(text: str) -> str:
+    """Remove Java comments and string/char literals from source text.
+
+    A type name that only appears inside a comment or a string constant is not a
+    dependency edge. Without this, ``// 旧的 DeadWidget 已经不用了`` keeps
+    ``DeadWidget`` looking reachable and hides a dead class from the gate.
+
+    Hand-rolled rather than fully correct (it does not model Java's Unicode
+    escapes or nested text blocks), but it errs in the safe direction: it only
+    ever *removes* text, so it can produce false positives (reporting a type as
+    unreachable) but never false negatives (hiding a live dependency).
+    """
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+
+        # Line comment
+        if ch == "/" and nxt == "/":
+            j = text.find("\n", i)
+            i = n if j == -1 else j
+            continue
+
+        # Block comment
+        if ch == "/" and nxt == "*":
+            j = text.find("*/", i + 2)
+            i = n if j == -1 else j + 2
+            # Keep a newline so line structure survives for DECL matching.
+            out.append("\n")
+            continue
+
+        # Text block """..."""
+        if text.startswith('"""', i):
+            j = text.find('"""', i + 3)
+            i = n if j == -1 else j + 3
+            out.append('"')
+            continue
+
+        # String literal
+        if ch == '"':
+            j = i + 1
+            while j < n:
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if text[j] == '"':
+                    j += 1
+                    break
+                j += 1
+            i = j
+            out.append('"')
+            continue
+
+        # Char literal
+        if ch == "'":
+            j = i + 1
+            while j < n:
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if text[j] == "'":
+                    j += 1
+                    break
+                j += 1
+            i = j
+            out.append("'")
+            continue
+
+        out.append(ch)
+        i += 1
+
+    return "".join(out)
 
 
 def _load_roots(base: Path | None = None) -> tuple[set[str], list[str]]:
@@ -105,11 +183,16 @@ def scan(root: Path | None = None) -> list[tuple[str, str]]:
     java_root = base / "src/main/java"
 
     files = sorted(java_root.rglob("*.java"))
-    sources = {p: p.read_text(encoding="utf-8", errors="replace") for p in files}
+    raw_sources = {p: p.read_text(encoding="utf-8", errors="replace") for p in files}
+
+    # Declarations are matched against the *raw* text (a declaration is never
+    # inside a comment), but dependency edges are computed from the stripped
+    # text so comments/strings do not create phantom edges.
+    sources = {p: strip_comments_and_strings(text) for p, text in raw_sources.items()}
 
     # Keep all declarations: simple names can occur in different packages.
     decls: dict[str, set[Path]] = {}
-    for path, text in sources.items():
+    for path, text in raw_sources.items():
         for match in DECL.finditer(text):
             decls.setdefault(match.group(1), set()).add(path)
 

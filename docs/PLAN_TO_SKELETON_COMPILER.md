@@ -173,7 +173,6 @@ CompiledSkeleton
 > 骨架 → 构件的现行装配由 `SkeletonBuildPipeline` / `SkeletonBuildService` 承担。
 
 现行可用的：
-- `SkeletonSocketProfile.forWall()`
 - `SkeletonBuildPipeline` / `SkeletonBuildService`（骨架构建与语义生成）
 
 全部可以无缝接上：

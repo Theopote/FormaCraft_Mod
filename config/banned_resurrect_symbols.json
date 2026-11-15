@@ -81,7 +81,11 @@
     "requestBuildingSpec(",
     "server.skeleton.gen.SemanticResolver",
     "server.skeleton.gen.assembler",
-    "socket.SocketProvider;"
+    "socket.SocketProvider;",
+    "SemanticComponentType",
+    "SkeletonSocketProfile",
+    "SocketDensity",
+    "ComponentPreset"
   ],
   "allow_path_substrings": [
     "/test/",

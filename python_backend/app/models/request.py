@@ -119,10 +119,13 @@ class RagBudget(BaseModel):
 
 class BuildRequest(BaseModel):
     """
-    Minecraft → Python 的请求结构
-    注意：这里没有把 BuildingSpec 放进请求里，
-    请求只是"自然语言 + 世界上下文"，
-    响应才是 BuildingSpec。
+    Minecraft → Python 的请求结构。
+
+    请求只包含**用户意图与空间上下文**（自然语言 + 世界/选区/路径/对称等约束），
+    **默认响应为 LlmPlan**；只有显式 ``outputFormat="buildingspec"`` 才走旧的
+    BuildingSpec 兼容协议。
+
+    这里不把 BuildingSpec 放进请求里：请求是意图，响应才是产物。
     """
     player: PlayerInfo
     world: WorldContext

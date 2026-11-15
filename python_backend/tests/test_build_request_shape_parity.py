@@ -204,3 +204,37 @@ def test_flat_request_keeps_flat_semantics(monkeypatch):
     assert req.selection is None
     assert req.brushSelection is not None
     assert (req.brushSelection.min.x, req.brushSelection.max.x) == (110, 130)
+
+
+def test_nested_symmetry_survives_real_http_entrypoint(monkeypatch):
+    """Regression at the real /build boundary: nested symmetry must not be dropped."""
+    captured = _planner_capture(monkeypatch)
+
+    payload = dict(NESTED_PAYLOAD)
+    payload["symmetry"] = {"mode": "MIRROR_X"}
+
+    response = _post(payload)
+    assert response.status_code == 200, response.text
+
+    req = captured[0]
+    assert req.symmetry is not None
+    assert req.symmetry.mode == "MIRROR_X"
+
+
+def test_rag_budget_survives_real_http_entrypoint(monkeypatch):
+    """Regression at the real /build boundary: ragBudget must reach the planner."""
+    captured = _planner_capture(monkeypatch)
+
+    nested_payload = dict(NESTED_PAYLOAD)
+    nested_payload["ragBudget"] = {"topK": 7, "fewShotK": 1}
+    flat_payload = dict(FLAT_PAYLOAD)
+    flat_payload["ragBudget"] = {"topK": 7, "fewShotK": 1}
+
+    assert _post(nested_payload).status_code == 200
+    assert _post(flat_payload).status_code == 200
+
+    nested_req, flat_req = captured
+    for req in (nested_req, flat_req):
+        assert req.ragBudget is not None, "ragBudget must not be silently dropped"
+        assert req.ragBudget.topK == 7
+        assert req.ragBudget.fewShotK == 1
