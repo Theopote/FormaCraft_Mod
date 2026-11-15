@@ -1,27 +1,28 @@
 # FormaCraft 生成管线（唯一流程真相）
 
-> 本文基于 **2026-07 管线梳理**，2026-10-03 补充最终通行约束与主预览状态转换；其余阶段仍需结合代码核验。
-> 若与其他 `COMPLETE_*` / `*_SUMMARY` 文档冲突，**以本文 + [ARCHITECTURE.md](../ARCHITECTURE.md) 为准**。
+> 状态：维护中；核查：2026-11-15。  
+> 若与其他 `COMPLETE_*` / `*_SUMMARY` / 历史手册冲突，**以本文 + [ARCHITECTURE.md](../ARCHITECTURE.md) 为准**。  
+> 规划权矩阵见 [GENERATION_AUTHORITY_MAP.md](architecture/GENERATION_AUTHORITY_MAP.md)；兼容退出见 [ARCHITECTURE_AUDIT.md](refactoring/ARCHITECTURE_AUDIT.md)。
 
 ---
 
 ## 设计立场
 
 - **泛化优先**：一般建筑由 LLM 输出 `LlmPlan.components[]`，经参数化 `ComponentGenerator` 拼装。
-- **精品库例外**：著名地标 / 高置信度 archetype / 显式 `landmark:` 模块引用，可走整栋 `StructureGenerator`。
+- **精品库作执行器**：著名地标 / 显式 `landmark:` 模块经 `UnifiedGeneratorRouter` → `StructureGeneratorAdaptor` 调用；**不是**第二条日常规划主干。
 - **AI 不直接放方块**：LLM 只输出语义 JSON；Java 负责几何、材质、地形、约束。
 
 ---
 
-## 三条顶层入口
+## 顶层入口（默认 canonical + 显式 compat）
 
-| 路径 | 触发 | 关键类 |
-|------|------|--------|
-| **A. LlmPlan 构件拼装（主路径）** | 后端返回 `AiPlanResult.LlmPlan` | `BuildRequestProcessor` → `LlmPlanPreviewBuilder` → `ComponentPlanCompiler` |
-| **B. BuildingSpec 整栋生成（并行路径）** | 后端返回 `AiPlanResult.BuildingSpec` | `BuildRequestProcessor.previewBuildingSpec` → `GenerationHub.routeStructure` → `GeneratorRouter` |
-| **C. Patch 增量** | `LlmPlan.mode=patch` 且含 `patch.blocks` | `LlmPlanPreviewBuilder` → `PatchPreviewService` |
+| 路径 | 触发 | 关键类 | 角色 |
+|------|------|--------|------|
+| **A. LlmPlan（默认）** | `/build` 默认或 `outputFormat=llmplan` → `AiPlanResult.LlmPlan` | `BuildRequestProcessor` → `LlmPlanPreviewBuilder` → `ComponentPlanCompiler` / `PlanProgramCompiler` | CANONICAL |
+| **B. BuildingSpec / City / Composite** | **仅**显式 `outputFormat=buildingspec`（及对应 kind） | `previewBuildingSpec` / Composite / City → `GenerationHub.routeStructure` | ACTIVE_COMPAT |
+| **C. Patch 增量** | `LlmPlan.mode=patch` | `LlmPlanPreviewBuilder` → `PatchPreviewService`（blocks）或增量 components | 属主干 A |
 
-**注意**：LlmPlan 预览失败**不再**回退假 BuildingSpec（`BuildRequestProcessor`）；用户需调整请求或检查后端。
+**禁止**将 A/B 写成日常二选一。LlmPlan 预览失败**不再**回退假 BuildingSpec；失败时仍可能误记 `recordStructureAfterFallback`（审计 LEGACY-014，PR-2 修）。
 
 ---
 
@@ -33,9 +34,9 @@ flowchart TD
   Req --> Py[Python /build generate_llm_plan]
   Py --> Plan[LlmPlan JSON]
   Plan --> BRP[BuildRequestProcessor]
-  BRP --> Route{显式旧格式 / 响应 kind}
-  Route -->|skip| BS[BuildingSpec 路径]
-  Route -->|continue| Preview[LlmPlanPreviewBuilder]
+  BRP --> Route{响应 kind}
+  Route -->|显式 buildingspec kind| BS[BuildingSpec compat]
+  Route -->|LlmPlan| Preview[LlmPlanPreviewBuilder]
   Preview --> Compile{编译分支}
   Compile -->|plan_program| PPC[PlanProgramCompiler]
   Compile -->|components| CPC[ComponentPlanCompiler]
@@ -202,7 +203,7 @@ BuildingSpec → GenerationHub.routeStructure()
 | 管道 | 位置 | 当前接线状态 |
 |------|------|--------------|
 | `PostProcessPipeline` | `common/compiler/postprocess/` | ✅ 在 `ComponentPlanCompiler` 中调用 |
-| `PatchFilterPipeline` | `common/patch/filter/` | ⚠️ 设计完整，**当前 Java 未在其他类调用** |
+| `PatchFilterPipeline` | `common/patch/filter/` | ⚠️ 历史设计稿，**未全线接线**；禁止当作第三套过滤主干再接；现行见 `ServerPatchFilter` / `BuildConstraints` |
 | `ServerPatchFilter` | `server/patch/` | ✅ Patch 预览签发 |
 | `ToolPatchFilter` | `client/patch/filter/` | ✅ 客户端工具约束 |
 
@@ -213,12 +214,14 @@ BuildingSpec → GenerationHub.routeStructure()
 | 组件 | 路径 |
 |------|------|
 | Plan DTO | `common/llm/dto/LlmPlan.java`, `Component.java`, `Dimensions.java` |
-| Prompt 组装 | `ai/prompt/PromptAssembler.java` |
-| 系统 Schema | `ai/prompt/PromptSystemSections.java` |
-| 空间约束 | `ai/prompt/PromptSpatialSections.java` |
-| 地标模块清单 | `LandmarkModuleRegistry` → `PromptSystemSections.landmarkModulesPrompt()` |
-| Python 校验 | `python_backend/app/models/llm_plan.py` |
+| Prompt 组装（权威） | `python_backend/app/services/prompt_assembly.py`（`resolve_llm_plan_prompts`） |
+| 系统提示词 | `python_backend/app/services/llm_plan_system_prompt.py` |
+| 客户端上下文注入 | `BuildPromptContextEnricher`（library / memory 摘要；**不**组装 system prompt） |
+| 地标模块清单 | Java `LandmarkModuleRegistry`；由后端 prompt 引用/同步 |
+| Python 校验 | `python_backend/app/models/llm_plan.py`、`llm_plan_json_schema.py` |
 | 回归门 | `python_backend/eval/golden_eval.py` |
+
+客户端 `PromptAssembler.java` **已删除**；勿按旧 Java prompt 包路径开发。
 
 ---
 

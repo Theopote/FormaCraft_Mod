@@ -8,8 +8,9 @@
 
 | 层级 | 位置 | 维护要求 |
 |------|------|----------|
-| **Tier 0 权威** | `ARCHITECTURE.md`, `docs/GENERATION_PIPELINE.md`, `docs/GENERALIZATION_STRATEGY.md`, `docs/INDEX.md` | 功能改动时必须同步更新 |
-| **Tier 1 手册** | `docs/FORMACRAFT_DEVELOPER_DOCUMENTATION.md`, `CONTRIBUTING.md` | 大改时更新；细节以 Tier 0 为准 |
+| **Tier 0 权威** | `ARCHITECTURE.md`, `docs/GENERATION_PIPELINE.md`, `docs/refactoring/ARCHITECTURE_AUDIT.md`, `docs/architecture/GENERATION_AUTHORITY_MAP.md`, `docs/INDEX.md` | 功能改动时必须同步更新 |
+| **Tier 1 手册** | `CONTRIBUTING.md`；大手册 `FORMACRAFT_DEVELOPER_DOCUMENTATION.md` / `UNIFIED_SYSTEM_ARCHITECTURE.md` 为**历史参考** | 新结论写入 Tier 0，勿只改历史手册 |
+| **历史方案** | `GENERALIZATION_STRATEGY.md`, `PATCH_FILTER_*`, `PROMPT_ASSEMBLER_*` | 可参考原则；禁止当现行接线指南 |
 | **Tier 2 子系统** | `docs/` 下各子系统活文档 | 对应子系统改动时更新 |
 | **Tier 3 归档** | `docs/archive/**` | **不维护**；只读参考 |
 

@@ -1,11 +1,22 @@
-# 📐 Formacraft —— AI 驱动的 Minecraft 建筑生成系统
+# Formacraft —— AI 驱动的 Minecraft 建筑生成系统
 
 ## Developer & Maintainer Documentation v1.0
 
-> **Formacraft is not a building command.**  
-> **It is a semantic architecture compiler for Minecraft.**
+> **状态：历史参考（2026-11-15）**。体量大、部分章节过期。  
+> **现行权威**：[DEVELOPER_START_HERE.md](DEVELOPER_START_HERE.md) → [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) → [ARCHITECTURE.md](../ARCHITECTURE.md) → [ARCHITECTURE_AUDIT.md](refactoring/ARCHITECTURE_AUDIT.md)。
 
-> **2026-10 更新**：客户端 `PromptAssembler` 已删除。Prompt 由后端 `llm_plan_system_prompt` + `prompt_assembly` 拥有；以 [ARCHITECTURE.md](../ARCHITECTURE.md) §9 与 [UNIFIED_SYSTEM_ARCHITECTURE.md](UNIFIED_SYSTEM_ARCHITECTURE.md) 为准。下文 §五标题保留仅为目录兼容。
+### 章节迁移索引
+
+| 旧章节 | 现行去处 |
+|--------|----------|
+| 整体架构 / 双轨示意 | ARCHITECTURE.md（唯一 LlmPlan 主干 + 显式 compat） |
+| PromptAssembler / §五 | `prompt_assembly.py` + `llm_plan_system_prompt.py`；客户端组装器已删 |
+| Preview / Patch / Undo | GENERATION_PIPELINE + WORLD_MUTATION_CONTRACT + MEMORY_TRANSACTION_CONTRACT |
+| 生成器扩展 | GENERATION_AUTHORITY_MAP + DEVELOPER_START_HERE 任务表 |
+| BuildingSpec 路由策略 | **已删**；勿按本文恢复 `BuildingSpecRoutingPolicy` / `requestBuildingSpec` |
+
+> Formacraft is a semantic architecture compiler for Minecraft.  
+> 下文正文可能仍含旧类名示例，**不得**当作现行入口。
 
 ---
 

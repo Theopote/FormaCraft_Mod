@@ -1,6 +1,8 @@
 # Formacraft 统一系统架构文档
 
-> **2026-07-02**：生成器已统一为 `common.generation.structure`（整栋）+ `common.generation.component`（构件）；入口 `GenerationHub`。
+> **状态：历史参考（2026-11-15）**。子系统分工仍有参考价值；**现行契约**以 [ARCHITECTURE.md](../ARCHITECTURE.md) 与 [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) 为准。  
+> 若文中出现「LlmPlan / BuildingSpec 日常双主干」示意，一律按 **默认 LlmPlan + 显式 buildingspec compat** 理解，禁止扩展第二条规划链。  
+> 2026-07-02 起生成器统一为 structure（整栋执行器）+ component（构件）；门面 `GenerationHub`。
 
 ## 🎯 目标
 
@@ -31,16 +33,15 @@ OrchestratorClient（调用 Python 后端）
   ↓
 Python 后端 prompt_assembly / llm_plan_system_prompt → LLM
   ↓
-返回 LlmPlan 或 BuildingSpec
+默认 LlmPlan；仅显式 buildingspec → City/Composite/BuildingSpec（compat）
   ↓
-┌─────────────────┬─────────────────┐
-│   LlmPlan       │   BuildingSpec  │
-│   (新系统)      │   (传统系统)    │
-└─────────────────┴─────────────────┘
+┌──────────────────────────┬────────────────────────────┐
+│   LlmPlan（默认主干）     │   BuildingSpec（显式 compat）│
+└──────────────────────────┴────────────────────────────┘
   ↓                    ↓
-ComponentPlanCompiler  GeneratorRouter
+ComponentPlanCompiler  GenerationHub.routeStructure
   ↓                    ↓
-ComponentGenerator     StructureGenerator
+UnifiedGeneratorRouter StructureGenerator（执行器）
   ↓                    ↓
 List<BlockPatch>       GeneratedStructure
   ↓                    ↓

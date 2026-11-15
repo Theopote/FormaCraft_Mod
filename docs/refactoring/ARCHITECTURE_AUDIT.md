@@ -1,8 +1,43 @@
 # 架构审计 — 当前状态
 
-状态：维护中；复核：2026-11-14。
+状态：维护中；复核：2026-11-15（PR-0 证据基线 + 弃用退出清单）。
 
 历史分批记录已移至 [archive/ARCHITECTURE_AUDIT_batches_through_2026-10-25.md](archive/ARCHITECTURE_AUDIT_batches_through_2026-10-25.md)。以本页与门禁脚本为准，不以历史「债务 0」表述为准。
+
+## 证据基线（PR-0）
+
+| 项 | 值 |
+|---|---|
+| Git SHA | `810e0c64b2db622fdf9e90a8c6cf108a5cc6963f` |
+| 提交摘要 | `refactor(ai_planner): 添加兼容性重新导出以保持调用接口稳定` |
+| 本轮范围 | 仅文档与证据台账；**不改**生成算法默认值；**不删**仍有消费者的兼容路径 |
+| 本地门禁（本轮） | `python scripts/check_architecture.py`、`python scripts/check_generation_entrypoints.py` |
+| 延后 PR-2 | 入口符号硬校验、`check_active_docs`、跨语言 API 矩阵、`recordStructureAfterFallback` 语义修正 |
+
+### 现行入口调用图（默认 canonical + 显式 compat）
+
+```mermaid
+flowchart LR
+  Tools[ChatPanel_Selection_Outline_Path] --> FormaReq[FormaRequest]
+  FormaReq --> BuildPy["Python_/build"]
+  BuildPy --> LlmPlan[LlmPlan_only_default]
+  BuildPy -.->|explicit_buildingspec| Compat[BuildingSpec_City_Composite]
+  LlmPlan --> JavaCompile[ComponentPlanCompiler_PlanProgramCompiler]
+  JavaCompile --> Exec[UnifiedGeneratorRouter_Typology_Landmark]
+  Exec --> Patch[BlockPatch]
+  Patch --> Preview[Preview_Confirm_Undo_Memory]
+```
+
+单一计划协议 = **LlmPlan**。House / Tower / 地标 / 参数化构件可作为**执行器**保留，禁止独立规划 / 预览 / 确认链。
+
+### Preview / Undo 不变量（未决事务债）
+
+| 栈 | 预览载体 | 确认 | 历史 | 契约 |
+|---|---|---|---|---|
+| Build（结构） | `PreviewStorage`（digest + 维度 + origin） | `/forma_confirm` 一次性 `consume` | `UndoService` | [WORLD_MUTATION_CONTRACT](../WORLD_MUTATION_CONTRACT.md)、[MEMORY_TRANSACTION_CONTRACT](../MEMORY_TRANSACTION_CONTRACT.md) |
+| Patch（增量） | `PreviewTicket` / `PreviewTicketStorage` | C2S confirm 消费冻结 patches | `PatchHistoryManager` | 同上 |
+
+未决：两套预览确认 UX 未合并；`UndoService` 与 `PatchHistoryManager` 靠 `MutationHistoryFacade` + ledger 择栈，跨栈 UX / Memory 原子性见「未决项」。**本轮不合并存储。**
 
 ## 当前门禁
 
@@ -22,6 +57,8 @@
 - Panel 超 400 行拆分（Settings / Chat / ComponentCapture）
 - 双 JSON 库收敛（新代码优先 `common.json.JsonUtil` / Gson）；服务端硬编码中文文案迁语言文件（建造门控文案已走 lang）
 - Memory 落盘与世界修改原子性；Undo 双轨统一（见 WORLD_MUTATION_CONTRACT）
+- **PR-2**：`BuildRequestProcessor` ~269 行在 LlmPlan 预览失败时仍调用 `LlmPlanRoutingMetrics.recordStructureAfterFallback`，但已**不再**假 BuildingSpec 回退——指标名与语义不符，本轮只记账不改代码
+- **PR-2**：`check_generation_entrypoints` 符号存在性校验、`check_active_docs`、跨语言 API 矩阵
 
 ## 已落地（2026-10-31 审查整改）
 
@@ -155,3 +192,29 @@ OrchestratorClient 的 editCity/editBuilding 旧名称删除，改为 editLegacy
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
+
+## 弃用退出清单（唯一迁移台账）
+
+> 本表是兼容路径退出的**唯一台账**；不另开 FIX_COMPLETE。状态枚举：`CANONICAL` / `ACTIVE_COMPAT` / `QUARANTINED` / `MIGRATED` / `REMOVABLE` / `REMOVED`。  
+> 证据日期：2026-11-15，对照 `810e0c64`。行号以当时源码为准，变更后以 grep 复核。
+
+| ID | 状态 | 入口与用途 | 实际消费者（证据） | 替代路径 | 行为风险 | 删除前条件 | 证明 |
+|---|---|---|---|---|---|---|---|
+| LEGACY-001 | CANONICAL | `POST /build` → `generate_llm_plan` | `build.py` `_generate_response` 默认与 `outputFormat=llmplan`（约 L80–97）；`OrchestratorClient.requestAiPlan` → `/build`；Chat 默认 `FormaRequest` `outputFormat=llmplan` | — | — | — | 生产默认 |
+| LEGACY-002 | ACTIVE_COMPAT | `POST /build` 显式 `outputFormat=buildingspec` → city / composite / building | `build.py` L85–91：`generate_city_spec` / `generate_composite_spec` / `generate_building_spec`；`ai_planner.py` L155 / L209 / L760 | LlmPlan components / MODULE landmark | 隐式再接旧格式会复活双主干 | 仓库与运行时无显式 buildingspec 生产发送；蓝图/命令消费者已迁 | 路由回归 + 入口清单 |
+| LEGACY-003 | CANONICAL | Java `requestAiPlan` → `AiPlanResult.LlmPlan` → `LlmPlanPreviewBuilder` | `BuildRequestProcessor` ~L217；`OrchestratorClient.requestAiPlan` L242+ | — | — | — | 主干 |
+| LEGACY-004 | ACTIVE_COMPAT | Java `AiPlanResult.BuildingSpec/Composite/City` 预览 | `BuildRequestProcessor` L281–287 → `previewBuildingSpec` L311+ / `previewCompositeSpec` / `previewCitySpec`；仅当后端返回对应 kind（显式旧格式） | LlmPlan 预览 | Orchestrator 对非显式请求拒收旧 kind | 无显式旧格式请求 | 契约测试 |
+| LEGACY-005 | CANONICAL | `ComponentPlanCompiler` / `PlanProgramCompiler` | `LlmPlanPreviewBuilder` 编译分支；入口登记于 `config/generation_entrypoints.json` | — | — | — | 主干编译 |
+| LEGACY-006 | CANONICAL | `UnifiedGeneratorRouter` / `GenerationHub.routeStructure` | CPC → `GenerationHub.generateComponent` → UGR；BuildingSpec 预览与 CityBuilder / 地标 adaptor 调 `routeStructure` | 地标作执行器，不作独立规划链 | 静默 house/tower 回退已禁 | — | 路由契约 |
+| LEGACY-007 | ACTIVE_COMPAT | `OrchestratorClient.editLegacyBuildingSpec` → `POST /edit/building` | `FormaCraftCommands` `forma_edit_building` ~L290–328；`BuildRequestProcessor` L106–128（`isPatch && requestsLegacyBuildingSpec`） | `/build` LlmPlan `mode=patch` | 新编辑误接旧 API | 命令与显式 buildingspec 聊天分支清零 | OpenAPI deprecated |
+| LEGACY-008 | ACTIVE_COMPAT | `OrchestratorClient.editLegacyCitySpec` → `POST /edit/city` | `FormaCraftCommands` `forma_edit_city` ~L216–254；`python_backend/app/routes/edit.py` L12+ | LlmPlan patch | 同上 | 命令清零 | OpenAPI deprecated |
+| LEGACY-009 | ACTIVE_COMPAT | 蓝图存档 BuildingSpec / CitySpec / CompositeSpec | `FormaCraftCommands` save/load ~L381–473；`PlayerSpecRepository` / `BlueprintStorage` | 未来 LlmPlan 存档格式（未定） | 删读写会破坏既有蓝图 | 迁移工具 + 玩家存档兼容策略 | 命令路径存在 |
+| LEGACY-010 | ACTIVE_COMPAT | Python `legacy_spec_*` + `ai_planner` 兼容 import | 生产：`ai_planner` 自身编排仍 import `legacy_spec_fallbacks/genome/normalization`（L17–23）；`llm_plan_normalization` 复用 `_deep_merge`；`assembly_plan_repair` / `fbd_repair` 调 `ai_planner` 门面；测试与 eval 仍 patch `ai_planner` | 职责模块直导 | 删 re-export 会断测试补丁点 | 调用方改直导后再删 facade 别名 | import 图 |
+| LEGACY-011 | ACTIVE_COMPAT | `PreviewStorage`（Build 预览） | `LlmPlanPreviewBuilder` / `BuildConfirmService` / `/forma_confirm` | 长期与 Ticket 统一（PR-3+） | 双确认 UX | 见 WORLD_MUTATION | 不变量表 |
+| LEGACY-012 | ACTIVE_COMPAT | `PreviewTicket`（Patch 预览） | `PatchPreviewService` → `PreviewTicketStorage` | 同上 | 同上 | 同上 | 不变量表 |
+| LEGACY-013 | ACTIVE_COMPAT | `UndoService` vs `PatchHistoryManager` | Build 完成 → UndoService；Patch 成功 → PatchHistoryManager；择栈 `MutationHistoryFacade` | 合并存储（PR-3+） | 跨栈幽灵条目 | Memory 原子性方案 | MEMORY / WORLD_MUTATION |
+| LEGACY-014 | QUARANTINED | 指标 `recordStructureAfterFallback` 误记账 | `BuildRequestProcessor` ~L269：预览失败回调仍记 fallback，但注释与错误文案已声明**跳过假 BuildingSpec 回退** | 修正指标名/语义（PR-2） | 运维误读回退率 | 指标与代码语义对齐 | 源码对照 |
+| LEGACY-015 | REMOVED | `BuildingSpecRoutingPolicy` / `requestBuildingSpec` | 无生产调用者（类已删） | `requestAiPlan` + `FormaRequest.requestsLegacyBuildingSpec()` | 文档若仍引用会误导 | — | 已删；见迁移文档警告 |
+| LEGACY-016 | REMOVED | 客户端 `PromptAssembler.java` | 无 | `prompt_assembly.py` + `llm_plan_system_prompt.py` | 文档旧路径 | — | 已删 |
+
+**退出决策规则**：状态 ≠ `REMOVABLE`/`REMOVED` 时禁止删实现；`ACTIVE_COMPAT` 禁止扩展为新功能默认入口；消费者证据过期时先更新本表再改代码。

@@ -45,9 +45,9 @@ flowchart TD
 |------|---------|-------------|---------------------------|-------------------|
 | **A** | `kind=llmplan`, `mode=build` | `LlmPlan.components[]` or `plan_program` | LLM/Python; Java only with `plan_meta.allow_compiler_satellites` (transition) | CPC / PPC → UGR |
 | **A-patch** | `mode=patch` | `LlmPlan.patch` | LLM | PatchPreviewService |
-| **B** | `kind=buildingspec` | `BuildingSpec` | Python classifier + spec fields; not silent Java house fallback | GR → StructureGenerator |
-| **B-edit** | PATCH prompt mode | Updated `BuildingSpec` JSON | LLM edit endpoint | GR |
-| **C** | City / composite kinds | CitySpec / CompositeSpec | Python | City / composite builders |
+| **B** | **仅**显式 `outputFormat=buildingspec` / `kind=buildingspec` | `BuildingSpec` | Compat only; not silent Java house fallback | GR → StructureGenerator |
+| **B-edit** | `isPatch && requestsLegacyBuildingSpec` 或 `forma_edit_*` | Updated BuildingSpec/CitySpec JSON | `editLegacy*` → `/edit/building|/edit/city`（deprecated） | GR / city builders |
+| **C** | 显式 buildingspec 下的 city / composite kinds | CitySpec / CompositeSpec | Compat | City / composite builders |
 
 ## Routing authority sources (must stay consistent)
 
@@ -69,4 +69,5 @@ flowchart TD
 
 - [GENERATION_PIPELINE.md](../GENERATION_PIPELINE.md) — operational pipeline truth
 - [GENERATOR_ROUTING_MAP.md](../GENERATOR_ROUTING_MAP.md) — generator registry map
-- [MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md](../MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md) — gradual merge
+- [MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md](../MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md) — 构件/结构能力对照（非路由指南）
+- [ARCHITECTURE_AUDIT.md](../refactoring/ARCHITECTURE_AUDIT.md) — 弃用退出清单

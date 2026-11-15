@@ -9,8 +9,8 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 1. [README](../README.md)：启动与构建。
 2. [生成流程](GENERATION_PIPELINE.md)：请求、编译、预览、执行的实际分支。
 3. [架构概览](../ARCHITECTURE.md)：设计边界。
-4. [审计与重构路线](refactoring/ARCHITECTURE_AUDIT.md)：已确认技术债与验收要求。
-5. [索引](INDEX.md)：按任务选择子系统文档；archive 只用于追溯。
+4. [审计与重构路线](refactoring/ARCHITECTURE_AUDIT.md)：未决债、证据基线与**弃用退出清单**。
+5. [索引](INDEX.md)：按任务选择子系统文档；UNIFIED / 大手册为历史参考；archive 只用于追溯。
 
 ## 从任务定位代码
 

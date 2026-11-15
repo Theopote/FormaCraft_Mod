@@ -2,42 +2,48 @@
 
 > **阅读顺序**：[开发入口](DEVELOPER_START_HERE.md) → [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) → [ARCHITECTURE.md](../ARCHITECTURE.md) → [架构审计与重构路线](refactoring/ARCHITECTURE_AUDIT.md)
 
-最后更新：2026-10-03（入口与架构审计；子系统文档仍需逐篇核查）
+最后更新：2026-11-15（PR-0/PR-1：权威契约收敛；子系统文档仍需逐篇核查）
 
 ---
 
 ## Tier 0 — 权威入口（维护中）
 
-| 文档 | 用途 |
+| 文档 | 用途 | 状态 |
+|------|------|------|
+| [DEVELOPER_START_HERE.md](DEVELOPER_START_HERE.md) | 新人入口、按任务定位代码与验证命令 | 维护中 |
+| [refactoring/ARCHITECTURE_AUDIT.md](refactoring/ARCHITECTURE_AUDIT.md) | 未决债 + **唯一弃用退出清单** + 证据基线 | 维护中 |
+| [ARCHITECTURE.md](../ARCHITECTURE.md) | 稳定契约：分层、唯一主干、不变量、禁止事项 | 维护中 |
+| [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) | LlmPlan → 放置方块的**现行流程真相** | 维护中 |
+| [architecture/GENERATION_AUTHORITY_MAP.md](architecture/GENERATION_AUTHORITY_MAP.md) | 规划权 / 执行权矩阵（与 pipeline 对齐） | 维护中 |
+| [MEMORY_TRANSACTION_CONTRACT.md](MEMORY_TRANSACTION_CONTRACT.md) | Memory 维度隔离与撤销事务边界 | 维护中 |
+| [STAIR_CIRCULATION_CONTRACT.md](STAIR_CIRCULATION_CONTRACT.md) | 楼梯入口、坡度/净空、未接线边界 | 维护中 |
+| [SHELL_FLOOR_CONTRACT.md](SHELL_FLOOR_CONTRACT.md) | 楼板生成顺序与洞口组合 | 维护中 |
+| [PLAN_CIRCULATION_CONTRACT.md](PLAN_CIRCULATION_CONTRACT.md) | 跨构件通行约束 | 维护中 |
+| [TOWER_CIRCULATION_CONTRACT.md](TOWER_CIRCULATION_CONTRACT.md) | 整栋塔楼通行限制 | 维护中 |
+| [DOC_CONVENTIONS.md](DOC_CONVENTIONS.md) | 文档命名、分层、归档规范 | 维护中 |
+| [MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md](MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md) | 构件 vs 结构**能力对照**（非路由指南） | 维护中（能力表） |
+
+### Tier 0 降级 / Quarantine（勿当现行主干扩展依据）
+
+| 文档 | 说明 |
 |------|------|
-| [DEVELOPER_START_HERE.md](DEVELOPER_START_HERE.md) | 新人入口、按任务定位代码与验证命令 |
-| [refactoring/ARCHITECTURE_AUDIT.md](refactoring/ARCHITECTURE_AUDIT.md) | 现状证据、技术债、分阶段重构与建筑质量验收 |
-| [refactoring/REGRESSION_BASELINE.md](refactoring/REGRESSION_BASELINE.md) | 第二轮回归恢复、剩余建筑行为与测试环境问题 |
-| [ARCHITECTURE.md](../ARCHITECTURE.md) | 系统总览、分层规则、质量门、Canonical Pipeline 声明 |
-| [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) | LlmPlan → 放置方块的**唯一流程真相**（类名、阶段、分支） |
-| [phase1/GOLDEN_PATH_AUDIT.md](phase1/GOLDEN_PATH_AUDIT.md) | Phase 1：四条建造流、双栈债、P0/P1 清单（2026-10-25） |
-| [phase1/INGAME_ACCEPTANCE_MATRIX.md](phase1/INGAME_ACCEPTANCE_MATRIX.md) | Phase 1：游戏内 Preview/Confirm/Undo 验收矩阵 |
-| [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md) | 泛化优先原则、已具备能力、代码差距清单、演进方向 |
-| [LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md](LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md) | 设计哲学："AI 规划，Java 实现" |
-| [MEMORY_TRANSACTION_CONTRACT.md](MEMORY_TRANSACTION_CONTRACT.md) | Memory 维度隔离、旧数据与普通撤销事务接入边界 |
-| [STAIR_CIRCULATION_CONTRACT.md](STAIR_CIRCULATION_CONTRACT.md) | 实际楼梯入口、坡度/净空、状态属性与未接线边界 |
-| [SHELL_FLOOR_CONTRACT.md](SHELL_FLOOR_CONTRACT.md) | 实体楼板生成顺序、扭转清空与楼梯洞口组合 |
-| [PLAN_CIRCULATION_CONTRACT.md](PLAN_CIRCULATION_CONTRACT.md) | 跨构件/后处理通行约束、诊断与主预览完整状态 |
-| [TOWER_CIRCULATION_CONTRACT.md](TOWER_CIRCULATION_CONTRACT.md) | 整栋塔楼楼层、环形踏步、洞口及桥接限制 |
-| [DOC_CONVENTIONS.md](DOC_CONVENTIONS.md) | 文档命名、分层、归档规范 |
-| [MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md](MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md) | 构件层 vs 整栋层覆盖矩阵（活跃维护） |
+| [GENERALIZATION_STRATEGY.md](GENERALIZATION_STRATEGY.md) | **历史方案参考**；原则仍有效，差距清单可能过期；禁止暗示再接第三套过滤 |
+| [LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md](LLMPLAN_SYSTEM_CORE_PHILOSOPHY.md) | 设计哲学参考；细节以 ARCHITECTURE + PIPELINE 为准 |
+| [phase1/GOLDEN_PATH_AUDIT.md](phase1/GOLDEN_PATH_AUDIT.md) | Phase 1 时点审计；双栈债仍有效，入口类名以 PIPELINE 复核 |
+| [phase1/INGAME_ACCEPTANCE_MATRIX.md](phase1/INGAME_ACCEPTANCE_MATRIX.md) | 验收矩阵参考 |
+| [refactoring/REGRESSION_BASELINE.md](refactoring/REGRESSION_BASELINE.md) | 回归时点记录 |
 
 ---
 
-## Tier 1 — 开发者手册
+## Tier 1 — 开发者手册 / 历史参考
 
-| 文档 | 用途 |
-|------|------|
-| [FORMACRAFT_DEVELOPER_DOCUMENTATION.md](FORMACRAFT_DEVELOPER_DOCUMENTATION.md) | 完整开发者参考（体量大，部分路径需对照 Tier 0 校正） |
-| [UNIFIED_SYSTEM_ARCHITECTURE.md](UNIFIED_SYSTEM_ARCHITECTURE.md) | 七子系统职责地图（2026-07；双轨 framing 以 ARCHITECTURE 为准） |
-| [CONTRIBUTING.md](../CONTRIBUTING.md) | 贡献指南 |
-| [python_backend/README.md](../python_backend/README.md) | Python 后端 API |
-| [python_backend/INTEGRATION_GUIDE.md](../python_backend/INTEGRATION_GUIDE.md) | Java ↔ Python 集成 |
+| 文档 | 用途 | 状态 |
+|------|------|------|
+| [FORMACRAFT_DEVELOPER_DOCUMENTATION.md](FORMACRAFT_DEVELOPER_DOCUMENTATION.md) | 大手册；**历史参考**，章节迁移索引见文首 | 历史参考 |
+| [UNIFIED_SYSTEM_ARCHITECTURE.md](UNIFIED_SYSTEM_ARCHITECTURE.md) | 七子系统地图；**历史参考**，禁止按「双主干日常二选一」阅读 | 历史参考 |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | 贡献指南 | 维护中 |
+| [python_backend/README.md](../python_backend/README.md) | Python 后端 API | 维护中 |
+| [python_backend/INTEGRATION_GUIDE.md](../python_backend/INTEGRATION_GUIDE.md) | Java ↔ Python 集成 | 维护中 |
 
 ---
 
@@ -51,10 +57,10 @@
 | [COMPONENT_PLAN_COMPILER_K3_1.md](COMPONENT_PLAN_COMPILER_K3_1.md) | ComponentPlanCompiler 实现要点 |
 | [LLM_JSON_TEMPLATE_K3_1.md](LLM_JSON_TEMPLATE_K3_1.md) | LLM 输出 JSON 模板 |
 | [LLM_JSON_PARSER_K3_1.md](LLM_JSON_PARSER_K3_1.md) | LLM JSON 解析层 |
-| [PATCH_FILTER_PIPELINE_K3_3.md](PATCH_FILTER_PIPELINE_K3_3.md) | PatchFilterPipeline 设计（注：当前 Java 未全线接线） |
+| [PATCH_FILTER_PIPELINE_K3_3.md](PATCH_FILTER_PIPELINE_K3_3.md) | **历史设计**；未全线接线；禁止再接第三套过滤主干 |
 | [POST_PROCESS_PIPELINE_IMPLEMENTATION.md](POST_PROCESS_PIPELINE_IMPLEMENTATION.md) | PostProcessPipeline 后处理 |
 | [PALETTE_RESOLVER_K3_2.md](PALETTE_RESOLVER_K3_2.md) | 语义材质解析 |
-| [PROMPT_ASSEMBLER_AUTOMATION.md](PROMPT_ASSEMBLER_AUTOMATION.md) | Tool → PromptAssembler |
+| [PROMPT_ASSEMBLER_AUTOMATION.md](PROMPT_ASSEMBLER_AUTOMATION.md) | **历史**；客户端 PromptAssembler 已删 → `prompt_assembly.py` |
 | [TERRAIN_STRATEGY_SYSTEM.md](TERRAIN_STRATEGY_SYSTEM.md) | 地形策略 |
 | [GENERATION_QUALITY_PARAMS.md](GENERATION_QUALITY_PARAMS.md) | 生成质量参数 |
 

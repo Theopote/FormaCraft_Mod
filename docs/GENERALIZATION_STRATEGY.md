@@ -1,6 +1,9 @@
 # FormaCraft 泛化策略
 
-> **目标**：FormaCraft 应具备强大的泛化能力——一般建筑由 LLM 根据自然语言描述组织和策划，经参数化生成器实现；**仅著名地标**保留固定 `StructureGenerator` 精品库。
+> **状态：历史方案参考（2026-11-15）**。核心原则（AI 规划 / Java 实现、泛化优先）仍有效；能力差距清单可能过期。  
+> **禁止**据此暗示再接第三套过滤主干或第二条 BuildingSpec 规划链。现行流程见 [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md)。
+
+> **目标**：一般建筑由 LLM 经参数化构件实现；著名地标保留固定 `StructureGenerator` **执行器**（经 landmark MODULE），不是独立日常主干。
 
 ---
 
