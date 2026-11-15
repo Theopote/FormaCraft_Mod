@@ -168,6 +168,7 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
         isinstance(c, dict)
         and str(c.get("component_type") or "").upper() == "STRUCTURE"
         and _has_typology_hint(c)
+        and not str((c.get("params") or {}).get("host_id") or (c.get("params") or {}).get("hostId") or "").strip()
         for c in components
     )
     if not has_typology_structure:

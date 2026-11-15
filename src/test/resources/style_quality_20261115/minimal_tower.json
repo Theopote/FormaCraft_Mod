@@ -1,0 +1,536 @@
+{
+  "mode": "build",
+  "style_profile": "Modern_Minimal",
+  "style_attributes": {
+    "wall_material": "minecraft:smooth_stone",
+    "roof_material": "minecraft:white_concrete",
+    "glass_material": "minecraft:white_stained_glass",
+    "accent_material": "minecraft:polished_diorite",
+    "palette": {
+      "wall": "minecraft:smooth_stone",
+      "column": "minecraft:smooth_stone",
+      "glass": "minecraft:white_stained_glass",
+      "roof": "minecraft:white_concrete",
+      "floor": "minecraft:smooth_stone",
+      "paving": "minecraft:light_gray_concrete",
+      "trim": "minecraft:polished_diorite"
+    }
+  },
+  "layout": {
+    "skeleton_type": "VERTICAL_STACK",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "slot_tower",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "footprint": {
+          "width": 12,
+          "depth": 12
+        }
+      }
+    ]
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "height_limit": 30,
+    "symmetry": "RADIAL"
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 30
+      },
+      "params": {
+        "component_id": "tower_main",
+        "anchor_mode": "center",
+        "shape": "rectangle",
+        "plan_type": "none",
+        "floor_count": 10,
+        "floor_height": 3,
+        "hollow": true,
+        "void_ratio": 0.22,
+        "twist_degrees": 45,
+        "twist_axis": "y",
+        "taper_ratio": 0.92,
+        "roof_type": "flat",
+        "window_style": "curtain_wall",
+        "entrance_type": "glass_double_door",
+        "facing": "north",
+        "wall_block": "minecraft:smooth_stone",
+        "floor_block": "minecraft:smooth_stone",
+        "roof_block": "minecraft:white_concrete",
+        "structure_block": "minecraft:polished_diorite",
+        "window_ratio": 0.35,
+        "building_id": "tower_main"
+      },
+      "features": [
+        "twisted_prism",
+        "gradual_45_degree_rotation",
+        "slight_taper_waist",
+        "minimalist_shell",
+        "ten_floors"
+      ]
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -6,
+        "y": 3,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 27
+      },
+      "params": {
+        "component_id": "tower_glazing",
+        "host_id": "tower_main",
+        "window_ratio": 0.45,
+        "window_aspect": "vertical_strip",
+        "window_style": "curtain_wall",
+        "facade_profile": "alternating_glass_and_fins",
+        "glass_block": "minecraft:white_stained_glass",
+        "frame_block": "minecraft:smooth_stone",
+        "fin_block": "minecraft:smooth_stone",
+        "mullion_spacing": 2,
+        "fin_width": 1,
+        "fin_depth": 1,
+        "fin_spacing": 3,
+        "twist_follow": true,
+        "sides": [
+          "north",
+          "south",
+          "east",
+          "west"
+        ],
+        "building_id": "tower_main"
+      },
+      "features": [
+        "vertical_smooth_stone_fins",
+        "light_glass_ribbons",
+        "interleaved_facade_rhythm",
+        "footprint_following_strips"
+      ]
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -2,
+        "y": 0,
+        "z": 5
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 2,
+        "height": 5
+      },
+      "params": {
+        "component_id": "tower_entrance",
+        "host_id": "tower_main",
+        "entrance_type": "glass_double_door",
+        "facing": "north",
+        "frame_block": "minecraft:smooth_stone",
+        "door_block": "minecraft:white_stained_glass",
+        "canopy": true,
+        "canopy_block": "minecraft:white_concrete",
+        "steps": 2,
+        "step_block": "minecraft:polished_diorite",
+        "door_width": 2,
+        "door_height": 4,
+        "building_id": "tower_main"
+      },
+      "features": [
+        "recessed_glass_entry",
+        "cantilevered_canopy",
+        "south_facing_entrance"
+      ]
+    },
+    {
+      "component_type": "STRUCTURE",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 4,
+        "height": 30
+      },
+      "params": {
+        "component_id": "tower_stair_core",
+        "host_id": "tower_main",
+        "typology": "spiral_stair_tower",
+        "radius": 2,
+        "floor_height": 3,
+        "material": "minecraft:polished_diorite",
+        "rail_block": "minecraft:smooth_stone",
+        "base_y": 0,
+        "top_y": 30,
+        "building_id": "tower_main",
+        "typology_id": "spiral_stair_tower"
+      },
+      "features": [
+        "central_vertical_circulation",
+        "gallery_access_each_floor"
+      ]
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -6,
+        "y": 30,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_roof",
+        "host_id": "tower_main",
+        "roof_type": "flat",
+        "material": "minecraft:white_concrete",
+        "roof_block": "minecraft:white_concrete",
+        "parapet": true,
+        "parapet_block": "minecraft:white_concrete",
+        "parapet_height": 1,
+        "overhang": 0,
+        "roof_height": 2,
+        "building_id": "tower_main"
+      },
+      "features": [
+        "flat_roof_cap",
+        "rim_parapet",
+        "full_host_top_coverage"
+      ]
+    },
+    {
+      "component_type": "PAVING",
+      "slot_id": "slot_tower",
+      "relative_position": {
+        "x": -9,
+        "y": 0,
+        "z": -9
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 18,
+        "height": 1
+      },
+      "params": {
+        "component_id": "tower_plaza",
+        "material": "minecraft:light_gray_concrete",
+        "border_block": "minecraft:polished_diorite",
+        "pattern": "concentric"
+      },
+      "features": [
+        "entry_plaza",
+        "concentric_paving_rings",
+        "dark_border_inlay"
+      ]
+    }
+  ],
+  "proportion_hints": {
+    "floor_count": 10,
+    "floor_height": 3,
+    "height_to_width": 2.5,
+    "slenderness": 2.5,
+    "window_wall_ratio": 0.24,
+    "twist_degrees": 45,
+    "taper_ratio": 0.92,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_tower": [
+          "tower_main"
+        ],
+        "named_main_body": [
+          "tower_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "tower_main",
+          "slot_id": "slot_tower",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 12,
+            "depth": 12,
+            "height": 30
+          },
+          "floor_ys_local": [
+            0,
+            3,
+            6,
+            9,
+            12,
+            15,
+            18,
+            21,
+            24,
+            27
+          ],
+          "roof_y_local": 29,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "tower_main",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 12,
+                  "depth": 12,
+                  "height": 30
+                },
+                "roof_y_local": 29
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -6,
+              "max_x": 6,
+              "max_z": 6,
+              "min_y": 0,
+              "max_y": 30
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -6,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座高 30 格的极简现代塔楼。平面由底部 12x12 格的正方形随着高度增加逐渐旋转 45 度并微弱收腰， 外立面由交错的浅色玻璃与平滑石柱构成",
+          "purposes": [],
+          "styles": [],
+          "structures": [
+            {
+              "id": "tower",
+              "phrase": "塔楼",
+              "start": 15,
+              "status": "requested",
+              "part": "building"
+            }
+          ]
+        }
+      ],
+      "original_text": "生成一座高 30 \n格的极简现代塔楼。平面由底部 \n12x12 \n格的正方形随着高度增加逐渐旋转 45 度并微弱收腰，\n外立面由交错的浅色玻璃与平滑石柱构成",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [],
+      "scope_status": "unspecified",
+      "bindings": [],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": []
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
+  },
+  "plan_meta": {
+    "declared_intent": {
+      "building_class": "tower_like",
+      "confidence": 0.95
+    },
+    "notes": "30-block minimalist modern tower: 12x12 base square rotated progressively to 45 degrees at the crown with a slight taper; interleaved light glass curtain strips and smooth stone fins; flat white concrete roof cap fully covering the top plate; south-facing glass entry with canopy.",
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "llm_declared",
+      "original_text": "生成一座高 30 \n格的极简现代塔楼。平面由底部 \n12x12 \n格的正方形随着高度增加逐渐旋转 45 度并微弱收腰，\n外立面由交错的浅色玻璃与平滑石柱构成",
+      "building_class": "tower_like",
+      "confidence": 0.95,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 12,
+        "depth": 12
+      },
+      "forbids": [],
+      "materials": {
+        "window": "minecraft:glass"
+      },
+      "refuse_residential_autofill": true,
+      "scaffold_eligible": false,
+      "keyword_hint_class": "generic",
+      "keyword_hint_confidence": 0.0
+    },
+    "request_intent_text": "生成一座高 30 \n格的极简现代塔楼。平面由底部 \n12x12 \n格的正方形随着高度增加逐渐旋转 45 度并微弱收腰，\n外立面由交错的浅色玻璃与平滑石柱构成",
+    "building_class": "tower_like",
+    "capability_repairs": [
+      "promoted typology→typology_id"
+    ],
+    "capability_catalog_schema": "formacraft.generation_capability.v1"
+  },
+  "anchor": {
+    "x": 1552,
+    "y": 70,
+    "z": -1523
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "generic",
+      "confidence": 0.0
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "none",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": null,
+      "voidRatio": null,
+      "supports": null
+    },
+    "form": {
+      "repetition": null,
+      "progression": null,
+      "curvature": null,
+      "rhythm": null
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [],
+    "materials": {
+      "primary": null,
+      "secondary": null,
+      "accent": null,
+      "textureBias": null,
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": null,
+      "era": null,
+      "keywords": null
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": null,
+      "insideSelectionOnly": null,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": null,
+      "avoid": null,
+      "extra": null
+    }
+  },
+  "kind": "llmplan"
+}

@@ -220,6 +220,8 @@ OrchestratorClient 的 editCity/editBuilding 旧名称删除，改为 editLegacy
 
 地标自主规划清理：format_profile_for_prompt 在两种格式下均使用自主设计说明，不再携带旧 typology-first 指令。识别器方法改名 matches_registered_preset_identity，阈值改为 PRESET_IDENTITY_MIN_CONFIDENCE，明确其只提供身份匹配证据，不授权模板路由；旧方法/常量名删除，调用与测试同步更新。
 
+风格实测首项修复：Python/Java typology 排他判断只由无 host_id/hostId 的独立 STRUCTURE 触发；附属楼梯 typology 不再删除主体、屋顶、立面。保存真实极简塔楼响应并新增排他过滤回归。其余 10 类问题和该塔楼旋转外形仍见 STYLE_QUALITY_2026_11_15.md，未宣称全部修复。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

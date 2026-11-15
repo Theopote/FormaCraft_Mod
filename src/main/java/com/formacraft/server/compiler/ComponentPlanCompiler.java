@@ -617,8 +617,7 @@ public final class ComponentPlanCompiler {
             if (c == null) {
                 continue;
             }
-            if ("STRUCTURE".equals(normalizeType(c.componentType()))
-                    && TypologyComponentRouter.hasTypologyHint(c)) {
+            if (ComponentSatelliteInference.isWholeBuildingTypology(c)) {
                 return true;
             }
         }

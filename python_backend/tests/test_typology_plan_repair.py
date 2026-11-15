@@ -6,6 +6,16 @@ import unittest
 
 
 class TypologyPlanRepairTest(unittest.TestCase):
+    def test_hosted_stair_typology_preserves_envelope(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+        for host_key in ("host_id", "hostId"):
+            plan = {"components": [{"component_type": "MASS_MAIN", "params": {"component_id": "tower_main"}},
+                {"component_type": "STRUCTURE", "params": {"typology_id": "spiral_stair_tower", host_key: "tower_main"}},
+                {"component_type": "ROOF"}, {"component_type": "FACADE_WINDOWS"}]}
+            result, count = strip_typology_exclusive_compositionals(plan)
+            self.assertEqual(count, 0)
+            self.assertEqual(result, plan)
+
     def test_famen_module_repaired_to_structure(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components
 

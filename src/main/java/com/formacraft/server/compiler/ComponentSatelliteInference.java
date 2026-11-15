@@ -510,6 +510,12 @@ final class ComponentSatelliteInference {
      * When a plan already has {@code STRUCTURE + typology:*}, drop redundant compositional
      * building parts (MASS/TOWER/ROOF/…) that the typology builder already owns.
      */
+    static boolean isWholeBuildingTypology(Component c) {
+        return c != null && "STRUCTURE".equals(ComponentPlanTypes.normalizeType(c.componentType()))
+                && TypologyComponentRouter.hasTypologyHint(c)
+                && ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId") == null;
+    }
+
     static List<Component> applyTypologyExclusiveFilter(List<Component> components) {
         if (components == null || components.isEmpty()) {
             return components;
@@ -520,8 +526,7 @@ final class ComponentSatelliteInference {
             if (c == null) {
                 continue;
             }
-            if ("STRUCTURE".equals(ComponentPlanTypes.normalizeType(c.componentType()))
-                    && TypologyComponentRouter.hasTypologyHint(c)) {
+            if (isWholeBuildingTypology(c)) {
                 hasTypologyStructure = true;
                 break;
             }
