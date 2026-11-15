@@ -236,13 +236,17 @@ def evaluate_capability(plan: Dict[str, Any]) -> List[str]:
             )
             is_parametric = False
             unsupported_structure_type = None
+            explicit_structure_type = False
             if structure_type is not None:
                 st = str(structure_type).strip().lower()
                 if st:
+                    explicit_structure_type = True
                     is_parametric = any(tok in st for tok in parametric_tokens)
                     if not is_parametric:
                         unsupported_structure_type = st
-            if not is_parametric:
+            # Explicit structure_type wins: do not recover via features when the declared
+            # type is unsupported (Java StructureComponentGenerator also prefers params).
+            if not explicit_structure_type and not is_parametric:
                 is_parametric = any(tok in joined_feats for tok in parametric_tokens)
             if not typology:
                 for f in feats:
@@ -251,7 +255,7 @@ def evaluate_capability(plan: Dict[str, Any]) -> List[str]:
                         typology = f.split(":", 1)[1].strip()
                         break
             label = params.get("component_id") or ctype
-            if unsupported_structure_type and not typology and not is_stair_flight and not is_parametric:
+            if unsupported_structure_type and not typology and not is_stair_flight:
                 errors.append(
                     f"capability: unsupported structure_type={unsupported_structure_type!r} on {label}"
                 )

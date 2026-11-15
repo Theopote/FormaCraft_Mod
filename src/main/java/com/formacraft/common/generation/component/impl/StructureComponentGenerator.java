@@ -111,9 +111,11 @@ public final class StructureComponentGenerator implements ComponentGenerator {
         return "minecraft:stone_bricks";
     }
 
+    private static final int MAX_PARAMETRIC_COUNT = 48;
+
     private static List<BlockPatch> colonnade(Vec3i rp, Dimensions d, Map<String, Object> params, String block) {
         List<BlockPatch> out = new ArrayList<>();
-        int count = Math.max(4, intParam(params, 8, "count", "column_count"));
+        int count = clampCount(intParam(params, 8, "count", "column_count"), 4, MAX_PARAMETRIC_COUNT);
         int maxRadius = maxInPlaneRadius(rp, d);
         int radius = Math.max(1, Math.min(maxRadius, intParam(params, Math.max(1, maxRadius),
                 "radius", "ring_radius")));
@@ -139,7 +141,7 @@ public final class StructureComponentGenerator implements ComponentGenerator {
         int maxRadius = maxInPlaneRadius(rp, d);
         int outer = Math.max(1, Math.min(maxRadius - 1, Math.min(d.width(), d.depth()) / 2));
         int inner = Math.max(1, outer - 2);
-        int teeth = Math.max(6, intParam(params, 12, "count", "teeth"));
+        int teeth = clampCount(intParam(params, 12, "count", "teeth"), 6, MAX_PARAMETRIC_COUNT);
         int midY = rp.y() + Math.max(0, Math.min(d.height() - 1, d.height() / 2));
         for (int x = -outer; x <= outer; x++) {
             for (int z = -outer; z <= outer; z++) {
@@ -218,9 +220,10 @@ public final class StructureComponentGenerator implements ComponentGenerator {
                 ? String.valueOf(params.get("material_secondary")).trim().toLowerCase(Locale.ROOT)
                 : block;
         if (!secondary.contains(":")) secondary = "minecraft:" + secondary;
-        int w = Math.max(3, d.width());
-        int depth = Math.max(3, d.depth());
-        int h = Math.max(4, d.height());
+        // Never inflate past declared Dimensions — undersized boxes yield a clipped frame.
+        int w = Math.max(1, d.width());
+        int depth = Math.max(1, d.depth());
+        int h = Math.max(1, d.height());
         int minX = rp.x();
         int minZ = rp.z();
         int maxX = rp.x() + w - 1;
@@ -232,23 +235,36 @@ public final class StructureComponentGenerator implements ComponentGenerator {
             int x1 = maxX - inset;
             int z0 = minZ + inset;
             int z1 = maxZ - inset;
-            if (x1 <= x0 || z1 <= z0) break;
-            out.add(new BlockPatch(BlockPatch.PLACE, x0, rp.y() + y, z0, block));
-            out.add(new BlockPatch(BlockPatch.PLACE, x1, rp.y() + y, z0, block));
-            out.add(new BlockPatch(BlockPatch.PLACE, x0, rp.y() + y, z1, block));
-            out.add(new BlockPatch(BlockPatch.PLACE, x1, rp.y() + y, z1, block));
+            if (x1 < x0 || z1 < z0) break;
+            placeInside(out, rp, d, x0, rp.y() + y, z0, block);
+            placeInside(out, rp, d, x1, rp.y() + y, z0, block);
+            placeInside(out, rp, d, x0, rp.y() + y, z1, block);
+            placeInside(out, rp, d, x1, rp.y() + y, z1, block);
             if (y % 4 == 0) {
                 for (int x = x0; x <= x1; x++) {
-                    out.add(new BlockPatch(BlockPatch.PLACE, x, rp.y() + y, z0, secondary));
-                    out.add(new BlockPatch(BlockPatch.PLACE, x, rp.y() + y, z1, secondary));
+                    placeInside(out, rp, d, x, rp.y() + y, z0, secondary);
+                    placeInside(out, rp, d, x, rp.y() + y, z1, secondary);
                 }
                 for (int z = z0; z <= z1; z++) {
-                    out.add(new BlockPatch(BlockPatch.PLACE, x0, rp.y() + y, z, secondary));
-                    out.add(new BlockPatch(BlockPatch.PLACE, x1, rp.y() + y, z, secondary));
+                    placeInside(out, rp, d, x0, rp.y() + y, z, secondary);
+                    placeInside(out, rp, d, x1, rp.y() + y, z, secondary);
                 }
+            }
+            // X-bracing on the south/north faces when the bay is wide enough to read.
+            if (h >= 4 && (x1 - x0) >= 2 && y > 0 && y < h - 1) {
+                int span = x1 - x0;
+                int braceX = x0 + Math.round((float) y / (h - 1) * span);
+                placeInside(out, rp, d, braceX, rp.y() + y, z0, secondary);
+                placeInside(out, rp, d, x1 - (braceX - x0), rp.y() + y, z0, secondary);
+                placeInside(out, rp, d, braceX, rp.y() + y, z1, secondary);
+                placeInside(out, rp, d, x1 - (braceX - x0), rp.y() + y, z1, secondary);
             }
         }
         return out;
+    }
+
+    private static int clampCount(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private static int intParam(Map<String, Object> params, int def, String... keys) {

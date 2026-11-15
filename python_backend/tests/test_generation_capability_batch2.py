@@ -179,6 +179,26 @@ class GenerationCapabilityBatch2Test(unittest.TestCase):
             errors,
         )
 
+    def test_explicit_unsupported_structure_type_not_rescued_by_features(self):
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "params": {
+                        "component_id": "bad_explicit",
+                        "structure_type": "unsupported_structure",
+                    },
+                    "features": ["colonnade"],
+                    "dimensions": {"width": 12, "depth": 12, "height": 8},
+                }
+            ]
+        }
+        errors = evaluate_capability(plan)
+        self.assertTrue(
+            any("unsupported structure_type" in e for e in errors),
+            errors,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

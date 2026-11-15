@@ -305,6 +305,71 @@ class ExteriorCirculationValidatorTest {
                 "connectorAccess still permits an authorized terminal carve");
     }
 
+    @Test void exteriorStairWithoutMassStillDetectsObstacle() {
+        MinecraftRegistryTestBootstrap.initialize();
+        var obstacle = new BlockPos(3, 2, 0);
+        assertEquals(obstacle, ExteriorCirculationValidator.findCollision(
+                List.of(stone(obstacle)), flight(obstacle, true), List.of(), Set.of(), true)
+                .orElseThrow().position(),
+                "empty buildingVolumes must not skip exterior obstacle checks");
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(obstacle)), flight(obstacle, true), List.of(), Set.of(), false).isEmpty(),
+                "interior flights still require volumes");
+    }
+
+    @Test void targetHostFoundationUnderRisingTreadsIsAuthorized() {
+        // oct18_3: stair_research_tower rises onto tower_main foundation pad cells.
+        var foundation = new Component("FOUNDATION", "s", new Vec3i(-4, 6, -34), new Dimensions(9, 9, 2), List.of(),
+                Map.of("component_id", "foundation_tower", "host_id", "tower_main", "anchor_mode", "min_corner"));
+        var stairParams = new HashMap<String, Object>();
+        stairParams.put("component_id", "stair_research_tower");
+        stairParams.put("host_id", "research_main");
+        stairParams.put("building_id", "research_main");
+        stairParams.put("target_host_id", "tower_main");
+        stairParams.put("exterior", true);
+        stairParams.put("width", 3);
+        stairParams.put("clearHeight", 2);
+        stairParams.put("landing_length", 2);
+        stairParams.put("from", Map.of("x", 0, "y", 4, "z", -21));
+        stairParams.put("to", Map.of("x", 0, "y", 8, "z", -25));
+        stairParams.put("stairs", "minecraft:stone_brick_stairs");
+        var stair = new Component("STRUCTURE", "s", new Vec3i(0, 0, 0), new Dimensions(3, 4, 4),
+                List.of("stair:straight_single_run"), stairParams);
+        var tread = new BlockPos(-1, 6, -23);
+        var index = new PatchOccupancyIndex();
+        index.commit(foundation, List.of(stone(tread)));
+        var access = ExteriorCirculationValidator.connectorAccess(
+                stair, List.of(foundation), Map.of(), BlockPos.ORIGIN, index);
+        assertTrue(access.contains(tread), "target-host foundation under tread must be connectorAccess");
+        assertTrue(ExteriorCirculationValidator.findCollision(
+                List.of(stone(tread)), flight(tread, false),
+                List.of(new BuildingVolume("tower", new Bounds(-4, 6, -34, 5, 8, -25), 4)),
+                access, true).isEmpty());
+    }
+
+    @Test void ownExpandedDeckAlongApproachIsAuthorizedButPrimitiveEaveIsNot() {
+        // Fidelity repair may grow a stilthouse deck into mid-run clearance cells.
+        var deck = new Component("TERRACE", "hut", new Vec3i(-1, 4, 5), new Dimensions(5, 5, 1), List.of(),
+                Map.of("component_id", "terrace_1", "host_id", "mass_main_1", "plate_role", "deck",
+                        "anchor_mode", "min_corner"));
+        var eave = new Component("PRIMITIVE", "hut", new Vec3i(-1, 7, 6), new Dimensions(3, 1, 1), List.of(),
+                Map.of("component_id", "terrace_eave", "host_id", "mass_main_1", "anchor_mode", "min_corner"));
+        var stair = new Component("STRUCTURE", "hut", new Vec3i(0, 0, 10), new Dimensions(2, 4, 4),
+                List.of("stair:straight_single_run"),
+                Map.of("component_id", "stairs_1", "host_id", "mass_main_1", "building_id", "mass_main_1",
+                        "exterior", true, "width", 2, "clearHeight", 2, "landing_length", 1,
+                        "from", Map.of("x", 0, "y", 0, "z", 0), "to", Map.of("x", 0, "y", 4, "z", -4)));
+        var midDeck = new BlockPos(-1, 4, 8);
+        var eaveCell = new BlockPos(-1, 7, 6);
+        var index = new PatchOccupancyIndex();
+        index.commit(deck, List.of(stone(midDeck)));
+        index.commit(eave, List.of(stone(eaveCell)));
+        var access = ExteriorCirculationValidator.connectorAccess(
+                stair, List.of(deck, eave), Map.of(), BlockPos.ORIGIN, index);
+        assertTrue(access.contains(midDeck), "own deck under mid-run clearance must be authorized");
+        assertFalse(access.contains(eaveCell), "host-scoped PRIMITIVE eave must stay unauthorized");
+    }
+
     @Test void usesHeightAwareUnionAndShiftedFlightCoordinates() {
         MinecraftRegistryTestBootstrap.initialize();
         var shared = new BlockPos(15, 4, 23);

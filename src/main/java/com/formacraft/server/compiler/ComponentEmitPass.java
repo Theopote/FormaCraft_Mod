@@ -255,12 +255,12 @@ final class ComponentEmitPass {
                     var connectorAccess = ExteriorCirculationValidator.connectorAccess(c, components, slotMap, flightOffset, patchOccupancy);
                     boolean exteriorStair = c.params() != null && Boolean.TRUE.equals(c.params().get("exterior"));
                     var exteriorCollision = ExteriorCirculationValidator.findCollision(
-                            result, shiftedFlights, buildingVolumes, connectorAccess, exteriorStair);
+                            result, shiftedFlights, buildingVolumes, connectorAccess, exteriorStair, patchOccupancy);
                     if (exteriorCollision.isPresent()) {
                         var collision = exteriorCollision.get();
                         AssemblyCompileDiagnostics.set(new CapabilityGap("E_CIRCULATION_EXTERIOR_CONFLICT",
                                 "楼梯占用或净空覆盖已有外墙：" + collision.position().toShortString()
-                                        + " (" + collision.role() + ")", "components[]",
+                                        + " (" + collision.role() + "; " + collision.attribution() + ")", "components[]",
                                 List.of("Move the stair flight and its clearance inside the host building; use an existing doorway for exterior access.")));
                         return patchOccupancy;
                     }

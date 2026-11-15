@@ -9,19 +9,47 @@ import com.formacraft.common.patch.BlockPatchTargetResolver;
 import com.formacraft.server.assembly.AssemblyCirculationConstraints.Flight;
 import net.minecraft.util.math.BlockPos;
 import java.util.*;
+import java.util.Locale;
 
 /** Checks circulation writes against the shell already emitted, in plan coordinates. */
 final class ExteriorCirculationValidator {
-    record Collision(BlockPos position, String role) {}
+    /**
+     * @param ownerComponentId prior writer {@code component_id}, when occupancy is known
+     * @param ownerComponentType prior writer component type
+     * @param ownerHostId prior writer {@code host_id}
+     * @param writerType occupancy ledger writer type
+     * @param targetBlock resolved prior block id
+     * @param denyReason short machine-readable cause (e.g. unauthorized_solid)
+     */
+    record Collision(BlockPos position, String role, String ownerComponentId, String ownerComponentType,
+                     String ownerHostId, String writerType, String targetBlock, String denyReason) {
+        Collision(BlockPos position, String role) {
+            this(position, role, null, null, null, null, null, "unauthorized_solid");
+        }
+        String attribution() {
+            return "owner=" + Objects.toString(ownerComponentId, "?")
+                    + " type=" + Objects.toString(ownerComponentType, "?")
+                    + " host=" + Objects.toString(ownerHostId, "?")
+                    + " writer=" + Objects.toString(writerType, "?")
+                    + " block=" + Objects.toString(targetBlock, "?")
+                    + " reason=" + Objects.toString(denyReason, "?");
+        }
+    }
 
     static Optional<Collision> findCollision(List<BlockPatch> shell, List<Flight> flights,
                                              List<BuildingVolume> volumes) {
-        return findCollision(shell, flights, volumes, Set.of(), false);
+        return findCollision(shell, flights, volumes, Set.of(), false, null);
     }
 
     static Optional<Collision> findCollision(List<BlockPatch> shell, List<Flight> flights,
                                              List<BuildingVolume> volumes, Set<BlockPos> connectorAccess) {
-        return findCollision(shell, flights, volumes, connectorAccess, false);
+        return findCollision(shell, flights, volumes, connectorAccess, false, null);
+    }
+
+    static Optional<Collision> findCollision(List<BlockPatch> shell, List<Flight> flights,
+                                             List<BuildingVolume> volumes, Set<BlockPos> connectorAccess,
+                                             boolean rejectInteriorSolids) {
+        return findCollision(shell, flights, volumes, connectorAccess, rejectInteriorSolids, null);
     }
 
     /**
@@ -30,11 +58,15 @@ final class ExteriorCirculationValidator {
      *        Building volumes only gate interior-flight surface heuristics, not exterior obstacles.
      *        when false (interior stairs), keep surface-oriented checks so host floor openings
      *        can still be cut without treating every interior cell as an exterior wall.
+     * @param occupancy optional ledger used only for conflict attribution (never grants access)
      */
     static Optional<Collision> findCollision(List<BlockPatch> shell, List<Flight> flights,
                                              List<BuildingVolume> volumes, Set<BlockPos> connectorAccess,
-                                             boolean rejectInteriorSolids) {
-        if (flights.isEmpty() || volumes.isEmpty()) return Optional.empty();
+                                             boolean rejectInteriorSolids, PatchOccupancyIndex occupancy) {
+        // Empty volumes may skip interior surface heuristics, but exterior flights must still
+        // collide with solids already present in the shell / occupancy ledger.
+        if (flights.isEmpty()) return Optional.empty();
+        if (!rejectInteriorSolids && volumes.isEmpty()) return Optional.empty();
         var relevant = new LinkedHashMap<BlockPos, String>();
         for (var flight : flights) {
             for (var pos : flight.occupied()) relevant.put(pos, "tread/support");
@@ -64,9 +96,32 @@ final class ExteriorCirculationValidator {
             var patch = finalShell.get(p);
             if (patch == null) continue; // Authored doorway or other absent surface.
             var state = BlockPatchTargetResolver.resolve(patch);
-            if (state != null && !state.isAir()) return Optional.of(new Collision(p, entry.getValue()));
+            if (state == null || state.isAir()) continue;
+            return Optional.of(attribute(p, entry.getValue(), patch, occupancy));
         }
         return Optional.empty();
+    }
+
+    private static Collision attribute(BlockPos p, String role, BlockPatch patch, PatchOccupancyIndex occupancy) {
+        String block = patch == null ? null : patch.targetBlock();
+        String ownerId = null, ownerType = null, ownerHost = null, writer = null;
+        if (occupancy != null) {
+            var placed = occupancy.placeAt(p);
+            if (placed != null) {
+                writer = placed.writerType();
+                if (block == null) block = placed.targetBlock();
+                if (placed.owner() != null) {
+                    ownerType = placed.owner().componentType();
+                    if (placed.owner().params() != null) {
+                        Object id = placed.owner().params().get("component_id");
+                        Object host = placed.owner().params().get("host_id");
+                        ownerId = id == null ? null : String.valueOf(id);
+                        ownerHost = host == null ? null : String.valueOf(host);
+                    }
+                }
+            }
+        }
+        return new Collision(p, role, ownerId, ownerType, ownerHost, writer, block, "unauthorized_solid");
     }
 
     /** Only the last step/landing may open a connection into a corridor body. */
@@ -114,6 +169,8 @@ final class ExteriorCirculationValidator {
         }
         Object stairBuilding = stair.params().get("building_id");
         if (stairBuilding == null) stairBuilding = stair.params().get("host_id");
+        // Courtyard approach flights sometimes only author target_host_id.
+        if (stairBuilding == null) stairBuilding = stair.params().get("target_host_id");
         // Source doorway: stair_connection link, or spatial when the low landing sits on/next to
         // an authored ENTRANCE on the stair host (fixtures often omit stair_connection).
         BlockPos fromLanding = new BlockPos(
@@ -139,31 +196,49 @@ final class ExteriorCirculationValidator {
                     && fromLanding.getY() >= db.minY() + oy - 1 && fromLanding.getY() < db.maxY() + oy + 1;
             if (!linked && !spatial) continue;
             int doorClear = Math.max(clear, Math.max(1, db.maxY() - db.minY()));
-            // Source portal is the first approach row only — never walk mid-run into the host.
-            for (int side = -width / 2; side < width - width / 2; side++) {
-                for (int y = -1; y <= doorClear; y++) {
-                    var pos = new BlockPos(
-                            offset.getX() + rp.x() + number(from.get("x")) + (dz != 0 ? side : 0),
-                            offset.getY() + rp.y() + number(from.get("y")) + y,
-                            offset.getZ() + rp.z() + number(from.get("z")) + (dx != 0 ? side : 0));
-                    var previous = occupancy.placeAt(pos);
-                    if (previous == null || previous.owner() == null || previous.owner().params() == null) continue;
-                    boolean inPortalBand = pos.getX() >= db.minX() + ox - 1
-                            && pos.getX() < db.maxX() + ox + 1
-                            && pos.getZ() >= db.minZ() + oz - 1
-                            && pos.getZ() < db.maxZ() + oz + 1
-                            && pos.getY() >= db.minY() + oy - 1
-                            && pos.getY() < db.maxY() + oy + clear;
-                    boolean hostOwned = Objects.equals(doorHost, previous.owner().params().get("host_id"))
-                            || Objects.equals(doorHost, previous.owner().params().get("component_id"));
-                    if (!hostOwned || !inPortalBand) continue;
-                    if (y == -1 && "FOUNDATION".equals(previous.writerType())) {
-                        result.add(pos);
-                        continue;
-                    }
-                    if (isHostShellWriter(previous.writerType())
-                            || "ENTRANCE".equals(previous.writerType())) {
-                        result.add(pos);
+            // Source portal + the first few outbound steps: linked doors often occupy one cell
+            // of depth that the rising tread band immediately crosses.
+            int portalReach = linked ? Math.min(run, Math.max(2, landing + 1)) : 0;
+            for (int step = 0; step <= portalReach; step++) {
+                int stepY = number(from.get("y"))
+                        + (int) Math.round(rise * (Math.min(run, step) / (double) Math.max(1, run)));
+                for (int side = -width / 2; side < width - width / 2; side++) {
+                    for (int y = -1; y <= doorClear; y++) {
+                        var pos = new BlockPos(
+                                offset.getX() + rp.x() + number(from.get("x")) + dx * step + (dz != 0 ? side : 0),
+                                offset.getY() + rp.y() + stepY + y,
+                                offset.getZ() + rp.z() + number(from.get("z")) + dz * step + (dx != 0 ? side : 0));
+                        var previous = occupancy.placeAt(pos);
+                        if (previous == null || previous.owner() == null || previous.owner().params() == null) continue;
+                        boolean inPortalBand = pos.getX() >= db.minX() + ox - 1
+                                && pos.getX() < db.maxX() + ox + 1
+                                && pos.getZ() >= db.minZ() + oz - 1
+                                && pos.getZ() < db.maxZ() + oz + 1
+                                && pos.getY() >= db.minY() + oy - 1
+                                && pos.getY() < db.maxY() + oy + clear;
+                        // Linked flights may meet the door volume one step outside its AABB.
+                        boolean nearLinkedDoor = linked && step <= portalReach
+                                && pos.getX() >= db.minX() + ox - 1 - Math.abs(dx)
+                                && pos.getX() < db.maxX() + ox + 1 + Math.abs(dx)
+                                && pos.getZ() >= db.minZ() + oz - 1 - Math.abs(dz)
+                                && pos.getZ() < db.maxZ() + oz + 1 + Math.abs(dz)
+                                && pos.getY() >= db.minY() + oy - 1
+                                && pos.getY() < db.maxY() + oy + clear;
+                        boolean hostOwned = Objects.equals(doorHost, previous.owner().params().get("host_id"))
+                                || Objects.equals(doorHost, previous.owner().params().get("component_id"));
+                        if (!hostOwned || (!inPortalBand && !nearLinkedDoor)) continue;
+                        if (y == -1 && "FOUNDATION".equals(previous.writerType())) {
+                            result.add(pos);
+                            continue;
+                        }
+                        // Step 0 may open host shell at the doorway. Outbound steps only meet the
+                        // door volume itself — never mid-run foreign/host walls beyond the portal.
+                        if (step == 0 && (isHostShellWriter(previous.writerType())
+                                || "ENTRANCE".equals(previous.writerType()))) {
+                            result.add(pos);
+                        } else if (step > 0 && "ENTRANCE".equals(previous.writerType())) {
+                            result.add(pos);
+                        }
                     }
                 }
             }
@@ -177,18 +252,55 @@ final class ExteriorCirculationValidator {
                         offset.getY()+rp.y()+stepY+y,
                         offset.getZ()+rp.z()+number(from.get("z"))+dz*sample+(dx!=0?side:0));
                 var previous = occupancy.placeAt(pos);
-                if (previous == null || !"ROOF".equals(previous.writerType()) || previous.owner() == null
-                        || previous.owner().params() == null) continue;
-                Object hostId = previous.owner().params().get("host_id");
-                var host = components.stream().filter(c -> c.params()!=null && hostId!=null
-                        && hostId.equals(c.params().get("component_id"))).findFirst();
-                if (host.isEmpty()) continue;
-                var core = ComponentFootprintUtil.bounds(host.get());
-                var hostSlot = slots.get(host.get().slotId());
-                var ha = hostSlot == null ? null : hostSlot.anchor();
-                int hx=ha==null?0:ha.x(), hz=ha==null?0:ha.z();
-                if (core!=null && (pos.getX()<core.minX()+hx || pos.getX()>=core.maxX()+hx
-                        || pos.getZ()<core.minZ()+hz || pos.getZ()>=core.maxZ()+hz)) result.add(pos);
+                if (previous == null || previous.owner() == null || previous.owner().params() == null) continue;
+                if ("ROOF".equals(previous.writerType())) {
+                    Object hostId = previous.owner().params().get("host_id");
+                    var host = components.stream().filter(c -> c.params()!=null && hostId!=null
+                            && hostId.equals(c.params().get("component_id"))).findFirst();
+                    if (host.isEmpty()) continue;
+                    var core = ComponentFootprintUtil.bounds(host.get());
+                    var hostSlot = slots.get(host.get().slotId());
+                    var ha = hostSlot == null ? null : hostSlot.anchor();
+                    int hx=ha==null?0:ha.x(), hz=ha==null?0:ha.z();
+                    if (core!=null && (pos.getX()<core.minX()+hx || pos.getX()>=core.maxX()+hx
+                            || pos.getZ()<core.minZ()+hz || pos.getZ()>=core.maxZ()+hz)) result.add(pos);
+                    continue;
+                }
+                // Raised landings rest treads on host/target foundation pads and must clear
+                // headroom through pad overhang that sits in the flight envelope.
+                if ("FOUNDATION".equals(previous.writerType())) {
+                    Object foundationHost = previous.owner().params().get("host_id");
+                    boolean stairFoundation = Objects.equals(foundationHost, stairBuilding)
+                            || Objects.equals(foundationHost, sourceHost)
+                            || Objects.equals(foundationHost, stair.params().get("target_host_id"));
+                    if (stairFoundation) result.add(pos);
+                    continue;
+                }
+                // Compound wing decks / rails that drift into an exterior approach are optional
+                // surfaces (same policy as eaves outside a roof core). Same-host elevated terraces
+                // keep the flat-approach height==1 rule above — only foreign authored decks yield.
+                Object deckHost = previous.owner().params().get("host_id");
+                Object deckBuilding = previous.owner().params().get("building_id");
+                boolean authoredForeignDeck = (deckHost != null || deckBuilding != null)
+                        && (stairBuilding == null
+                            || (!Objects.equals(deckHost, stairBuilding)
+                                && !Objects.equals(deckBuilding, stairBuilding)
+                                && !Objects.equals(deckHost, stair.params().get("target_host_id"))
+                                && !Objects.equals(deckBuilding, stair.params().get("target_host_id"))));
+                if (authoredForeignDeck && Set.of("TERRACE", "BALCONY").contains(previous.writerType())) {
+                    result.add(pos);
+                    continue;
+                }
+                if (authoredForeignDeck && "MASS_SECONDARY".equals(previous.writerType())
+                        && com.formacraft.common.generation.component.util.PlateRoleCatalog.TERRACE_TOKENS
+                        .contains(String.valueOf(previous.owner().params().get("plate_role")))) {
+                    result.add(pos);
+                    continue;
+                }
+                if ("DECOR_DETAIL".equals(previous.writerType()) && looksRailingFeature(previous.owner())
+                        && authoredForeignDeck) {
+                    result.add(pos);
+                }
             }
         }
         // Destination doorway: foundation footing, portal cells, and a bounded landing
@@ -262,8 +374,14 @@ final class ExteriorCirculationValidator {
                     .contains(String.valueOf(connector.params().get("plate_role")))
                     || "gallery".equals(connector.params().get("plate_role"))
                     || Set.of("TERRACE","BALCONY").contains(connector.componentType());
-            boolean ownPlatform = platformRole && platformHost != null && (platformHost.equals(stairBuilding)
-                    || platformHost.equals(stair.params().get("target_host_id")));
+            boolean bridgeEndpoint = "plate".equals(connector.params().get("extrude_mode"))
+                    && com.formacraft.common.generation.component.util.HostedPlateOccupancy.isBridgePlate(connector.params())
+                    && stairBuilding != null
+                    && (stairBuilding.equals(connector.params().get("host_id"))
+                        || stairBuilding.equals(connector.params().get("target_host_id")));
+            boolean ownPlatform = (platformRole && platformHost != null && (platformHost.equals(stairBuilding)
+                    || platformHost.equals(stair.params().get("target_host_id"))))
+                    || bridgeEndpoint;
             if (!Set.of("MASS_SECONDARY","TERRACE","BALCONY").contains(connector.componentType()) && !enclosure) continue;
             if (enclosure) {
                 boolean joinsBuilding = false;
@@ -291,16 +409,29 @@ final class ExteriorCirculationValidator {
             Slot slot = slots.get(connector.slotId());
             var anchor = slot == null ? null : slot.anchor();
             int ox = anchor == null ? 0 : anchor.x(), oy = anchor == null ? 0 : anchor.y(), oz = anchor == null ? 0 : anchor.z();
-            for (int step = enclosure ? -clear : -1; step <= landing; step++) for (int side = -width/2; side < width-width/2; side++)
+            // Own decks often expand toward the approach (PlanIntentFidelityRepair). Sample the
+            // full flight run so mid-run clearance against the stair's own terrace is authorized;
+            // foreign partitions / PRIMITIVE eaves still require a different grant path.
+            int stepMin = enclosure ? -clear : (ownPlatform ? -Math.max(run, 1) : -1);
+            int stepMax = landing;
+            for (int step = stepMin; step <= stepMax; step++) for (int side = -width/2; side < width-width/2; side++)
                 for (int y = -1; y <= clear; y++) {
+                    // Follow the rising flight — low-end landings sit at `from` Y, not `to` Y.
+                    int fromSteps = step <= 0 ? Math.max(0, Math.min(run, run + step)) : run;
+                    int stepY = number(from.get("y"))
+                            + (int) Math.round(rise * (fromSteps / (double) Math.max(1, run)));
                     var pos = new BlockPos(offset.getX()+rp.x()+number(to.get("x"))+dx*step+(dz != 0 ? side : 0),
-                            offset.getY()+rp.y()+number(to.get("y"))+y,
+                            offset.getY()+rp.y()+stepY+y,
                             offset.getZ()+rp.z()+number(to.get("z"))+dz*step+(dx != 0 ? side : 0));
                     var previous = occupancy.placeAt(pos);
                     boolean railing = previous != null && "DECOR_DETAIL".equals(previous.writerType())
                             && previous.owner()!=null && previous.owner().params()!=null
-                            && "railing".equals(previous.owner().params().get("role"))
-                            && Objects.equals(connector.params().get("component_id"),previous.owner().params().get("attachment_host_id"));
+                            && ("railing".equals(previous.owner().params().get("role"))
+                                || looksRailingFeature(previous.owner()))
+                            && (Objects.equals(connector.params().get("component_id"),
+                                    previous.owner().params().get("attachment_host_id"))
+                                || Objects.equals(connector.params().get("component_id"),
+                                    previous.owner().params().get("host_id")));
                     if (ownPlatform && railing && pos.getX()>=bounds.minX()+ox-1 && pos.getX()<=bounds.maxX()+ox
                             && pos.getZ()>=bounds.minZ()+oz-1 && pos.getZ()<=bounds.maxZ()+oz
                             && pos.getY()>=bounds.minY()+oy && pos.getY()<bounds.maxY()+oy+clear) result.add(pos);
@@ -312,14 +443,22 @@ final class ExteriorCirculationValidator {
                     boolean onOwnHost = ownPlatform && previous.owner().params() != null
                             && (platformHost.equals(previous.owner().params().get("component_id"))
                                 || platformHost.equals(previous.owner().params().get("host_id")));
+                    boolean sameConnector = previous.owner() == connector
+                            || (previous.owner().params() != null && connector.params() != null
+                                && Objects.equals(connector.params().get("component_id"),
+                                        previous.owner().params().get("component_id")));
                     boolean hostedOnConnector = previous.owner().params() != null
                             && java.util.Objects.equals(connector.params().get("component_id"),
                                     previous.owner().params().get("host_id"));
-                    // Own-platform terminal may meet the plate itself, attachments hosted on it,
-                    // and the host shell — not arbitrary host-scoped PRIMITIVE eaves/obstacles.
-                    if ((inConnector && (previous.owner() == connector || hostedOnConnector
-                            || (onOwnHost && isHostShellWriter(previous.writerType()))))
-                            || (onOwnHost && !inConnector && isHostShellWriter(previous.writerType()))) {
+                    boolean nearTerminal = step >= -1 && step <= landing;
+                    // Full-run sample authorizes the stair's own deck / hosted attachments.
+                    // Host shell (door/facade) stays terminal-only so mid-run approach walls
+                    // are not blanketed — PRIMITIVE eaves still need a separate grant.
+                    if (inConnector && (sameConnector || hostedOnConnector
+                            || (onOwnHost && isHostShellWriter(previous.writerType())))) {
+                        result.add(pos);
+                    } else if (nearTerminal && onOwnHost && !inConnector
+                            && isHostShellWriter(previous.writerType())) {
                         result.add(pos);
                     }
                 }
@@ -403,5 +542,32 @@ final class ExteriorCirculationValidator {
                 "FOUNDATION", "ROOF", "ROOF_STRUCTURE",
                 "FACADE_WINDOWS", "FACADE", "FACADE_OPENING", "WINDOW", "WINDOWS"
         ).contains(writerType);
+    }
+
+    private static boolean looksRailingFeature(Component component) {
+        if (component == null) return false;
+        if (component.features() != null) {
+            for (String feature : component.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase(Locale.ROOT);
+                if (lower.contains("railing") || lower.contains("fence") || lower.contains("guard")) {
+                    return true;
+                }
+            }
+        }
+        if (component.params() != null) {
+            Object role = component.params().get("role");
+            if (role != null && String.valueOf(role).toLowerCase(Locale.ROOT).contains("rail")) {
+                return true;
+            }
+            Object id = component.params().get("component_id");
+            if (id != null) {
+                String lower = String.valueOf(id).toLowerCase(Locale.ROOT);
+                if (lower.contains("railing") || lower.contains("rail") || lower.contains("fence")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

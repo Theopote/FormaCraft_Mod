@@ -75,4 +75,39 @@ class StructureComponentGeneratorTest {
                 .generate(new SemanticComponent("STRUCTURE", null, c));
         assertTrue(patches.isEmpty(), "native truss_tower must defer to typology interpreter");
     }
+
+    @Test
+    void parametricTrussStaysInsideDeclaredDimensions() {
+        Component c = new Component(
+                "STRUCTURE", "frame", new Vec3i(0, 0, 0),
+                new Dimensions(2, 2, 2),
+                List.of(),
+                Map.of(
+                        "component_id", "tiny_truss",
+                        "structure_type", "truss",
+                        "anchor_mode", "min_corner",
+                        "material", "minecraft:iron_block"));
+        List<BlockPatch> patches = new StructureComponentGenerator()
+                .generate(new SemanticComponent("STRUCTURE", null, c));
+        assertFalse(patches.isEmpty());
+        assertTrue(patches.stream().allMatch(p ->
+                        p.dx() >= 0 && p.dx() < 2
+                                && p.dy() >= 0 && p.dy() < 2
+                                && p.dz() >= 0 && p.dz() < 2),
+                "truss must not inflate past declared Dimensions");
+    }
+
+    @Test
+    void explicitUnsupportedStructureTypeIgnoresFeatures() {
+        Component c = new Component(
+                "STRUCTURE", "bad", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 8),
+                List.of("colonnade"),
+                Map.of(
+                        "component_id", "bad_explicit",
+                        "structure_type", "unsupported_structure"));
+        List<BlockPatch> patches = new StructureComponentGenerator()
+                .generate(new SemanticComponent("STRUCTURE", null, c));
+        assertTrue(patches.isEmpty(), "explicit unsupported structure_type must not fall through to features");
+    }
 }
