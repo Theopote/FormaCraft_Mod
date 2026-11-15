@@ -236,7 +236,7 @@ final class ComponentSatelliteAligner {
                 new Dimensions(dims.width(), dims.depth(), Math.max(1, top - bottom)), chimney.features(), params);
     }
 
-    private static boolean isDormer(Component component) {
+    static boolean isDormer(Component component) {
         if (component == null) return false;
         String type = ComponentPlanTypes.normalizeType(component.componentType());
         if (!ComponentPlanTypes.isMassType(type) && !"MASS_ANCILLARY".equals(type)) return false;

@@ -53,16 +53,18 @@ final class ComponentEmitPass {
         ordered.sort(java.util.Comparator.comparingInt(ComponentPlanCompiler::compilationPriority));
         var surfaceLedger = new SurfaceOwnershipLedger();
         var patchOccupancy = new PatchOccupancyIndex();
-        for (Component c : ordered) {
-            if (c == null) continue;
-            String normalizedType = ComponentPlanTypes.normalizeType(c.componentType());
-            if (ComponentPlanTypes.isRoofType(normalizedType) && com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(c)) continue;
+        var dormerSupport = new RoofHostedDormerSupport();
+        for (Component authored : ordered) {
+            if (authored == null) continue;
+            String normalizedType = ComponentPlanTypes.normalizeType(authored.componentType());
+            if (ComponentPlanTypes.isRoofType(normalizedType) && com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(authored)) continue;
 
-            Slot slot = slotMap.get(c.slotId());
+            Slot slot = slotMap.get(authored.slotId());
             if (slot == null) {
                 slot = ComponentPlanCompiler.defaultSlot(plan);
-                FormacraftMod.LOGGER.debug("ComponentPlanCompiler: component {} has no slot, using default slot", c.componentType());
+                FormacraftMod.LOGGER.debug("ComponentPlanCompiler: component {} has no slot, using default slot", authored.componentType());
             }
+            Component c = dormerSupport.extendToRoof(authored, slot.anchor());
             String slotKey = ComponentPlanTypes.slotKey(c);
 
             String styleProfile = plan.styleProfile();
@@ -563,6 +565,7 @@ final class ComponentEmitPass {
                             protectedMaterials.add(position);
                         else protectedMaterials.remove(position);
                     }
+                    dormerSupport.record(c, shiftedPatches);
                     surfaceLedger.accept(c, shiftedPatches, surfaceCells, flightOffset);
                 } else {
                     FormacraftMod.LOGGER.warn(
@@ -966,6 +969,9 @@ final class ComponentEmitPass {
         if (com.formacraft.server.generation.component.impl.StraightStairComponentGenerator.accepts(c)
                 || com.formacraft.server.generation.component.impl.AssemblyPatchGenerator.hasCirculation(c)) return 7;
         String type = ComponentPlanTypes.normalizeType(c.componentType());
+        // Hosted dormer masses need the emitted roof skin before resolving their wall bottom.
+        if (ComponentSatelliteAligner.isDormer(c)
+                && ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId") != null) return 3;
         if ("MASS_SECONDARY".equals(type) && c.params() != null
                 && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) return 1;
         if (ComponentPlanTypes.isMassType(type) || "TOWER".equals(type) || "MASS_ANCILLARY".equals(type)) return 0;
@@ -1042,6 +1048,11 @@ final class ComponentEmitPass {
         // AABB (often inflated by total_height) must not erase a child-hosted flat roof.
         // Same-host TOWER volumes still occlude so turrets can punch the deck.
         return components.stream().filter(c -> {
+                    // The dormer is emitted after this skin and needs it as its support surface.
+                    String roofId = ComponentPlanTypes.getParamString(roof.params(), "component_id");
+                    if (ComponentSatelliteAligner.isDormer(c) && roofId != null
+                            && roofId.equals(ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId"))
+                            && ComponentPlanTypes.slotKey(roof).equals(ComponentPlanTypes.slotKey(c))) return false;
                     if (!com.formacraft.common.generation.component.util.MassComponentKinds.isCirculationMass(c)) {
                         return false;
                     }
