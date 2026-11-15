@@ -56,6 +56,10 @@ LlmPlan 构件类型别名、features 表示归一和未转义请求字符串修
 
 规划输出的选区尺寸、相对边界和构件位置裁剪归 `services/planning_selection_bounds.py`。选区端点为闭区间世界坐标，裁剪位置相对计划锚点；普通选区优先于笔刷选区。服务端编译与落地校验仍须执行，不以这些后端裁剪 helper 替代权威校验。
 
+构件尺寸默认值、主体尺寸继承、数值及参数别名容错归 `services/llm_plan_dimensions.py`。这里保留当前后端修复策略，不能把默认尺寸视为 Java 生成器能力契约；调整尺寸行为仍需核对服务端消费者与建筑验收。
+
+布局 slot、骨架类型别名和对称性容错归 `services/llm_plan_layout_normalization.py`。这层保留现有回退，不承担骨架执行或类型注册；新增类型仍需同步协议与服务端消费者。
+
 验证细节和下一轮检查顺序见 [测试与建筑验收](TESTING_AND_BUILDING_ACCEPTANCE.md)。
 
 当前产品阶段（Golden Path 稳定化）见 [Phase 1 审计](phase1/GOLDEN_PATH_AUDIT.md) 与 [游戏内验收矩阵](phase1/INGAME_ACCEPTANCE_MATRIX.md)；离线 CI 不能代替矩阵填写。
