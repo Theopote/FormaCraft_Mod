@@ -23,8 +23,18 @@ from .legacy_spec_genome import _ensure_genome_for_spec, _ensure_genome_for_comp
 from .legacy_spec_normalization import _normalize_building_spec_dict, _normalize_composite_spec_dict
 from .semantic_plan_prompts import build_semantic_plan_prompts, append_semantic_plan_context
 from .semantic_plan_adapters import attach_semantic_plan_to_first_structure, fill_city_semantic_roles
-from .planning_request_hints import _derive_structured_intent
-from .llm_plan_wire_normalization import _repair_component_request_strings
+# Compatibility re-exports: callers/tests still patch/import these via ai_planner.
+from .planning_request_hints import (
+    _derive_structured_intent,
+    _infer_scale,
+    _infer_terrain,
+    _parse_levels_from_text,
+)
+from .llm_plan_wire_normalization import (
+    _normalize_component_type,
+    _normalize_features,
+    _repair_component_request_strings,
+)
 from .llm_client import get_client, build_config, resolve_provider
 # Compatibility alias: existing callers and test patches keep the same facade.
 from .inference_call import (
