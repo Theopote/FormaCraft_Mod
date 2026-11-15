@@ -18,7 +18,28 @@ support 默认开启，在每列踏面下方一格放支撑；它不延伸至地
 
 活跃 SkeletonBuildPipeline 的 SemanticBlockStateResolver 使用完整状态序列化，保留 half、shape、waterlogged、axis 等属性。SemanticPaletteResolver 将 STAIR_STEP 的水平 facing 应用到楼梯材质，缺少规则时使用石砖楼梯；非楼梯材质或竖直朝向明确拒绝。
 
-旧装配器 `StairAssembler` 只有注册、没有主流程调用，生产调用者为 0，已于 2026-11-15 **已删除**（连同整个 `server/skeleton/gen/assembler/` 子系统，见 `docs/refactoring/ARCHITECTURE_AUDIT.md` LEGACY-035）。它此前修复过的显式非零 offset 高程保留、direction 传递和 steps 预算等行为因此不再有任何现行实现承载。
+旧装配器 `StairAssembler` 只有注册、没有主流程调用，生产调用者为 0，已于 2026-11-15 **已删除**（连同整个 `server/skeleton/gen/assembler/` 子系统，见 `docs/refactoring/ARCHITECTURE_AUDIT.md` LEGACY-035）。
+
+### 已删除 StairAssembler 的逐条行为比对（2026-11-15）
+
+删除前把 `StairAssembler` 最后一次修改（`860fccb7`）的最终版本与现行实现逐条对照，结论如下。**三条历史修复均未被移植**，因为现行路径在设计上就不走那套语义：
+
+| 历史行为 | StairAssembler 当时的做法 | 现行实现 | 结论 |
+| --- | --- | --- | --- |
+| **非零 offset 高程保留** | `explicit = offsetX/Y/Z 任一非零`；显式时 `start = ctx.origin.add(offsetX, offsetY, offsetZ)`，**保留 origin 相对 Y**；零 offset 时才落到 `ctx.getSurfaceY()` 地表高度 | `StraightStairComponentGenerator` 一律用 `origin = new BlockPos(rp.x(), rp.y(), rp.z())`（构件的 `relativePosition`），再由 `AssemblyCirculationOps.applyStairSystem` 以 `origin + 局部 x/y/z` 落块 | **已覆盖（换机制）**：现行路径**总是**保留构件声明的相对 Y，没有"零 offset 就吸附地表"的分叉。原行为里"零 offset 吸附地表"这一支在现行体系中**不再存在**——现行楼梯必须由构件给出显式 from/to 端点，没有隐式地表入口 |
+| **direction 传递** | 从 `params.direction` 解析 `Direction`，**拒绝竖直方向**（`!dir.getAxis().isHorizontal()` 即返回空），并把该方向作为 `SemanticPlacementOp.of(pos, dir, STAIR_STEP)` 的 facing 下传 | 方向**不再作为独立参数**，而是由 from/to 端点差**推导**：`dx != 0 ? (dx>0?EAST:WEST) : (dz>=0?SOUTH:NORTH)`，随后写入楼梯方块的 `HORIZONTAL_FACING` | **已覆盖（换机制）**：竖直方向仍然被拒绝，但拒绝点从"解析参数时"移到了 `flightError`（`dx != 0 && dz != 0` 判对角、`abs(dy) > run` 判过陡）。**注意陷阱**：现行链路**不再支持 `direction` 参数**——`AssemblyComponentEmitter` 的 `STAIR_SYSTEM` 分支不拷贝它，`AssemblyComponentSchemaRegistry` 的参数白名单里也没有它。若 LLM 仍输出 `direction`，它会被**静默忽略**（不报错、也不影响方向），实际方向只由 from/to 决定 |
+| **steps 预算** | `steps <= 0 \|\| steps > ctx.maxOps \|\| steps > 4096` 即拒绝 | `steps` 参数在现行体系中**不存在**（它是 `AssemblyStructuralOps` 的曲线采样参数，与楼梯无关）。现行楼梯的等价预算是：`flightError` 限制水平 run ≤ 4096；`applyStairSystem` 限制 `abs(dy) <= run`；预计操作数 `> 100_000` 拒绝 | **已覆盖（换机制）**：从"按步数计数"改为"按端点几何 + 预计操作数"三重限额。语义等价（防止超预算生成）但触发条件不同 |
+
+**注意 `steps` 在现行体系里是另一个含义**：它仍作为参数存在，但只用于 `AssemblyStructuralOps` 的曲线采样（`samples`/`steps` 二选一），与楼梯无关；`AssemblySpecValidator` 对它的约束是 `requireIntMin(..., "samples", 2)`。看到 `steps` 不要以为在控制楼梯级数。
+
+**仍然缺失、且确实是能力缺口的两项**（不属于上述三条修复，但由 `StairAssembler` 曾经提供）：
+
+1. **地形相交拒绝**。`StairAssembler` 在零 offset 分支会逐级检查 `ctx.getSurfaceY(pos.x, pos.z) > pos.y`，一旦踏面低于地表就整段拒绝。现行 `AssemblyCirculationOps.applyStairSystem` **从不读取世界高度**——它虽然接收 `MetaAssemblyEngine.Context`（该 record 确实带 `ServerWorld world` 字段），但方法体内没有任何一处调用 `ctx.world().getTopY(...)` 之类的地形查询；并且 `StraightStairComponentGenerator` 调用它时传的 `ctx` 是 **`null`**。因此不会发现"楼梯埋进山坡"。
+   - `GenerationContext.getSurfaceY` 仍然存在且可用，但只服务 `LinearPathLayout` 与 `BasePathGenerator`（道路/路径），与楼梯无关。
+   - 换到 assembly 体系后，地形贴合由 `BareStairFitCompiler` 在**构件层面**处理（把已声明端点的梯段平移到宿主 MASS_MAIN 的可行区间内），而不是在生成时按地形拒绝。
+2. **隐式入口解析**。`StairAssembler` 通过 `SkeletonHelper.getStairStart(ctx, skeleton)` 取"默认取骨架入口位置"（`getGatePosition(ctx, skeleton, "auto")`）。该 helper 连同整个 `assembler/` 包已删除，且现行体系**没有**"楼梯自动接到骨架入口"的概念——`StraightStairComponentGenerator` 在缺少 from/to 时直接抛错（"Straight stairs require explicit from/to endpoints"），只有带 `stair:straight_single_run` + `ascends_from_` 特征的历史兼容分支才会合成端点。
+
+**结论**：`StairAssembler` 的三条历史修复在现行体系中**均有等价覆盖**，无需移植；真正未被承载的是**地形相交拒绝**与**隐式入口解析**这两项能力。前者已由 `BareStairFitCompiler` 在构件层部分补位（平移而非拒绝），后者是现行设计的有意选择（楼梯必须显式声明端点）。两者都不应通过复活 `StairAssembler` 来解决。
 
 现行的楼梯生成路径是 **assembly 元操作**而非骨架装配器：`AssemblyComponentEmitter` 把 `STRUCTURE`/`STAIRS_SYSTEM`/`STAIRCASE` 归一为 `STAIR_SYSTEM`，`MetaAssemblyEngine` 调用 `AssemblyCirculationOps.applyStairSystem` 落块，`AssemblyCirculationConstraints` 捕获真实世界坐标并做通行校验。层间楼梯目前**没有**接入 Skeleton 主流程：不解析 from/to 楼层端点，不自动连接平台或打开楼板。
 

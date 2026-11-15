@@ -4,7 +4,6 @@ import com.formacraft.client.ui.UiTheme;
 import com.formacraft.client.tool.ComponentTool;
 import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureAiExplanation;
-import com.formacraft.client.ui.panel.capture.ComponentCaptureCategoryOrder;
 import com.formacraft.client.ui.panel.capture.ComponentCapturePhaseHeaders;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureAnchorSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthCoordinator;
@@ -25,7 +24,6 @@ import com.formacraft.client.ui.widget.HudTextInput;
 import com.formacraft.common.component.ComponentDefinition;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.client.network.FormaCraftClientNetworking;
-import com.formacraft.common.network.FormaCraftNetworking;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
@@ -552,9 +550,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
                 .build();
         
         // Phase 3: 语义配置按钮
-        advancedOptionsButton = ButtonWidget.builder(Text.literal("▶ 高级选项"), b -> {
-                    advancedOptionsExpanded = !advancedOptionsExpanded;
-                })
+        advancedOptionsButton = ButtonWidget.builder(Text.literal("▶ 高级选项"), b -> advancedOptionsExpanded = !advancedOptionsExpanded)
                 .dimensions(0, 0, 0, BUTTON_HEIGHT)
                 .tooltip(Tooltip.of(Text.literal("展开附着、方向性与语义标注等高级选项")))
                 .build();
@@ -1067,18 +1063,14 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
      */
     private boolean isPhaseComplete(CapturePhase phase) {
         var st = ComponentTool.INSTANCE.getState();
-        switch (phase) {
-            case SELECTION:
-                return selectionController.hasValidSelection(client);
-            case ANCHOR_ORIENTATION:
-                return st.captureDraft.anchor.worldPos != null;
-            case SEMANTIC:
-                return com.formacraft.client.tool.ComponentCaptureTypes.ready(st) && st.name != null && !st.name.isBlank();
-            case AI_GUARANTEE:
-                return true;
-            default:
-                return false;
-        }
+        return switch (phase) {
+            case SELECTION -> selectionController.hasValidSelection(client);
+            case ANCHOR_ORIENTATION -> st.captureDraft.anchor.worldPos != null;
+            case SEMANTIC ->
+                    com.formacraft.client.tool.ComponentCaptureTypes.ready(st) && st.name != null && !st.name.isBlank();
+            case AI_GUARANTEE -> true;
+            default -> false;
+        };
     }
 
     private void cycleFacing() {
