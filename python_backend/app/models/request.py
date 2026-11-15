@@ -1,5 +1,8 @@
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel
+
+
+PlanOutputFormat = Literal["llmplan", "buildingspec", "auto"]
 
 
 class ReferenceInput(BaseModel):
@@ -123,8 +126,8 @@ class BuildRequest(BaseModel):
     # 可选：输出格式（"llmplan" | "buildingspec" | "auto"）
     # - "llmplan": 强制使用 LlmPlan 格式
     # - "buildingspec": 强制使用 BuildingSpec 格式
-    # - "auto": 自动决定（默认，基于 promptMode 和 requestText）
-    outputFormat: Optional[str] = None
+    # - "auto" / 未设置：统一走 LlmPlan；旧 spec 路径必须显式选择 buildingspec
+    outputFormat: Optional[PlanOutputFormat] = "llmplan"
     # 可选：玩家原始输入（不含系统拼接）
     userMessage: Optional[str] = None
     # Explicit prompt parts (preferred). When set, backend must NOT split requestText on

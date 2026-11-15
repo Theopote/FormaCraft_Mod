@@ -40,7 +40,7 @@ def _tagged(obj, kind: str) -> dict:
 async def build_endpoint(request: Request) -> dict:
     """
     接收来自 Minecraft 服务器的 BuildRequest，
-    调用 AI 生成 BuildingSpec，并返回。
+    默认调用 LlmPlan 主干；显式 buildingspec 请求保留兼容路径。
 
     支持多种请求格式：
     1. 标准的 BuildRequest（推荐）
@@ -69,12 +69,12 @@ async def build_endpoint(request: Request) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate building spec: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate plan: {str(e)}")
 
 
 def _generate_response(build_req: BuildRequest) -> dict:
     """Dispatch and encode entirely on the planning worker; preserve response contracts."""
-    # 检查应该生成什么类型的结构（优先级：outputFormat > 城市 > 复合 > 单个）
+    # 旧 spec 路径只接受显式 outputFormat=buildingspec。
     try:
         # 1. 如果明确指定了 outputFormat，使用指定的格式
         if build_req.outputFormat == "llmplan":
@@ -83,28 +83,18 @@ def _generate_response(build_req: BuildRequest) -> dict:
                 return clar
             return _tagged(generate_llm_plan(build_req), "llmplan")
         elif build_req.outputFormat == "buildingspec":
-            # 跳过城市和复合结构检查，直接生成 BuildingSpec
+            # 显式旧格式请求保留城市/复合/单体分流。
             if _should_generate_city(build_req):
                 return _tagged(generate_city_spec(build_req), "city")
             if _should_generate_composite(build_req):
                 return _tagged(generate_composite_spec(build_req), "composite")
             return _tagged(generate_building_spec(build_req), "buildingspec")
 
-        # 2. outputFormat 为 "auto" 或未设置：BUILD 模式默认走 LlmPlan（与 Java ChatPanel 一致）
-        if build_req.promptMode == "BUILD":
-            clar = _maybe_clarify(build_req)
-            if clar:
-                return clar
-            return _tagged(generate_llm_plan(build_req), "llmplan")
-
-        # 2.1 非 BUILD 模式：检查是否需要生成城市或复合结构
-        if _should_generate_city(build_req):
-            return _tagged(generate_city_spec(build_req), "city")
-        if _should_generate_composite(build_req):
-            return _tagged(generate_composite_spec(build_req), "composite")
-
-        # 2.2 默认生成 BuildingSpec（地标 / 复合 / 城市等非 BUILD 模式）
-        return _tagged(generate_building_spec(build_req), "buildingspec")
+        # Implicit/auto requests use the canonical pipeline in every prompt mode.
+        clar = _maybe_clarify(build_req)
+        if clar:
+            return clar
+        return _tagged(generate_llm_plan(build_req), "llmplan")
     except LlmPlanValidationError as e:
         # Should be rare: generate_llm_plan degrades to profile fallback / capability_gap.
         raise HTTPException(status_code=502, detail="; ".join(e.errors))

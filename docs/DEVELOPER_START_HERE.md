@@ -96,3 +96,7 @@ LlmPlan 输出规范化主流程位于 `services/llm_plan_normalization.py`，�
 现有语义空间规划阶段的提示词由 `services/semantic_plan_prompts.py` 构造；城市/复合兼容入口使用该阶段，不能把它扩展为第二条默认生成主干。
 
 BuildingSpec、CitySpec、CompositeSpec 兼容入口的系统提示词统一在 `services/building_spec_prompts.py`，不得作为新生成能力入口。
+
+退出 BuildingSpec 的第一步：`/build` 未指定格式或选择 `auto` 时，各 promptMode 统一走 LlmPlan，不再按城市/村庄关键词隐式进入旧 spec 路径。只有显式 `outputFormat="buildingspec"` 保留旧城市/复合/单体分流。旧消费者迁移时删除该显式选择；不得在 LlmPlan 失败时恢复 spec 回退。
+
+后端 BuildRequest 与 FormaRequestAdapter 默认 outputFormat 为 llmplan；合法取值为 llmplan、auto、buildingspec（兼容），显式 null 仍走默认主干。未知字符串按无效请求处理。

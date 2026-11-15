@@ -6,7 +6,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from .request import (
-    BuildRequest, PlayerInfo, WorldContext, Selection, Vec3i,
+    BuildRequest, PlayerInfo, WorldContext, Selection, Vec3i, PlanOutputFormat,
     OutlineShape, ProtectedZone, PathConstraint, ReferenceInput,
 )
 
@@ -34,7 +34,7 @@ class FormaRequestAdapter(BaseModel):
     sessionId: Optional[str] = None
     chatHistory: Optional[list[str]] = None
     promptMode: Optional[str] = None
-    outputFormat: Optional[str] = None
+    outputFormat: Optional[PlanOutputFormat] = "llmplan"
     userMessage: Optional[str] = None
 
     # Java 端可选的 LLM 覆盖配置（由客户端设置面板传入）

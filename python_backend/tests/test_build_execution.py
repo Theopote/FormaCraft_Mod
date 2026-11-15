@@ -140,9 +140,9 @@ def test_disconnected_request_does_not_start_work():
     ("buildingspec", "BUILD", False, False, "buildingspec"),
     ("buildingspec", "BUILD", True, True, "city"),
     ("buildingspec", "BUILD", False, True, "composite"),
-    ("auto", "EDIT", True, False, "city"),
-    ("auto", "EDIT", False, True, "composite"),
-    ("auto", "EDIT", False, False, "buildingspec"),
+    ("auto", "EDIT", True, False, "llmplan"),
+    ("auto", "EDIT", False, True, "llmplan"),
+    ("auto", "EDIT", False, False, "llmplan"),
 ])
 def test_dispatch_contracts(monkeypatch, output_format, mode, city, composite, kind):
     from types import SimpleNamespace

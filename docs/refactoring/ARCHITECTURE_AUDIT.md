@@ -134,6 +134,10 @@ LlmPlan 输出规范化主流程与最小角锚点识别迁至 llm_plan_normaliz
 
 三个 spec 兼容入口的 SemanticSpatialPlan JSON 提示词拼接收敛至 semantic_plan_prompts.append_semantic_plan_context。保留 by_alias、中文字符、换行及 BuildingSpec 专属布局提示；无计划或序列化失败保留原提示词。回归覆盖文本、别名与失败行为。
 
+BuildingSpec 退出迁移第一步已实施：/build 隐式/auto 请求在所有 promptMode 下统一走 LlmPlan，删除非 BUILD 模式按关键词默认进入 city/composite/buildingspec 的分支。显式 buildingspec 保留原分流供现存消费者迁移。新增格式×模式×文本回归并更新旧路由期望；游戏端验收仍待执行。
+
+旧格式生产调用核查：当前仓库 Java 发送入口与评估脚本显式选择 llmplan，未发现显式发送 buildingspec 的生产请求；旧格式消费者/解析器仍保留。BuildRequest 与 FormaRequestAdapter 共享 PlanOutputFormat 取值并默认 llmplan，保留显式 null/auto/buildingspec；未知格式不再静默进入默认路径，按请求校验失败处理。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。
