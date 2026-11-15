@@ -9,10 +9,10 @@ from ..services.ai_editor import edit_city_spec, edit_building_spec
 router = APIRouter()
 
 
-@router.post("/edit/city")
+@router.post("/edit/city", deprecated=True)
 async def edit_city_endpoint(req: CityEditRequest) -> Dict[str, Any]:
     """
-    增量编辑城市规格
+    兼容旧 CitySpec 的整份规格编辑；新增编辑走 /build 的 LlmPlan patch。
     
     接收当前 CitySpec 和编辑指令，返回更新后的 CitySpec
     """
@@ -40,10 +40,10 @@ async def edit_city_endpoint(req: CityEditRequest) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Failed to edit city: {str(e)}")
 
 
-@router.post("/edit/building")
+@router.post("/edit/building", deprecated=True)
 async def edit_building_endpoint(req: BuildingEditRequest) -> Dict[str, Any]:
     """
-    增量编辑建筑规格
+    兼容旧 BuildingSpec 的整份规格编辑；新增编辑走 /build 的 LlmPlan patch。
     
     接收当前 BuildingSpec 和编辑指令，返回更新后的 BuildingSpec
     """

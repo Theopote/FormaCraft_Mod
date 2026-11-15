@@ -148,6 +148,8 @@ BuildingSpecRoutingPolicy 最后调用已退出：删除服务端按明清院落
 
 OrchestratorClient 在 HTTP /build 响应解析后校验请求格式：非显式 buildingspec 请求收到 BuildingSpec/CompositeSpec/CitySpec 时拒绝，不再仅凭后端 kind 进入旧生成路径。LlmPlan/澄清响应及显式旧格式保持兼容。新增三类旧响应×默认/auto/llmplan 的拒绝回归。
 
+旧整栋编辑分流收窄为 isPatch && requestsLegacyBuildingSpec，未知格式不再被反向归类为旧编辑。/edit/city 与 /edit/building 因仍有命令和显式兼容调用者而保留，OpenAPI 标记 deprecated，说明新编辑统一走 /build LlmPlan patch。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

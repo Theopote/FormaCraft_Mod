@@ -95,19 +95,15 @@ public final class BuildRequestProcessor {
                     context.server().execute(() -> ServerPlayNetworking.send(player,
                             new FormaCraftNetworking.ResponseBuildStatusPayload("服务端已收到请求，正在请求后端…")));
 
-                    // 路由完全交给后端：BUILD 模式返回 LlmPlan；城市/复合/单体由后端按 outputFormat/promptMode 决定，
+                    // 默认/auto 请求统一走 LlmPlan；只有显式 buildingspec 保留旧分流，
                     // 响应中的 kind 判别字段经 AiPlanResult 分发（不再在客户端/服务端靠关键词猜类型）。
 
                     {
                         // 增量编辑：Chat 默认 outputFormat=llmplan 时走 requestAiPlan（期望 LlmPlan mode=patch），
-                        // 避免误入 editBuilding 整栋重建。仅 buildingspec 等遗留格式才 editBuilding。
+                        // 避免误入 editBuilding 整栋重建。只有显式 buildingspec 才走 editBuilding。
                         String mode = req.getPromptMode();
                         boolean isPatch = mode != null && !mode.isBlank() && !"BUILD".equalsIgnoreCase(mode.trim());
-                        String outputFormat = req.getOutputFormat() == null ? "" : req.getOutputFormat().trim();
-                        boolean preferLlmPlanPatch = outputFormat.isEmpty()
-                                || "llmplan".equalsIgnoreCase(outputFormat)
-                                || "auto".equalsIgnoreCase(outputFormat);
-                        if (isPatch && !preferLlmPlanPatch) {
+                        if (isPatch && req.requestsLegacyBuildingSpec()) {
                             String buildingId = com.formacraft.server.state.PlayerSpecRepository.getBuildingId(player);
                             String currentJson = com.formacraft.server.state.PlayerSpecRepository.getBuildingJson(player);
                             if (buildingId == null || currentJson == null) {

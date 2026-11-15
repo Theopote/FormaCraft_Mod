@@ -9,7 +9,7 @@ class FormaRequestOutputFormatTest {
         FormaRequest req = new FormaRequest();
         assertEquals("llmplan", req.getOutputFormat());
         assertFalse(req.requestsLegacyBuildingSpec());
-        for (String format : new String[]{null, "auto", "llmplan"}) {
+        for (String format : new String[]{null, "auto", "llmplan", "", "unknown", "building_spec"}) {
             req.setOutputFormat(format);
             assertFalse(req.requestsLegacyBuildingSpec());
         }
