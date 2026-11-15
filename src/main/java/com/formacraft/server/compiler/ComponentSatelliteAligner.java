@@ -136,6 +136,8 @@ final class ComponentSatelliteAligner {
                         ? ExteriorStairEndpointRepair.preserveDoor(c) : alignEntranceToMass(c, mass, plan, facing);
                 case "CROWN", "CUPOLA", "DOME" -> alignCrownToMass(c, mass, plan, components);
                 case "FOUNDATION", "TERRACE", "BASE" -> alignFoundationToMass(c, mass);
+                case "PAVING" -> hostId != null && isVisiblePlinth(c, c.params())
+                        ? alignFoundationToMass(c, mass) : c;
                 case "DECOR_DETAIL", "DECOR", "ORNAMENT", "CHIMNEY", "SIGNAGE" -> alignHostedDetail(c, mass);
                 default -> ComponentPlanTypes.isRoofType(type) ? alignRoofToMass(c, mass, plan) : c;
             };
