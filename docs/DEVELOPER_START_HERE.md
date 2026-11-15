@@ -16,7 +16,7 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 
 | 要改什么 | 从哪里开始 |
 |---|---|
-| 玩家请求、后端结果分流 | `client/ui`、`server/network/BuildRequestProcessor.java`、`server/orchestrator/OrchestratorClient.java` |
+| 玩家请求、后端结果分流 | `client/ui`、`server/network/BuildRequestProcessor.java`、`server/network/compat/*`（显式 buildingspec）、`server/orchestrator/OrchestratorClient.java` |
 | 意图、AI 规划、修复与回退 | `python_backend/app/routes/build.py`、`app/services/ai_planner.py`、`prompt_assembly.py`、`llm_plan_system_prompt.py` |
 | 跨语言计划协议 | `python_backend/app/models/llm_plan.py`、`common/llm/dto`；模型、解析器和消费者一起核查 |
 | 构件编译 | `server/compiler/ComponentPlanCompiler.java`、`server/compiler/PlanProgramCompiler.java` |

@@ -19,7 +19,7 @@
 | 路径 | 触发 | 关键类 | 角色 |
 |------|------|--------|------|
 | **A. LlmPlan（默认）** | `/build` 默认或 `outputFormat=llmplan` → `AiPlanResult.LlmPlan` | `BuildRequestProcessor` → `LlmPlanPreviewBuilder` → `ComponentPlanCompiler` / `PlanProgramCompiler` | CANONICAL |
-| **B. BuildingSpec / City / Composite** | **仅**显式 `outputFormat=buildingspec`（及对应 kind） | `previewBuildingSpec` / Composite / City → `GenerationHub.routeStructure` | ACTIVE_COMPAT |
+| **B. BuildingSpec / City / Composite** | **仅**显式 `outputFormat=buildingspec`（及对应 kind） | `LegacySpecPreviewHandler` → `GenerationHub.routeStructure` | ACTIVE_COMPAT |
 | **C. Patch 增量** | `LlmPlan.mode=patch` | `LlmPlanPreviewBuilder` → `PatchPreviewService`（blocks）或增量 components | 属主干 A |
 
 **禁止**将 A/B 写成日常二选一。LlmPlan 预览失败**不再**回退假 BuildingSpec；失败记 `preview_unhandled_no_structure_fallback`（审计 LEGACY-014 已 MIGRATED）。
@@ -55,7 +55,7 @@ flowchart TD
 | # | 阶段 | 类 / 文件 |
 |---|------|-----------|
 | 1 | 客户端发 C2S 建造请求 | `FormaCraftClientNetworking` |
-| 2 | 服务端处理 | `server/network/BuildRequestProcessor.java` |
+| 2 | 服务端处理 | `server/network/BuildRequestProcessor.java`；显式旧格式 → `server/network/compat/LegacySpecPreviewHandler` / `LegacyBuildingEditHandler` |
 | 3 | 调用 Python 编排器 | `OrchestratorClient` → `python_backend/app/routes/build.py` |
 | 4 | 是否跳过 LlmPlan（仅 `outputFormat=buildingspec`） | `common/model/request/FormaRequest.java` 的 `requestsLegacyBuildingSpec()` |
 | 5 | Patch 模式分流 | `BlockPatchBridge` → `PatchPreviewService` |

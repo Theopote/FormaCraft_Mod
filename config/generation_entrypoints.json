@@ -11,9 +11,21 @@
     {
       "id": "server_build_processor",
       "class": "com.formacraft.server.network.BuildRequestProcessor",
-      "role": "AiPlanResult dispatch",
-      "methods": ["register", "previewBuildingSpec"],
-      "source_contains": ["requestAiPlan", "preview_unhandled_no_structure_fallback"]
+      "role": "AiPlanResult dispatch (canonical LlmPlan)",
+      "methods": ["register"],
+      "source_contains": ["requestAiPlan", "preview_unhandled_no_structure_fallback", "LegacySpecPreviewHandler"]
+    },
+    {
+      "id": "legacy_spec_preview",
+      "class": "com.formacraft.server.network.compat.LegacySpecPreviewHandler",
+      "role": "ACTIVE_COMPAT BuildingSpec/City/Composite preview",
+      "methods": ["tryHandle", "previewBuildingSpec"]
+    },
+    {
+      "id": "legacy_building_edit",
+      "class": "com.formacraft.server.network.compat.LegacyBuildingEditHandler",
+      "role": "ACTIVE_COMPAT explicit buildingspec chat edit",
+      "methods": ["tryStart"]
     },
     {
       "id": "llm_plan_preview",

@@ -73,8 +73,11 @@ async def build_endpoint(request: Request) -> dict:
 
 
 def _generate_response(build_req: BuildRequest) -> dict:
-    """Dispatch and encode entirely on the planning worker; preserve response contracts."""
-    # 旧 spec 路径只接受显式 outputFormat=buildingspec。
+    """Dispatch and encode entirely on the planning worker; preserve response contracts.
+
+    Canonical: ``generate_llm_plan``. ACTIVE_COMPAT: ``generate_*_spec`` only when
+    ``outputFormat=buildingspec`` — do not add new default routes here.
+    """
     try:
         # 1. 如果明确指定了 outputFormat，使用指定的格式
         if build_req.outputFormat == "llmplan":

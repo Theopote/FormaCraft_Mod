@@ -1,6 +1,9 @@
 """
-AI Planner Service
-LlmPlan 主干规划；BuildingSpec / city / composite 仅保留兼容入口
+AI Planner Service — canonical orchestration for LlmPlan.
+
+ACTIVE_COMPAT only (explicit ``outputFormat=buildingspec`` via ``routes/build.py``):
+``generate_building_spec`` / ``generate_city_spec`` / ``generate_composite_spec``.
+Do not add new default planning entrypoints here; extend ``generate_llm_plan`` instead.
 """
 import os
 import json
@@ -153,9 +156,7 @@ def generate_semantic_spatial_plan(req: BuildRequest) -> Optional[SemanticSpatia
 
 
 def generate_city_spec(req: BuildRequest) -> CitySpec:
-    """
-    兼容入口：调用模型生成 CitySpec；新增生成能力走 LlmPlan。
-    """
+    """ACTIVE_COMPAT：仅显式 buildingspec 城市分流调用；新能力走 ``generate_llm_plan``。"""
     client = get_client(req)
 
     if not client:
@@ -206,7 +207,7 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
         raise RuntimeError(f"LLM call failed for city spec: {e}") from e
 
 
-def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
+def generate_composite_spec(req: BuildRequest) -> CompositeSpec:  # ACTIVE_COMPAT: explicit buildingspec only
     """
     兼容入口：调用模型生成 CompositeSpec；新增生成能力走 LlmPlan。
     """
@@ -758,9 +759,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
 
 
 def generate_building_spec(req: BuildRequest) -> BuildingSpec:
-    """
-    兼容入口：BuildRequest -> BuildingSpec；新增生成能力走 LlmPlan。
-    """
+    """ACTIVE_COMPAT：仅显式 ``outputFormat=buildingspec`` 单体分流；新能力走 ``generate_llm_plan``。"""
     # -----------------------------
     # Archetype / Landmark v1
     # -----------------------------

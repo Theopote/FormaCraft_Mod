@@ -14,20 +14,25 @@ import net.minecraft.util.math.BlockPos;
 import java.util.List;
 
 /**
- * 生成系统统一入口（Phase 3）。
+ * 生成系统统一执行门面。
  * <p>
- * 三种粒度，三个子系统，一个门面：
+ * 三种粒度，一个门面（规划协议仍以 LlmPlan 为默认）：
  * <ul>
- *   <li>整栋建筑：{@link #routeStructure(BuildingSpec)} → {@code GeneratorRouter}</li>
+ *   <li>整栋<strong>执行器</strong>：{@link #routeStructure(BuildingSpec)} → {@code GeneratorRouter}
+ *       （显式 buildingspec / CityBuilder / landmark MODULE adaptor；非独立规划主干）</li>
  *   <li>LLM 构件：{@link #generateComponent(SemanticComponent, ServerWorld)} → {@link UnifiedGeneratorRouter}</li>
  *   <li>骨架：{@link #buildSkeleton(ServerWorld, BlockPos, ExecutableSkeletonPlan, String)} → {@link SkeletonExecutors}</li>
  * </ul>
+ * 禁止把 StructureGenerator 合并为上帝类；能力与参数注入保持显式。
  */
 public final class GenerationHub {
 
     private GenerationHub() {}
 
-    /** BuildingSpec 整栋路由（BuildRequestProcessor / CityBuilder / commands）。 */
+    /**
+     * BuildingSpec → StructureGenerator 执行器路由。
+     * 调用方：compat 预览、CityBuilder、landmark adaptor、蓝图加载。
+     */
     public static StructureGenerator routeStructure(BuildingSpec spec) {
         return StructureGeneratorFactory.getGenerator(spec);
     }
