@@ -13,6 +13,36 @@ import static org.junit.jupiter.api.Assertions.*;
 class OrchestratorClientParseTest {
 
     @Test
+    void canonicalRequestsRejectAllLegacyResponseKinds() {
+        var req = new com.formacraft.common.model.request.FormaRequest();
+        for (String format : new String[]{null, "auto", "llmplan"}) {
+            req.setOutputFormat(format);
+            for (AiPlanResult result : new AiPlanResult[]{new AiPlanResult.BuildingSpec(null),
+                    new AiPlanResult.CompositeSpec(null), new AiPlanResult.CitySpec(null)}) {
+                assertThrows(IllegalArgumentException.class,
+                        () -> OrchestratorClient.validateResponseForRequest(req, result));
+            }
+        }
+    }
+
+    @Test
+    void explicitLegacyRequestsKeepExistingResponses() {
+        var req = new com.formacraft.common.model.request.FormaRequest();
+        req.setOutputFormat("buildingspec");
+        for (AiPlanResult result : new AiPlanResult[]{new AiPlanResult.BuildingSpec(null),
+                new AiPlanResult.CompositeSpec(null), new AiPlanResult.CitySpec(null)}) {
+            assertSame(result, OrchestratorClient.validateResponseForRequest(req, result));
+        }
+    }
+
+    @Test
+    void canonicalPlanAndClarificationRemainAccepted() {
+        for (AiPlanResult result : new AiPlanResult[]{new AiPlanResult.LlmPlan(null), new AiPlanResult.Clarification(null)}) {
+            assertSame(result, OrchestratorClient.validateResponseForRequest(null, result));
+        }
+    }
+
+    @Test
     void rejectsMissingAndUnknownDiscriminators() {
         assertThrows(RuntimeException.class, () -> OrchestratorClient.parseAiPlanResponse("{\"type\":\"HOUSE\"}"));
         assertThrows(RuntimeException.class, () -> OrchestratorClient.parseAiPlanResponse("{\"kind\":\"unknown\"}"));

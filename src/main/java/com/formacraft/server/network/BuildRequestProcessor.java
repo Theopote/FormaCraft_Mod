@@ -4,7 +4,6 @@ import com.formacraft.FormacraftMod;
 import com.formacraft.common.network.OrchestratorErrorHumanizer;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.logging.FcaLog;
-import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
 import com.formacraft.common.model.build.BuildingSpec;
@@ -284,7 +283,6 @@ public final class BuildRequestProcessor {
                                                             gateTicket);
                                                 }
                                                 case AiPlanResult.BuildingSpec(var spec) -> {
-                                                    BuildingSpecRoutingPolicy.applySpecDefaults(spec, req);
                                                     LlmPlanRoutingMetrics.recordDirectStructurePreview((player == null ? null : player.getName().getString()), req);
                                                     previewBuildingSpec(player, req, spec, origin, serverWorld, hbAlive);
                                                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildSpecPayload(spec));

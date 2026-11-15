@@ -33,7 +33,7 @@ flowchart TD
   Req --> Py[Python /build generate_llm_plan]
   Py --> Plan[LlmPlan JSON]
   Plan --> BRP[BuildRequestProcessor]
-  BRP --> Route{BuildingSpecRoutingPolicy}
+  BRP --> Route{显式旧格式 / 响应 kind}
   Route -->|skip| BS[BuildingSpec 路径]
   Route -->|continue| Preview[LlmPlanPreviewBuilder]
   Preview --> Compile{编译分支}
@@ -56,7 +56,7 @@ flowchart TD
 | 1 | 客户端发 C2S 建造请求 | `FormaCraftClientNetworking` |
 | 2 | 服务端处理 | `server/network/BuildRequestProcessor.java` |
 | 3 | 调用 Python 编排器 | `OrchestratorClient` → `python_backend/app/routes/build.py` |
-| 4 | 是否跳过 LlmPlan（仅 `outputFormat=buildingspec`） | `common/generation/routing/BuildingSpecRoutingPolicy.java` |
+| 4 | 是否跳过 LlmPlan（仅 `outputFormat=buildingspec`） | `common/model/request/FormaRequest.java` 的 `requestsLegacyBuildingSpec()` |
 | 5 | Patch 模式分流 | `BlockPatchBridge` → `PatchPreviewService` |
 
 ### 阶段 2 — 编译为 BlockPatch
@@ -246,3 +246,5 @@ SkeletonBuildPipeline 在基础语义生成之后，通过带 maxOps 的 Geometr
 ## 第二十三批全计划预算与镜像
 
 PlanProgram 合并全部骨架时限制累计 200,000 条 patch，包括重复位置与 remove；超限进入整体失败协议。通用几何对称分支改为从源语义生成镜像副本并反射朝向，显式目标优先，镜像点复查约束。主骨架路径仍未传入对称处理器；剩余预算下传和完整方块状态镜像仍待实现。见 [骨架几何契约](SKELETON_GEOMETRY_CONTRACT.md)。
+
+服务端响应边界：OrchestratorClient 对默认/auto/llmplan 请求拒绝旧 spec 响应，报告协议不匹配，不回退到旧生成器。仅显式 buildingspec 请求允许旧单体/复合/城市响应；澄清响应继续有效。

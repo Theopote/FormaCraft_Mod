@@ -144,6 +144,10 @@ Java BuildingSpecRoutingPolicy 已删除无生产调用者的 shouldUseComposite
 
 Java FormaRequest 默认 outputFormat 改为 llmplan，并提供 requestsLegacyBuildingSpec 显式兼容判断；预览主干改用 DTO 判断，删除 BuildingSpecRoutingPolicy.shouldSkipLlmPlanPreview，预览器不再依赖旧策略类。保留 null/auto 主干行为及旧格式大小写/空白兼容。
 
+BuildingSpecRoutingPolicy 最后调用已退出：删除服务端按明清院落关键词补写 extra.template 的隐式模板路由，并删除整个旧策略类及专属测试。显式 extra.template 未改动，继续由既有生成消费者处理。生成入口清单与活文档同步删除旧类定位。
+
+OrchestratorClient 在 HTTP /build 响应解析后校验请求格式：非显式 buildingspec 请求收到 BuildingSpec/CompositeSpec/CitySpec 时拒绝，不再仅凭后端 kind 进入旧生成路径。LlmPlan/澄清响应及显式旧格式保持兼容。新增三类旧响应×默认/auto/llmplan 的拒绝回归。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

@@ -267,7 +267,7 @@ public class OrchestratorClient {
                             String body = resp.body();
                             FormacraftMod.LOGGER.info("Received response from orchestrator: {}", body);
                             try {
-                                return parseAiPlanResponse(body);
+                                return validateResponseForRequest(req, parseAiPlanResponse(body));
                             } catch (Exception e) {
                                 FormacraftMod.LOGGER.error("Failed to parse response from orchestrator", e);
                                 throw new RuntimeException("Failed to parse response", e);
@@ -323,6 +323,17 @@ public class OrchestratorClient {
      * 按后端显式返回的 {@code kind} 判别字段分发（不再靠 body.contains(...) 的脆弱字符串启发式）。
      * 后端 /build 必须在响应中输出 {@code "kind": "llmplan|city|composite|buildingspec|clarification"}。
      */
+    static AiPlanResult validateResponseForRequest(FormaRequest req, AiPlanResult result) {
+        boolean legacyResult = result instanceof AiPlanResult.BuildingSpec
+                || result instanceof AiPlanResult.CompositeSpec
+                || result instanceof AiPlanResult.CitySpec;
+        if (legacyResult && (req == null || !req.requestsLegacyBuildingSpec())) {
+            throw new IllegalArgumentException(
+                    "Orchestrator protocol mismatch: LlmPlan request received a legacy spec response");
+        }
+        return result;
+    }
+
     static AiPlanResult parseAiPlanResponse(String body) {
         if (body == null || body.isBlank()) {
             throw new RuntimeException("Orchestrator returned empty body");

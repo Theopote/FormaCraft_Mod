@@ -1,3 +1,5 @@
+> 2026-11-15 退出迁移更新：BuildingSpecRoutingPolicy 已删除；请求默认统一 LlmPlan，旧格式仅显式 opt-in。服务端不再按明清院落关键词注入 extra.template。下文旧策略类和阶段完成项仅记录历史，当前入口以 GENERATION_PIPELINE 与架构审计为准。
+
 # LlmPlan vs BuildingSpec 迁移进度追踪
 
 > **维护说明**：本文档追踪「构件层（LlmPlan）」与「整栋层（BuildingSpec）」的覆盖关系，**不是**「新系统替代旧系统」的删除清单。  

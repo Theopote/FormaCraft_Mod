@@ -51,11 +51,6 @@
       "id": "orchestrator_client",
       "class": "com.formacraft.server.orchestrator.OrchestratorClient",
       "role": "Python /build client"
-    },
-    {
-      "id": "building_spec_routing_policy",
-      "class": "com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy",
-      "role": "LlmPlan vs BuildingSpec policy"
     }
   ],
   "python": [

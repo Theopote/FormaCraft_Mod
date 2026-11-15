@@ -55,7 +55,7 @@ flowchart TD
 |--------|-----------------|-----------|
 | [prompt_assembly.py](../../python_backend/app/services/prompt_assembly.py) | `resolve_llm_plan_prompts` assembles the system and user prompts from structured request fields | Python owns prompt assembly for LlmPlan |
 | [build.py](../../python_backend/app/routes/build.py) | llmplan vs buildingspec | Primary discriminator (`outputFormat`) |
-| [BuildingSpecRoutingPolicy.java](../../src/main/java/com/formacraft/common/generation/routing/BuildingSpecRoutingPolicy.java) | Client-side skip LlmPlan | Adapter-only scenarios |
+| `FormaRequest.requestsLegacyBuildingSpec()` | Explicit legacy-format opt-in | Adapter-only scenarios |
 | [GeneratorRouter.java](../../src/main/java/com/formacraft/server/generation/structure/router/GeneratorRouter.java) | Structure generator | `routeDecision()` — catalog / explicit routes only; never silent house/tower |
 | [UnifiedGeneratorRouter.java](../../src/main/java/com/formacraft/server/generation/component/adaptor/UnifiedGeneratorRouter.java) | Component executor chain | `ComponentRouteResolver.resolve()` → early executors or `ComponentGenerationPipeline` driven by `ComponentPipelinePlan` steps |
 
