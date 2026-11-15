@@ -36,6 +36,7 @@ from typing import Any, Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 _SCHEMA = "formacraft.generation_capability.v1"
+_SUPPORTED_VERSION = 1
 _CATALOG: Optional[Dict[str, Any]] = None
 
 # ---------------------------------------------------------------------------
@@ -183,12 +184,24 @@ def _validate_catalog(data: Any) -> Optional[str]:
     schema = data.get("schema")
     if schema != _SCHEMA:
         return f"unexpected schema {schema!r} (expected {_SCHEMA!r})"
-    if not isinstance(data.get("version"), int):
-        return f"missing/invalid version {data.get('version')!r}"
+    version = data.get("version")
+    if not isinstance(version, int):
+        return f"missing/invalid version {version!r}"
+    if version != _SUPPORTED_VERSION:
+        return f"unsupported version {version} (expected {_SUPPORTED_VERSION})"
     for key in ("hostable_component_types", "hosted_component_types"):
         value = data.get(key)
         if not isinstance(value, list) or not value:
             return f"missing/invalid section {key!r}"
+    component_types = data.get("component_types")
+    if not isinstance(component_types, dict) or not component_types:
+        return "missing/invalid section 'component_types'"
+    typologies = data.get("typologies")
+    if not isinstance(typologies, list) or not typologies:
+        return "missing/invalid section 'typologies'"
+    building_classes = data.get("building_classes")
+    if not isinstance(building_classes, dict) or not building_classes:
+        return "missing/invalid section 'building_classes'"
     roof = data.get("roof")
     if not isinstance(roof, dict):
         return "missing/invalid section 'roof'"
@@ -249,11 +262,16 @@ def load_catalog(*, force: bool = False, allow_fallback: Optional[bool] = None) 
         errors,
     )
     _CATALOG_SOURCE = None
+    fallback_component_types = {
+        name: {"implementation_status": "supported"}
+        for name in sorted(_FALLBACK_HOSTABLE | _FALLBACK_HOSTED)
+    }
     _CATALOG = {
         "schema": _SCHEMA,
-        "version": 1,
+        "version": _SUPPORTED_VERSION,
         "hostable_component_types": sorted(_FALLBACK_HOSTABLE),
         "hosted_component_types": sorted(_FALLBACK_HOSTED),
+        "component_types": fallback_component_types,
         "roof": {
             "aliases": dict(_FALLBACK_ALIASES),
             "supported_tokens": list(_FALLBACK_ALIASES.values()) + [
@@ -311,6 +329,15 @@ def hosted_types() -> set[str]:
     if isinstance(raw, list) and raw:
         return {str(t).upper() for t in raw if t}
     return set(_FALLBACK_HOSTED)
+
+
+def listed_component_types() -> Tuple[str, ...]:
+    """Sorted component_type keys from the capability catalog (Stage P whitelist)."""
+    raw = load_catalog().get("component_types")
+    if isinstance(raw, dict) and raw:
+        return tuple(sorted({str(k).upper() for k in raw.keys() if k}))
+    # Degraded/incomplete catalogs: union of hostable + hosted tables.
+    return tuple(sorted(hostable_types() | hosted_types()))
 
 
 def normalize_roof_type(raw: Any) -> Optional[str]:

@@ -19,40 +19,20 @@ from .plan_specificity_guard import (
 )
 from .typology_registry import is_compositional_typology
 
-# 与 Java ComponentGeneratorRegistry / LlmPlan prompt 对齐的可注册构件类型
-REGISTERED_COMPONENT_TYPES: Tuple[str, ...] = (
-    "STRUCTURE",
-    "MASS_MAIN",
-    "MASS_SECONDARY",
-    "MASS_ANCILLARY",
-    "ROOF",
-    "FACADE_WINDOWS",
-    "ENTRANCE",
-    "TOWER",
-    "WALL",
-    "COURTYARD",
-    "COURTYARD_SPACE",
-    "PATH",
-    "ROAD",
-    "TERRACE",
-    "MODULE",
-    "GATE",
-    "KEEP",
-    "PLAZA",
-    "PLAZA_CORE",
-    "DECOR_DETAIL",
-    "FOUNDATION",
-    "BALCONY",
-    "CHIMNEY",
-    "TERRACE",
-)
+
+def registered_component_types() -> Tuple[str, ...]:
+    """Authoritative Stage P component_type list from the capability catalog."""
+    from .generation_capability import listed_component_types
+
+    return listed_component_types()
+
 
 PLAN_STAGE_SYSTEM_ADDON = (
     "PLAN STAGE (after Building Research):\n"
     "- Convert BuildingProfile to a valid LlmPlan JSON.\n"
     "- Routing is authoritative in OPEN-WORLD RESEARCH OVERRIDE (system) — do not follow conflicting landmark hints.\n"
     "- Copy profile.structure.distinguishing_features → plan.distinguishing_features[].\n"
-    "- Use ONLY registered component_type values listed in the user message.\n"
+    "- Use ONLY capability-catalog component_type values listed in the user message.\n"
     "- Respect scale_hints; set layout.skeleton_type from minecraft_strategy.\n"
     "- Do NOT output block ids; semantic components only.\n"
     "- global_constraints.symmetry MUST be one of: NONE, MIRROR_X, MIRROR_Z, RADIAL.\n"
@@ -66,6 +46,13 @@ PLAN_STAGE_SYSTEM_ADDON = (
     "- Mark exterior stair params.exterior=true and keep interior stairs and landings inside their host walls.\n"
     "- A typology STRUCTURE owns the whole building; do not put local window/door component_request features on it.\n"
 )
+
+
+def __getattr__(name: str):
+    # Lazy alias so importers still see REGISTERED_COMPONENT_TYPES without a second whitelist.
+    if name == "REGISTERED_COMPONENT_TYPES":
+        return registered_component_types()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def is_research_two_phase_enabled() -> bool:
@@ -159,6 +146,15 @@ def profile_routing_summary(profile: BuildingProfile) -> str:
     stid = (mc.structural_typology or "").strip()
     lm = (mc.landmark_module or "").strip()
     ref = (mc.reference_landmark or "").strip()
+    rec = ", ".join(str(c) for c in (mc.recommended_components or []) if c)
+    if not rec:
+        rec = "MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE"
+    if mc.model_designed_landmark:
+        sk = (mc.skeleton_type or "COMPOUND").strip() or "COMPOUND"
+        return (
+            f"Model-designed landmark; skeleton={sk}; landmark_module=null; "
+            f"no fixed typology executor; recommended_components=[{rec}]."
+        )
     if stid and not is_compositional_typology(stid):
         hint = f"STRUCTURE + typology:{stid}; landmark_module=null"
         if ref:
@@ -166,9 +162,6 @@ def profile_routing_summary(profile: BuildingProfile) -> str:
         return hint + "."
     if lm:
         return f"ONE MODULE with landmark:{lm}."
-    rec = ", ".join(str(c) for c in (mc.recommended_components or []) if c)
-    if not rec:
-        rec = "MASS_MAIN, ROOF, FACADE_WINDOWS, ENTRANCE"
     typology_hint = f" structural_typology={stid};" if stid else ""
     return f"Compositional plan;{typology_hint} landmark_module=null; recommended_components=[{rec}]."
 
@@ -291,9 +284,10 @@ def build_plan_stage_user_block(
         "",
     ])
     if include_registered_types:
+        types = registered_component_types()
         lines.append(
-            "Registered component_type values (ONLY these): "
-            + ", ".join(REGISTERED_COMPONENT_TYPES)
+            "Capability-catalog component_type values (ONLY these): "
+            + ", ".join(types)
         )
         lines.append("")
     lines.extend([

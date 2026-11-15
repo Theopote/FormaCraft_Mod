@@ -34,6 +34,22 @@ class PlanStagePromptTest(unittest.TestCase):
         self.assertIn("building or part scope", PLAN_STAGE_SYSTEM_ADDON)
         self.assertNotIn("profile wins for form/style", PLAN_STAGE_SYSTEM_ADDON)
 
+    def test_stage_p_component_types_come_from_capability_catalog(self):
+        from app.services.building_plan_stage import registered_component_types
+        from app.services.generation_capability import listed_component_types, load_catalog
+
+        catalog = load_catalog(force=True, allow_fallback=False)
+        catalog_keys = {str(k).upper() for k in (catalog.get("component_types") or {})}
+        listed = set(listed_component_types())
+        stage_p = set(registered_component_types())
+        self.assertEqual(listed, catalog_keys)
+        self.assertEqual(stage_p, catalog_keys)
+        # Former hard-coded list was incomplete; catalog must expose bridge/tower family.
+        for required in ("BRIDGE", "BRIDGE_CONNECTOR", "PAVING", "TOWER_BASE", "ROOF_STRUCTURE"):
+            self.assertIn(required, stage_p)
+        self.assertNotIn("MASS_ANCILLARY", stage_p)
+        self.assertNotIn("PLAZA_CORE", stage_p)
+
     def test_two_phase_default_on(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("BUILDING_RESEARCH_TWO_PHASE", None)
@@ -59,8 +75,14 @@ class PlanStagePromptTest(unittest.TestCase):
         self.assertIn("天坛", block)
         self.assertIn("OPEN-WORLD RESEARCH OVERRIDE", block)
         self.assertNotIn("vertical_pilasters", block)
-        self.assertIn("typology", block.lower())
+        self.assertIn("Model-designed landmark", block)
+        self.assertIn("no fixed typology executor", block)
+        self.assertIn("TERRACE", block)
+        self.assertIn("Capability-catalog component_type values", block)
+        self.assertIn("BRIDGE", block)  # catalog-backed whitelist, not the old short list
         self.assertIn("建造天坛", block)
+        self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
+        self.assertIsNone(profile.minecraft_strategy.structural_typology)
 
     def test_typology_stage_block_omits_classical_richness(self):
         from app.services.building_research_agent import finalize_profile_minecraft_strategy
@@ -74,9 +96,14 @@ class PlanStagePromptTest(unittest.TestCase):
             "生成金门大桥",
         )
         block = build_plan_stage_user_block(profile, "生成金门大桥")
-        self.assertIn("suspension_bridge", block)
+        # Bridge structural semantics retained; fixed suspension_bridge executor not rebound.
+        self.assertIn("BRIDGE", block)
+        self.assertIn("SPAN_SUSPENSION", block)
+        self.assertNotIn("typology:suspension_bridge", block)
         self.assertNotIn("vertical_pilasters", block)
         self.assertNotIn("DECOR_DETAIL cornice", block)
+        self.assertTrue(profile.minecraft_strategy.model_designed_landmark)
+        self.assertIn("BRIDGE", profile.minecraft_strategy.recommended_components)
 
     def test_profile_routing_summary_typology(self):
         from app.services.building_research_agent import finalize_profile_minecraft_strategy
@@ -90,8 +117,13 @@ class PlanStagePromptTest(unittest.TestCase):
             "盖一座天坛",
         )
         summary = profile_routing_summary(profile)
-        self.assertIn("typology:radial_terrace_hall", summary)
-        self.assertIn("temple_of_heaven", summary)
+        self.assertIn("Model-designed landmark", summary)
+        self.assertIn("no fixed typology executor", summary)
+        self.assertNotIn("typology:radial_terrace_hall", summary)
+        self.assertIsNone(profile.minecraft_strategy.structural_typology)
+        self.assertIsNone(profile.minecraft_strategy.landmark_module)
+        self.assertIn("TERRACE", profile.minecraft_strategy.recommended_components)
+        self.assertEqual(profile.minecraft_strategy.skeleton_type, "RADIAL_RING")
 
     def test_augment_strips_duplicate_research_block(self):
         profile = synthesize_profile_rule_based("苏州博物馆", "建造苏州博物馆", [])

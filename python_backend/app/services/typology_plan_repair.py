@@ -390,7 +390,11 @@ def _sanitize_landmark_modules(
         lm = getattr(mc, "landmark_module", None) if mc is not None else None
         expected_id = str(lm).strip().lower() if lm else None
     elif req is not None:
-        user_text = (req.userMessage or "").strip()
+        raw_msg = getattr(req, "userMessage", None)
+        user_text = raw_msg.strip() if isinstance(raw_msg, str) else ""
+        if not user_text:
+            raw_req = getattr(req, "requestText", None)
+            user_text = raw_req.strip() if isinstance(raw_req, str) else ""
         if user_text:
             from .building_research_agent import resolve_landmark_module_for_intent
 

@@ -8,8 +8,16 @@ from app.services.building_plan_stage import research_landmark_override_block
 from app.services.landmark_design_policy import reject_fixed_landmark_plan
 
 
-@pytest.mark.parametrize("name", ["Eiffel Tower", "天坛", "悉尼歌剧院"])
-def test_landmark_name_is_evidence_not_executor(name):
+@pytest.mark.parametrize(
+    "name,expected_components,skeleton",
+    [
+        ("Eiffel Tower", {"TOWER", "STRUCTURE"}, "VERTICAL_TAPER"),
+        ("天坛", {"MASS_MAIN", "TERRACE", "ROOF"}, "RADIAL_RING"),
+        ("悉尼歌剧院", {"MASS_MAIN", "ROOF", "ROOF_STRUCTURE"}, "CLUSTER"),
+        ("生成金门大桥", {"BRIDGE", "TOWER", "BRIDGE_CONNECTOR"}, "SPAN_SUSPENSION"),
+    ],
+)
+def test_landmark_name_is_evidence_not_executor(name, expected_components, skeleton):
     profile = finalize_profile_minecraft_strategy(BuildingProfile(query=name), name)
     strategy = profile.minecraft_strategy
     assert strategy.model_designed_landmark
@@ -17,6 +25,8 @@ def test_landmark_name_is_evidence_not_executor(name):
     assert strategy.structural_typology is None
     assert resolve_landmark_module_for_intent(name) is None
     assert "Design this landmark yourself" in research_landmark_override_block(profile)
+    assert strategy.skeleton_type == skeleton
+    assert expected_components <= set(strategy.recommended_components)
 
 
 def test_explicit_preset_compatibility():

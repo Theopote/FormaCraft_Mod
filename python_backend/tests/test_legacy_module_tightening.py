@@ -126,6 +126,7 @@ class LegacyModuleTighteningTest(unittest.TestCase):
         )
 
     def test_sanitize_strips_migrated_module_without_profile(self):
+        from app.models.request import BuildRequest, PlayerInfo, Vec3i, WorldContext
         from app.services.typology_plan_repair import _sanitize_landmark_modules
 
         plan = {
@@ -144,10 +145,41 @@ class LegacyModuleTighteningTest(unittest.TestCase):
                 },
             ]
         }
-        _sanitize_landmark_modules(plan, Mock(), None)
+        req = BuildRequest(
+            player=PlayerInfo(name="t", pos=Vec3i(x=0, y=64, z=0), facing="NORTH"),
+            world=WorldContext(dimension="overworld"),
+            requestText="盖一座天坛",
+            userMessage="盖一座天坛",
+        )
+        _sanitize_landmark_modules(plan, req, None)
         types = [c["component_type"] for c in plan["components"]]
         self.assertNotIn("MODULE", types)
         self.assertIn("STRUCTURE", types)
+
+    def test_sanitize_ignores_non_string_request_fields(self):
+        from app.services.typology_plan_repair import _sanitize_landmark_modules
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "MODULE",
+                    "features": ["landmark:temple_of_heaven"],
+                    "params": {"module_id": "temple_of_heaven"},
+                    "dimensions": {"width": 36, "depth": 36, "height": 34},
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 20, "depth": 20, "height": 10},
+                },
+            ]
+        }
+        # Boundary: non-string / Mock request fields must not raise TypeError.
+        _sanitize_landmark_modules(plan, Mock(), None)
+        types = [c["component_type"] for c in plan["components"]]
+        self.assertNotIn("MODULE", types)
+        self.assertIn("MASS_MAIN", types)
 
     def test_sanitize_does_not_inject_migrated_module(self):
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy

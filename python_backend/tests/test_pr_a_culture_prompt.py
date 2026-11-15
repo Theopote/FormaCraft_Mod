@@ -92,8 +92,12 @@ class PrACultureFewshotTest(unittest.TestCase):
         self.assertIsNone(mc.structural_typology)
         self.assertIsNone(mc.reference_landmark)
         self.assertTrue(mc.model_designed_landmark)
-        self.assertIn("MASS_MAIN", mc.recommended_components)
+        self.assertIn("BRIDGE", mc.recommended_components)
+        self.assertIn("TOWER", mc.recommended_components)
+        self.assertNotIn("ROOF", mc.recommended_components)
+        self.assertEqual(mc.skeleton_type, "SPAN_SUSPENSION")
         self.assertIn("AI-designed landmark", mc.notes or "")
+        self.assertIn("bridge", (mc.notes or "").lower())
 
     def test_golden_gate_research_override_preserves_model_choice(self):
         from app.services.building_plan_stage import research_landmark_override_block
@@ -109,7 +113,9 @@ class PrACultureFewshotTest(unittest.TestCase):
         )
         block = research_landmark_override_block(profile)
         self.assertIn("Design this landmark yourself", block)
-        self.assertNotIn("span_to_tower_height", block)
+        # Override clears fixed executors; bridge ratios live in strategy notes/components.
+        self.assertNotIn("typology:suspension_bridge", block)
+        self.assertIn("bridge", (profile.minecraft_strategy.notes or "").lower())
 
     def test_gothic_cathedral_typology_fewshot(self):
         from app.services.keyword_culture_retriever import retrieve
@@ -164,6 +170,8 @@ class PrAResearchPromptTest(unittest.TestCase):
         self.assertIsNone(mc.landmark_module)
         self.assertIsNone(mc.reference_landmark)
         self.assertIn("MASS_MAIN", mc.recommended_components)
+        self.assertIn("TERRACE", mc.recommended_components)
+        self.assertEqual(mc.skeleton_type, "RADIAL_RING")
 
     def test_format_profile_model_designed_landmark_text(self):
         profile = finalize_profile_minecraft_strategy(

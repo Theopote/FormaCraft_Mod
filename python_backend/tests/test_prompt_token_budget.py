@@ -6,7 +6,6 @@ import unittest
 
 from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
 from app.services.building_plan_stage import (
-    PLAN_STAGE_MARKER,
     plan_stage_system_augmentation,
     profile_routing_summary,
 )
@@ -38,14 +37,25 @@ class PromptTokenBudgetTest(unittest.TestCase):
         text = format_profile_for_prompt(profile, compact_routing=True)
         self.assertNotIn("famen_pagoda", text)
         self.assertNotIn("gothic_cathedral", text)
+        self.assertIn("Model-designed landmark", text)
         self.assertIn(profile_routing_summary(profile), text)
+        self.assertNotIn("typology:radial_terrace_hall", text)
+        self.assertNotIn("CRITICAL routing (typology-first)", text)
 
     def test_compact_profile_saves_tokens_vs_legacy(self):
+        """Model-designed prompts must not reintroduce legacy typology routing text."""
         profile = self._temple_profile()
         compact = format_profile_for_prompt(profile, compact_routing=True)
         legacy = format_profile_for_prompt(profile, compact_routing=False)
-        saved = len(legacy) - len(compact)
-        self.assertGreater(saved, 400, msg=f"saved only {saved} chars")
+        # Both modes share the model-designed contract; neither should resurrect
+        # the long typology-first / landmark-enumeration instructions.
+        self.assertEqual(compact, legacy)
+        # Heading + routing summary both mention model-designed; no third copy.
+        self.assertEqual(compact.count("Model-designed landmark"), 2)
+        self.assertEqual(compact.count("Routing summary:"), 1)
+        self.assertNotIn("CRITICAL routing (typology-first)", compact)
+        self.assertNotIn("AVAILABLE LANDMARK MODULES", compact)
+        self.assertNotIn("famen_pagoda", compact)
 
 
 if __name__ == "__main__":

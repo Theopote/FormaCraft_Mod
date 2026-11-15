@@ -96,6 +96,49 @@ class CapabilityDeploymentContractTest(_EnvGuard):
             with self.assertRaises(CapabilityCatalogUnavailable):
                 load_catalog(force=True)
 
+    def test_schema_correct_but_incomplete_catalog_is_rejected(self):
+        """Schema alone is not enough — planning-critical sections must be present."""
+        import tempfile
+
+        incomplete = {
+            "schema": "formacraft.generation_capability.v1",
+            "version": 1,
+            "hostable_component_types": ["MASS_MAIN"],
+            "hosted_component_types": ["ROOF"],
+            "roof": {"aliases": {}, "supported_tokens": ["gable"]},
+            # Missing component_types / typologies / building_classes
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "generation_capability_catalog.json"
+            bad.write_text(json.dumps(incomplete), encoding="utf-8")
+            os.environ["FORMACRAFT_CAPABILITY_MODE"] = "strict"
+            gc._catalog_paths = lambda: [bad]
+            with self.assertRaises(CapabilityCatalogUnavailable) as ctx:
+                load_catalog(force=True)
+            self.assertIn("component_types", str(ctx.exception))
+
+    def test_wrong_version_catalog_is_rejected(self):
+        import tempfile
+
+        wrong_version = {
+            "schema": "formacraft.generation_capability.v1",
+            "version": 99,
+            "hostable_component_types": ["MASS_MAIN"],
+            "hosted_component_types": ["ROOF"],
+            "component_types": {"MASS_MAIN": {}},
+            "typologies": ["radial_terrace_hall"],
+            "building_classes": {"generic": {}},
+            "roof": {"aliases": {}, "supported_tokens": ["gable"]},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "generation_capability_catalog.json"
+            bad.write_text(json.dumps(wrong_version), encoding="utf-8")
+            os.environ["FORMACRAFT_CAPABILITY_MODE"] = "strict"
+            gc._catalog_paths = lambda: [bad]
+            with self.assertRaises(CapabilityCatalogUnavailable) as ctx:
+                load_catalog(force=True)
+            self.assertIn("unsupported version", str(ctx.exception))
+
     def test_explicit_catalog_path_override_is_honoured(self):
         """Standalone deployments point at the exported file explicitly."""
         os.environ["FORMACRAFT_CAPABILITY_CATALOG"] = str(JAVA_CATALOG)
