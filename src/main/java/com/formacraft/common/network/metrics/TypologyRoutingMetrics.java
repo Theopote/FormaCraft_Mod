@@ -1,7 +1,6 @@
 package com.formacraft.common.network.metrics;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.model.request.FormaRequest;
@@ -91,7 +90,7 @@ public final class TypologyRoutingMetrics {
 
     public static void recordFromPlan(String player, FormaRequest req, LlmPlan plan) {
         if (plan == null || plan.components() == null) return;
-        String intent = BuildingSpecRoutingPolicy.userIntentText(req);
+        String intent = com.formacraft.common.model.request.RequestIntentText.resolve(req);
 
         boolean hasTypology = false;
         boolean hasModule = false;

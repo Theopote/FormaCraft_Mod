@@ -171,7 +171,7 @@ public final class IntentFidelityMetrics {
     ) {
         String requestId = currentRequestId();
         String userText = req == null ? "" : String.valueOf(
-                com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy.userIntentText(req));
+                com.formacraft.common.model.request.RequestIntentText.resolve(req));
         String intent = detectIntentLabel(plan, userText);
         String style = plan == null || plan.styleProfile() == null ? "" : plan.styleProfile();
         boolean morphologyFail = gap != null && isMorphologyFailure(gap.code());

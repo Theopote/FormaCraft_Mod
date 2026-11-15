@@ -140,6 +140,8 @@ BuildingSpec 退出迁移第一步已实施：/build 隐式/auto 请求在所有
 
 Java BuildingSpecRoutingPolicy 已删除无生产调用者的 shouldUseCompositeOrchestrator、forcesSingleBuildingSpec、注册地标 template 检测和复合关键词链，移除旧 force 标记常量及仅覆盖死入口的测试。保留当前使用的显式格式判断、意图提取、模板默认值；不再保留暗示可强制旧单体主干的死 API。
 
+主干用户意图提取从 BuildingSpecRoutingPolicy 迁至 common.model.request.RequestIntentText.resolve，编译器、预览、请求处理及三类路由指标同步改用公共请求工具。旧 intentText/userIntentText 包装删除；显式文本→最后一条聊天→requestText 的顺序与空值行为保持原实现。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

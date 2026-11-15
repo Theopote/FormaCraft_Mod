@@ -336,7 +336,7 @@ public final class LlmPlanPreviewBuilder {
                 ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(typWarn));
             } else {
                 String warn = com.formacraft.common.network.metrics.LandmarkRoutingMetrics.playerWarningZh(
-                        BuildingSpecRoutingPolicy.userIntentText(req), landmarkModule);
+                        com.formacraft.common.model.request.RequestIntentText.resolve(req), landmarkModule);
                 if (warn != null) {
                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload(warn));
                 }

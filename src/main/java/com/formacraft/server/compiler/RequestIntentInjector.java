@@ -1,7 +1,6 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.model.request.FormaRequest;
@@ -37,7 +36,7 @@ public final class RequestIntentInjector {
     private RequestIntentInjector() {}
 
     public static LlmPlan ensure(LlmPlan plan, FormaRequest req) {
-        return ensure(plan, BuildingSpecRoutingPolicy.userIntentText(req));
+        return ensure(plan, com.formacraft.common.model.request.RequestIntentText.resolve(req));
     }
 
     public static LlmPlan ensure(LlmPlan plan, String userText) {

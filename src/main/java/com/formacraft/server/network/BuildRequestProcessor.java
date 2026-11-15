@@ -68,7 +68,7 @@ public final class BuildRequestProcessor {
                     }
                     com.formacraft.server.config.ServerLlmConfig.apply(req, context.server().isDedicated());
                     FormacraftMod.LOGGER.info("Received build request from player {}: {}",
-                            player.getName().getString(), BuildingSpecRoutingPolicy.userIntentText(req));
+                            player.getName().getString(), com.formacraft.common.model.request.RequestIntentText.resolve(req));
 
                     // 补齐“世界上下文”字段：让 Python 侧可以稳定获取 biome/facing/origin，而不是只依赖 prompt 文本解析。
                     // 注意：客户端可能已填充这些字段；这里仅在缺失时兜底。

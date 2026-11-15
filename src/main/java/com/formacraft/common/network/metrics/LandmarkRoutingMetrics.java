@@ -4,7 +4,6 @@ import com.formacraft.FormacraftMod;
 import com.formacraft.common.archetype.LandmarkAliasMatcher;
 import com.formacraft.common.archetype.LandmarkModuleRegistry;
 import com.formacraft.common.archetype.LandmarkRoutingPolicy;
-import com.formacraft.common.generation.routing.BuildingSpecRoutingPolicy;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.model.request.FormaRequest;
@@ -34,7 +33,7 @@ public final class LandmarkRoutingMetrics {
      */
     public static void recordFromPlan(String player, FormaRequest req, LlmPlan plan) {
         if (plan == null || plan.components() == null) return;
-        String intent = BuildingSpecRoutingPolicy.userIntentText(req);
+        String intent = com.formacraft.common.model.request.RequestIntentText.resolve(req);
         String llmModule = extractLandmarkModuleId(plan.components());
         if (llmModule == null) return;
 
