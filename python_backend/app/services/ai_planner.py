@@ -21,7 +21,7 @@ from .legacy_spec_fallbacks import (
 )
 from .legacy_spec_genome import _ensure_genome_for_spec, _ensure_genome_for_composite_spec, _ensure_genome_for_city_spec
 from .legacy_spec_normalization import _normalize_building_spec_dict, _normalize_composite_spec_dict
-from .semantic_plan_prompts import build_semantic_plan_prompts
+from .semantic_plan_prompts import build_semantic_plan_prompts, append_semantic_plan_context
 from .semantic_plan_adapters import attach_semantic_plan_to_first_structure, fill_city_semantic_roles
 from .planning_request_hints import _derive_structured_intent
 from .llm_plan_wire_normalization import _repair_component_request_strings
@@ -158,12 +158,7 @@ def generate_city_spec(req: BuildRequest) -> CitySpec:
     system_prompt = build_city_system_prompt()
     
     user_prompt = _build_user_prompt(req)
-    if semantic_plan is not None:
-        try:
-            sp_json = json.dumps(semantic_plan.model_dump(by_alias=True), ensure_ascii=False)
-            user_prompt = user_prompt + "\n\nSemanticSpatialPlan(JSON):\n" + sp_json + "\n"
-        except Exception:
-            pass
+    user_prompt = append_semantic_plan_context(user_prompt, semantic_plan)
     
     try:
         model = _resolve_model(req, "gpt-4o-mini")
@@ -217,12 +212,7 @@ def generate_composite_spec(req: BuildRequest) -> CompositeSpec:
     system_prompt = build_composite_system_prompt()
     
     user_prompt = _build_user_prompt(req)
-    if semantic_plan is not None:
-        try:
-            sp_json = json.dumps(semantic_plan.model_dump(by_alias=True), ensure_ascii=False)
-            user_prompt = user_prompt + "\n\nSemanticSpatialPlan(JSON):\n" + sp_json + "\n"
-        except Exception:
-            pass
+    user_prompt = append_semantic_plan_context(user_prompt, semantic_plan)
     
     try:
         model = _resolve_model(req, "gpt-4o-mini")
@@ -815,14 +805,7 @@ def generate_building_spec(req: BuildRequest) -> BuildingSpec:
     user_prompt = _build_user_prompt(req)
     
     # If semantic plan was generated, add it to the prompt for better spatial organization
-    if semantic_plan is not None:
-        try:
-            import json
-            sp_json = json.dumps(semantic_plan.model_dump(by_alias=True), ensure_ascii=False)
-            user_prompt = user_prompt + "\n\nSemanticSpatialPlan(JSON):\n" + sp_json + "\n"
-            user_prompt = user_prompt + "\nNote: Use the SemanticSpatialPlan to inform zone layout, spatial relationships, and functional organization.\n"
-        except Exception:
-            pass
+    user_prompt = append_semantic_plan_context(user_prompt, semantic_plan, include_layout_note=True)
     
     try:
         # 使用 OpenAI Chat Completions API

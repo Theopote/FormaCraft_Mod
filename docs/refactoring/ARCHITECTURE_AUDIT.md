@@ -132,6 +132,8 @@ LlmPlan 输出规范化主流程与最小角锚点识别迁至 llm_plan_normaliz
 
 城市分区到 semanticRole 的确定性补全迁至 semantic_plan_adapters.fill_city_semantic_roles，规划器只调用；PUBLIC/PRIVATE/SERVICE/TRANSITION 映射、未知分区回退、显式角色优先及异常跳过保持原行为。新增各分区映射与未匹配/空角色/显式角色回归。
 
+三个 spec 兼容入口的 SemanticSpatialPlan JSON 提示词拼接收敛至 semantic_plan_prompts.append_semantic_plan_context。保留 by_alias、中文字符、换行及 BuildingSpec 专属布局提示；无计划或序列化失败保留原提示词。回归覆盖文本、别名与失败行为。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

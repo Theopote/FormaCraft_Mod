@@ -4,6 +4,25 @@ from unittest.mock import Mock
 from app.models.request import BuildRequest, Selection
 from app.services import ai_planner
 from app.services.semantic_plan_prompts import build_semantic_plan_prompts
+from app.services.semantic_plan_prompts import append_semantic_plan_context
+
+
+def test_semantic_context_aliases_unicode_and_optional_note():
+    import json
+    from app.models.semantic_spatial_plan import SemanticSpatialPlan
+
+    plan = SemanticSpatialPlan(relations=[{"from": "前院", "to": "正厅", "relation": "AXIAL"}])
+    expected = "original\n\nSemanticSpatialPlan(JSON):\n" + json.dumps(plan.model_dump(by_alias=True), ensure_ascii=False) + "\n"
+    assert append_semantic_plan_context("original", plan) == expected
+    assert append_semantic_plan_context("original", plan, include_layout_note=True) == expected + (
+        "\nNote: Use the SemanticSpatialPlan to inform zone layout, spatial relationships, and functional organization.\n")
+
+
+def test_absent_or_unserializable_plan_preserves_prompt():
+    assert append_semantic_plan_context("original", None) == "original"
+    broken = Mock()
+    broken.model_dump.side_effect = ValueError("bad plan")
+    assert append_semantic_plan_context("original", broken, include_layout_note=True) == "original"
 
 
 def request():

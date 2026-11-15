@@ -1,5 +1,7 @@
 """Prompt construction for the existing semantic spatial planning stage."""
 
+import json
+
 from ..models.request import BuildRequest
 from .planning_request_hints import _infer_scale, _infer_terrain
 
@@ -75,3 +77,17 @@ def build_semantic_plan_prompts(req: BuildRequest) -> tuple[str, str]:
         "Output JSON ONLY matching the schema.\n"
     )
     return system_prompt, user_prompt
+
+
+def append_semantic_plan_context(prompt: str, plan, *, include_layout_note: bool = False) -> str:
+    """Append compatibility context; serialization failure leaves the prompt intact."""
+    if plan is None:
+        return prompt
+    try:
+        serialized = json.dumps(plan.model_dump(by_alias=True), ensure_ascii=False)
+        prompt = prompt + "\n\nSemanticSpatialPlan(JSON):\n" + serialized + "\n"
+        if include_layout_note:
+            prompt += "\nNote: Use the SemanticSpatialPlan to inform zone layout, spatial relationships, and functional organization.\n"
+    except Exception:
+        pass
+    return prompt
