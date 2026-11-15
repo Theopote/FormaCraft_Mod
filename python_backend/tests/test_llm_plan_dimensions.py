@@ -38,11 +38,3 @@ def test_numeric_and_parameter_alias_contract():
     assert dimensions._param_int({"primary": "bad", "alias": "4"}, "primary", "alias") == 4
     assert dimensions._param_string({"primary": " ", "alias": " roof "}, "primary", "alias") == "roof"
     assert dimensions._extract_mass_dims([]) is None
-
-
-def test_planner_import_aliases():
-    from app.services import ai_planner
-
-    for name in ("_coerce_int", "_normalize_vec3", "_extract_mass_dims", "_param_int", "_param_string",
-                 "_infer_mass_height", "_default_dimensions_for_component", "_normalize_dimensions"):
-        assert getattr(ai_planner, name) is getattr(dimensions, name)

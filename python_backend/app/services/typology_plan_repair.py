@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..models.request import BuildRequest
+
 from .typology_registry import get_migration, get_typology, is_compositional_typology
 
 logger = logging.getLogger(__name__)
@@ -316,3 +318,133 @@ def repair_migrated_landmark_components(
 
     plan, _ = strip_typology_exclusive_compositionals(plan)
     return plan, count
+
+
+def _extract_landmark_module_id(comp: Dict[str, Any]) -> Optional[str]:
+    for feature in comp.get("features") or []:
+        if not isinstance(feature, str):
+            continue
+        f = feature.strip().lower()
+        if f.startswith("landmark:"):
+            return f.split(":", 1)[1].strip()
+        if f.startswith("module:"):
+            return f.split(":", 1)[1].strip()
+    params = comp.get("params")
+    if isinstance(params, dict):
+        module_id = params.get("module_id")
+        if isinstance(module_id, str) and module_id.strip():
+            return module_id.strip().lower()
+    return None
+
+
+def _sanitize_landmark_modules(
+    plan: Dict[str, Any],
+    req: Optional[BuildRequest],
+    building_profile: Optional[Any] = None,
+) -> None:
+    stid: Optional[str] = None
+    ref_lm: Optional[str] = None
+    if building_profile is not None:
+        mc = getattr(building_profile, "minecraft_strategy", None)
+        if mc is not None:
+            raw_st = getattr(mc, "structural_typology", None)
+            raw_ref = getattr(mc, "reference_landmark", None)
+            stid = str(raw_st).strip() if raw_st else None
+            ref_lm = str(raw_ref).strip() if raw_ref else None
+
+    plan, _ = repair_migrated_landmark_components(
+        plan,
+        structural_typology=stid,
+        reference_landmark=ref_lm,
+    )
+
+    components = plan.get("components")
+    if not isinstance(components, list):
+        return
+
+    from .typology_registry import is_migrated_landmark
+
+    def _strip_remaining_migrated_modules(comps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        kept_local: List[Dict[str, Any]] = []
+        for comp in comps:
+            if not isinstance(comp, dict):
+                continue
+            actual = _extract_landmark_module_id(comp)
+            ctype = str(comp.get("component_type") or "").upper()
+            if (ctype == "MODULE" or actual) and actual and is_migrated_landmark(actual):
+                continue
+            kept_local.append(comp)
+        return kept_local
+
+    components = _strip_remaining_migrated_modules(components)
+    plan["components"] = components
+
+    expected_id: Optional[str] = None
+    profile_authoritative = building_profile is not None
+
+    if building_profile is not None:
+        mc = getattr(building_profile, "minecraft_strategy", None)
+        lm = getattr(mc, "landmark_module", None) if mc is not None else None
+        expected_id = str(lm).strip().lower() if lm else None
+    elif req is not None:
+        user_text = (req.userMessage or "").strip()
+        if user_text:
+            from .building_research_agent import resolve_landmark_module_for_intent
+
+            expected_id = resolve_landmark_module_for_intent(user_text)
+
+    if expected_id and is_migrated_landmark(expected_id):
+        expected_id = None
+
+    if profile_authoritative and not expected_id:
+        filtered = []
+        for comp in components:
+            if not isinstance(comp, dict):
+                continue
+            ctype = str(comp.get("component_type") or "").upper()
+            if ctype == "MODULE" or _extract_landmark_module_id(comp):
+                continue
+            filtered.append(comp)
+        plan["components"] = filtered
+        return
+
+    if not expected_id:
+        return
+
+    kept: List[Dict[str, Any]] = []
+    module_seen = False
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        actual = _extract_landmark_module_id(comp)
+        ctype = str(comp.get("component_type") or "").upper()
+        if ctype == "MODULE" or actual:
+            if actual and actual != expected_id:
+                continue
+            if module_seen:
+                continue
+            features = [
+                f for f in (comp.get("features") or [])
+                if isinstance(f, str)
+                and not f.strip().lower().startswith(("landmark:", "module:"))
+            ]
+            params = dict(comp.get("params") or {})
+            params["module_id"] = expected_id
+            comp = dict(comp)
+            comp["component_type"] = "MODULE"
+            comp["features"] = list(features) + [f"landmark:{expected_id}"]
+            comp["params"] = params
+            module_seen = True
+        kept.append(comp)
+    if not module_seen:
+        kept.insert(
+            0,
+            {
+                "component_type": "MODULE",
+                "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": 32, "depth": 24, "height": 16},
+                "features": [f"landmark:{expected_id}"],
+                "params": {"module_id": expected_id},
+            },
+        )
+    plan["components"] = kept

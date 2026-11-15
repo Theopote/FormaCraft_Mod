@@ -207,7 +207,7 @@ class CompoundRequestRegressions(unittest.TestCase):
                     self.assertEqual('none',parts['residence_mass']['params']['plan_type'])
 
     def test_compound_courtyard_module_does_not_cut_holes_in_individual_bodies(self):
-        from app.services.ai_planner import _fill_component_params
+        from app.services.llm_plan_component_defaults import _fill_component_params
         params={'shape':'rectangle'}
         _fill_component_params(params,{'component_type':'MASS_MAIN','features':[],
                                       'dimensions':{'width':23,'depth':11,'height':12}},

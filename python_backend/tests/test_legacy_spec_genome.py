@@ -58,12 +58,3 @@ def test_merge_does_not_mutate_default_nested_values():
     result = genome._deep_merge(default, {"nested": {"a": None}, "list": [2]})
     assert result == {"nested": {"a": None, "b": 2}, "list": [2]}
     assert default == {"nested": {"a": 1, "b": 2}, "list": [1]}
-
-
-def test_existing_planner_imports_remain_available():
-    from app.services import ai_planner
-
-    for name in ("_deep_merge", "_semantic_material_from_block", "_build_genome_from_spec",
-                 "_default_component_params_for_spec", "_ensure_genome_for_spec",
-                 "_ensure_genome_for_composite_spec", "_ensure_genome_for_city_spec"):
-        assert getattr(ai_planner, name) is getattr(genome, name)

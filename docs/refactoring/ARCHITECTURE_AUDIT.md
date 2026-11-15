@@ -114,6 +114,12 @@ research_building_context 仅剩测试调用，已删除。对应回归改为覆
 
 布局/骨架/对称性归一的六个函数和四个类型/别名表迁至 llm_plan_layout_normalization.py，ai_planner 保留导入别名。未知骨架 COMPOUND 回退、无效朝向剔除、slot 补全及 genome 对称性容错保持原实现；新增显式对称优先级、别名、源数据不变和布局清理回归。
 
+迁移后的转导出再次核查：ai_planner 删除 31 个无内部业务用途的导入别名（含无调用者的 get_archetype_def、_int_env），保留当前编排实际使用的函数。样式目录行为测试改从 legacy_spec_genome 直接导入；七处仅断言旧别名身份的测试删除，所属模块行为回归保留。前文“保留导入别名”是迁移当批状态，当前以真实引用为准，不恢复无调用者的私有 facade。
+
+地标模块 ID 提取与 _sanitize_landmark_modules 集中到现有 typology_plan_repair.py，规划器只导入实际调用的规范化入口。移除迁移后的自导入，保留原策略与执行顺序；直接测试改从职责模块引用。新增 profile 无模块时剔除模块、预期模块去重/归一回归，开发入口同步规则归属。
+
+_fill_component_params 迁至 llm_plan_component_defaults.py，规划器保留实际调用导入。样式目录、style pack、用户 style pack 及复合请求行为测试改为直接引用职责模块，参数补全函数体保持原实现；未改动样式默认值与显式参数优先级。
+
 ## 原则
 
 AI 规划、确定性编译、BlockPatch 唯一写入。完成报告不能代替运行事实。

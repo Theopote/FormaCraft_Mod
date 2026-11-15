@@ -75,7 +75,7 @@ from app.services.style_identity import canonical_style_id
 from app.services.style_profile_registry import get_style_profile
 from app.services.keyword_culture_retriever import retrieve
 from app.services.building_request_classifier import classify_building_request_local
-from app.services.ai_planner import _fill_component_params
+from app.services.llm_plan_component_defaults import _fill_component_params
 from app.services.ornament_contract import apply_ornament_contracts
 from app.services.user_style_packs import ASSETS, read_asset
 assert canonical_style_id('lakeside timber')=='lake_hall'

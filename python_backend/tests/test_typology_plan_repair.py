@@ -254,7 +254,8 @@ class TypologyPlanRepairTest(unittest.TestCase):
         from unittest.mock import Mock
 
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
-        from app.services.ai_planner import _normalize_llm_plan_output, _sanitize_landmark_modules
+        from app.services.ai_planner import _normalize_llm_plan_output
+        from app.services.typology_plan_repair import _sanitize_landmark_modules
 
         profile = BuildingProfile(
             query="大雁塔",
@@ -434,6 +435,36 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(count, 1)
         self.assertEqual(len(out["components"]), 1)
         self.assertEqual(out["components"][0]["component_type"], "STRUCTURE")
+
+
+class LandmarkAuthorityTest(unittest.TestCase):
+    def test_profile_without_module_removes_module_requests(self):
+        from types import SimpleNamespace
+        from app.services.typology_plan_repair import _sanitize_landmark_modules
+
+        plan = {"components": [{"component_type": "MODULE", "features": ["landmark:custom"]},
+                               {"component_type": "MASS_MAIN"}]}
+        profile = SimpleNamespace(minecraft_strategy=SimpleNamespace(landmark_module=None))
+        _sanitize_landmark_modules(plan, None, profile)
+        self.assertEqual(plan["components"], [{"component_type": "MASS_MAIN"}])
+
+    def test_expected_module_is_deduplicated_and_normalized(self):
+        from types import SimpleNamespace
+        from app.services.typology_plan_repair import _sanitize_landmark_modules
+
+        plan = {"components": [
+            {"component_type": "MODULE", "features": ["landmark:other"]},
+            {"component_type": "MODULE", "features": ["detail", "module:custom"], "params": {"size": 4}},
+            {"component_type": "MODULE", "params": {"module_id": "custom"}},
+            {"component_type": "MASS_MAIN"},
+        ]}
+        profile = SimpleNamespace(minecraft_strategy=SimpleNamespace(landmark_module="CUSTOM"))
+        _sanitize_landmark_modules(plan, None, profile)
+        self.assertEqual(plan["components"], [
+            {"component_type": "MODULE", "features": ["detail", "landmark:custom"],
+             "params": {"size": 4, "module_id": "custom"}},
+            {"component_type": "MASS_MAIN"},
+        ])
 
 
 if __name__ == "__main__":

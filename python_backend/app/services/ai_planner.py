@@ -18,74 +18,22 @@ from .legacy_spec_fallbacks import (
     _generate_fallback_city_spec,
     _generate_fallback_composite_spec,
 )
-from .legacy_spec_genome import (
-    _deep_merge,
-    _semantic_material_from_block,
-    _build_genome_from_spec,
-    _default_component_params_for_spec,
-    _ensure_genome_for_spec,
-    _ensure_genome_for_composite_spec,
-    _ensure_genome_for_city_spec,
-)
-from .legacy_spec_normalization import (
-    _normalize_building_spec_dict,
-    _normalize_building_style_value,
-    _normalize_features_value,
-    _guess_building_type_from_name,
-    _normalize_substructure_item,
-    _normalize_composite_spec_dict,
-)
-from .semantic_plan_adapters import (
-    _disturbance_to_policy_and_budget,
-    _policy_upper_to_lower,
-    _compile_semantic_plan_extra,
-    _cardinal_facing_from_dxz,
-    _default_size_for_zone,
-    _default_radius_for_core,
-    _semantic_to_skeleton_layout,
-)
+from .legacy_spec_genome import _deep_merge, _ensure_genome_for_spec, _ensure_genome_for_composite_spec, _ensure_genome_for_city_spec
+from .legacy_spec_normalization import _normalize_building_spec_dict, _normalize_composite_spec_dict
+from .semantic_plan_adapters import _compile_semantic_plan_extra, _semantic_to_skeleton_layout
 from .planning_request_hints import (
     _infer_scale, _infer_terrain, _parse_levels_from_text, _derive_structured_intent,
 )
-from .llm_plan_layout_normalization import (
-    _GLOBAL_SYMMETRY_ALIASES,
-    _VALID_GLOBAL_SYMMETRY,
-    _SKELETON_ALLOWED,
-    _SKELETON_ALIASES,
-    _symmetry_from_genome_type,
-    _normalize_global_symmetry_value,
-    _coerce_optional_bool,
-    _sanitize_genome_dict,
-    _coerce_skeleton_type,
-    _sanitize_layout_slots,
-)
-from .llm_plan_dimensions import (
-    _MASS_COMPONENT_TYPES,
-    _ROOF_COMPONENT_TYPES,
-    _FACADE_COMPONENT_TYPES,
-    _PLANAR_COMPONENT_TYPES,
-    _coerce_int,
-    _normalize_vec3,
-    _extract_mass_dims,
-    _param_int,
-    _param_string,
-    _infer_mass_height,
-    _default_dimensions_for_component,
-    _normalize_dimensions,
-)
+from .llm_plan_component_defaults import _fill_component_params
+from .typology_plan_repair import _sanitize_landmark_modules
+from .llm_plan_layout_normalization import _normalize_global_symmetry_value, _sanitize_genome_dict, _sanitize_layout_slots
+from .llm_plan_dimensions import _MASS_COMPONENT_TYPES, _normalize_vec3, _extract_mass_dims, _param_string, _normalize_dimensions
 from .llm_plan_wire_normalization import (
     _normalize_component_type,
     _normalize_features,
     _repair_component_request_strings,
 )
-from .planning_selection_bounds import (
-    _selection_dimensions,
-    _clamp_dimensions_to_selection,
-    _selection_bounds_relative,
-    _clamp_value,
-    _clamp_relative_position,
-)
-from .planning_route_policy import _should_generate_city, _should_generate_composite
+from .planning_selection_bounds import _selection_dimensions, _clamp_dimensions_to_selection, _selection_bounds_relative, _clamp_relative_position
 from .llm_client import get_client, build_config, resolve_provider
 # Compatibility alias: existing callers and test patches keep the same facade.
 from .inference_call import (
@@ -104,7 +52,6 @@ from ..models.composite_spec import CompositeSpec
 from ..models.city_spec import CitySpec
 from ..models.semantic_spatial_plan import SemanticSpatialPlan
 from .archetype_detector import detect_archetype_local, should_force_strong_mode
-from .archetype_registry import get_archetype_def
 
 
 # ---- Phase 6 延迟治理开关 ----
@@ -130,7 +77,7 @@ _LLMPLAN_INJECT_CULTURE_RAG = (os.getenv("LLMPLAN_CULTURE_RAG") or "on").strip()
 _LLMPLAN_TWO_STAGE = (os.getenv("LLMPLAN_TWO_STAGE") or "off").strip().lower() == "on"
 
 
-from .rag_budget import int_env as _int_env, resolve_rag_budget as _resolve_rag_budget
+from .rag_budget import resolve_rag_budget as _resolve_rag_budget
 from .building_spec_prompts import (
     build_system_prompt as _build_system_prompt,
     build_user_prompt as _build_user_prompt,
@@ -157,117 +104,6 @@ def _resolve_model(req: Optional[BuildRequest], default: str) -> str:
     return cfg.model
 
 
-def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome: Dict[str, Any]) -> None:
-    ctype = str(comp.get("component_type", "")).upper()
-    from .style_feature_compiler import component_style_defaults
-    for key, value in component_style_defaults(comp.get("_style_hint"), ctype).items():
-        params.setdefault(key, value)
-    features = comp.get("features") or []
-    dims = comp.get("dimensions") or {}
-
-    def feat_contains(token: str) -> bool:
-        return any(token in str(f).lower() for f in features if f)
-
-    def genome_contains(token: str) -> bool:
-        cultural = genome.get("culturalStyle") or {}
-        region = str(cultural.get("region") or "").lower()
-        keywords = cultural.get("keywords") or []
-        if token and token in region:
-            return True
-        return any(token in str(k).lower() for k in keywords if k)
-
-    if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING"):
-        if "shape" not in params:
-            layout = ((genome.get("topology") or {}).get("layout") or "").lower()
-            if "circular" in layout or feat_contains("round") or feat_contains("circle"):
-                params["shape"] = "circle"
-            elif feat_contains("rounded"):
-                params["shape"] = "rounded_rect"
-            else:
-                params["shape"] = "rectangle"
-        if "roof_type" not in params:
-            if feat_contains("xieshan") or feat_contains("hip_and_gable") or feat_contains("歇山"):
-                params["roof_type"] = "xieshan"
-            elif feat_contains("xuanshan") or feat_contains("悬山"):
-                params["roof_type"] = "xuanshan"
-            elif feat_contains("double_gable") or feat_contains("double gable") or feat_contains("shuangpo") or feat_contains("双坡"):
-                params["roof_type"] = "double_gable"
-            elif feat_contains("gable"):
-                params["roof_type"] = "gable"
-            elif feat_contains("hip"):
-                params["roof_type"] = "hip"
-            elif feat_contains("pyramid"):
-                params["roof_type"] = "pyramid"
-            elif feat_contains("cone"):
-                params["roof_type"] = "cone"
-            elif feat_contains("dome") or feat_contains("curved"):
-                params["roof_type"] = "dome"
-        if "roof_type" not in params:
-            if feat_contains("chinese") or feat_contains("hui") or genome_contains("chinese") or genome_contains("hui"):
-                params["roof_type"] = "xuanshan"
-            elif feat_contains("gothic") or feat_contains("medieval") or genome_contains("gothic") or genome_contains("medieval"):
-                params["roof_type"] = "gable"
-            elif feat_contains("modern") or genome_contains("modern"):
-                params["roof_type"] = "flat"
-        if "window_ratio" not in params:
-            params["window_ratio"] = 0.6 if feat_contains("glass") or feat_contains("curtain") else 0.35
-        if "void_ratio" not in params:
-            vr = ((genome.get("structure") or {}).get("voidRatio"))
-            params["void_ratio"] = vr if vr is not None else (0.35 if feat_contains("courtyard") else 0.15)
-        if "plan_type" not in params:
-            plan_alias = params.get("footprint_pattern") or params.get("plan_pattern") or params.get("planPattern")
-            if plan_alias:
-                params["plan_type"] = plan_alias
-            else:
-                plan_type = None
-                if feat_contains("courtyard") or feat_contains("siheyuan"):
-                    plan_type = "courtyard"
-                elif feat_contains("gothic") or feat_contains("cathedral") or feat_contains("cruciform"):
-                    plan_type = "cross"
-                elif feat_contains("l-shape") or feat_contains("l_shape") or feat_contains("corner_wing"):
-                    plan_type = "l_shape"
-                elif feat_contains("chinese") or feat_contains("hui") or genome_contains("chinese") or genome_contains("hui"):
-                    plan_type = "cut_corners"
-                if plan_type:
-                    params["plan_type"] = plan_type
-        if params.get("plan_type") == "courtyard" and "courtyard_ratio" not in params:
-            ratio = params.get("void_ratio")
-            if isinstance(ratio, (int, float)):
-                params["courtyard_ratio"] = float(max(0.2, min(0.6, ratio)))
-        if "setback_ratio" not in params:
-            prog = ((genome.get("form") or {}).get("progression") or "").lower()
-            if prog in ("stepping", "tapering"):
-                params["setback_ratio"] = 0.06
-        if "floor_height" not in params and dims.get("height"):
-            params["floor_height"] = max(3, int(dims.get("height", 6) / max(1, dims.get("height", 6) // 3)))
-        if "wall_pattern" not in params and params.get("facade_profile") == "vertical_pilasters":
-            params["wall_pattern"] = "gradient"
-
-    if ctype == "ROOF":
-        parent_h = dims.get("height")
-        if "roof_height" not in params and isinstance(parent_h, int) and parent_h > 0:
-            params["roof_height"] = max(2, min(12, parent_h))
-        if "overhang" not in params:
-            params["overhang"] = 2
-
-    if ctype == "FACADE_WINDOWS":
-        if "window_ratio" not in params:
-            params["window_ratio"] = 0.5 if feat_contains("large") else 0.35
-        if "window_style" not in params:
-            if feat_contains("lattice"):
-                params["window_style"] = "lattice"
-            elif feat_contains("stained"):
-                params["window_style"] = "stained"
-        if "rhythm" not in params:
-            rhythm = ((genome.get("form") or {}).get("rhythm"))
-            if rhythm:
-                params["rhythm"] = rhythm
-
-    if ctype == "ENTRANCE":
-        if "door_width" not in params and dims.get("width"):
-            params["door_width"] = max(2, int(dims.get("width", 3)) - 2)
-        if "door_height" not in params and dims.get("height"):
-            params["door_height"] = min(4, int(dims.get("height", 4)))
 
 
 
@@ -332,136 +168,8 @@ def _looks_like_min_corner_anchor(rp: Dict[str, int], dims: Dict[str, int]) -> b
 
 
 
-def _extract_landmark_module_id(comp: Dict[str, Any]) -> Optional[str]:
-    for feature in comp.get("features") or []:
-        if not isinstance(feature, str):
-            continue
-        f = feature.strip().lower()
-        if f.startswith("landmark:"):
-            return f.split(":", 1)[1].strip()
-        if f.startswith("module:"):
-            return f.split(":", 1)[1].strip()
-    params = comp.get("params")
-    if isinstance(params, dict):
-        module_id = params.get("module_id")
-        if isinstance(module_id, str) and module_id.strip():
-            return module_id.strip().lower()
-    return None
 
 
-def _sanitize_landmark_modules(
-    plan: Dict[str, Any],
-    req: Optional[BuildRequest],
-    building_profile: Optional[Any] = None,
-) -> None:
-    from .typology_plan_repair import repair_migrated_landmark_components
-
-    stid: Optional[str] = None
-    ref_lm: Optional[str] = None
-    if building_profile is not None:
-        mc = getattr(building_profile, "minecraft_strategy", None)
-        if mc is not None:
-            raw_st = getattr(mc, "structural_typology", None)
-            raw_ref = getattr(mc, "reference_landmark", None)
-            stid = str(raw_st).strip() if raw_st else None
-            ref_lm = str(raw_ref).strip() if raw_ref else None
-
-    plan, _ = repair_migrated_landmark_components(
-        plan,
-        structural_typology=stid,
-        reference_landmark=ref_lm,
-    )
-
-    components = plan.get("components")
-    if not isinstance(components, list):
-        return
-
-    from .typology_registry import is_migrated_landmark
-
-    def _strip_remaining_migrated_modules(comps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        kept_local: List[Dict[str, Any]] = []
-        for comp in comps:
-            if not isinstance(comp, dict):
-                continue
-            actual = _extract_landmark_module_id(comp)
-            ctype = str(comp.get("component_type") or "").upper()
-            if (ctype == "MODULE" or actual) and actual and is_migrated_landmark(actual):
-                continue
-            kept_local.append(comp)
-        return kept_local
-
-    components = _strip_remaining_migrated_modules(components)
-    plan["components"] = components
-
-    expected_id: Optional[str] = None
-    profile_authoritative = building_profile is not None
-
-    if building_profile is not None:
-        mc = getattr(building_profile, "minecraft_strategy", None)
-        lm = getattr(mc, "landmark_module", None) if mc is not None else None
-        expected_id = str(lm).strip().lower() if lm else None
-    elif req is not None:
-        user_text = (req.userMessage or "").strip()
-        if user_text:
-            from .building_research_agent import resolve_landmark_module_for_intent
-
-            expected_id = resolve_landmark_module_for_intent(user_text)
-
-    if expected_id and is_migrated_landmark(expected_id):
-        expected_id = None
-
-    if profile_authoritative and not expected_id:
-        filtered = []
-        for comp in components:
-            if not isinstance(comp, dict):
-                continue
-            ctype = str(comp.get("component_type") or "").upper()
-            if ctype == "MODULE" or _extract_landmark_module_id(comp):
-                continue
-            filtered.append(comp)
-        plan["components"] = filtered
-        return
-
-    if not expected_id:
-        return
-
-    kept: List[Dict[str, Any]] = []
-    module_seen = False
-    for comp in components:
-        if not isinstance(comp, dict):
-            continue
-        actual = _extract_landmark_module_id(comp)
-        ctype = str(comp.get("component_type") or "").upper()
-        if ctype == "MODULE" or actual:
-            if actual and actual != expected_id:
-                continue
-            if module_seen:
-                continue
-            features = [
-                f for f in (comp.get("features") or [])
-                if isinstance(f, str)
-                and not f.strip().lower().startswith(("landmark:", "module:"))
-            ]
-            params = dict(comp.get("params") or {})
-            params["module_id"] = expected_id
-            comp = dict(comp)
-            comp["component_type"] = "MODULE"
-            comp["features"] = list(features) + [f"landmark:{expected_id}"]
-            comp["params"] = params
-            module_seen = True
-        kept.append(comp)
-    if not module_seen:
-        kept.insert(
-            0,
-            {
-                "component_type": "MODULE",
-                "relative_position": {"x": 0, "y": 0, "z": 0},
-                "dimensions": {"width": 32, "depth": 24, "height": 16},
-                "features": [f"landmark:{expected_id}"],
-                "params": {"module_id": expected_id},
-            },
-        )
-    plan["components"] = kept
 
 
 def _normalize_llm_plan_output(

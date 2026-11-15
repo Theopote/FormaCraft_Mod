@@ -46,11 +46,3 @@ def test_genome_symmetry_coercion_preserves_source():
     assert result == {"symmetry": {"mirror": True, "order": 4}, "custom": 3}
     assert source == before
     assert layout._coerce_optional_bool("true|false") is None
-
-
-def test_planner_import_aliases():
-    from app.services import ai_planner
-
-    for name in ("_symmetry_from_genome_type", "_normalize_global_symmetry_value", "_coerce_optional_bool",
-                 "_sanitize_genome_dict", "_coerce_skeleton_type", "_sanitize_layout_slots"):
-        assert getattr(ai_planner, name) is getattr(layout, name)

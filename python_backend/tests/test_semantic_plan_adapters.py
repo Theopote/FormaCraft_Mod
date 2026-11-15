@@ -61,12 +61,3 @@ def test_disconnected_circulation_and_empty_layout():
     assert [point.model_dump() for point in walk.points] == [
         {"x": 0, "y": 0, "z": 0}, {"x": 6, "y": 0, "z": -22}]
     assert adapters._semantic_to_skeleton_layout(request(), SemanticSpatialPlan()).skeletons == []
-
-
-def test_existing_planner_imports():
-    from app.services import ai_planner
-
-    for name in ("_disturbance_to_policy_and_budget", "_policy_upper_to_lower",
-                 "_compile_semantic_plan_extra", "_cardinal_facing_from_dxz",
-                 "_default_size_for_zone", "_default_radius_for_core", "_semantic_to_skeleton_layout"):
-        assert getattr(ai_planner, name) is getattr(adapters, name)

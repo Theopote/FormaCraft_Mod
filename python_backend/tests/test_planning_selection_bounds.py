@@ -50,11 +50,3 @@ def test_dimensions_clip_before_position_and_no_selection_preserves_identity():
     assert bounds._clamp_relative_position(rp, clipped, "center", None) is rp
     assert bounds._selection_dimensions(None) is None
     assert bounds._selection_bounds_relative(request(), None) is None
-
-
-def test_planner_import_aliases():
-    from app.services import ai_planner
-
-    for name in ("_selection_dimensions", "_clamp_dimensions_to_selection", "_selection_bounds_relative",
-                 "_clamp_value", "_clamp_relative_position"):
-        assert getattr(ai_planner, name) is getattr(bounds, name)

@@ -126,7 +126,7 @@ class LegacyModuleTighteningTest(unittest.TestCase):
         )
 
     def test_sanitize_strips_migrated_module_without_profile(self):
-        from app.services.ai_planner import _sanitize_landmark_modules
+        from app.services.typology_plan_repair import _sanitize_landmark_modules
 
         plan = {
             "components": [
@@ -151,7 +151,7 @@ class LegacyModuleTighteningTest(unittest.TestCase):
 
     def test_sanitize_does_not_inject_migrated_module(self):
         from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
-        from app.services.ai_planner import _sanitize_landmark_modules
+        from app.services.typology_plan_repair import _sanitize_landmark_modules
 
         profile = BuildingProfile(
             query="天坛",

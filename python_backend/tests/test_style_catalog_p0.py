@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import patch
 
 from app.models.building_spec import BuildingSpec, BuildingStyle
-from app.services.ai_planner import _build_genome_from_spec, _fill_component_params
+from app.services.llm_plan_component_defaults import _fill_component_params
+from app.services.legacy_spec_genome import _build_genome_from_spec
 from app.services.chinese_material_contract import apply_chinese_material_contract
 from app.services.style_feature_compiler import component_style_defaults
 from app.services.style_identity import generic_style_pattern

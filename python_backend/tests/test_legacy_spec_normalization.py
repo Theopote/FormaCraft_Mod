@@ -74,12 +74,3 @@ def test_composite_existing_spec_and_invalid_paths():
     entry = result["structures"][0]
     assert entry["type"] == entry["spec"]["type"] == "HOUSE"
     assert entry["spec"]["style"] == "DEFAULT"
-
-
-def test_planner_retains_compatibility_imports():
-    from app.services import ai_planner
-
-    for name in ("_normalize_building_spec_dict", "_normalize_building_style_value",
-                 "_normalize_features_value", "_guess_building_type_from_name",
-                 "_normalize_substructure_item", "_normalize_composite_spec_dict"):
-        assert getattr(ai_planner, name) is getattr(normalization, name)

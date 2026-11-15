@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import unittest
 
-from app.services.ai_planner import _fill_component_params
+from app.services.llm_plan_component_defaults import _fill_component_params
 from app.services.building_request_classifier import classify_building_request_local
 from app.services.keyword_culture_retriever import retrieve
 from app.services.style_identity import canonical_style_id, negated_style_ids

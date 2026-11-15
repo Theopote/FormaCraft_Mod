@@ -34,10 +34,3 @@ def test_existing_classification_and_city_priority(text, city, composite):
 def test_build_templates_keep_city_routing_disabled(marker):
     assert not _should_generate_city(request(f"{marker} city", "BUILD"))
     assert _should_generate_city(request(f"{marker} city", "PATCH"))
-
-
-def test_existing_planner_imports_remain_available():
-    from app.services import ai_planner
-
-    assert ai_planner._should_generate_city is _should_generate_city
-    assert ai_planner._should_generate_composite is _should_generate_composite

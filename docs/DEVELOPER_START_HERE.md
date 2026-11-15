@@ -44,7 +44,7 @@ FormaCraft 把玩家的语言描述与空间约束变成 Minecraft 建筑。先�
 | `planning_route_policy.py` | 城市/复合兼容路由分类 |
 | `ai_editor.py` | `/edit/city`、`/edit/building` 的整份 spec 兼容编辑；新增增量编辑走 LlmPlan patch |
 
-`planning_request_hints.py` 保存规划请求的规模、地形、楼层提取和软意图提示。软提示不替代用户要求或协议校验。`ai_planner.py` 仍保留迁移函数的导入别名，以支持已有调用与测试；这些别名不代表另一份实现。删除兼容入口前须核对 `build.py` 的实际路由和消费者。
+`planning_request_hints.py` 保存规划请求的规模、地形、楼层提取和软意图提示。软提示不替代用户要求或协议校验。迁移 helper 应从所属模块直接导入；`ai_planner.py` 仅保留内部使用和已有消费者需要的导入，无调用者的转导出别名已逐步删除。删除兼容入口前须核对 `build.py` 的实际路由和消费者。
 
 联网研究由 `building_research_agent.py` 管理，配置使用 `BUILDING_RESEARCH`、`BUILDING_RESEARCH_MODE`、`BUILDING_RESEARCH_TIMEOUT_SEC`。明确设置的 `BUILDING_RESEARCH=on/off` 优先于旧开关；未明确设置时才参考 `ARCHITECTURE_SEARCH=off`。旧 `landmark/all` 不再选择研究模式，`ARCHITECTURE_SEARCH_TIMEOUT_SEC` 已无作用。
 
@@ -59,6 +59,10 @@ LlmPlan 构件类型别名、features 表示归一和未转义请求字符串修
 构件尺寸默认值、主体尺寸继承、数值及参数别名容错归 `services/llm_plan_dimensions.py`。这里保留当前后端修复策略，不能把默认尺寸视为 Java 生成器能力契约；调整尺寸行为仍需核对服务端消费者与建筑验收。
 
 布局 slot、骨架类型别名和对称性容错归 `services/llm_plan_layout_normalization.py`。这层保留现有回退，不承担骨架执行或类型注册；新增类型仍需同步协议与服务端消费者。
+
+已迁移地标 MODULE 到 typology 的修复、研究 profile 对模块选择的约束及模块去重统一位于 `services/typology_plan_repair.py`。`ai_planner.py` 只调用该策略；不要在规划器内再维护一份地标替换规则。
+
+构件缺失参数的补全归 `services/llm_plan_component_defaults.py`；样式目录默认值仍由 `style_feature_compiler.component_style_defaults` 提供。补全保留显式参数，和研究证据校验、尺寸容错分别维护，避免把后端默认规则误当成生成器已实现能力。
 
 验证细节和下一轮检查顺序见 [测试与建筑验收](TESTING_AND_BUILDING_ACCEPTANCE.md)。
 
