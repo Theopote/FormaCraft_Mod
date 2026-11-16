@@ -15,53 +15,42 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Baroque mansions must keep rectangular 15×25 massing, mansard roofs, and plinth banding.
- * LLM often labels them {@code Classical_GrecoRoman}, which then triggers temple squaring
- * and classical pilaster window rhythm instead of arched quartz openings + mansard.
+ * Compile-time fidelity repair for baroque mansions.
+ * <p>
+ * Footprint, storey count, and dormer density stay LLM-authored. This repair only
+ * corrects known execution failures (temple mis-label, full-footprint "dormer" plates,
+ * unusable clear height, misplaced beam/spike decor) using structured plan signals
+ * ({@code styleProfile}, typology hints, component features/params) — not fixed sizes
+ * or exhaustive free-text keyword dictionaries.
  */
 final class BaroqueMansionStyleRepair {
     private BaroqueMansionStyleRepair() {}
-
-    private static final List<String> BAROQUE_CUES = List.of(
-            "巴洛克", "baroque", "大宅", "宅邸", "府邸", "公馆", "庄园", "马萨", "mansard",
-            "折线屋顶", "折线形屋顶", "老虎窗", "mansion");
-
-    private static final List<String> MONUMENT_GATE_CUES = List.of(
-            "凯旋", "凯旋门", "triumphal", "victory arch", "门楼", "牌楼", "arch of");
-
-    private static final List<String> DORMER_CUES = List.of(
-            "老虎窗", "dormer", "mansard_dormer", "椭圆山花");
 
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) {
             return plan;
         }
         String corpus = requestCorpus(plan);
-        // Baroque + 凯旋门 is a monument gate, not a mansard mansion with dormers.
-        if (containsAny(corpus, MONUMENT_GATE_CUES) || looksMonumentGatePlan(plan)) {
+        if (looksMonumentGatePlan(plan) || looksMonumentGateCorpus(corpus)) {
             return plan;
         }
-        // Victorian / Gothic / etc. often say 大宅 — do not force mansard + dormers onto them.
         if (looksNonBaroqueResidential(plan, corpus)) {
             return plan;
         }
-        if (!containsAny(corpus, BAROQUE_CUES) && !hasBaroqueMarkers(plan)) {
-            return plan;
-        }
-        // Bare "大宅/mansion" without baroque/mansard cues is not enough.
-        if (!containsAny(corpus, List.of("巴洛克", "baroque", "马萨", "mansard", "折线屋顶", "折线形屋顶", "老虎窗"))
-                && !hasBaroqueMarkers(plan)) {
+        if (!looksBaroqueMansion(plan, corpus)) {
             return plan;
         }
 
         boolean changed = false;
         String style = plan.styleProfile();
         if (styleLooksClassicalTemple(style)) {
+            // GrecoRoman temple routing squashes mansard + arched openings — keep classical facade
+            // without forcing a temple typology.
             style = "Legacy_Classical_Facade";
             changed = true;
         }
 
-        boolean wantsDormers = containsAny(corpus, DORMER_CUES);
+        boolean wantsDormers = planWantsDormers(plan, corpus);
         Dimensions primaryFootprint = primaryMassFootprint(plan.components());
         List<Component> out = new ArrayList<>(plan.components().size());
         int keptChimneys = 0;
@@ -69,8 +58,7 @@ final class BaroqueMansionStyleRepair {
             if (c == null) {
                 continue;
             }
-            // Full-footprint DECOR "oval_pediment_dormers" paints three stacked roof rings —
-            // drop it and let the mansard roof specialty emit real dormers instead.
+            // Full-footprint DECOR "dormers" paint concentric roof rings — drop and let specialty emit.
             if (isOversizedRoofDormerDecor(c, primaryFootprint)) {
                 changed = true;
                 FormacraftMod.LOGGER.info(
@@ -78,7 +66,6 @@ final class BaroqueMansionStyleRepair {
                         c.params() == null ? c.componentType() : c.params().get("component_id"));
                 continue;
             }
-            // Misplaced cantilever beams / attic spikes are authored as BALCONY or thin DECOR.
             if (isMisplacedWallOrRoofDecor(c)) {
                 changed = true;
                 FormacraftMod.LOGGER.info(
@@ -99,7 +86,6 @@ final class BaroqueMansionStyleRepair {
             }
             out.add(next);
         }
-        // Ensure mansard dormers survive after dropping the oversized DECOR plate.
         if (wantsDormers) {
             List<Component> withRoof = new ArrayList<>(out.size());
             boolean roofTouched = false;
@@ -123,12 +109,13 @@ final class BaroqueMansionStyleRepair {
                 ? new HashMap<>()
                 : new HashMap<>(plan.proportionHints());
         Object typology = hints.get("typology");
-        if (typology == null || String.valueOf(typology).toLowerCase(Locale.ROOT).contains("stadium")
-                || String.valueOf(typology).toLowerCase(Locale.ROOT).contains("temple")) {
+        String typ = typology == null ? "" : String.valueOf(typology).toLowerCase(Locale.ROOT);
+        // Only rewrite clearly wrong temple/stadium typology — leave other LLM typologies alone.
+        if (typ.contains("stadium") || typ.contains("temple") || typ.contains("pantheon")) {
             hints.put("typology", "baroque_mansion");
             changed = true;
         }
-        if (!hints.containsKey("roof_specialty")) {
+        if (!hints.containsKey("roof_specialty") && planHasMansard(plan)) {
             hints.put("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
             changed = true;
         }
@@ -171,14 +158,13 @@ final class BaroqueMansionStyleRepair {
         String id = c.params() == null ? ""
                 : String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
         if ("BALCONY".equals(type) || "TERRACE".equals(type) || "DECK".equals(type)) {
-            // Beam-like: short in height, thin on one axis, long on the other.
+            // Beam-like relative to its own span: short, thin on one axis, elongated on the other.
             boolean beamLike = d.height() <= 2
                     && Math.min(d.width(), d.depth()) <= 2
-                    && Math.max(d.width(), d.depth()) >= 3;
+                    && Math.max(d.width(), d.depth()) >= Math.min(d.width(), d.depth()) * 3;
             if (beamLike) {
                 return true;
             }
-            // Unlabelled shallow protrusions are usually authored noise on baroque facades.
             boolean labelled = id.contains("balcony") || id.contains("terrace") || id.contains("deck")
                     || id.contains("阳台") || id.contains("露台");
             if (!labelled && d.height() <= 2 && Math.min(d.width(), d.depth()) <= 3) {
@@ -189,9 +175,9 @@ final class BaroqueMansionStyleRepair {
             boolean atticCue = id.contains("pediment") || id.contains("dormer") || id.contains("attic")
                     || id.contains("column") || id.contains("pilaster") || id.contains("山花")
                     || id.contains("老虎窗");
-            boolean roofSpike = d.height() >= 3
-                    && Math.min(d.width(), d.depth()) <= 3
-                    && Math.max(d.width(), d.depth()) <= 8;
+            // Tall thin spike relative to its own footprint — not a real roof shell.
+            boolean roofSpike = d.height() >= Math.max(3, Math.max(d.width(), d.depth()))
+                    && Math.min(d.width(), d.depth()) <= 3;
             if (atticCue && roofSpike) {
                 return true;
             }
@@ -219,9 +205,11 @@ final class BaroqueMansionStyleRepair {
         int w = c.dimensions().width();
         int d = c.dimensions().depth();
         // Nearly full host footprint → concentric edge rings, not nestled dormer shells.
-        return w >= Math.max(8, primary.width() - 2) && d >= Math.max(8, primary.depth() - 2);
+        return w >= primary.width() - 2 && d >= primary.depth() - 2
+                && w * 4 >= primary.width() * 3 && d * 4 >= primary.depth() * 3;
     }
 
+    /** Enable specialty dormers without inventing a fixed dormer_count — geometry fitter decides. */
     private static Component ensureMansardDormers(Component roof) {
         Map<String, Object> params = roof.params() == null ? new HashMap<>() : new HashMap<>(roof.params());
         boolean changed = false;
@@ -232,10 +220,6 @@ final class BaroqueMansionStyleRepair {
         Object specialty = params.get("roof_specialty");
         if (specialty == null || !String.valueOf(specialty).toLowerCase(Locale.ROOT).contains("dormer")) {
             params.put("roof_specialty", "mansard_dormer");
-            changed = true;
-        }
-        if (!params.containsKey("dormer_count") && !params.containsKey("mansard_dormer_count")) {
-            params.put("dormer_count", 3);
             changed = true;
         }
         if (!changed) return roof;
@@ -250,12 +234,42 @@ final class BaroqueMansionStyleRepair {
                 || s.contains("pantheon");
     }
 
+    /** Prefer styleProfile / typology / authored features over free-text synonym lists. */
+    private static boolean looksBaroqueMansion(LlmPlan plan, String corpus) {
+        String style = plan.styleProfile() == null ? "" : plan.styleProfile().toLowerCase(Locale.ROOT);
+        if (style.contains("baroque")) return true;
+        if (plan.proportionHints() != null) {
+            String typ = String.valueOf(plan.proportionHints().getOrDefault("typology", ""))
+                    .toLowerCase(Locale.ROOT);
+            if (typ.contains("baroque")) return true;
+        }
+        if (hasBaroqueMarkers(plan)) return true;
+        // Minimal corpus fallback: only the style family name itself (LLM may echo it into intent).
+        return corpus.contains("baroque") || corpus.contains("巴洛克");
+    }
+
     private static boolean hasBaroqueMarkers(LlmPlan plan) {
+        if (plan.distinguishingFeatures() != null) {
+            for (String f : plan.distinguishingFeatures()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("baroque") || lower.contains("mansard") || f.contains("巴洛克")
+                        || f.contains("马萨")) {
+                    return true;
+                }
+            }
+        }
         for (Component c : plan.components()) {
             if (c == null) continue;
             String id = c.params() == null ? ""
                     : String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
-            if (id.contains("mansion") || id.contains("baroque")) return true;
+            if (id.contains("baroque") || id.contains("mansard")) return true;
+            Object rt = c.params() == null ? null : c.params().get("roof_type");
+            if (rt == null && c.params() != null) rt = c.params().get("roofType");
+            if (rt != null && String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard")
+                    && (id.contains("mansion") || styleProfileOrFeaturesSayBaroque(plan, c))) {
+                return true;
+            }
             if (c.features() != null) {
                 for (String f : c.features()) {
                     if (f != null && (f.toLowerCase(Locale.ROOT).contains("baroque")
@@ -268,6 +282,64 @@ final class BaroqueMansionStyleRepair {
         return false;
     }
 
+    private static boolean styleProfileOrFeaturesSayBaroque(LlmPlan plan, Component c) {
+        String style = plan.styleProfile() == null ? "" : plan.styleProfile().toLowerCase(Locale.ROOT);
+        if (style.contains("baroque")) return true;
+        if (c.features() == null) return false;
+        return c.features().stream().anyMatch(f -> f != null
+                && f.toLowerCase(Locale.ROOT).contains("baroque"));
+    }
+
+    private static boolean planHasMansard(LlmPlan plan) {
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null) continue;
+            Object rt = c.params().get("roof_type");
+            if (rt == null) rt = c.params().get("roofType");
+            if (rt != null && String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard")) {
+                return true;
+            }
+            if (c.features() != null && c.features().stream().anyMatch(f -> f != null
+                    && f.toLowerCase(Locale.ROOT).contains("mansard"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean planWantsDormers(LlmPlan plan, String corpus) {
+        if (plan.proportionHints() != null) {
+            Object specialty = plan.proportionHints().get("roof_specialty");
+            if (specialty != null && String.valueOf(specialty).toLowerCase(Locale.ROOT).contains("dormer")) {
+                return true;
+            }
+        }
+        if (plan.distinguishingFeatures() != null) {
+            for (String f : plan.distinguishingFeatures()) {
+                if (f != null && (f.toLowerCase(Locale.ROOT).contains("dormer")
+                        || f.contains("老虎窗") || f.contains("山花"))) {
+                    return true;
+                }
+            }
+        }
+        for (Component c : plan.components()) {
+            if (c == null) continue;
+            if (c.params() != null) {
+                if (Boolean.TRUE.equals(c.params().get("roof_dormers"))) return true;
+                Object specialty = c.params().get("roof_specialty");
+                if (specialty != null && String.valueOf(specialty).toLowerCase(Locale.ROOT).contains("dormer")) {
+                    return true;
+                }
+            }
+            if (c.features() != null && c.features().stream().anyMatch(f -> f != null
+                    && (f.toLowerCase(Locale.ROOT).contains("dormer")
+                    || f.contains("老虎窗") || f.contains("山花")))) {
+                return true;
+            }
+        }
+        // Intent text may still name dormers when structured fields omitted them.
+        return corpus.contains("dormer") || corpus.contains("老虎窗") || corpus.contains("山花");
+    }
+
     private static boolean looksNonBaroqueResidential(LlmPlan plan, String corpus) {
         String style = plan.styleProfile() == null ? "" : plan.styleProfile().toLowerCase(Locale.ROOT);
         if (style.contains("victorian") || style.contains("gothic") || style.contains("tudor")
@@ -277,22 +349,31 @@ final class BaroqueMansionStyleRepair {
                 || style.contains("art-deco")) {
             return true;
         }
-        return containsAny(corpus, List.of(
-                "维多利亚", "victorian", "哥特", "gothic", "都铎", "tudor",
-                "葱头", "onion", "日式", "中式", "废土"));
+        // Style family names only — not every residential synonym.
+        return corpus.contains("victorian") || corpus.contains("维多利亚")
+                || corpus.contains("gothic") || corpus.contains("哥特")
+                || corpus.contains("tudor") || corpus.contains("都铎");
+    }
+
+    private static boolean looksMonumentGateCorpus(String corpus) {
+        return corpus.contains("triumphal") || corpus.contains("凯旋")
+                || corpus.contains("victory arch") || corpus.contains("门楼") || corpus.contains("牌楼");
     }
 
     private static boolean looksMonumentGatePlan(LlmPlan plan) {
         for (Component c : plan.components()) {
-            if (c == null || c.params() == null) continue;
-            String id = String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
-            if (id.contains("arch") || id.contains("凯旋") || id.contains("triumphal")
-                    || id.contains("gate_body") || id.contains("arch_body")) {
-                return true;
-            }
-            Object buildingClass = plan.planMeta() == null ? null : plan.planMeta().get("building_class");
-            if (buildingClass != null && "gate".equalsIgnoreCase(String.valueOf(buildingClass))) {
-                return true;
+            if (c == null) continue;
+            String id = c.params() == null ? ""
+                    : String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
+            if (id.contains("arch") || id.contains("gate") || id.contains("triumphal")) return true;
+            if (c.features() != null) {
+                for (String f : c.features()) {
+                    if (f != null && (f.toLowerCase(Locale.ROOT).contains("triumphal")
+                            || f.toLowerCase(Locale.ROOT).contains("archway")
+                            || f.contains("凯旋"))) {
+                        return true;
+                    }
+                }
             }
         }
         return false;
@@ -307,7 +388,6 @@ final class BaroqueMansionStyleRepair {
         Dimensions dims = c.dimensions();
 
         if (type.startsWith("MASS") || "STRUCTURE".equals(type)) {
-            // Floor plates must stay thin slabs — height 6 “plates” crush upper storeys visually.
             Object extrude = params.get("extrude_mode");
             if (extrude == null) extrude = params.get("extrudeMode");
             String id = String.valueOf(params.getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
@@ -318,44 +398,27 @@ final class BaroqueMansionStyleRepair {
                 changed = true;
             }
             if (!plate) {
-                // Baroque mansion: 净高 4 upper / 5 ground → storey bands clear+1.
-                int upperBand = InteriorSpaceDefaults.storeyBandForClear(4);
-                int groundBand = InteriorSpaceDefaults.storeyBandForClear(5);
-                Object fh = params.get("floor_height");
-                if (fh == null) fh = params.get("floorHeight");
-                int floorHeight = 0;
-                if (fh instanceof Number n) floorHeight = n.intValue();
-                else if (fh != null) {
-                    try { floorHeight = Integer.parseInt(String.valueOf(fh).trim()); }
-                    catch (NumberFormatException ignored) {}
-                }
-                if ((floorHeight <= 0 || floorHeight < upperBand) && !corpusContainsLowCeiling(corpus)) {
-                    params.put("floor_height", upperBand);
-                    floorHeight = upperBand;
+                // Only lift unusable clear height; never invent a fixed mansion storey size.
+                int minBand = InteriorSpaceDefaults.minStoreyBand();
+                int floorHeight = readPositiveInt(params, "floor_height", "floorHeight");
+                if (floorHeight > 0 && floorHeight < minBand && !corpusContainsLowCeiling(corpus)) {
+                    params.put("floor_height", minBand);
+                    floorHeight = minBand;
                     changed = true;
                 }
-                Object gch = params.get("ground_clear_height");
-                if (gch == null) gch = params.get("groundClearHeight");
-                int groundClear = 0;
-                if (gch instanceof Number n) groundClear = n.intValue();
-                else if (gch != null) {
-                    try { groundClear = Integer.parseInt(String.valueOf(gch).trim()); }
-                    catch (NumberFormatException ignored) {}
-                }
-                if ((groundClear <= 0 || groundClear < groundBand) && !corpusContainsLowCeiling(corpus)) {
-                    params.put("ground_clear_height", groundBand);
-                    groundClear = groundBand;
+                int groundClear = readPositiveInt(params, "ground_clear_height", "groundClearHeight");
+                if (groundClear > 0 && groundClear < minBand && !corpusContainsLowCeiling(corpus)) {
+                    params.put("ground_clear_height", minBand);
+                    groundClear = minBand;
                     changed = true;
                 }
-                if (dims != null) {
-                    Object fc = params.get("floor_count");
-                    if (fc == null) fc = params.get("floorCount");
-                    int floors = fc instanceof Number n ? n.intValue() : 0;
-                    if (floors <= 0) floors = 2;
-                    int minHeight = groundClear > 0
-                            ? groundClear + Math.max(0, floors - 1) * Math.max(upperBand, floorHeight)
-                            : floors * Math.max(upperBand, floorHeight);
-                    if (dims.height() < minHeight && !corpusContainsLowCeiling(corpus)) {
+                // Expand envelope only to fit the LLM's own floor_count × authored bands.
+                int floors = readPositiveInt(params, "floor_count", "floorCount");
+                if (dims != null && floors > 0 && floorHeight > 0 && !corpusContainsLowCeiling(corpus)) {
+                    int upper = Math.max(minBand, floorHeight);
+                    int ground = groundClear > 0 ? Math.max(minBand, groundClear) : upper;
+                    int minHeight = ground + Math.max(0, floors - 1) * upper;
+                    if (dims.height() < minHeight) {
                         dims = new Dimensions(dims.width(), dims.depth(), minHeight);
                         changed = true;
                     }
@@ -369,7 +432,7 @@ final class BaroqueMansionStyleRepair {
                 params.put("facade_profile", "base_plinth");
                 changed = true;
             }
-            String plinth = resolvePlinthBlock(plan, corpus);
+            String plinth = resolvePlinthBlock(plan);
             if (plinth != null) {
                 if (params.putIfAbsent("foundation_block", plinth) == null) changed = true;
                 if (params.putIfAbsent("plinth_block", plinth) == null) changed = true;
@@ -379,7 +442,7 @@ final class BaroqueMansionStyleRepair {
             if (wall != null && params.putIfAbsent("wall_block", wall) == null) {
                 changed = true;
             }
-            if (containsAny(corpus, List.of("马萨", "mansard", "折线"))) {
+            if (planHasMansard(plan) || featuresSayMansard(features)) {
                 Object rt = params.get("roof_type");
                 if (rt == null) rt = params.get("roofType");
                 if (rt == null || !String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard")) {
@@ -392,7 +455,8 @@ final class BaroqueMansionStyleRepair {
         if (type.startsWith("ROOF")) {
             Object rt = params.get("roof_type");
             if (rt == null) rt = params.get("roofType");
-            if (rt == null || !String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard")) {
+            boolean mansard = rt != null && String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard");
+            if (!mansard && (planHasMansard(plan) || featuresSayMansard(features) || looksBaroqueMansion(plan, corpus))) {
                 params.put("roof_type", "mansard");
                 params.put("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
                 if (wantsDormers) {
@@ -401,13 +465,14 @@ final class BaroqueMansionStyleRepair {
                     params.putIfAbsent("roof_dormers", false);
                 }
                 changed = true;
-            } else if (wantsDormers) {
+            } else if (mansard && wantsDormers) {
                 if (!Boolean.TRUE.equals(params.get("roof_dormers"))) {
                     params.put("roof_dormers", true);
                     params.put("roof_specialty", "mansard_dormer");
                     changed = true;
                 }
-            } else if (Boolean.TRUE.equals(params.get("roof_dormers"))
+            } else if (mansard && Boolean.TRUE.equals(params.get("roof_dormers"))
+                    && !wantsDormers
                     && features.stream().noneMatch(f -> f != null
                     && (f.toLowerCase(Locale.ROOT).contains("dormer") || f.contains("老虎窗")))) {
                 params.put("roof_dormers", false);
@@ -423,7 +488,6 @@ final class BaroqueMansionStyleRepair {
             }
         }
         if ("PAVING".equals(type) || "PLAZA".equals(type)) {
-            // Link forecourt to the main entrance so threshold re-alignment can seat the plaza.
             if (!params.containsKey("role")) {
                 params.put("role", "entry_plaza");
                 changed = true;
@@ -435,19 +499,23 @@ final class BaroqueMansionStyleRepair {
         }
         Vec3i position = c.relativePosition();
         if ("ENTRANCE".equals(type) && position != null && position.y() <= 0) {
-            // Ensure a solid sill band: door opens at least one above mass bottom.
             position = new Vec3i(position.x(), 1, position.z());
             changed = true;
         }
         if (type.contains("FACADE") || type.contains("WINDOW")) {
-            if (containsAny(corpus, List.of("拱形", "arched", "石英"))) {
-                Object aspect = params.get("window_aspect");
-                if (aspect == null || String.valueOf(aspect).toLowerCase(Locale.ROOT).contains("ribbon")
-                        || String.valueOf(aspect).toLowerCase(Locale.ROOT).contains("pilaster")) {
-                    params.put("window_aspect", "arched");
-                    params.put("window_style", "arched");
-                    changed = true;
-                }
+            // Honour LLM window_aspect when present; only clear ribbon/pilaster misfits for arched intent.
+            Object aspect = params.get("window_aspect");
+            if (aspect == null) aspect = params.get("windowAspect");
+            String aspectStr = aspect == null ? "" : String.valueOf(aspect).toLowerCase(Locale.ROOT);
+            boolean archedIntent = features.stream().anyMatch(f -> f != null && (
+                    f.toLowerCase(Locale.ROOT).contains("arch") || f.contains("拱")))
+                    || (plan.distinguishingFeatures() != null && plan.distinguishingFeatures().stream()
+                    .anyMatch(f -> f != null && (f.toLowerCase(Locale.ROOT).contains("arch")
+                            || f.contains("拱"))));
+            if (archedIntent && (aspectStr.isBlank() || aspectStr.contains("ribbon") || aspectStr.contains("pilaster"))) {
+                params.put("window_aspect", "arched");
+                params.put("window_style", "arched");
+                changed = true;
             }
         }
         if (!changed) {
@@ -457,21 +525,42 @@ final class BaroqueMansionStyleRepair {
                 dims != null ? dims : c.dimensions(), features, params);
     }
 
-    private static boolean corpusContainsLowCeiling(String corpus) {
-        return containsAny(corpus, List.of("层高2", "层高两", "二格高", "2格高", "矮层", "ceiling 2", "height 2"));
+    private static boolean featuresSayMansard(List<String> features) {
+        return features != null && features.stream().anyMatch(f -> f != null
+                && f.toLowerCase(Locale.ROOT).contains("mansard"));
     }
 
-    private static String resolvePlinthBlock(LlmPlan plan, String corpus) {
-        StyleAttributes sa = plan.styleAttributes();
-        if (sa != null) {
-            String fromPalette = sa.resolvePaletteBlock(
-                    "plinth", "base", "foundation_band", "foundation", "base_material");
-            if (fromPalette != null && !fromPalette.isBlank()) {
-                return fromPalette;
+    private static int readPositiveInt(Map<String, Object> params, String... keys) {
+        for (String key : keys) {
+            Object v = params.get(key);
+            if (v instanceof Number n) {
+                int i = n.intValue();
+                if (i > 0) return i;
+            } else if (v != null) {
+                try {
+                    int i = Integer.parseInt(String.valueOf(v).trim());
+                    if (i > 0) return i;
+                } catch (NumberFormatException ignored) {
+                }
             }
         }
-        if (containsAny(corpus, List.of("深板", "深板岩", "deepslate"))) {
-            return "minecraft:deepslate_bricks";
+        return 0;
+    }
+
+    private static boolean corpusContainsLowCeiling(String corpus) {
+        return corpus.contains("层高2") || corpus.contains("层高两") || corpus.contains("二格高")
+                || corpus.contains("2格高") || corpus.contains("矮层")
+                || corpus.contains("ceiling 2") || corpus.contains("height 2")
+                || corpus.contains("low ceiling") || corpus.contains("矮净高");
+    }
+
+    private static String resolvePlinthBlock(LlmPlan plan) {
+        StyleAttributes sa = plan.styleAttributes();
+        if (sa == null) return null;
+        String fromPalette = sa.resolvePaletteBlock(
+                "plinth", "base", "foundation_band", "foundation", "base_material");
+        if (fromPalette != null && !fromPalette.isBlank()) {
+            return fromPalette;
         }
         return null;
     }
@@ -514,14 +603,5 @@ final class BaroqueMansionStyleRepair {
         }
         if (plan.playerFidelityNoticeZh() != null) sb.append(plan.playerFidelityNoticeZh()).append(' ');
         return sb.toString().toLowerCase(Locale.ROOT);
-    }
-
-    private static boolean containsAny(String corpus, List<String> cues) {
-        for (String cue : cues) {
-            if (cue != null && !cue.isBlank() && corpus.contains(cue.toLowerCase(Locale.ROOT))) {
-                return true;
-            }
-        }
-        return false;
     }
 }

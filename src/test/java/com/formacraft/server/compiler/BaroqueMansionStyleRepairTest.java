@@ -72,9 +72,11 @@ class BaroqueMansionStyleRepairTest {
 
         Component fixedMass = out.components().stream()
                 .filter(c -> "MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
-        assertEquals(5, ((Number) fixedMass.params().get("floor_height")).intValue());
-        assertEquals(6, ((Number) fixedMass.params().get("ground_clear_height")).intValue());
-        assertTrue(fixedMass.dimensions().height() >= 11);
+        // Soft floor: only lift unusable authored bands; keep LLM footprint (15×25 here is the prompt).
+        assertTrue(((Number) fixedMass.params().get("floor_height")).intValue() >= 4);
+        assertEquals(15, fixedMass.dimensions().width());
+        assertEquals(25, fixedMass.dimensions().depth());
+        assertTrue(fixedMass.dimensions().height() >= 8);
 
         Component fixedPlate = out.components().stream()
                 .filter(c -> c.params() != null && "floor_plate_1".equals(c.params().get("component_id")))
