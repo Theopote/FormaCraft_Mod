@@ -784,8 +784,17 @@ public final class ComponentLibraryPanel extends BasePanel {
         ensureWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
 
-        if (clickButton(communityToggle,click)) return true;
+        if (clickButton(communityToggle,click)) { blurKeyboardFocus(); return true; }
         if (communityMode) { communityPane.click(mouseX,mouseY,button); return true; }
+
+        // 先处理搜索框（点击可获焦；点在外面会自行失焦）
+        if (searchBoundsValid) {
+            if (searchInput.mouseClicked(mouseX, mouseY, searchX, searchY, searchW, searchH)) {
+                return true;
+            }
+        } else {
+            searchInput.setFocused(false);
+        }
 
         // allow buttons
         if (clickButton(sortButton, click)) return true;
@@ -805,12 +814,6 @@ public final class ComponentLibraryPanel extends BasePanel {
         if (inScroll && clickButton(deleteButton, click)) return true;
         if (mouseY >= scrollAreaTop && (clickButton(confirmImportButton, click) || clickButton(cancelImportButton, click))) return true;
         if (mouseY >= scrollAreaTop && (clickButton(sourceButton, click) || clickButton(prevSourceButton, click) || clickButton(nextSourceButton, click))) return true;
-
-        if (searchBoundsValid) {
-            if (searchInput.mouseClicked(mouseX, mouseY, searchX, searchY, searchW, searchH)) {
-                return true;
-            }
-        }
 
         if (gridValid && inScroll) {
             for (GridItem it : grid) {
@@ -859,6 +862,12 @@ public final class ComponentLibraryPanel extends BasePanel {
     public boolean wantsKeyboardInput() {
         if (communityMode) return communityPane.focused();
         return searchInput.isFocused();
+    }
+
+    @Override
+    public void blurKeyboardFocus() {
+        searchInput.setFocused(false);
+        if (communityMode) communityPane.blur();
     }
 
     @Override

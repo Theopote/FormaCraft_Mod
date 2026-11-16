@@ -29,6 +29,8 @@ public class InputRouter {
     // 最新鼠标位置，由 MouseMixin 更新
     private static double mouseX;
     private static double mouseY;
+    /** 上一帧鼠标是否在 UI 内；用于离开时自动取消输入焦点 */
+    private static boolean wasMouseInsideUI = false;
 
     public static boolean leftDown = false;
     public static boolean rightDown = false;
@@ -56,6 +58,20 @@ public class InputRouter {
     public static void updateMouse(double x, double y) {
         mouseX = x;
         mouseY = y;
+        if (!FormacraftUIState.isOpen) {
+            wasMouseInsideUI = false;
+            return;
+        }
+        boolean inside = isMouseInsideUI(x, y);
+        if (wasMouseInsideUI && !inside) {
+            blurActivePanel();
+        }
+        wasMouseInsideUI = inside;
+    }
+
+    private static void blurActivePanel() {
+        BasePanel panel = getPanel();
+        if (panel != null) panel.blurKeyboardFocus();
     }
 
     /** 获取当前面板 */
@@ -170,6 +186,10 @@ public class InputRouter {
         // - 先交给当前工具（工具可消费左/右键）
         // - 若工具未消费：右键设置锚点；左键也应被吞掉（完全拦截原版破坏/放置/开箱）
         boolean inside = isMouseInsideUI(x, y);
+        if (!inside) {
+            // 点在世界区域：立即取消 UI 输入焦点，避免键盘仍被输入框占用
+            blurActivePanel();
+        }
         if (!inside && (button == 0 || button == 1)) {
             // 特殊处理：构件库模式下的右键放置（双击构件后）
             if (button == 1) {
@@ -284,11 +304,10 @@ public class InputRouter {
                 FormaCraftClientNetworking.sendPatchRedo();
                 return true;
             }
-            // 仅当指针在侧栏内、或输入框仍要键盘时，才把按键交给面板；
-            // 否则不要 return true，否则会吞掉 WASD，玩家无法绕预览走动。
-            if (FormacraftUIState.isOpen) {
+            // 仅当指针在侧栏内才把按键交给面板；否则放行 WASD，玩家可绕预览走动。
+            if (FormacraftUIState.isOpen && isMouseInsideUI()) {
                 BasePanel panel = getPanel();
-                if (panel != null && (isMouseInsideUI() || panel.wantsKeyboardInput())) {
+                if (panel != null) {
                     panel.keyPressed(keyCode, scanCode, modifiers);
                     return true;
                 }
@@ -309,20 +328,21 @@ public class InputRouter {
             return true;
         }
 
-        // Text fields keep their editing keys. Tool shortcuts apply in the world area only.
+        boolean inside = isMouseInsideUI();
         BasePanel keyboardPanel = getPanel();
-        if (!isMouseInsideUI() && (keyboardPanel == null || !keyboardPanel.wantsKeyboardInput())
-                && !BuildConfirmPanel.INSTANCE.isVisible() && ToolManager.getActiveTool() != null) {
+
+        // 工具快捷键仅在世界区域（鼠标不在 UI 内）生效
+        if (!inside && !BuildConfirmPanel.INSTANCE.isVisible() && ToolManager.getActiveTool() != null) {
             var tool = ToolManager.getActiveTool();
             if ((keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) && tool.finishDraft()) return true;
             if (keyCode == GLFW.GLFW_KEY_BACKSPACE && tool.removeLastDraftPoint()) return true;
         }
 
-        // Ctrl+Z / Ctrl+Y：Patch Undo / Redo（仅 UI 打开时生效）
+        // Ctrl+Z / Ctrl+Y：仅鼠标在 UI 内且输入框有焦点时交给文本编辑；否则 Patch/工具撤销
         boolean ctrl = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
         boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
         boolean historyKey = ctrl && (keyCode == GLFW.GLFW_KEY_Z || keyCode == GLFW.GLFW_KEY_Y);
-        if (historyKey && keyboardPanel != null && keyboardPanel.wantsKeyboardInput()) {
+        if (historyKey && inside && keyboardPanel != null && keyboardPanel.wantsKeyboardInput()) {
             keyboardPanel.keyPressed(keyCode, scanCode, modifiers);
             return true;
         }
@@ -343,33 +363,31 @@ public class InputRouter {
             return true;
         }
 
-        // 重要交互规则（按用户期望）：
-        // - 鼠标在面板范围内：UI 接管键盘
-        // - 鼠标在面板范围外：键盘交给游戏（WASD/Shift/Space 等必须可用）
+        // 交互规则：
+        // - 鼠标在面板内：UI 接管键盘（但输入框仍需点击才获焦）
+        // - 鼠标在面板外：键盘交给游戏，不因输入焦点而粘住
 
         // BuildConfirmPanel 是“模态弹窗”，即便鼠标暂时不在面板内也优先吃键盘
-            if (BuildConfirmPanel.INSTANCE.isVisible()) {
-                if (BuildConfirmPanel.INSTANCE.keyPressed(keyCode)) return true;
-            }
+        if (BuildConfirmPanel.INSTANCE.isVisible()) {
+            if (BuildConfirmPanel.INSTANCE.keyPressed(keyCode)) return true;
+        }
 
-        boolean inside = isMouseInsideUI();
-        BasePanel panel = getPanel();
-        if (!inside && (panel == null || !panel.wantsKeyboardInput())) return false;
+        if (!inside) return false;
 
-            if (panel != null) {
-                panel.keyPressed(keyCode, scanCode, modifiers);
-                return true;
-            }
+        if (keyboardPanel != null) {
+            keyboardPanel.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
         return false;
     }
 
     /** 字符输入事件 */
     public static boolean onCharTyped(char chr, int modifiers) {
         if (isPreviewLocked()) {
-            // 与按键一致：只在侧栏/输入焦点时吃字符，避免误吞；移动键本身不走 onChar。
-            if (FormacraftUIState.isOpen) {
+            // 与按键一致：只在侧栏内吃字符，避免误吞；移动键本身不走 onChar。
+            if (FormacraftUIState.isOpen && isMouseInsideUI()) {
                 BasePanel panel = getPanel();
-                if (panel != null && (isMouseInsideUI() || panel.wantsKeyboardInput())) {
+                if (panel != null) {
                     panel.charTyped(chr);
                     return true;
                 }
@@ -378,14 +396,14 @@ public class InputRouter {
         }
         if (!FormacraftUIState.isOpen) return false;
 
-        boolean inside = isMouseInsideUI();
-        BasePanel panel = getPanel();
-        if (!inside && (panel == null || !panel.wantsKeyboardInput())) return false;
+        // 鼠标不在 UI 内：不吃字符，交还游戏
+        if (!isMouseInsideUI()) return false;
 
-            if (panel != null) {
-                panel.charTyped(chr);
-                return true;
-            }
+        BasePanel panel = getPanel();
+        if (panel != null) {
+            panel.charTyped(chr);
+            return true;
+        }
         return false;
     }
 

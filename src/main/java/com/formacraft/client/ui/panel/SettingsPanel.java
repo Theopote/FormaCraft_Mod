@@ -1015,11 +1015,13 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
         syncConnectionIdentity(); syncSearchIdentity();
         if(details.isOpen()) { if(keyCode==GLFW.GLFW_KEY_ESCAPE) details.close(); return; }
         if(choices.isOpen()) { choices.keyPressed(keyCode,modifiers); return; }
+        var focused=ui.focused();
+        // Tab 仅在已有输入焦点时切换，避免无获焦时键盘自动抢焦
         if(keyCode==GLFW.GLFW_KEY_TAB) {
+            if(focused==null) return;
             setScrollY(Math.max(0,Math.min(maxScrollY,scrollY+ui.tab((modifiers&GLFW.GLFW_MOD_SHIFT)!=0))));
             return;
         }
-        var focused=ui.focused();
         if(focused!=null) {
             String before=focused.getText(); focused.keyPressed(keyCode,modifiers); afterTextEdit(focused,before);
         }
@@ -1028,6 +1030,12 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
 
     @Override
     public boolean wantsKeyboardInput() { return choices.isOpen() || details.isOpen() || ui.focused()!=null; }
+
+    @Override
+    public void blurKeyboardFocus() {
+        blurInputs();
+        if (choices.isOpen()) choices.blur();
+    }
 
     @Override public void loadBackendSettings(SettingsConfig cfg) { backendSection.load(cfg); }
     @Override public void stageBackendSettings(SettingsConfig cfg) { backendSection.stage(cfg); }

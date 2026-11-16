@@ -25,6 +25,8 @@ public final class SettingsChoicePanel {
     public boolean isEditingValue() { return isOpen() && editable; }
     public void updateOptions(List<Option> options) { list.setOptions(options); }
     public void close() { select = null; search.setFocused(false); custom.setFocused(false); }
+    /** 取消搜索/自定义输入焦点，不关闭面板。 */
+    public void blur() { search.setFocused(false); custom.setFocused(false); }
 
     public void open(String title, List<Option> options, String selected, boolean editable, Consumer<String> select) {
         this.title = title;
@@ -38,7 +40,8 @@ public final class SettingsChoicePanel {
         custom.setText(selected);
         custom.setPlaceholder("输入模型 ID；留空为自动");
         custom.setFocused(false);
-        search.setFocused(true);
+        // 不自动抢焦：需点击搜索框后才能输入
+        search.setFocused(false);
     }
 
     private List<Option> visibleItems() {

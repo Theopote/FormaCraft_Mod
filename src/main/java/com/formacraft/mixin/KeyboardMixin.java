@@ -22,8 +22,8 @@ public class KeyboardMixin {
         // 重要：这个方法的第二个参数在 1.21.10 的 Yarn 映射中就是 action，
         // KeyInput 里包含 key/scancode/modifiers。
         //
-        // 关键修复：
-        // - 输入框获得焦点后，鼠标移出也应能 Backspace/粘贴等（由 InputRouter 的 wantsKeyboardInput 决定）。
+        // 交互规则：
+        // - 仅鼠标在 UI 内时才把按键交给面板（见 InputRouter）；鼠标在游戏世界时键盘交还游戏。
         // - 只转发“按下/重复”，不要把“释放”当作按下，否则 Backspace 会按一次删两次。
         // - 仅当 UI 消费了该按键时才 cancel（释放事件永远不 cancel，避免 KeyBinding 残留按下状态）。
         // 释放：不转发、不 cancel，但需要清理“吞 ESC 直到释放”的标记
@@ -56,7 +56,7 @@ public class KeyboardMixin {
             return;
         }
 
-        // 同 onKey：让 InputRouter 决定是否消费（inside UI 或输入框已获得焦点）。
+        // 同 onKey：仅鼠标在 UI 内时由 InputRouter 消费字符。
         boolean handled = InputRouter.onCharTyped((char) charInput.codepoint(), charInput.modifiers());
         if (handled) {
             ci.cancel();

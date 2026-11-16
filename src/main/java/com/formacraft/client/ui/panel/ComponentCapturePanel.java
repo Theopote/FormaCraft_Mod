@@ -1238,33 +1238,72 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         ensureWidgets();
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         var captureState = ComponentTool.INSTANCE.getState();
-        if (captureState.isCaptureSavePending()) { clickButton(cancelButton, click); return true; }
+        if (captureState.isCaptureSavePending()) { blurKeyboardFocus(); clickButton(cancelButton, click); return true; }
         if (typeSection.click(mouseX, mouseY, click)) {
             nameInput.setFocused(false); tagsInput.setFocused(false); socketIdInput.setFocused(false); return true;
         }
-        if (clickButton(cancelButton, click)) return true;
-        if (clickButton(saveButton, click)) return true;
-        if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(captureState)) return true;
-        if (mouseY < getContentY() || mouseY >= panelY + panelHeight - STICKY_FOOTER_HEIGHT - 4) return true;
+        if (clickButton(cancelButton, click)) { blurKeyboardFocus(); return true; }
+        if (clickButton(saveButton, click)) { blurKeyboardFocus(); return true; }
+        if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(captureState)) { blurKeyboardFocus(); return true; }
+        if (mouseY < getContentY() || mouseY >= panelY + panelHeight - STICKY_FOOTER_HEIGHT - 4) {
+            blurKeyboardFocus();
+            return true;
+        }
 
-        if (adaptationSection.click(click, mouseY)) return true;
+        if (adaptationSection.click(click, mouseY)) { blurKeyboardFocus(); return true; }
 
         // 健康检查摘要行点击（展开/折叠抽屉）
         if (healthCoordinator.handleSummaryClick(mouseY, getPanelY(), scrollY)) {
+            blurKeyboardFocus();
             return true;
         }
 
         Integer hitPhase = phaseHeaders.hitPhase(mouseX, mouseY);
         if (hitPhase != null) {
             phaseCollapsed[hitPhase] = !phaseCollapsed[hitPhase];
+            blurKeyboardFocus();
             return true;
         }
         
         // 选择工具按钮点击
-        if (clickButton(boxSelectButton, click)) return true;
-        if (clickButton(pointSelectButton, click)) return true;
-        if (clickButton(clearSelectionButton, click)) return true;
+        if (clickButton(boxSelectButton, click)) { blurKeyboardFocus(); return true; }
+        if (clickButton(pointSelectButton, click)) { blurKeyboardFocus(); return true; }
+        if (clickButton(clearSelectionButton, click)) { blurKeyboardFocus(); return true; }
         
+        // 输入框优先：点中则获焦，点在外面会自行失焦
+        if (nameInputBoundsValid) {
+            if (nameInput.mouseClicked(mouseX, mouseY, nameInputX, nameInputY, nameInputW, nameInputH)) {
+                tagsInput.setFocused(false);
+                socketIdInput.setFocused(false);
+                typeSection.unfocus();
+                return true;
+            }
+        } else {
+            nameInput.setFocused(false);
+        }
+
+        if (tagsInputBoundsValid) {
+            if (tagsInput.mouseClicked(mouseX, mouseY, tagsInputX, tagsInputY, tagsInputW, tagsInputH)) {
+                nameInput.setFocused(false);
+                socketIdInput.setFocused(false);
+                typeSection.unfocus();
+                return true;
+            }
+        } else {
+            tagsInput.setFocused(false);
+        }
+
+        if (socketIdInputBoundsValid) {
+            if (socketIdInput.mouseClicked(mouseX, mouseY, socketIdInputX, socketIdInputY, socketIdInputW, socketIdInputH)) {
+                nameInput.setFocused(false);
+                tagsInput.setFocused(false);
+                typeSection.unfocus();
+                return true;
+            }
+        } else {
+            socketIdInput.setFocused(false);
+        }
+
         // Phase 3: 语义配置按钮点击
         if (clickButton(attachmentModeButton, click)) return true;
         if (clickButton(directionalityButton, click)) return true;
@@ -1301,31 +1340,6 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         
         if (clickButton(cancelButton, click)) return true;
         if (clickButton(saveButton, click)) return true;
-
-        // 输入框点击
-        if (nameInputBoundsValid) {
-            if (nameInput.mouseClicked(mouseX, mouseY, nameInputX, nameInputY, nameInputW, nameInputH)) {
-                tagsInput.setFocused(false);
-                socketIdInput.setFocused(false);
-                return true;
-            }
-        }
-
-        if (tagsInputBoundsValid) {
-            if (tagsInput.mouseClicked(mouseX, mouseY, tagsInputX, tagsInputY, tagsInputW, tagsInputH)) {
-                nameInput.setFocused(false);
-                socketIdInput.setFocused(false);
-                return true;
-            }
-        }
-
-        if (socketIdInputBoundsValid) {
-            if (socketIdInput.mouseClicked(mouseX, mouseY, socketIdInputX, socketIdInputY, socketIdInputW, socketIdInputH)) {
-                nameInput.setFocused(false);
-                tagsInput.setFocused(false);
-                return true;
-            }
-        }
 
         return true; // 消费所有面板内点击
     }
@@ -1368,6 +1382,14 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     @Override
     public boolean wantsKeyboardInput() {
         return typeSection.focused() || nameInput.isFocused() || tagsInput.isFocused() || socketIdInput.isFocused();
+    }
+
+    @Override
+    public void blurKeyboardFocus() {
+        typeSection.unfocus();
+        nameInput.setFocused(false);
+        tagsInput.setFocused(false);
+        socketIdInput.setFocused(false);
     }
 
     private int drawWrappedText(DrawContext ctx, Text text, int x, int y, int maxWidth, int color) {

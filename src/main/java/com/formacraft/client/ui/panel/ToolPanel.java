@@ -721,8 +721,7 @@ public class ToolPanel extends BasePanel {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (super.mouseClicked(mouseX, mouseY, button)) return true;
         if (!isMouseOver(mouseX, mouseY)) {
-            labelNameInput.setFocused(false);
-            planeHeightInput.setFocused(false);
+            blurKeyboardFocus();
             return false;
         }
         if (button != 0) return false;
@@ -734,68 +733,82 @@ public class ToolPanel extends BasePanel {
         double fixedAreaTop = getContentY() + 1;
         double fixedAreaBottom = separatorY + 1;
         if (mouseY >= fixedAreaTop && mouseY <= fixedAreaBottom) {
-            if (clickButton(noneToolButton, click)) return true;
+            if (clickButton(noneToolButton, click)) { blurKeyboardFocus(); return true; }
             for (ButtonWidget b : toolButtons.values()) {
-                if (clickButton(b, click)) return true;
+                if (clickButton(b, click)) { blurKeyboardFocus(); return true; }
             }
+            blurKeyboardFocus();
             return false; // 固定区域只处理工具按钮
         }
 
         // 滚动区域（工具选项）：只允许点击可见区域
         double optionsAreaTop = separatorY + 1;
         double optionsAreaBottom = panelY + panelHeight - 1;
-        if (mouseY < optionsAreaTop || mouseY > optionsAreaBottom) return false;
+        if (mouseY < optionsAreaTop || mouseY > optionsAreaBottom) {
+            blurKeyboardFocus();
+            return false;
+        }
 
         // 根据当前激活的工具，处理对应的选项按钮
 
         if (ToolManager.isActive(WorkPlaneTool.INSTANCE.getId())) {
             if (planeInputVisible && planeHeightInput.mouseClicked(mouseX, mouseY, planeInputX, planeInputY, planeInputW, 14)) {
+                labelNameInput.setFocused(false);
                 HudClickSupport.clearPending();
                 return true;
             }
             if (clickButton(planeApplyButton, click) || clickButton(planeDownButton, click) || clickButton(planeUpButton, click)
-                    || clickButton(planeLockButton, click) || clickButton(planeModeButton, click) || clickButton(planeClearButton, click)) return true;
+                    || clickButton(planeLockButton, click) || clickButton(planeModeButton, click) || clickButton(planeClearButton, click)) {
+                blurKeyboardFocus();
+                return true;
+            }
         } else if (ToolManager.isActive(SelectionTool.INSTANCE.getId())) {
-            if (clickButton(clearSelectionButton, click)) return true;
+            if (clickButton(clearSelectionButton, click)) { blurKeyboardFocus(); return true; }
         } else if (ToolManager.isActive(ProtectedZoneTool.INSTANCE.getId())) {
-            if (clickButton(clearProtectedZonesButton, click)) return true;
+            if (clickButton(clearProtectedZonesButton, click)) { blurKeyboardFocus(); return true; }
         } else if (ToolManager.isActive(OutlineTool.INSTANCE.getId())) {
-            if (clickButton(outlineModeButton, click)) return true;
-            if (clickButton(clearOutlineButton, click)) return true;
+            if (clickButton(outlineModeButton, click)) { blurKeyboardFocus(); return true; }
+            if (clickButton(clearOutlineButton, click)) { blurKeyboardFocus(); return true; }
         } else if (ToolManager.isActive(PathTool.INSTANCE.getId())) {
             if (clickButton(pathDrawingModeButton, click) || clickButton(pathSelectButton, click)
                     || clickButton(pathRemoveButton, click) || clickButton(pathIntentButton, click)
-                    || clickButton(pathRadiusMinusButton, click) || clickButton(pathRadiusPlusButton, click)) return true;
-            if (clickButton(clearPathsButton, click)) return true;
+                    || clickButton(pathRadiusMinusButton, click) || clickButton(pathRadiusPlusButton, click)) {
+                blurKeyboardFocus();
+                return true;
+            }
+            if (clickButton(clearPathsButton, click)) { blurKeyboardFocus(); return true; }
         } else if (ToolManager.isActive(BrushTool.INSTANCE.getId())) {
-            if (clickButton(brushUndoButton, click) || clickButton(brushRedoButton, click)) return true;
-            if (clickButton(brushModeButton, click)) return true;
-            if (clickButton(brushRadiusMinusButton, click)) return true;
-            if (clickButton(brushRadiusPlusButton, click)) return true;
-            if (clickButton(clearBrushSelectionButton, click)) return true;
+            if (clickButton(brushUndoButton, click) || clickButton(brushRedoButton, click)) { blurKeyboardFocus(); return true; }
+            if (clickButton(brushModeButton, click)) { blurKeyboardFocus(); return true; }
+            if (clickButton(brushRadiusMinusButton, click)) { blurKeyboardFocus(); return true; }
+            if (clickButton(brushRadiusPlusButton, click)) { blurKeyboardFocus(); return true; }
+            if (clickButton(clearBrushSelectionButton, click)) { blurKeyboardFocus(); return true; }
         } else if (ToolManager.isActive(SymmetryTool.INSTANCE.getId())) {
-            if (clickButton(symmetryModeButton, click)) return true;
-            if (clickButton(clearSymmetryButton, click)) return true;
+            if (clickButton(symmetryModeButton, click)) { blurKeyboardFocus(); return true; }
+            if (clickButton(clearSymmetryButton, click)) { blurKeyboardFocus(); return true; }
         } else if (ToolManager.isActive(SemanticLabelTool.INSTANCE.getId())) {
             // 标签名输入框（使用 drawContents 缓存的 bounds）
             if (labelNameInputBoundsValid) {
                 if (labelNameInput.mouseClicked(mouseX, mouseY, labelNameInputX, labelNameInputY, labelNameInputW, labelNameInputH)) {
+                    planeHeightInput.setFocused(false);
                     HudClickSupport.clearPending();
                     return true;
                 }
             }
             if (labelRangeSlider != null && labelRangeSlider.visible && labelRangeSlider.isMouseOver(mouseX, mouseY)) {
                 HudClickSupport.clearPending();
-                labelNameInput.setFocused(false);
+                blurKeyboardFocus();
                 activeSlider = labelRangeSlider;
                 labelRangeSlider.dragWithMouse(mouseX);
                 return true;
             }
-            if (clickButton(clearLabelsButton, click)) return true;
+            if (clickButton(clearLabelsButton, click)) { blurKeyboardFocus(); return true; }
         }
 
         // 锚点按钮（无论是否有激活工具都显示，因为锚点可以在没有工具时设置）
-        return clickButton(clearAnchorButton, click);
+        if (clickButton(clearAnchorButton, click)) { blurKeyboardFocus(); return true; }
+        blurKeyboardFocus();
+        return false;
     }
 
     @Override
@@ -863,6 +876,12 @@ public class ToolPanel extends BasePanel {
     public boolean wantsKeyboardInput() {
         return ToolManager.isActive(SemanticLabelTool.INSTANCE.getId()) && labelNameInput.isFocused()
                 || ToolManager.isActive(WorkPlaneTool.INSTANCE.getId()) && planeHeightInput.isFocused();
+    }
+
+    @Override
+    public void blurKeyboardFocus() {
+        labelNameInput.setFocused(false);
+        planeHeightInput.setFocused(false);
     }
 
     @Override

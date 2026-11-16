@@ -668,6 +668,7 @@ public class ChatPanel extends BasePanel {
         stopButton.visible = generating;
         stopButton.active = generating;
         if (generating && HudClickSupport.click(stopButton, click)) {
+            blurInput();
             return true;
         }
 
@@ -675,13 +676,14 @@ public class ChatPanel extends BasePanel {
         sendButton.visible = true;
         sendButton.active = true;
         if (HudClickSupport.click(sendButton, click)) {
+            blurInput();
             return true;
         }
 
         // 在输出区点击：开始选择 / 或点击空白清除
         if (mouseY >= layout.chatTop() && mouseY < layout.chatBottom() && tryStartSelection(mouseX, mouseY)) {
             // 选中输出文本后，不要抢输入框焦点
-            inputBox.setFocused(false);
+            blurInput();
             return true;
         } else {
             // 点击非输出文本：清除选区
@@ -699,6 +701,8 @@ public class ChatPanel extends BasePanel {
             return true;
         }
 
+        // 点在面板内其它区域：取消输入焦点
+        blurInput();
         return false;
     }
 
@@ -810,8 +814,11 @@ public class ChatPanel extends BasePanel {
             }
         }
 
-        // 设置输入框焦点
-        inputBox.setFocused(true);
+        // 输入框未获焦时不处理编辑键（需点击输入区才可输入）
+        if (inputBox == null || !inputBox.isFocused()) {
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) blurInput();
+            return;
+        }
 
         // Backspace
         if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
@@ -834,35 +841,34 @@ public class ChatPanel extends BasePanel {
             return;
         }
 
-        // ↑/↓ 输入历史：只在光标位于首行/末行且没有修饰键时触发
+        // ↑/↓ 输入历史：仅在输入为空时进入；已在浏览态时可继续翻阅。
+        // 有内容编辑时 ↑/↓ 只移动光标，避免单行输入时误把上次消息换进来。
         boolean noMods = (modifiers & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_ALT | GLFW.GLFW_MOD_SHIFT | GLFW.GLFW_MOD_SUPER)) == 0;
-        if (noMods && keyCode == GLFW.GLFW_KEY_UP && inputBox.isCursorAtFirstLine()) {
-            if (!inputHistory.isEmpty()) {
-                if (historyIndex == -1) {
-                    historyDraft = inputBox.getText();
-                    historyIndex = inputHistory.size() - 1;
-                } else if (historyIndex > 0) {
-                    historyIndex--;
-                }
-                inputBox.setText(inputHistory.get(historyIndex));
+        boolean browsingHistory = historyIndex != -1;
+        boolean inputEmpty = inputBox.getText().isEmpty();
+        if (noMods && keyCode == GLFW.GLFW_KEY_UP && inputBox.isCursorAtFirstLine()
+                && (browsingHistory || inputEmpty) && !inputHistory.isEmpty()) {
+            if (historyIndex == -1) {
+                historyDraft = inputBox.getText();
+                historyIndex = inputHistory.size() - 1;
+            } else if (historyIndex > 0) {
+                historyIndex--;
             }
+            inputBox.setText(inputHistory.get(historyIndex));
             return;
         }
-        if (noMods && keyCode == GLFW.GLFW_KEY_DOWN && inputBox.isCursorAtLastLine()) {
-            if (historyIndex != -1) {
-                if (historyIndex < inputHistory.size() - 1) {
-                    historyIndex++;
-                    inputBox.setText(inputHistory.get(historyIndex));
-                } else {
-                    historyIndex = -1;
-                    inputBox.setText(historyDraft);
-                }
+        if (noMods && keyCode == GLFW.GLFW_KEY_DOWN && inputBox.isCursorAtLastLine() && browsingHistory) {
+            if (historyIndex < inputHistory.size() - 1) {
+                historyIndex++;
+                inputBox.setText(inputHistory.get(historyIndex));
+            } else {
+                historyIndex = -1;
+                inputBox.setText(historyDraft);
             }
             return;
         }
 
         // 其他按键交给输入框处理（方向键、Ctrl+C/V/X、Home/End 等）
-        // 注意：这会包含方向键上下移动“行内光标”，只有在到达边界才会被上面的历史逻辑接管
         if (keyCode != GLFW.GLFW_KEY_UP && keyCode != GLFW.GLFW_KEY_DOWN) {
             // 非上下键的编辑/移动：退出历史浏览态（保持当前内容）
             historyIndex = -1;
@@ -872,8 +878,9 @@ public class ChatPanel extends BasePanel {
 
     @Override
     public void charTyped(char chr) {
-        // 过滤控制字符
+        // 过滤控制字符；未获焦时不输入
         if (chr == '\r' || chr == '\n') return;
+        if (inputBox == null || !inputBox.isFocused()) return;
         historyIndex = -1; // 输入即退出历史浏览态
         inputBox.charTyped(chr);
     }
@@ -884,11 +891,17 @@ public class ChatPanel extends BasePanel {
         return inputBox != null && inputBox.isFocused();
     }
 
+    @Override
+    public void blurKeyboardFocus() {
+        blurInput();
+    }
+
     /** 预览确认弹出时取消输入焦点，避免吞掉 WASD。 */
     public void blurInput() {
         if (inputBox != null) {
             inputBox.setFocused(false);
         }
+        historyIndex = -1;
     }
 
     // ==========================

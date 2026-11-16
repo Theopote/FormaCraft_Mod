@@ -515,6 +515,8 @@ public abstract class BasePanel {
         // Tab 区域（使用 TabBar 处理）
         PanelType clickedTab = tabBar.handleMouseClick(mouseX, mouseY, button);
         if (clickedTab != null) {
+            // 切换面板前取消当前输入焦点，避免焦点残留到下一个面板
+            blurKeyboardFocus();
             if (FormaCraftHudOverlay.activePanel == PanelType.COMPONENT_CAPTURE
                     && clickedTab != PanelType.COMPONENT_CAPTURE) {
                 ComponentTool.INSTANCE.getState().cancelCapture();
@@ -553,10 +555,16 @@ public abstract class BasePanel {
     }
 
     /**
-     * 是否希望接收键盘/字符输入（即便鼠标暂时不在面板区域内）。
-     * 用于支持：点击输入框后可以移开鼠标继续输入/粘贴。
+     * 当前是否有输入控件处于焦点（供 ESC 取消焦点等逻辑查询）。
+     * 注意：键盘路由不再依赖此项——鼠标离开 UI 后键盘一律交还游戏。
      */
     public boolean wantsKeyboardInput() { return false; }
+
+    /**
+     * 取消面板内所有文本输入焦点。
+     * 鼠标离开 UI、或点击非输入区域时应调用。
+     */
+    public void blurKeyboardFocus() {}
 
     /**
      * 检查鼠标是否在面板内

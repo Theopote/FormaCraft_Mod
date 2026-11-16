@@ -3,6 +3,7 @@ package com.formacraft.common.llm.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -82,7 +83,7 @@ public record StyleAttributes(
 
     private String firstFromMaps(String role) {
         String key = role.trim().toLowerCase();
-        for (Map<String, String> map : new Map[]{palette, materials, blockPalette, customAttributes}) {
+        for (Map<String, String> map : Arrays.asList(palette, materials, blockPalette, customAttributes)) {
             if (map == null) continue;
             for (Map.Entry<String, String> e : map.entrySet()) {
                 if (e.getKey() == null || e.getValue() == null || e.getValue().isBlank()) continue;
