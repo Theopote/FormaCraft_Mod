@@ -155,6 +155,124 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertEqual(dome["dimensions"], before["components"][1]["dimensions"])
         self.assertEqual(dome["params"]["host_id"], "mass_a")
 
+    def test_ai_planned_xieshan_survives_without_user_roof_literal(self):
+        from unittest.mock import Mock
+
+        profile = BuildingProfile(
+            query="宏伟的传统中式大殿",
+            structure=ProfileStructure(distinguishing_features=["xieshan roof"]),
+        )
+        plan = {
+            "mode": "build",
+            "style_profile": "Chinese_Classical",
+            "genome": {"culturalStyle": {"region": "chinese"}},
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 24, "depth": 16, "height": 10},
+                    "features": [],
+                    "params": {
+                        "component_id": "hall",
+                        "roof_type": "xieshan",
+                        "plan_type": "solid",
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 10, "z": 0},
+                    "dimensions": {"width": 26, "depth": 18, "height": 6},
+                    "features": [],
+                    "params": {"component_id": "roof_a", "host_id": "hall", "roof_type": "xieshan"},
+                },
+            ],
+        }
+        req = Mock()
+        req.userMessage = "建造一座宏伟的传统中式大殿"
+        req.selection = None
+        req.brushSelection = None
+        out = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
+        mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
+        roof = next(c for c in out["components"] if c["component_type"] == "ROOF")
+        self.assertEqual("xieshan", mass["params"]["roof_type"])
+        self.assertEqual("xieshan", roof["params"]["roof_type"])
+
+    def test_ai_planned_courtyard_preserved_without_user_courtyard_literal(self):
+        from unittest.mock import Mock
+
+        profile = BuildingProfile(
+            query="中式宅院",
+            structure=ProfileStructure(distinguishing_features=["courtyard"]),
+        )
+        plan = {
+            "mode": "build",
+            "style_profile": "Chinese_Hui",
+            "genome": {"culturalStyle": {"region": "chinese"}},
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 28, "depth": 22, "height": 8},
+                    "features": [],
+                    "params": {
+                        "component_id": "house",
+                        "plan_type": "courtyard",
+                        "courtyard_ratio": 0.35,
+                        "void_ratio": 0.3,
+                        "roof_type": "xieshan",
+                    },
+                },
+                {
+                    "component_type": "COURTYARD",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 10, "height": 1},
+                    "features": [],
+                    "params": {"component_id": "yard", "host_id": "house"},
+                },
+            ],
+        }
+        req = Mock()
+        req.userMessage = "建造一座中式宅院"
+        req.selection = None
+        req.brushSelection = None
+        out = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
+        types = [c["component_type"] for c in out["components"]]
+        self.assertIn("COURTYARD", types)
+        mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
+        self.assertEqual("courtyard", mass["params"]["plan_type"])
+        self.assertEqual(0.35, mass["params"]["courtyard_ratio"])
+
+    def test_empty_chinese_roof_gets_technical_default_only(self):
+        from unittest.mock import Mock
+
+        profile = BuildingProfile(query="中式大殿", structure=ProfileStructure())
+        plan = {
+            "mode": "build",
+            "style_profile": "Chinese_Classical",
+            "genome": {"culturalStyle": {"region": "chinese"}},
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 20, "depth": 14, "height": 9},
+                    "features": [],
+                    "params": {"component_id": "hall"},
+                },
+            ],
+        }
+        req = Mock()
+        req.userMessage = "建造一座中式大殿"
+        req.selection = None
+        req.brushSelection = None
+        out = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
+        mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
+        self.assertEqual("xuanshan", mass["params"]["roof_type"])
+
 
 if __name__ == "__main__":
     unittest.main()

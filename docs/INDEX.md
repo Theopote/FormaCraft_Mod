@@ -15,6 +15,7 @@
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | 稳定契约：分层、唯一主干、不变量、禁止事项 | 维护中 |
 | [GENERATION_PIPELINE.md](GENERATION_PIPELINE.md) | LlmPlan → 放置方块的**现行流程真相** | 维护中 |
 | [architecture/GENERATION_AUTHORITY_MAP.md](architecture/GENERATION_AUTHORITY_MAP.md) | 规划权 / 执行权矩阵（与 pipeline 对齐） | 维护中 |
+| [architecture/AI_DESIGN_AUTHORITY_GUARDRAILS.md](architecture/AI_DESIGN_AUTHORITY_GUARDRAILS.md) | AI 设计权边界、审查分类与回归验收约定 | 维护中 |
 | [MEMORY_TRANSACTION_CONTRACT.md](MEMORY_TRANSACTION_CONTRACT.md) | Memory 维度隔离与撤销事务边界 | 维护中 |
 | [PREVIEW_UNDO_INVARIANTS.md](PREVIEW_UNDO_INVARIANTS.md) | Preview/Confirm/Undo 双栈冻结不变量（不合并存储） | 维护中 |
 | [WORLD_MUTATION_CONTRACT.md](WORLD_MUTATION_CONTRACT.md) | 方块执行、历史与回滚契约 | 维护中 |

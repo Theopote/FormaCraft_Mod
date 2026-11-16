@@ -4,6 +4,7 @@ Used by generate_llm_plan() repair loop and golden_eval.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from math import isfinite
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -48,32 +49,28 @@ def detects_assembly_intent(text: Optional[str]) -> bool:
 
 
 def resolve_preset_for_intent(text: Optional[str]) -> Optional[str]:
-    if not text:
+    """Return a registered ASSEMBLY preset only for explicit user opt-in ``preset:<id>``.
+
+    Aesthetic keywords (spiral / gothic / suspension / …) must NOT select a fixed
+    executor. Incomplete ASSEMBLY plans go through LLM repair or capability_gap.
+    Negations such as "不要使用 preset:…" never authorize injection.
+    """
+    if not isinstance(text, str):
         return None
-    lower = str(text).lower()
-    # Only explicit suspension / cable-stayed cues map to the hardcoded twin-tower preset.
-    # Generic 桥 / stone arch / wooden bridges stay open for LLM compositional design.
-    _non_suspension = (
-        "石拱", "拱桥", "石桥", "木桥", "廊桥", "梁桥", "拱券", "板桥",
-        "arch bridge", "stone arch", "stone bridge", "wooden bridge",
-        "beam bridge", "covered bridge", "footbridge",
-    )
-    _suspension = (
-        "悬索", "吊桥", "斜拉", "主缆", "桥塔", "金门",
-        "suspension", "cable-stayed", "cable stayed", "golden gate",
-    )
-    if any(k in lower for k in _non_suspension):
+    lowered = text.strip().lower()
+    if not lowered:
         return None
-    if any(k in lower for k in _suspension):
-        return "suspension_bridge_simple"
-    if "楼梯" in lower or "stair" in lower:
-        return None  # spiral_watchtower twists a shell; it does not generate interior stairs.
-    if any(k in lower for k in ("螺旋", "spiral", "helix", "twist", "瞭望", "watchtower", "lookout")):
-        return "spiral_watchtower"
-    if any(k in lower for k in ("哥特", "gothic", "shell", "壳")):
-        return "gothic_shell_box"
-    if detects_assembly_intent(text):
-        return "spiral_watchtower"
+    if re.search(
+        r"(?:不要(?:使用|用)?|不使用|不用|禁用|关闭)\s*preset\s*:|do\s+not\s+use\s+preset\s*:",
+        lowered,
+    ):
+        return None
+    explicit = re.search(r"(?:^|\s)preset:([a-z0-9_]+)(?=$|\s|[,.，。])", lowered)
+    if not explicit:
+        return None
+    preset_id = explicit.group(1)
+    if preset_id in KNOWN_PRESETS:
+        return preset_id
     return None
 
 
@@ -102,7 +99,10 @@ def _has_geometry(payload: Dict[str, Any]) -> bool:
 
 
 def auto_apply_assembly_presets(plan: Dict[str, Any], user_text: Optional[str]) -> Dict[str, Any]:
-    """Inject preset shorthand when ASSEMBLY intent is clear but LLM omitted graph/preset."""
+    """Inject preset only for explicit ``preset:<id>`` when ASSEMBLY geometry is missing.
+
+    Does not guess aesthetics from keywords. LLM-authored preset/graph/ops/fbd are left intact.
+    """
     if not isinstance(plan, dict):
         return plan
     preset_id = resolve_preset_for_intent(user_text)

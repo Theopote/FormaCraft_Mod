@@ -1,4 +1,4 @@
-"""Tests for assembly plan validation and auto-preset injection."""
+"""Tests for assembly plan validation and explicit-only preset injection."""
 import unittest
 
 from app.services.assembly_plan_validator import (
@@ -7,6 +7,7 @@ from app.services.assembly_plan_validator import (
     resolve_preset_for_intent,
     validate_assembly_plan,
 )
+from app.services.assembly_plan_repair import finalize_assembly_plan_or_gap
 
 
 class AssemblyPlanValidatorTest(unittest.TestCase):
@@ -17,17 +18,24 @@ class AssemblyPlanValidatorTest(unittest.TestCase):
         issues = validate_assembly_plan(json.loads(fixture.read_text(encoding='utf-8')))
         self.assertEqual(2, sum(i.code == 'E_FACE_MISSING' for i in issues))
 
-    def test_resolve_spiral_preset(self):
-        self.assertEqual("spiral_watchtower", resolve_preset_for_intent("原创螺旋瞭望塔"))
-
-    def test_resolve_bridge_preset(self):
-        self.assertEqual("suspension_bridge_simple", resolve_preset_for_intent("悬索桥 span 40"))
+    def test_resolve_requires_explicit_preset_opt_in(self):
+        self.assertIsNone(resolve_preset_for_intent("原创螺旋瞭望塔"))
+        self.assertIsNone(resolve_preset_for_intent("哥特式壳塔"))
+        self.assertIsNone(resolve_preset_for_intent("悬索桥 span 40"))
         self.assertIsNone(resolve_preset_for_intent("石拱桥跨河"))
-        self.assertIsNone(resolve_preset_for_intent("木桥连廊"))
         self.assertIsNone(resolve_preset_for_intent("生成一座桥"))
+        self.assertEqual(
+            "spiral_watchtower",
+            resolve_preset_for_intent("建造一座塔 preset:spiral_watchtower"),
+        )
+        self.assertEqual(
+            "suspension_bridge_simple",
+            resolve_preset_for_intent("preset:suspension_bridge_simple span 40"),
+        )
+        self.assertIsNone(resolve_preset_for_intent("不要使用 preset:spiral_watchtower"))
 
-    def test_auto_injects_preset_for_empty_assembly(self):
-        plan = {
+    def test_auto_injects_only_for_explicit_preset(self):
+        empty = {
             "components": [
                 {
                     "component_type": "ASSEMBLY",
@@ -35,9 +43,41 @@ class AssemblyPlanValidatorTest(unittest.TestCase):
                 }
             ]
         }
-        out = auto_apply_assembly_presets(plan, "螺旋瞭望塔")
-        assembly = out["components"][0]["params"]["assembly"]
+        keyword_out = auto_apply_assembly_presets(empty, "螺旋瞭望塔")
+        self.assertNotIn("preset", keyword_out["components"][0]["params"]["assembly"])
+
+        explicit_plan = {
+            "components": [
+                {
+                    "component_type": "ASSEMBLY",
+                    "params": {"assembly": {}},
+                }
+            ]
+        }
+        explicit_out = auto_apply_assembly_presets(
+            explicit_plan, "建造一座塔 preset:spiral_watchtower"
+        )
+        assembly = explicit_out["components"][0]["params"]["assembly"]
         self.assertEqual("spiral_watchtower", assembly.get("preset"))
+
+    def test_incomplete_assembly_without_opt_in_becomes_capability_gap(self):
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "ASSEMBLY",
+                    "params": {"assembly": {}},
+                }
+            ]
+        }
+        out = finalize_assembly_plan_or_gap(plan, "螺旋瞭望塔")
+        self.assertEqual("capability_gap", out.get("plan_status"))
+        self.assertNotEqual(
+            "spiral_watchtower",
+            (out.get("components") or [{}])[0].get("params", {}).get("assembly", {}).get("preset"),
+        )
+        issues = validate_assembly_plan(plan)
+        self.assertTrue(any(i.code == "E_ASSEMBLY_EMPTY" for i in issues))
 
     def test_rejects_nested_assembly_in_mass(self):
         plan = {

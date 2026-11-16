@@ -91,8 +91,6 @@ def _normalize_llm_plan_output(
     components = plan.get("components")
     if isinstance(components, list):
         floors_hint = None
-        explicit_courtyard = False
-        explicit_roof = False
         is_chinese_style = False
         selection_dims = _selection_dimensions(req)
         selection_bounds = _selection_bounds_relative(req, plan.get("anchor") if isinstance(plan.get("anchor"), dict) else None)
@@ -115,20 +113,11 @@ def _normalize_llm_plan_output(
             floor_requirements = [r for r in extract_requirements(user_text) if r['property'] == 'floor_count']
             if floor_requirements and not any(r['scope'] == 'all_main_masses' for r in floor_requirements):
                 floors_hint = None  # A named residence's floors do not belong to its chapel or workshop.
-            t_lower = user_text.lower()
-            explicit_courtyard = any(k in t_lower for k in (
-                "courtyard", "中庭", "庭院", "四合院", "院落", "内院"
-            ))
-            explicit_roof = any(k in t_lower for k in (
-                "roof", "屋顶", "屋面", "歇山", "悬山", "双坡", "四坡",
-                "gable", "hip", "xuanshan", "xieshan", "double_gable"
-            ))
         style_profile = str(plan.get("style_profile") or "").lower()
         cultural = (plan.get("genome") or {}).get("culturalStyle") or {}
         region = str(cultural.get("region") or "").lower()
         is_chinese_style = ("chinese" in style_profile or "hui" in style_profile
                             or "chinese" in region or "hui" in region)
-        skip_courtyard_components = is_chinese_style and not explicit_courtyard
         filtered_components = []
         mass_dims = _extract_mass_dims(components)
         for comp in components:
@@ -156,20 +145,11 @@ def _normalize_llm_plan_output(
                         rp["x"] = -(dims["width"] // 2)
                         rp["z"] = -(dims["depth"] // 2)
                         comp["relative_position"] = rp
-                if params.get("plan_type") == "courtyard" and is_chinese_style and not explicit_courtyard:
-                    params["plan_type"] = "cut_corners"
-                    params.pop("courtyard_ratio", None)
-                    vr = params.get("void_ratio")
-                    if isinstance(vr, (int, float)) and vr > 0.2:
-                        params["void_ratio"] = 0.2
-                if is_chinese_style and not explicit_roof:
-                    rt = str(params.get("roof_type") or "").lower()
-                    if rt in ("", "hip", "pyramid", "xieshan"):
-                        params["roof_type"] = "xuanshan"
-            elif ctype == "ROOF" and is_chinese_style and not explicit_roof:
-                rt = str(params.get("roof_type") or "").lower()
-                if rt in ("", "hip", "pyramid", "xieshan"):
+                # TECHNICAL_DEFAULT only when roof_type is absent — never overwrite AI-planned roofs.
+                if is_chinese_style and not str(params.get("roof_type") or "").strip():
                     params["roof_type"] = "xuanshan"
+            elif ctype == "ROOF" and is_chinese_style and not str(params.get("roof_type") or "").strip():
+                params["roof_type"] = "xuanshan"
             if floors_hint:
                 if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS"):
                     params.setdefault("floor_count", floors_hint)
@@ -214,8 +194,6 @@ def _normalize_llm_plan_output(
                         "depth": int(dims.get("depth", 6)),
                         "height": int(dims.get("height", 6)),
                     }
-            if skip_courtyard_components and ctype == "COURTYARD":
-                continue
             filtered_components.append(comp)
         plan["components"] = filtered_components
         _sanitize_landmark_modules(plan, req, building_profile)

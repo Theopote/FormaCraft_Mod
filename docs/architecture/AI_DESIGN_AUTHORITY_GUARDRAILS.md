@@ -32,14 +32,12 @@ This document supplements those contracts; it does not override them.
 ## Provenance & observability
 Track `user_intent`, `raw_llm_plan`, `normalized_plan`, `compiler_decisions`, `effective_patch`, `selected_executor`, `model_id`, `provider`, `schema_version`, `design_sources`, and `capability_gap` for one generation attempt (subject to privacy/logging policy). Store a **design-field diff** for major components; redact prompt secrets. A changed design field requires explicit source/authorization. Suggested metrics: `silent_design_override_count` (target zero), `unrequested_template_route_count` (zero), `capability_gap_rate`, `successful_novel_prompt_rate`, `explicit_constraint_preservation_rate` (target 100%).
 
-## Current repo candidate reviews (master checked 2026-11-17)
-1. `python_backend/app/services/llm_plan_normalization.py`: for inferred Chinese style + no matching literal roof term in user text, `roof_type` can be changed from AI-planned `xieshan` to `xuanshan`; `plan_type=courtyard` can be rewritten and `COURTYARD` component removed. These may violate AI_PLAN precedence: add preservation tests and distinguish model intent from absent value.
-2. `python_backend/app/services/assembly_plan_validator.py`: `resolve_preset_for_intent` uses keyword → preset, and `auto_apply_assembly_presets` injects one into an incomplete ASSEMBLY payload. Review the active `maybe_repair_assembly_plan` path; prefer plan repair, not aesthetic substitution.
-3. `python_backend/app/services/planning_request_hints.py`: `"山"` substring can classify a `"歇山屋顶"` description as mountainous in a semantic spatial planning hint; negative scale wording (`"不要大型"`) may get a LARGE hint. Tests should distinguish context, negation, and authoritative data.
-4. `python_backend/app/services/llm_plan_system_prompt.py`: hard-coded exemplars (garden, pagoda, temple) help models but can bias composition. Frame as examples of constraints, not exhaustive classes or route mandates.
-5. Verify any `ComponentPlanCompiler` missing-satellite behavior remains behind existing `plan_meta.allow_compiler_satellites` and never silently changes model-provided design.
-
-These are review candidates, not claims that all named paths cause user-visible failures in every run.
+## Current repo candidate reviews
+1. `python_backend/app/services/llm_plan_normalization.py`: **Fixed (2026-11-17 Phase B)** — AI-planned `roof_type` / courtyard layout are preserved; empty Chinese roof may receive `xuanshan` as TECHNICAL_DEFAULT only. Covered by `test_ai_design_preservation.py` and `test_design_authority_regressions.py`.
+2. `python_backend/app/services/assembly_plan_validator.py`: **Fixed (2026-11-17 Phase B)** — `resolve_preset_for_intent` / `auto_apply_assembly_presets` require explicit `preset:<id>`; incomplete ASSEMBLY goes repair → `capability_gap`.
+3. `python_backend/app/services/planning_request_hints.py`: `"山"` substring can classify a `"歇山屋顶"` description as mountainous in a semantic spatial planning hint; negative scale wording (`"不要大型"`) may get a LARGE hint. Tests should distinguish context, negation, and authoritative data. *(follow-up / P1)*
+4. `python_backend/app/services/llm_plan_system_prompt.py`: hard-coded exemplars (garden, pagoda, temple) help models but can bias composition. Frame as examples of constraints, not exhaustive classes or route mandates. *(follow-up / P1)*
+5. Verify any `ComponentPlanCompiler` missing-satellite behavior remains behind existing `plan_meta.allow_compiler_satellites` and never silently changes model-provided design. *(ongoing)*
 
 ## Required metamorphic acceptance suite
 Run original request and related variants; test both plan-level and compiled Patch-level properties.

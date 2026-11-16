@@ -71,3 +71,4 @@ flowchart TD
 - [GENERATOR_ROUTING_MAP.md](../GENERATOR_ROUTING_MAP.md) — generator registry map
 - [MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md](../MIGRATION_LLMPLAN_VS_BUILDINGSPEC.md) — 构件/结构能力对照（非路由指南）
 - [ARCHITECTURE_AUDIT.md](../refactoring/ARCHITECTURE_AUDIT.md) — 弃用退出清单
+- [AI_DESIGN_AUTHORITY_GUARDRAILS.md](AI_DESIGN_AUTHORITY_GUARDRAILS.md) — AI design authority review contract (no silent redesign / implicit presets)

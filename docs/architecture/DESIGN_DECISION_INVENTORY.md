@@ -49,6 +49,8 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 |--------|--------|-----------|
 | `_infer_scale` / `_infer_terrain` | scale, terrain in context | TECHNICAL_DEFAULT hints |
 | `_infer_mass_height` | mass height | Protocol repair only |
+| `llm_plan_normalization` Chinese roof/courtyard | was DESIGN_OVERRIDE (`xieshan`→`xuanshan`, strip COURTYARD without user keywords) | **Fixed (2026-11-17):** preserve AI-planned values; empty roof only → `xuanshan` TECHNICAL_DEFAULT |
+| `assembly_plan_validator.resolve_preset_for_intent` / `auto_apply_assembly_presets` | was keyword→preset DESIGN_OVERRIDE | **Fixed (2026-11-17):** explicit `preset:<id>` only; incomplete ASSEMBLY → repair/`capability_gap` |
 | `assembly_plan_repair` | assembly graph | Protocol only, not design substitute |
 | `typology_plan_repair` | typology fields | Protocol only |
 
