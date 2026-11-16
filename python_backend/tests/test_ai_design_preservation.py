@@ -198,6 +198,8 @@ class AiDesignPreservationTest(unittest.TestCase):
         roof = next(c for c in out["components"] if c["component_type"] == "ROOF")
         self.assertEqual("xieshan", mass["params"]["roof_type"])
         self.assertEqual("xieshan", roof["params"]["roof_type"])
+        self.assertEqual("AI_PLANNED", mass["params"]["design_sources"]["roof_type"])
+        self.assertEqual("AI_PLANNED", roof["params"]["design_sources"]["roof_type"])
 
     def test_ai_planned_courtyard_preserved_without_user_courtyard_literal(self):
         from unittest.mock import Mock
@@ -272,6 +274,42 @@ class AiDesignPreservationTest(unittest.TestCase):
         out = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
         mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
         self.assertEqual("xuanshan", mass["params"]["roof_type"])
+        self.assertEqual(
+            "TECHNICAL_DEFAULT",
+            mass["params"]["design_sources"]["roof_type"],
+        )
+
+    def test_ai_planned_roof_gets_design_source_without_downgrade(self):
+        from unittest.mock import Mock
+
+        profile = BuildingProfile(query="中式大殿", structure=ProfileStructure())
+        plan = {
+            "mode": "build",
+            "style_profile": "Chinese_Classical",
+            "genome": {"culturalStyle": {"region": "chinese"}},
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 20, "depth": 14, "height": 9},
+                    "features": [],
+                    "params": {
+                        "component_id": "hall",
+                        "roof_type": "xieshan",
+                        "design_sources": {"roof_type": "USER_EXPLICIT"},
+                    },
+                },
+            ],
+        }
+        req = Mock()
+        req.userMessage = "建造一座中式大殿"
+        req.selection = None
+        req.brushSelection = None
+        out = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
+        mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
+        self.assertEqual("xieshan", mass["params"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", mass["params"]["design_sources"]["roof_type"])
 
 
 if __name__ == "__main__":

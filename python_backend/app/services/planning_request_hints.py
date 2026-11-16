@@ -1,9 +1,45 @@
-"""Deterministic request hints used by planning prompts."""
+"""Deterministic request hints used by planning prompts.
+
+Hints are NONBINDING: they must not route generators or override LLM design.
+Substring matching must respect negation and avoid architectural false positives
+(e.g. 「歇山屋顶」must not imply mountainous terrain).
+"""
 
 import re
-from typing import Optional
+from typing import Iterable, Optional
 
 from ..models.request import BuildRequest
+
+# Negation immediately before a keyword (Chinese + English).
+_NEGATION_BEFORE = re.compile(
+    r"(?:不要(?:使用|用)?|不用|不需要|并非|非|无|没有|别|勿|"
+    r"do\s+not|don't|does\s+not|not|no|without)\s*$",
+    flags=re.IGNORECASE,
+)
+
+# Roof / style tokens that contain 「山」but are not terrain.
+_ROOF_MOUNTAIN_FALSE_POSITIVES = (
+    "歇山", "悬山", "硬山", "庑殿", "攒尖", "xieshan", "xuanshan", "yingshan",
+)
+
+
+def _keyword_hit_unnegated(text: str, keywords: Iterable[str]) -> bool:
+    """True when any keyword appears and is not preceded by a negation cue."""
+    if not text:
+        return False
+    for key in keywords:
+        if not key:
+            continue
+        start = 0
+        while True:
+            idx = text.find(key, start)
+            if idx < 0:
+                break
+            window = text[max(0, idx - 12):idx]
+            if not _NEGATION_BEFORE.search(window):
+                return True
+            start = idx + len(key)
+    return False
 
 
 def _infer_scale(req: BuildRequest) -> str:
@@ -18,9 +54,9 @@ def _infer_scale(req: BuildRequest) -> str:
         if m <= 96:
             return "MEDIUM"
         return "LARGE"
-    if any(k in text for k in ["large", "huge", "gigantic", "大型", "巨型", "超大"]):
+    if _keyword_hit_unnegated(text, ["large", "huge", "gigantic", "大型", "巨型", "超大"]):
         return "LARGE"
-    if any(k in text for k in ["small", "tiny", "小型", "迷你"]):
+    if _keyword_hit_unnegated(text, ["small", "tiny", "小型", "迷你"]):
         return "SMALL"
     return "MEDIUM"
 
@@ -28,11 +64,19 @@ def _infer_scale(req: BuildRequest) -> str:
 def _infer_terrain(req: BuildRequest) -> str:
     """Best-effort terrain hint from user text (we do NOT sample terrain here)."""
     t = (req.requestText or "").lower()
-    if any(k in t for k in ["flat", "平坦", "平地", "平原"]):
+    if any(fp in t for fp in _ROOF_MOUNTAIN_FALSE_POSITIVES):
+        # Strip roof tokens so residual 「山」from 歇山/悬山 cannot force MOUNTAINOUS.
+        for fp in _ROOF_MOUNTAIN_FALSE_POSITIVES:
+            t = t.replace(fp, " ")
+    if _keyword_hit_unnegated(t, ["flat", "平坦", "平地", "平原"]):
         return "FLAT"
-    if any(k in t for k in ["mountain", "mountainous", "山", "高山", "山地", "峭壁"]):
+    # Do NOT use bare 「山」— it matches 歇山/悬山 roof vocabulary.
+    if _keyword_hit_unnegated(
+        t,
+        ["mountainous", "mountain", "高山", "山地", "山脉", "山区", "山坡", "山上", "峭壁"],
+    ):
         return "MOUNTAINOUS"
-    if any(k in t for k in ["hill", "hilly", "丘", "丘陵", "起伏", "坡地", "崎岖"]):
+    if _keyword_hit_unnegated(t, ["hilly", "hill", "丘", "丘陵", "起伏", "坡地", "崎岖"]):
         return "HILLY"
     return "UNKNOWN"
 
@@ -84,9 +128,8 @@ def _derive_structured_intent(text: str) -> str:
 
     def _first(mapping):
         for label, keys in mapping.items():
-            for k in keys:
-                if k in t:
-                    return label
+            if _keyword_hit_unnegated(t, keys):
+                return label
         return None
 
     purpose = _first({
@@ -117,14 +160,14 @@ def _derive_structured_intent(text: str) -> str:
         "concrete": ["concrete", "混凝土"],
         "metal": ["metal", "steel", "钢", "iron", "铁"],
     }.items():
-        if any(k in t for k in keys):
+        if _keyword_hit_unnegated(t, keys):
             materials.append(label)
     scale = _first({
-        "large / monumental": ["huge", "massive", "巨", "宏大", "大型", "grand", "monumental", "tall", "高耸"],
-        "small / compact": ["small", "tiny", "小", "compact", "cozy", "袖珍"],
+        "large / monumental": ["huge", "massive", "巨型", "宏大", "大型", "grand", "monumental", "tall", "高耸"],
+        "small / compact": ["small", "tiny", "小型", "compact", "cozy", "袖珍", "迷你"],
     }) or "medium"
 
-    lines = ["[STRUCTURED INTENT] (auto-derived hint; the user's own text takes priority)"]
+    lines = ["[STRUCTURED INTENT] (auto-derived NONBINDING hint; the user's own text takes priority)"]
     if purpose:
         lines.append(f"- purpose: {purpose}")
     lines.append(f"- scale: {scale}")
@@ -132,7 +175,9 @@ def _derive_structured_intent(text: str) -> str:
         lines.append(f"- style: {style}")
     if materials:
         lines.append(f"- materials: {', '.join(materials)}")
-    lines.append("- completeness: fill reasonable defaults for anything unspecified; ensure the "
-                 "building has an entrance/doors, appropriately sized windows, sane proportions, "
-                 "and style-consistent materials.")
+    lines.append(
+        "- completeness: fill unspecified geometry with reasonable defaults; "
+        "honour explicit omissions (no windows/doors/roof when the user forbids them); "
+        "prefer composable operators over nearest named templates."
+    )
     return "\n".join(lines)

@@ -35,9 +35,10 @@ Track `user_intent`, `raw_llm_plan`, `normalized_plan`, `compiler_decisions`, `e
 ## Current repo candidate reviews
 1. `python_backend/app/services/llm_plan_normalization.py`: **Fixed (2026-11-17 Phase B)** — AI-planned `roof_type` / courtyard layout are preserved; empty Chinese roof may receive `xuanshan` as TECHNICAL_DEFAULT only. Covered by `test_ai_design_preservation.py` and `test_design_authority_regressions.py`.
 2. `python_backend/app/services/assembly_plan_validator.py`: **Fixed (2026-11-17 Phase B)** — `resolve_preset_for_intent` / `auto_apply_assembly_presets` require explicit `preset:<id>`; incomplete ASSEMBLY goes repair → `capability_gap`.
-3. `python_backend/app/services/planning_request_hints.py`: `"山"` substring can classify a `"歇山屋顶"` description as mountainous in a semantic spatial planning hint; negative scale wording (`"不要大型"`) may get a LARGE hint. Tests should distinguish context, negation, and authoritative data. *(follow-up / P1)*
-4. `python_backend/app/services/llm_plan_system_prompt.py`: hard-coded exemplars (garden, pagoda, temple) help models but can bias composition. Frame as examples of constraints, not exhaustive classes or route mandates. *(follow-up / P1)*
-5. Verify any `ComponentPlanCompiler` missing-satellite behavior remains behind existing `plan_meta.allow_compiler_satellites` and never silently changes model-provided design. *(ongoing)*
+3. `python_backend/app/services/planning_request_hints.py`: **Fixed (2026-11-17 P1)** — bare 「山」removed; roof tokens (歇山/悬山) stripped before terrain inference; scale/intent keywords respect negation (`不要大型`).
+4. `python_backend/app/services/llm_plan_system_prompt.py`: **Fixed (2026-11-17 P1)** — category composition bullets framed as NON-BINDING EXAMPLES; residential kit is not a universal default.
+5. `llm_plan_normalization` `design_sources`: **Partial (2026-11-17 P1)** — stamps `TECHNICAL_DEFAULT` for empty Chinese roof fill and `AI_PLANNED` for authored roof/courtyard fields without downgrading `USER_EXPLICIT`. Full Python↔Java provenance plumbing remains ongoing.
+6. Verify any `ComponentPlanCompiler` missing-satellite behavior remains behind existing `plan_meta.allow_compiler_satellites` and never silently changes model-provided design. *(ongoing)*
 
 ## Required metamorphic acceptance suite
 Run original request and related variants; test both plan-level and compiled Patch-level properties.

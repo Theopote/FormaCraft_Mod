@@ -28,6 +28,8 @@ def test_selection_size_overrides_text_with_inclusive_bounds(span, expected, axi
 @pytest.mark.parametrize("text,expected", [
     ("", "MEDIUM"), ("a HUGE house", "LARGE"), ("tiny house", "SMALL"),
     ("large small", "LARGE"), ("大型建筑", "LARGE"), ("小型建筑", "SMALL"),
+    ("不要大型建筑", "MEDIUM"), ("不要大型，要精致宅院", "MEDIUM"),
+    ("not large house", "MEDIUM"),
 ])
 def test_text_scale_hints(text, expected):
     assert _infer_scale(request(text)) == expected
@@ -37,6 +39,8 @@ def test_text_scale_hints(text, expected):
     ("", "UNKNOWN"), ("FLAT mountain hill", "FLAT"),
     ("mountain hill", "MOUNTAINOUS"), ("hilly", "HILLY"),
     ("平原", "FLAT"), ("山地", "MOUNTAINOUS"), ("丘陵", "HILLY"),
+    ("歇山屋顶的中式大殿", "UNKNOWN"), ("悬山屋顶", "UNKNOWN"),
+    ("高山峭壁上的寺", "MOUNTAINOUS"), ("山坡上的小屋", "MOUNTAINOUS"),
 ])
 def test_terrain_keywords_keep_priority(text, expected):
     assert _infer_terrain(request(text)) == expected
@@ -63,14 +67,21 @@ def test_existing_floor_count_expressions_and_priority(text, expected):
 
 def test_soft_intent_preserves_keyword_priority_and_material_order():
     hint = _derive_structured_intent("a small modern wood stone glass house tower")
+    assert "NONBINDING hint" in hint
     assert "the user's own text takes priority" in hint
     assert "- purpose: residential house" in hint
     assert "- scale: small / compact" in hint
     assert "- style: Modern" in hint
     assert "- materials: wood, stone/brick, glass" in hint
-    assert hint.endswith("and style-consistent materials.")
+    assert "honour explicit omissions" in hint
 
 
 def test_soft_intent_empty_and_default_scale():
     assert _derive_structured_intent("  ") == ""
     assert "- scale: medium" in _derive_structured_intent("a building")
+
+
+def test_soft_intent_respects_scale_negation():
+    hint = _derive_structured_intent("不要大型建筑，中式宅院")
+    assert "- scale: medium" in hint
+    assert "large / monumental" not in hint

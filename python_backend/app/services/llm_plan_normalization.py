@@ -15,6 +15,50 @@ from ..models.building_genome import BuildingGenome
 
 logger = logging.getLogger(__name__)
 
+_LOCKED_DESIGN_SOURCES = frozenset({"USER_EXPLICIT", "AI_PLANNED"})
+_DESIGN_SOURCE_RANK = {
+    "TECHNICAL_DEFAULT": 0,
+    "DERIVED_GEOMETRY": 1,
+    "AI_PLANNED": 2,
+    "USER_EXPLICIT": 3,
+}
+
+
+def _ensure_component_design_sources(params: Dict[str, Any]) -> Dict[str, Any]:
+    sources = params.get("design_sources")
+    if not isinstance(sources, dict):
+        sources = {}
+        params["design_sources"] = sources
+    return sources
+
+
+def _tag_param_source(params: Dict[str, Any], key: str, source: str) -> None:
+    """Stamp params.design_sources[key] without downgrading USER_EXPLICIT / AI_PLANNED."""
+    if not key or not source:
+        return
+    sources = _ensure_component_design_sources(params)
+    existing = str(sources.get(key) or "").strip().upper()
+    incoming = source.strip().upper()
+    if existing in _LOCKED_DESIGN_SOURCES and _DESIGN_SOURCE_RANK.get(incoming, -1) <= _DESIGN_SOURCE_RANK.get(existing, -1):
+        return
+    if existing and _DESIGN_SOURCE_RANK.get(incoming, -1) < _DESIGN_SOURCE_RANK.get(existing, -1):
+        return
+    sources[key] = incoming
+
+
+def _tag_present_param_as_ai_planned(params: Dict[str, Any], *keys: str) -> None:
+    """Tag authored values as AI_PLANNED when design_sources lacks an entry."""
+    for key in keys:
+        value = params.get(key)
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        sources = params.get("design_sources")
+        if isinstance(sources, dict) and str(sources.get(key) or "").strip():
+            continue
+        _tag_param_source(params, key, "AI_PLANNED")
+
 
 def _looks_like_min_corner_anchor(rp: Dict[str, int], dims: Dict[str, int]) -> bool:
     hx = max(1, dims.get("width", 1)) // 2
@@ -148,8 +192,15 @@ def _normalize_llm_plan_output(
                 # TECHNICAL_DEFAULT only when roof_type is absent — never overwrite AI-planned roofs.
                 if is_chinese_style and not str(params.get("roof_type") or "").strip():
                     params["roof_type"] = "xuanshan"
-            elif ctype == "ROOF" and is_chinese_style and not str(params.get("roof_type") or "").strip():
-                params["roof_type"] = "xuanshan"
+                    _tag_param_source(params, "roof_type", "TECHNICAL_DEFAULT")
+                _tag_present_param_as_ai_planned(params, "roof_type", "plan_type", "courtyard_ratio")
+            elif ctype == "ROOF":
+                if is_chinese_style and not str(params.get("roof_type") or "").strip():
+                    params["roof_type"] = "xuanshan"
+                    _tag_param_source(params, "roof_type", "TECHNICAL_DEFAULT")
+                _tag_present_param_as_ai_planned(params, "roof_type")
+            elif ctype == "COURTYARD":
+                _tag_present_param_as_ai_planned(params, "plan_type", "courtyard_ratio")
             if floors_hint:
                 if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS"):
                     params.setdefault("floor_count", floors_hint)

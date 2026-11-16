@@ -19,11 +19,15 @@ Core rules:
 - Facade/entrance/roof/paving use the minimum corner of the component box.
 - Use semantic components (MASS_MAIN, ROOF, ENTRANCE, FACADE_WINDOWS, ASSEMBLY, MODULE, STRUCTURE, …), NOT blocks.
 - Building TYPE decides composition — never force every request into a house kit.
-  * Residences / shops / libraries / villas / castles with a courtyard mention: residential or civic mass kit;
+  The bullets below are NON-BINDING EXAMPLES of composition strategies (constraint illustrations),
+  NOT mandatory templates, keyword routers, or fixed generator routes. Novel / mixed styles should
+  compose from MASS/ROOF/FACADE/ASSEMBLY/FBD operators; use typology:<id> / preset:<id> only on
+  explicit user opt-in.
+  * Residences / shops / libraries / villas / castles with a courtyard mention: residential or civic masses;
     a bare「庭院」does NOT make the building a garden.
-  * 大殿 / hall with 重檐/歇山: temple/hall mass + Chinese roof — 重檐 is a ROOF attribute, not a pagoda.
+  * 大殿 / hall with 重檐/歇山: hall mass + Chinese roof — 重檐 is a ROOF attribute, not a pagoda.
   * Tibetan / Chinese pagoda or stupa (佛塔/古塔/宝塔/pagoda/stupa): layered tapering masses
-    (or STRUCTURE/typology:dense_eaves_pagoda / tibetan_stupa); DO NOT emit a single house MASS with gable.
+    (compositional, or STRUCTURE/typology only if explicitly opted in); avoid a single house MASS with gable.
   * Temple gate / paifang / mountain gate: wide shallow gate mass (or STRUCTURE/ASSEMBLY), not a deep house.
   * Daoist temple / monastery compounds: hall masses + courtyards/paths as needed.
   * Gardens / 江南园林 / 日式庭院: PATH/COURTYARD/ASSEMBLY composition; not only one residential house.
@@ -57,7 +61,8 @@ LlmPlan JSON shape (provider may also enforce response_format):
   - component_request:<json>  (library component placement)
   - group_request:<json>      (component group expansion)
   - typology:<id> / landmark:<id> / module:<id> / skeleton:<id>
-Choose component composition from building type; residential MASS+ROOF+WINDOWS only when the type is residential.
+Choose component composition from the request; residential MASS+ROOF+WINDOWS is one valid pattern,
+not a default for every building class.
 """
 
 

@@ -1,16 +1,33 @@
 """Existing component parameter completion for normalized LlmPlan output.
 
 Authored style defaults and feature/genome hints fill missing keys only.
+Filled design fields are stamped into params.design_sources so Java provenance
+can distinguish TECHNICAL_DEFAULT from AI_PLANNED / USER_EXPLICIT.
 """
 
 from typing import Any, Dict
+
+
+def _stamp_technical_default(params: Dict[str, Any], key: str, value: Any, *, source: str = "TECHNICAL_DEFAULT") -> None:
+    """Set missing key and stamp design_sources without overwriting existing provenance."""
+    if key in params:
+        return
+    params[key] = value
+    sources = params.get("design_sources")
+    if not isinstance(sources, dict):
+        sources = {}
+        params["design_sources"] = sources
+    if not str(sources.get(key) or "").strip():
+        sources[key] = source
 
 
 def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome: Dict[str, Any]) -> None:
     ctype = str(comp.get("component_type", "")).upper()
     from .style_feature_compiler import component_style_defaults
     for key, value in component_style_defaults(comp.get("_style_hint"), ctype).items():
-        params.setdefault(key, value)
+        if key not in params:
+            # Style-card defaults are technical fills, not user/LLM design locks.
+            _stamp_technical_default(params, key, value)
     features = comp.get("features") or []
     dims = comp.get("dimensions") or {}
 
@@ -36,28 +53,28 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
                 params["shape"] = "rectangle"
         if "roof_type" not in params:
             if feat_contains("xieshan") or feat_contains("hip_and_gable") or feat_contains("歇山"):
-                params["roof_type"] = "xieshan"
+                _stamp_technical_default(params, "roof_type", "xieshan", source="AI_PLANNED")
             elif feat_contains("xuanshan") or feat_contains("悬山"):
-                params["roof_type"] = "xuanshan"
+                _stamp_technical_default(params, "roof_type", "xuanshan", source="AI_PLANNED")
             elif feat_contains("double_gable") or feat_contains("double gable") or feat_contains("shuangpo") or feat_contains("双坡"):
-                params["roof_type"] = "double_gable"
+                _stamp_technical_default(params, "roof_type", "double_gable", source="AI_PLANNED")
             elif feat_contains("gable"):
-                params["roof_type"] = "gable"
+                _stamp_technical_default(params, "roof_type", "gable", source="AI_PLANNED")
             elif feat_contains("hip"):
-                params["roof_type"] = "hip"
+                _stamp_technical_default(params, "roof_type", "hip", source="AI_PLANNED")
             elif feat_contains("pyramid"):
-                params["roof_type"] = "pyramid"
+                _stamp_technical_default(params, "roof_type", "pyramid", source="AI_PLANNED")
             elif feat_contains("cone"):
-                params["roof_type"] = "cone"
+                _stamp_technical_default(params, "roof_type", "cone", source="AI_PLANNED")
             elif feat_contains("dome") or feat_contains("curved"):
-                params["roof_type"] = "dome"
+                _stamp_technical_default(params, "roof_type", "dome", source="AI_PLANNED")
         if "roof_type" not in params:
             if feat_contains("chinese") or feat_contains("hui") or genome_contains("chinese") or genome_contains("hui"):
-                params["roof_type"] = "xuanshan"
+                _stamp_technical_default(params, "roof_type", "xuanshan")
             elif feat_contains("gothic") or feat_contains("medieval") or genome_contains("gothic") or genome_contains("medieval"):
-                params["roof_type"] = "gable"
+                _stamp_technical_default(params, "roof_type", "gable")
             elif feat_contains("modern") or genome_contains("modern"):
-                params["roof_type"] = "flat"
+                _stamp_technical_default(params, "roof_type", "flat")
         if "window_ratio" not in params:
             params["window_ratio"] = 0.6 if feat_contains("glass") or feat_contains("curtain") else 0.35
         if "void_ratio" not in params:
@@ -66,23 +83,32 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
         if "plan_type" not in params:
             plan_alias = params.get("footprint_pattern") or params.get("plan_pattern") or params.get("planPattern")
             if plan_alias:
-                params["plan_type"] = plan_alias
+                _stamp_technical_default(params, "plan_type", plan_alias, source="AI_PLANNED")
             else:
                 plan_type = None
+                source = "TECHNICAL_DEFAULT"
                 if feat_contains("courtyard") or feat_contains("siheyuan"):
                     plan_type = "courtyard"
+                    source = "AI_PLANNED"
                 elif feat_contains("gothic") or feat_contains("cathedral") or feat_contains("cruciform"):
                     plan_type = "cross"
+                    source = "AI_PLANNED"
                 elif feat_contains("l-shape") or feat_contains("l_shape") or feat_contains("corner_wing"):
                     plan_type = "l_shape"
+                    source = "AI_PLANNED"
                 elif feat_contains("chinese") or feat_contains("hui") or genome_contains("chinese") or genome_contains("hui"):
                     plan_type = "cut_corners"
                 if plan_type:
-                    params["plan_type"] = plan_type
+                    _stamp_technical_default(params, "plan_type", plan_type, source=source)
         if params.get("plan_type") == "courtyard" and "courtyard_ratio" not in params:
             ratio = params.get("void_ratio")
             if isinstance(ratio, (int, float)):
-                params["courtyard_ratio"] = float(max(0.2, min(0.6, ratio)))
+                _stamp_technical_default(
+                    params,
+                    "courtyard_ratio",
+                    float(max(0.2, min(0.6, ratio))),
+                    source="TECHNICAL_DEFAULT",
+                )
         if "setback_ratio" not in params:
             prog = ((genome.get("form") or {}).get("progression") or "").lower()
             if prog in ("stepping", "tapering"):
