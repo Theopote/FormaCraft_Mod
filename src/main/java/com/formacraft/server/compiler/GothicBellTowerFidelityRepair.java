@@ -46,7 +46,9 @@ final class GothicBellTowerFidelityRepair {
             }
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
             Component next = c;
-            if (type.startsWith("MASS") || "MAIN_MASS".equals(type)) {
+            if ("STRUCTURE".equals(type) && looksButtressAccessory(c)) {
+                next = remapButtressToMass(c, primaryMass);
+            } else if (type.startsWith("MASS") || "MAIN_MASS".equals(type)) {
                 next = repairMass(c, accent, corpus);
             } else if ("FACADE_WINDOWS".equals(type)) {
                 next = repairWindows(c, glazing);
@@ -66,6 +68,39 @@ final class GothicBellTowerFidelityRepair {
         FormacraftMod.LOGGER.info(
                 "GothicBellTowerFidelityRepair: applied iron-bar slits / steep spire / centered door nudges");
         return PlanComponentRewrite.withComponents(plan, out);
+    }
+
+    private static boolean looksButtressAccessory(Component c) {
+        String id = c.params() == null ? ""
+                : String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
+        if (id.contains("buttress") || id.contains("pier") || id.contains("pinnacle")) return true;
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("buttress") || lower.contains("pier") || lower.contains("飞扶壁")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static Component remapButtressToMass(Component c, Component primaryMass) {
+        Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
+        params.put("extrude_mode", "solid");
+        params.put("hollow", false);
+        if (primaryMass != null && primaryMass.params() != null) {
+            Object host = primaryMass.params().get("component_id");
+            if (host != null && !params.containsKey("host_id")) {
+                params.put("host_id", host);
+            }
+        }
+        FormacraftMod.LOGGER.info(
+                "GothicBellTowerFidelityRepair: STRUCTURE→MASS_SECONDARY buttress id={}",
+                params.get("component_id"));
+        return new Component("MASS_SECONDARY", c.slotId(), c.relativePosition(),
+                c.dimensions(), c.features(), params);
     }
 
     private static Component repairMass(Component c, String accent, String corpus) {

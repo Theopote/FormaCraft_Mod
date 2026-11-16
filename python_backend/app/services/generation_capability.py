@@ -631,7 +631,19 @@ def evaluate_capability(plan: Dict[str, Any]) -> List[str]:
                     f"capability: unsupported structure_type={unsupported_structure_type!r} on {label}"
                 )
             elif not typology and not is_stair_flight and not is_parametric:
-                if not any(tok in joined_feats for tok in ("dense_eaves", "pagoda", "stupa", "typology")):
+                # Compositional buttress / pier / pinnacle satellites are solid MASS geometry,
+                # not typology executors — do not hard-fail gothic bell-tower kits.
+                cid = str(params.get("component_id") or "").lower()
+                accessory = any(
+                    tok in cid or tok in joined_feats
+                    for tok in (
+                        "buttress", "pier", "pinnacle", "flying_buttress", "飞扶壁",
+                        "corner_post", "pilaster",
+                    )
+                )
+                if accessory:
+                    pass
+                elif not any(tok in joined_feats for tok in ("dense_eaves", "pagoda", "stupa", "typology")):
                     errors.append(
                         f"capability: STRUCTURE {params.get('component_id') or ''} lacks typology_id"
                     )
@@ -752,6 +764,21 @@ def apply_stage_b_capability_repair(
                         break
             if params.get("typology_id") and not params.get("typology"):
                 params["typology"] = params["typology_id"]
+            # Remap compositional buttress / pier STRUCTURE → MASS_SECONDARY so Java emit
+            # treats them as solid shafts instead of typology-routed STRUCTURE.
+            if ctype == "STRUCTURE" and not params.get("typology_id"):
+                cid = str(params.get("component_id") or "").lower()
+                feats = " ".join(str(f) for f in (c.get("features") or []) if f).lower()
+                if any(
+                    tok in cid or tok in feats
+                    for tok in ("buttress", "pier", "pinnacle", "flying_buttress", "飞扶壁")
+                ):
+                    c["component_type"] = "MASS_SECONDARY"
+                    params.setdefault("extrude_mode", "solid")
+                    params.setdefault("hollow", False)
+                    repairs.append(
+                        f"STRUCTURE {params.get('component_id') or ''}→MASS_SECONDARY (buttress/pier)"
+                    )
 
         # Roof alias normalization on mass and roof components.
         for key in ("roof_type", "roofType"):

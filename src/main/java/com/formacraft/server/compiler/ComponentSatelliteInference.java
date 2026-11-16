@@ -480,6 +480,8 @@ final class ComponentSatelliteInference {
         // Elevated hosts only (see ExteriorDoorAttachmentCompiler): ground-level openings stay authored.
         ExteriorDoorAttachmentCompiler.apply(prepared);
         DoorFloorDatumCompiler.apply(prepared);
+        // Door Y may have moved above the floor — re-seat entry paving so plaza top meets threshold.
+        ComponentSatelliteAligner.realignEntrancePaving(prepared, plan, slotMap, assemblyPrimarySlots);
         // Second-floor street doors without a balcony/terrace landing are illegal openings.
         UpperStoreyEntranceRepair.apply(prepared);
         // Approach stairs were remapped before satellite entrance alignment — re-bind tops now.

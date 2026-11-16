@@ -160,6 +160,64 @@ class GenerationCapabilityBatch2Test(unittest.TestCase):
         errors = evaluate_capability(plan)
         self.assertFalse(any("lacks typology_id" in e for e in errors), errors)
 
+    def test_buttress_structure_does_not_require_typology(self):
+        plan = {
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "params": {"component_id": "tower_shaft"},
+                    "dimensions": {"width": 8, "depth": 8, "height": 21},
+                },
+                {
+                    "component_type": "STRUCTURE",
+                    "params": {
+                        "component_id": "buttress_nw",
+                        "host_id": "tower_shaft",
+                    },
+                    "features": ["corner buttress"],
+                    "dimensions": {"width": 2, "depth": 2, "height": 21},
+                },
+            ]
+        }
+        errors = evaluate_capability(plan)
+        self.assertFalse(any("lacks typology_id" in e for e in errors), errors)
+        repaired, remaining = apply_stage_b_capability_repair(plan, "哥特式四角钟楼")
+        self.assertFalse(any("lacks typology_id" in e for e in remaining), remaining)
+        buttress = next(
+            c for c in repaired["components"]
+            if (c.get("params") or {}).get("component_id") == "buttress_nw"
+        )
+        self.assertEqual(buttress["component_type"], "MASS_SECONDARY")
+
+    def test_buttress_structure_does_not_require_typology(self):
+        plan = {
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "params": {"component_id": "tower_shaft"},
+                    "dimensions": {"width": 8, "depth": 8, "height": 21},
+                },
+                {
+                    "component_type": "STRUCTURE",
+                    "params": {
+                        "component_id": "buttress_nw",
+                        "host_id": "tower_shaft",
+                    },
+                    "features": ["corner buttress"],
+                    "dimensions": {"width": 2, "depth": 2, "height": 21},
+                },
+            ]
+        }
+        errors = evaluate_capability(plan)
+        self.assertFalse(any("lacks typology_id" in e for e in errors), errors)
+        repaired, remaining = apply_stage_b_capability_repair(plan, "哥特式四角钟楼")
+        self.assertFalse(any("lacks typology_id" in e for e in remaining), remaining)
+        buttress = next(
+            c for c in repaired["components"]
+            if (c.get("params") or {}).get("component_id") == "buttress_nw"
+        )
+        self.assertEqual(buttress["component_type"], "MASS_SECONDARY")
+
     def test_unknown_structure_type_is_rejected(self):
         plan = {
             "components": [

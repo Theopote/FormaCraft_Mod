@@ -82,8 +82,15 @@ final class EntranceApproachAlignment {
         if (paving.params() != null) params.putAll(paving.params());
         params.putIfAbsent("entrance_id", ComponentPlanTypes.getParamString(entrance.params(), "component_id"));
         params.put("anchor_mode", "min_corner");
-        // RoadGenerator fills height layers; its last layer is immediately below the opening.
+        // Seat the plaza so its top face is the door threshold (door Y − 1). DoorFloorDatum
+        // raises openings above the host floor; aligning before that left a one-block drop.
         int y = origin.y() - Math.max(1, pad.height());
+        if (paving.relativePosition() != null
+                && Math.abs(paving.relativePosition().x() - x) < 1
+                && Math.abs(paving.relativePosition().z() - z) < 1
+                && paving.relativePosition().y() == y) {
+            return paving;
+        }
         return new Component(paving.componentType(), paving.slotId(), new Vec3i(x, y, z), pad, paving.features(), params);
     }
 }

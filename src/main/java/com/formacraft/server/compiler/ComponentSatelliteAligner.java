@@ -59,7 +59,7 @@ final class ComponentSatelliteAligner {
             }
         }
         if (massBySlot.isEmpty()) {
-            EntranceApproachAlignment.apply(components, plan, slotMap, assemblyPrimarySlots);
+            realignEntrancePaving(components, plan, slotMap, assemblyPrimarySlots);
             return;
         }
 
@@ -923,6 +923,13 @@ final class ComponentSatelliteAligner {
             }
         }
         return false;
+    }
+
+    /** Re-seat entry paving after door Y has been finalized above the host floor. */
+    static void realignEntrancePaving(
+            List<Component> components, LlmPlan plan, Map<String, Slot> slotMap, Set<String> assemblyPrimarySlots
+    ) {
+        EntranceApproachAlignment.apply(components, plan, slotMap, assemblyPrimarySlots);
     }
 
     static Component alignEntranceToMass(Component llmEntrance, Component mass, LlmPlan plan,

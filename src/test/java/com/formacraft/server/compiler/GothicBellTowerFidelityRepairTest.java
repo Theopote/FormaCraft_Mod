@@ -72,4 +72,33 @@ class GothicBellTowerFidelityRepairTest {
                 .filter(c -> "MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
         assertEquals("gradient", mass.params().get("wall_pattern"));
     }
+
+    @Test
+    void remapsButtressStructureToMassSecondary() {
+        Component shaft = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 21), List.of(),
+                Map.of("component_id", "tower_shaft", "roof_type", "flat"));
+        Component buttress = new Component(
+                "STRUCTURE", "main", new Vec3i(-2, 0, -2),
+                new Dimensions(2, 2, 21), List.of("corner buttress"),
+                Map.of("component_id", "buttress_nw", "host_id", "tower_shaft"));
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("request_intent_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼");
+        meta.put("request_intent", Map.of(
+                "building_class", "tower_like",
+                "confidence", 0.95,
+                "original_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Gothic_Cathedral")
+                .components(List.of(shaft, buttress))
+                .planMeta(meta)
+                .build();
+        LlmPlan out = GothicBellTowerFidelityRepair.apply(plan);
+        Component remapped = out.components().stream()
+                .filter(c -> c.params() != null && "buttress_nw".equals(c.params().get("component_id")))
+                .findFirst().orElseThrow();
+        assertEquals("MASS_SECONDARY", remapped.componentType());
+        assertEquals("solid", remapped.params().get("extrude_mode"));
+    }
 }
