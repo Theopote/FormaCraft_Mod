@@ -1,0 +1,8 @@
+---
+description: FormaCraft AI-first architecture invariant for every coding session.
+alwaysApply: true
+---
+
+FormaCraft MUST remain an open-world AI architectural planner. Read root `AGENTS.md` and the current `ARCHITECTURE.md`/`docs/architecture/GENERATION_AUTHORITY_MAP.md` before modifying prompt, planning, routing, normalization, generator, repair or fallback logic.
+
+Never substitute a hardcoded building, style, roof, facade, composition or preset for the user's or model's architectural decision. Deterministic geometry and hard constraints are allowed. Treat keyword rules as non-binding hints only. Unknown buildings must remain composable; execution gaps return a documented `capability_gap`, not a disguised template. For these changes, run `.cursor/skills/formacraft-design-authority-audit/SKILL.md` and provide evidence.

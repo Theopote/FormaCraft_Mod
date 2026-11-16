@@ -178,9 +178,7 @@ final class BaroqueMansionStyleRepair {
             // Tall thin spike relative to its own footprint — not a real roof shell.
             boolean roofSpike = d.height() >= Math.max(3, Math.max(d.width(), d.depth()))
                     && Math.min(d.width(), d.depth()) <= 3;
-            if (atticCue && roofSpike) {
-                return true;
-            }
+            return atticCue && roofSpike;
         }
         return false;
     }
