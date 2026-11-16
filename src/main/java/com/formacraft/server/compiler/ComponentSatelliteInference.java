@@ -46,6 +46,10 @@ final class ComponentSatelliteInference {
 
     static PreparedComponents prepareComponents(LlmPlan plan, Map<String, Slot> slotMap, boolean allowAssemblyFacade) {
         List<Component> normalized = new ArrayList<>();
+        // Empty-components recovery synthesizes a MASS shell; allow transitional satellite
+        // completion for that pass even when plan_meta omits allow_compiler_satellites
+        // (Java default is now opt-in / absent→false).
+        boolean recoveredFromEmpty = false;
         if (plan.components() != null) {
             normalized.addAll(plan.components());
         }
@@ -72,6 +76,7 @@ final class ComponentSatelliteInference {
             for (Component recoveredMass : recovered) {
                 normalized.add(PlanIntentFidelityRepair.enrich(plan, recoveredMass, intentHints));
             }
+            recoveredFromEmpty = true;
         }
 
         normalized = com.formacraft.server.dsl.FbdPlanLowering.lower(normalized);
@@ -103,7 +108,9 @@ final class ComponentSatelliteInference {
                 if (minSpan > 2) {
                     var params = new HashMap<String, Object>(normalizedComponent.params() == null
                             ? Map.of() : normalizedComponent.params());
-                    params.put("wall_thickness", 1);
+                    com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                            plan, params, "wall_thickness", 1,
+                            com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT);
                     normalizedComponent = new Component(normalizedComponent.componentType(), normalizedComponent.slotId(),
                             normalizedComponent.relativePosition(), normalizedComponent.dimensions(),
                             normalizedComponent.features(), params);
@@ -362,13 +369,15 @@ final class ComponentSatelliteInference {
                             && upper.params().containsKey("tier_index")))
                     && !NonClassicalEnrichmentGuard.blocksCrownInference(plan)
                     && ComponentCrownDecorator.shouldApply(plan, c.params());
-            var designGap = CompilerSatellitePolicy.missingSatellitesGap(
-                    plan, c, hasFacade, hasEntrance, hasRoofEarly, useAssemblyFacade, hasCrown, wouldInferCrown);
+            boolean allowCompilerInfer = plan.allowCompilerSatellites() || recoveredFromEmpty;
+            var designGap = allowCompilerInfer
+                    ? java.util.Optional.<com.formacraft.common.llm.dto.CapabilityGap>empty()
+                    : CompilerSatellitePolicy.missingSatellitesGap(
+                            plan, c, hasFacade, hasEntrance, hasRoofEarly, useAssemblyFacade, hasCrown, wouldInferCrown);
             if (designGap.isPresent()) {
                 AssemblyCompileDiagnostics.set(designGap.get());
                 return new PreparedComponents(List.of(), Set.of());
             }
-            boolean allowCompilerInfer = plan.allowCompilerSatellites();
             boolean refuseResidentialAutofill = PlanSemanticValidator.refusesResidentialAutofill(plan);
 
             if (useAssemblyFacade) {
@@ -489,6 +498,7 @@ final class ComponentSatelliteInference {
         // Infer interior stairs when satellites are allowed, or when circulation is REQUIRED
         // (fidelity cases keep allow_compiler_satellites=false but still need vertical links).
         if (plan.allowCompilerSatellites()
+                || recoveredFromEmpty
                 || com.formacraft.common.generation.design.DesignRequirementAccess.circulation(plan)
                 == com.formacraft.common.generation.design.DesignRequirement.REQUIRED) {
             InteriorStairInferenceCompiler.apply(prepared);

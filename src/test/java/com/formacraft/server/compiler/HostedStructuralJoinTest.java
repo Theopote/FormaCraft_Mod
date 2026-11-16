@@ -26,9 +26,12 @@ class HostedStructuralJoinTest {
             assertTrue(index.accept(component(type, Map.of("host_id","house", "extrude_mode","plate")), replacement).isEmpty());
         }
     }
-    @Test void defaultCompletionRespectsExplicitStrictMode() {
-        assertTrue(LlmPlanTestFixtures.builder().build().allowCompilerSatellites());
+    @Test void defaultCompletionIsOptInOnly() {
+        // Production contract: absent key → false. Explicit true remains transitional completion.
+        // (LlmPlanTestFixtures.builder().build() still injects true for legacy tests.)
+        assertFalse(LlmPlanTestFixtures.builder().planMeta(Map.of()).build().allowCompilerSatellites());
         assertFalse(LlmPlanTestFixtures.builder().planMeta(Map.of("allow_compiler_satellites",false)).build().allowCompilerSatellites());
+        assertTrue(LlmPlanTestFixtures.builder().planMeta(Map.of("allow_compiler_satellites",true)).build().allowCompilerSatellites());
     }
     @Test void attachedTowerMayJoinOnlyItsOwnHostInTheSameFrame() {
         var index = new PatchOccupancyIndex();

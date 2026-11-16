@@ -382,6 +382,71 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertEqual("OMITTED", reqs["roof"])
         self.assertEqual("OMITTED", reqs["facade"])
         self.assertEqual("OMITTED", reqs["entrance"])
+        # Omissions cover all satellite gaps → AI-owned; no transitional infer.
+        self.assertFalse(out["plan_meta"]["allow_compiler_satellites"])
+        self.assertEqual("ai_owned", out["plan_meta"]["compiler_satellites_policy"])
+
+    def test_incomplete_mass_shell_stamps_transitional_satellites_true(self):
+        from unittest.mock import Mock
+        from app.services.llm_plan_normalization import _ensure_compiler_satellite_policy
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 6},
+                    "features": [],
+                    "params": {"component_id": "body"},
+                }
+            ],
+        }
+        out = _ensure_compiler_satellite_policy(copy.deepcopy(plan))
+        self.assertTrue(out["plan_meta"]["allow_compiler_satellites"])
+        self.assertEqual("transitional_completion", out["plan_meta"]["compiler_satellites_policy"])
+
+        # Existing scaffold/opt-out must not be overwritten.
+        scaffold = copy.deepcopy(plan)
+        scaffold["plan_meta"] = {"allow_compiler_satellites": False, "scaffolded_from_request_intent": True}
+        left = _ensure_compiler_satellite_policy(scaffold)
+        self.assertFalse(left["plan_meta"]["allow_compiler_satellites"])
+
+        complete = {
+            "mode": "build",
+            "components": [
+                {"component_type": "MASS_MAIN", "slot_id": "main",
+                 "relative_position": {"x": 0, "y": 0, "z": 0},
+                 "dimensions": {"width": 12, "depth": 10, "height": 6},
+                 "features": [], "params": {"component_id": "body"}},
+                {"component_type": "ROOF", "slot_id": "main",
+                 "relative_position": {"x": 0, "y": 6, "z": 0},
+                 "dimensions": {"width": 14, "depth": 12, "height": 3},
+                 "features": [], "params": {"component_id": "roof", "host_id": "body"}},
+                {"component_type": "FACADE_WINDOWS", "slot_id": "main",
+                 "relative_position": {"x": 0, "y": 2, "z": 0},
+                 "dimensions": {"width": 12, "depth": 1, "height": 2},
+                 "features": [], "params": {"component_id": "facade", "host_id": "body"}},
+                {"component_type": "ENTRANCE", "slot_id": "main",
+                 "relative_position": {"x": 0, "y": 0, "z": 0},
+                 "dimensions": {"width": 3, "depth": 1, "height": 3},
+                 "features": [], "params": {"component_id": "door", "host_id": "body"}},
+            ],
+        }
+        owned = _ensure_compiler_satellite_policy(complete)
+        self.assertFalse(owned["plan_meta"]["allow_compiler_satellites"])
+        self.assertEqual("ai_owned", owned["plan_meta"]["compiler_satellites_policy"])
+
+        # Via full normalizer path as well.
+        req = Mock()
+        req.userMessage = "一座简单体块"
+        req.requestText = req.userMessage
+        req.selection = None
+        req.brushSelection = None
+        profile = BuildingProfile(query="简单体块", structure=ProfileStructure())
+        normalized = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
+        self.assertTrue(normalized["plan_meta"]["allow_compiler_satellites"])
 
     def test_user_explicit_xieshan_stamps_provenance_and_overrides_ai(self):
         from unittest.mock import Mock

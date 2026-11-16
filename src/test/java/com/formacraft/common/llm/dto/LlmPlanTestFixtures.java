@@ -78,6 +78,9 @@ public final class LlmPlanTestFixtures {
 
         public LlmPlan build() {
             Map<String, Object> meta = planMeta;
+            // Legacy test convenience: unspecified planMeta still opts into compiler satellites
+            // so older fixtures keep transitional completion. Production PlanMetaAccess is
+            // opt-in (absent → false); tests that need absent semantics must pass planMeta(Map.of()).
             if (meta == null) {
                 meta = new HashMap<>();
                 meta.put(com.formacraft.common.generation.routing.PlanMetaAccess.ALLOW_COMPILER_SATELLITES, Boolean.TRUE);

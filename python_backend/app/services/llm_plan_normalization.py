@@ -117,6 +117,62 @@ def _merge_design_requirements(plan: Dict[str, Any], updates: Dict[str, str]) ->
         requirements[key] = value
 
 
+def _ensure_compiler_satellite_policy(plan: Dict[str, Any]) -> Dict[str, Any]:
+    """Make ``allow_compiler_satellites`` explicit (migration toward Java opt-in default).
+
+    Classification: FORMAT_REPAIR / policy stamp — does not invent geometry.
+    - Already set (including scaffolds) → leave unchanged.
+    - MASS shell missing roof/facade/entrance without OMITTED → ``True`` (transitional).
+    - Complete shell or omissions cover gaps → ``False`` (AI-owned; no silent infer).
+    """
+    if not isinstance(plan, dict):
+        return plan
+    if str(plan.get("plan_status") or "").lower() == "capability_gap":
+        return plan
+    meta = plan.get("plan_meta")
+    if not isinstance(meta, dict):
+        meta = {}
+        plan["plan_meta"] = meta
+    if "allow_compiler_satellites" in meta:
+        return plan
+
+    components = plan.get("components")
+    if not isinstance(components, list) or not components:
+        meta["allow_compiler_satellites"] = False
+        meta["compiler_satellites_policy"] = "empty_or_non_mass"
+        return plan
+
+    reqs = meta.get("design_requirements") if isinstance(meta.get("design_requirements"), dict) else {}
+
+    def _omitted(key: str) -> bool:
+        return str(reqs.get(key) or "").strip().upper() == "OMITTED"
+
+    types = {
+        str(c.get("component_type") or "").strip().upper()
+        for c in components
+        if isinstance(c, dict)
+    }
+    has_mass = any(
+        t.startswith("MASS") or t in {"TOWER", "SIDE_WING", "GATE", "MAIN_MASS"}
+        for t in types
+    )
+    if not has_mass:
+        meta["allow_compiler_satellites"] = False
+        meta["compiler_satellites_policy"] = "empty_or_non_mass"
+        return plan
+
+    needs_roof = not _omitted("roof") and not any(t.startswith("ROOF") for t in types)
+    needs_facade = not _omitted("facade") and "FACADE_WINDOWS" not in types
+    needs_entrance = not _omitted("entrance") and "ENTRANCE" not in types
+    if needs_roof or needs_facade or needs_entrance:
+        meta["allow_compiler_satellites"] = True
+        meta["compiler_satellites_policy"] = "transitional_completion"
+    else:
+        meta["allow_compiler_satellites"] = False
+        meta["compiler_satellites_policy"] = "ai_owned"
+    return plan
+
+
 _COURTYARD_LITERALS = (
     "courtyard", "siheyuan", "中庭", "庭院", "四合院", "院落", "内院",
 )
@@ -504,4 +560,8 @@ def _normalize_llm_plan_output(
         plan = apply_style_feature_defaults(plan, building_profile)
         feature_report = plan["proportion_hints"]["style_feature_report"]
         logger.info("Style feature parameter verification: %s", feature_report)
+    try:
+        plan = _ensure_compiler_satellite_policy(plan)
+    except Exception as exc:
+        logger.warning("compiler satellite policy stamp skipped: %s", exc)
     return reject_fixed_landmark_plan(plan, building_profile) or plan

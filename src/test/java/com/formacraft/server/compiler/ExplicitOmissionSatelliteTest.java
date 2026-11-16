@@ -195,4 +195,39 @@ class ExplicitOmissionSatelliteTest {
         assertEquals("TECHNICAL_DEFAULT", String.valueOf(sources.get("door_height")));
         assertEquals("TECHNICAL_DEFAULT", String.valueOf(sources.get("canopy_depth")));
     }
+
+    @Test
+    void missingWallThicknessFillIsTaggedTechnicalDefault() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "hall");
+        Component mass = new Component(
+                "MASS_MAIN",
+                "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(16, 12, 8),
+                List.of(),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("DEFAULT")
+                .components(List.of(mass))
+                .planMeta(Map.of(
+                        "allow_compiler_satellites", true,
+                        "design_requirements", Map.of(
+                                "roof", "OMITTED",
+                                "facade", "OMITTED",
+                                "entrance", "OMITTED",
+                                "crown", "OMITTED")))
+                .build();
+
+        var prepared = ComponentSatelliteInference.prepareComponents(plan, Map.of(), false);
+        Component preparedMass = prepared.components().stream()
+                .filter(c -> c != null && "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(1, ((Number) preparedMass.params().get("wall_thickness")).intValue());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sources = (Map<String, Object>) preparedMass.params().get("design_sources");
+        assertTrue(sources != null);
+        assertEquals("TECHNICAL_DEFAULT", String.valueOf(sources.get("wall_thickness")));
+    }
 }
