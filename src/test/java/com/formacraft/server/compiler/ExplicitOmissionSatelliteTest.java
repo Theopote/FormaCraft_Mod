@@ -197,6 +197,37 @@ class ExplicitOmissionSatelliteTest {
     }
 
     @Test
+    void recoveredEmptyComponentsWallThicknessIsTaggedTechnicalDefault() {
+        String json = """
+                {"mode":"build","anchor":{"x":0,"y":64,"z":0},
+                 "layout":{"slots":[{"slot_id":"main","anchor":{"x":0,"y":0,"z":0},
+                   "facing":"SOUTH","size":{"w":12,"h":8,"d":10}}]},
+                 "components":[]}
+                """;
+        LlmPlan plan;
+        try {
+            plan = com.formacraft.common.llm.parser.LlmPlanParser.parse(json);
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+        assertFalse(plan.allowCompilerSatellites(), "production JSON without key must be opt-in false");
+        var prepared = ComponentSatelliteInference.prepareComponents(
+                plan, Map.of("main", plan.layout().slots().getFirst()), false);
+        Component mass = prepared.components().stream()
+                .filter(c -> c != null && "MASS_MAIN".equalsIgnoreCase(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(1, ((Number) mass.params().get("wall_thickness")).intValue());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sources = (Map<String, Object>) mass.params().get("design_sources");
+        assertTrue(sources != null);
+        assertEquals("TECHNICAL_DEFAULT", String.valueOf(sources.get("wall_thickness")));
+        assertTrue(prepared.components().stream()
+                .anyMatch(c -> c != null && "ROOF".equalsIgnoreCase(c.componentType())),
+                "empty recovery must still transitional-infer roof");
+    }
+
+    @Test
     void missingWallThicknessFillIsTaggedTechnicalDefault() {
         Map<String, Object> params = new HashMap<>();
         params.put("component_id", "hall");

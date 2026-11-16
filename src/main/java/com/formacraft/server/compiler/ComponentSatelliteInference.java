@@ -1489,7 +1489,19 @@ final class ComponentSatelliteInference {
                     || Boolean.FALSE.equals(params.get("hollow"))
                     || com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(params);
             if (!solidSupport) params.put("compiler_connector_body", true);
-            params.putIfAbsent("wall_thickness", 1);
+            if (!params.containsKey("wall_thickness") && !params.containsKey("wallThickness")) {
+                params.put("wall_thickness", 1);
+                Object rawSources = params.get("design_sources");
+                Map<String, Object> sources = new HashMap<>();
+                if (rawSources instanceof Map<?, ?> map) {
+                    for (var e : map.entrySet()) {
+                        if (e.getKey() != null) sources.put(String.valueOf(e.getKey()), e.getValue());
+                    }
+                }
+                sources.putIfAbsent("wall_thickness",
+                        com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT.name());
+                params.put("design_sources", sources);
+            }
             params.put("plan_type", "none");
             // Unspecified-width covered links need one walkable cell between
             // their walls. Do not let a two-cell model default seal the link.
@@ -1898,7 +1910,9 @@ final class ComponentSatelliteInference {
             params.put("component_id", "mass:" + slotId);
             params.put("anchor_mode", "min_corner");
             params.put("hollow", true);
-            params.put("wall_thickness", 1);
+            com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                    plan, params, "wall_thickness", 1,
+                    com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT);
             params.put("roof_requirement", "REQUIRED");
             params.put("entrance_requirement", "REQUIRED");
             params.put("facade_requirement", "REQUIRED");
@@ -1924,7 +1938,9 @@ final class ComponentSatelliteInference {
             params.put("component_id", "mass:recovered_main");
             params.put("anchor_mode", "min_corner");
             params.put("hollow", true);
-            params.put("wall_thickness", 1);
+            com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                    plan, params, "wall_thickness", 1,
+                    com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT);
             params.put("roof_requirement", "REQUIRED");
             params.put("entrance_requirement", "REQUIRED");
             params.put("facade_requirement", "REQUIRED");

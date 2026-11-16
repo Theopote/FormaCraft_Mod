@@ -59,7 +59,8 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `llm_plan_normalization` courtyard literals | plan_type courtyard | **Extended (2026-11-17):** user 庭院/四合院 → USER_EXPLICIT plan_type lock |
 | `llm_plan_normalization._ensure_compiler_satellite_policy` | `allow_compiler_satellites` explicit stamp | **Fixed (2026-11-17):** FORMAT_REPAIR — incomplete MASS → `True`; complete/OMITTED/non-mass → `False`; never overwrites scaffold/existing |
 | `PlanMetaAccess.allowCompilerSatellites` | absent key default | **Fixed (2026-11-17):** opt-in only — absent/null → false (was transitional absent→true) |
-| `ComponentSatelliteInference` empty-components recovery | recovered MASS shell | **Extended (2026-11-17):** `recoveredFromEmpty` enables transitional satellite infer for that prepare pass only |
+| `ComponentSatelliteInference` empty-components recovery | recovered MASS shell | **Extended (2026-11-17):** `recoveredFromEmpty` enables transitional satellite infer for that prepare pass only; recovered `wall_thickness` stamps `TECHNICAL_DEFAULT` |
+| `LlmPlanTestFixtures.build` unspecified planMeta | test helper injects `allow_compiler_satellites=true` | **Debt (2026-11-17):** TEST-ONLY; production absent→false. Prefer `allowCompilerSatellites(true/false)` / `planMeta(Map.of())`. Full fixture migration deferred (~140 compiler tests) |
 | `ComponentSatelliteInference` wall_thickness=1 fill | hollow MASS geometry fill | **Extended (2026-11-17):** `putWithSource(..., TECHNICAL_DEFAULT)` when absent |
 | `scripts/check_design_authority_invariants.py` | CI static gate | **Added (2026-11-17):** ban keyword→preset returns; require Guard files |
 | `infer_heuristic_proportion_card` / `proportion_prompt_block` / `ProportionCardRegistry.promptBlockForCard` | proportion typology + aiInstruction | **Fixed (2026-11-17):** NON-BINDING research hint; softened MUST → prefer; negation-aware marker hits |
@@ -91,5 +92,5 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | Keyword class provenance | `PlanIntentFidelityRepairTest.matchingEchoUserMarkersRepairWrongLlmClassWithProvenance`, `test_intent_baseline_and_negation.py` |
 | Crown OMITTED + gable provenance | `ExplicitOmissionSatelliteTest` |
 | Compiler satellite policy stamp | `test_ai_design_preservation.test_incomplete_mass_shell_stamps_transitional_satellites_true` |
-| wall_thickness TECHNICAL_DEFAULT | `ExplicitOmissionSatelliteTest.missingWallThicknessFillIsTaggedTechnicalDefault` |
+| wall_thickness TECHNICAL_DEFAULT | `ExplicitOmissionSatelliteTest.missingWallThicknessFillIsTaggedTechnicalDefault`, `recoveredEmptyComponentsWallThicknessIsTaggedTechnicalDefault` |
 | Opt-in allow_compiler_satellites | `PlanMetaAccessTest`, `HostedStructuralJoinTest.defaultCompletionIsOptInOnly` |

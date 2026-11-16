@@ -76,11 +76,20 @@ public final class LlmPlanTestFixtures {
         /** Alias for {@link #designSources(Map)}. */
         public Builder designSourcesMap(Map<String, String> value) { return designSources(value); }
 
+        /** Explicit opt-in/out for compiler satellite inference (matches production PlanMetaAccess). */
+        public Builder allowCompilerSatellites(boolean value) {
+            Map<String, Object> meta = planMeta == null ? new HashMap<>() : new HashMap<>(planMeta);
+            meta.put(com.formacraft.common.generation.routing.PlanMetaAccess.ALLOW_COMPILER_SATELLITES, value);
+            planMeta = meta;
+            return this;
+        }
+
         public LlmPlan build() {
             Map<String, Object> meta = planMeta;
-            // Legacy test convenience: unspecified planMeta still opts into compiler satellites
-            // so older fixtures keep transitional completion. Production PlanMetaAccess is
-            // opt-in (absent → false); tests that need absent semantics must pass planMeta(Map.of()).
+            // TEST-ONLY convenience: unspecified planMeta still opts into satellite infer so
+            // legacy compiler fixtures keep compiling. Production PlanMetaAccess is opt-in
+            // (absent → false); use planMeta(Map.of()) or allowCompilerSatellites(false) for
+            // absent/strict semantics. Gradual fixture migration tracked in DESIGN_DECISION_INVENTORY.
             if (meta == null) {
                 meta = new HashMap<>();
                 meta.put(com.formacraft.common.generation.routing.PlanMetaAccess.ALLOW_COMPILER_SATELLITES, Boolean.TRUE);
