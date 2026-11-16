@@ -95,14 +95,18 @@ public final class ProportionCardRegistry {
         sb.append("""
 
             ========================================
-            PROPORTION ONTOLOGY (research before dimensions)
+            PROPORTION ONTOLOGY (NON-BINDING research hint)
             ========================================
             """);
-        sb.append("Typology: ").append(card.typology() != null ? card.typology() : card.id()).append("\n");
+        sb.append("Reference typology id (non-binding): ")
+                .append(card.typology() != null ? card.typology() : card.id()).append("\n");
+        sb.append("Honour the user's text and your own architectural decisions over this card.\n");
+        sb.append("Do not treat this block as a mandatory building class, roof type, or facade template.\n");
         if (card.aiInstruction() != null && !card.aiInstruction().isBlank()) {
             sb.append(card.aiInstruction()).append("\n");
         }
-        sb.append("You MUST output proportion_hints in LlmPlan (numeric targets from ratios below).\n");
+        sb.append("Prefer emitting proportion_hints in LlmPlan when useful ")
+                .append("(numeric targets from the ratio envelopes below).\n");
         if (card.ratios() != null && !card.ratios().isEmpty()) {
             sb.append("Ratio targets:\n");
             for (Map.Entry<String, RatioSpec> e : card.ratios().entrySet()) {

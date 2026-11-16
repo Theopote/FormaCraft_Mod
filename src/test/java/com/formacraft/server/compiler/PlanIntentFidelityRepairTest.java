@@ -207,6 +207,32 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
+    void matchingEchoUserMarkersRepairWrongLlmClassWithProvenance() {
+        // Same server text / echo: strong user markers (道观) repair a wrong LLM garden class.
+        String text = "生成一座传统道观";
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(new Component(
+                        "MASS_MAIN", null, new Vec3i(0, 0, 0),
+                        new Dimensions(14, 14, 8), List.of(), Map.of())))
+                .planMeta(Map.of(
+                        "request_intent", Map.of(
+                                "original_text", text,
+                                "building_class", "garden",
+                                "confidence", 0.9),
+                        "building_class", "garden"))
+                .build();
+        LlmPlan ensured = RequestIntentInjector.ensure(plan, text);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> ri = (Map<String, Object>) ensured.planMeta().get("request_intent");
+        assertNull(ri.get("intent_echo_mismatch"));
+        assertEquals("temple", ri.get("building_class"));
+        assertEquals("keyword_user_marker", ri.get("building_class_source"));
+        assertEquals("garden", ri.get("stale_building_class"));
+        assertEquals(Boolean.TRUE, ri.get("intent_structure_mismatch"));
+        assertEquals("temple", ensured.planMeta().get("building_class"));
+    }
+
+    @Test
     void intentEchoMismatchReclassifiesTempleEchoAsTibetanStupa() {
         LlmPlan plan = LlmPlanTestFixtures.builder()
                 .components(List.of(new Component(

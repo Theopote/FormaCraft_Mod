@@ -86,6 +86,8 @@ jobs:
           python scripts/check_unused_interface_methods.py
           python scripts/test_check_unreachable_types.py
           python scripts/check_unreachable_types.py
+          python scripts/test_check_design_authority_invariants.py
+          python scripts/check_design_authority_invariants.py
 
   python:
     name: python

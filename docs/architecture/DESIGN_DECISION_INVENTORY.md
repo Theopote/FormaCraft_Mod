@@ -53,6 +53,12 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `_infer_mass_height` | mass height | Protocol repair only |
 | `llm_plan_normalization` Chinese roof/courtyard | was DESIGN_OVERRIDE (`xieshan`→`xuanshan`, strip COURTYARD without user keywords) | **Fixed (2026-11-17):** preserve AI-planned values; empty roof only → `xuanshan` TECHNICAL_DEFAULT + `design_sources` |
 | `llm_plan_normalization` design_sources stamp | roof_type / plan_type provenance | **Extended (2026-11-17):** TECHNICAL_DEFAULT / AI_PLANNED; user-stated roof → USER_EXPLICIT (component + plan-level) for Java locks |
+| `llm_plan_normalization` explicit omissions | roof/windows/entrance none | **Extended (2026-11-17):** USER_EXPLICIT + design_requirements OMITTED; drop conflicting satellites |
+| `ComponentSatelliteInference.prepareComponents` | satellite autofill | **Verified (2026-11-17):** roof_type/window/entrance `none` blocks inference even when allow_compiler_satellites=true |
+| `llm_plan_normalization` courtyard literals | plan_type courtyard | **Extended (2026-11-17):** user 庭院/四合院 → USER_EXPLICIT plan_type lock |
+| `scripts/check_design_authority_invariants.py` | CI static gate | **Added (2026-11-17):** ban keyword→preset returns; require Guard files |
+| `infer_heuristic_proportion_card` / `proportion_prompt_block` / `ProportionCardRegistry.promptBlockForCard` | proportion typology + aiInstruction | **Fixed (2026-11-17):** NON-BINDING research hint; softened MUST → prefer; negation-aware marker hits |
+| `merge_request_intent` / `RequestIntentInjector.applyKeywordAuthority` | keyword `building_class` | **Extended (2026-11-17):** stamp `building_class_source` (`keyword_fill` / `keyword_user_marker` / `llm_retained`); scaffold still requires keyword agreement; strong markers remain USER_EXPLICIT class cues |
 | `assembly_plan_validator.resolve_preset_for_intent` / `auto_apply_assembly_presets` | was keyword→preset DESIGN_OVERRIDE | **Fixed (2026-11-17):** explicit `preset:<id>` only; incomplete ASSEMBLY → repair/`capability_gap` |
 | `assembly_plan_repair` | assembly graph | Protocol only, not design substitute |
 | `typology_plan_repair` | typology fields | Protocol only |
@@ -76,3 +82,5 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | Grammar provenance | `DesignProvenanceGrammarTest` |
 | Unmatched BuildingType | `GeneratorRouterCapabilityTest` |
 | Assembly prompt soft rule | `AssemblyIntentSectionsTest` |
+| Proportion prompt non-binding | `ProportionCardRegistryTest`, `test_plan_architectural_enrichment.py` |
+| Keyword class provenance | `PlanIntentFidelityRepairTest.matchingEchoUserMarkersRepairWrongLlmClassWithProvenance`, `test_intent_baseline_and_negation.py` |

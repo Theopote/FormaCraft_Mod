@@ -517,8 +517,12 @@ public final class RequestIntentInjector {
     }
 
     /**
-     * Overlay keyword-extracted authoritative fields from server user text onto an existing intent.
-     * Stale LLM class / materials / footprint must not survive mismatch or structured conflict.
+     * Overlay keyword-extracted fields from server user text onto an existing intent.
+     * <p>
+     * Explicit literals (materials, footprint, roof forbids, openings) remain authoritative.
+     * Strong keyword {@code building_class} is treated as a USER_EXPLICIT marker extract from
+     * the player text (repairs wrong LLM class / fills generic). Weak hits cannot demote a
+     * confident LLM class. Scaffold templates still require keyword agreement separately.
      */
     static void applyKeywordAuthority(Map<String, Object> intent, Map<String, Object> keyword) {
         applyKeywordAuthority(intent, keyword, true);
@@ -561,9 +565,11 @@ public final class RequestIntentInjector {
             Object v = keyword.get(key);
             if (v != null) intent.put(key, v);
         }
-        // Strong keyword class wins; weak/generic keyword must not demote a reasonable LLM class.
+        // Strong keyword class wins as user-marker extract; weak/generic cannot demote LLM.
         if (keywordStrong) {
             intent.put("building_class", kwClass);
+            intent.put("building_class_source",
+                    "generic".equalsIgnoreCase(haveClass) ? "keyword_fill" : "keyword_user_marker");
             if (keyword.get("tower_subtype") != null) {
                 intent.put("tower_subtype", keyword.get("tower_subtype"));
             }
@@ -613,19 +619,29 @@ public final class RequestIntentInjector {
         double llmMin = RequestIntentVocab.conf("llm_preferred_min", 0.55);
         if (kwConf >= kwOverride && !"generic".equals(kwClass)) {
             out.put("source", "keyword_override");
+            out.put("building_class_source",
+                    "generic".equals(llmClass) ? "keyword_fill" : "keyword_user_marker");
             out.put("llm_declared", declared);
+            if (!"generic".equals(llmClass) && !kwClass.equalsIgnoreCase(llmClass)) {
+                out.put("intent_structure_mismatch", Boolean.TRUE);
+                out.put("stale_building_class", llmClass);
+            }
         } else if (llmConf >= llmMin && isValidClass(llmClass)) {
             out.put("building_class", llmClass);
             out.put("confidence", Math.max(llmConf, kwConf * 0.5));
             out.put("source", "llm_declared");
+            out.put("building_class_source", "llm_retained");
             out.put("keyword_hint_class", kwClass);
             out.put("keyword_hint_confidence", kwConf);
             double scaffoldMin = RequestIntentVocab.conf("scaffold_min", 0.75);
             double finalConf = ((Number) out.get("confidence")).doubleValue();
             out.put("refuse_residential_autofill",
                     !"generic".equals(llmClass) && finalConf >= scaffoldMin);
+            // Scaffold templates require keyword agreement — LLM-only class must not template-replace.
             out.put("scaffold_eligible",
-                    !"generic".equals(llmClass) && finalConf >= scaffoldMin);
+                    !"generic".equals(llmClass)
+                            && kwClass.equalsIgnoreCase(llmClass)
+                            && kwConf >= scaffoldMin);
         } else {
             out.put("llm_declared", declared);
         }

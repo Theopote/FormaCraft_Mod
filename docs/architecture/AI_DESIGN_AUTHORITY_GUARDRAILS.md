@@ -38,7 +38,12 @@ Track `user_intent`, `raw_llm_plan`, `normalized_plan`, `compiler_decisions`, `e
 3. `python_backend/app/services/planning_request_hints.py`: **Fixed (2026-11-17 P1)** — bare 「山」removed; roof tokens (歇山/悬山) stripped before terrain inference; scale/intent keywords respect negation (`不要大型`).
 4. `python_backend/app/services/llm_plan_system_prompt.py`: **Fixed (2026-11-17 P1)** — category composition bullets framed as NON-BINDING EXAMPLES; residential kit is not a universal default.
 5. `llm_plan_normalization` `design_sources`: **Extended (2026-11-17)** — stamps `TECHNICAL_DEFAULT` / `AI_PLANNED`, and upgrades player-stated roofs to `USER_EXPLICIT` (component + plan-level) so Java `DesignProvenance.putIfAllowed` / `StyleIntentResolver` cannot silently rewrite them.
-6. Verify any `ComponentPlanCompiler` missing-satellite behavior remains behind existing `plan_meta.allow_compiler_satellites` and never silently changes model-provided design. *(ongoing)*
+6. Explicit omissions (`无屋顶` / `不要窗` / `不要门`): **Extended (2026-11-17)** — normalization stamps `none` + `USER_EXPLICIT`, sets `design_requirements=OMITTED`, drops conflicting ROOF/FACADE/ENTRANCE satellites; Java `prepareComponents` respects `ExplicitDesignPolicy` even with `allow_compiler_satellites=true` (covered by `ExplicitOmissionSatelliteTest`).
+7. Explicit courtyard language (`庭院` / `四合院`): **Extended (2026-11-17)** — locks `plan_type=courtyard` as `USER_EXPLICIT`; StyleIntentResolver must not rewrite to `cut_corners`.
+8. Open-world routing regressions + CI invariant script (`scripts/check_design_authority_invariants.py`) guard against keyword→preset resurrection and missing governance files.
+9. Proportion ontology prompts (`proportion_prompt_block` / `ProportionCardRegistry` / heuristic cards): **Fixed (2026-11-17)** — NON-BINDING research hint; no MUST composition/template language; negated markers do not select packs.
+10. Request-intent `building_class`: **Extended (2026-11-17)** — provenance stamps (`keyword_fill` / `keyword_user_marker` / `llm_retained`); scaffold templates still require keyword agreement.
+11. Verify remaining `ComponentPlanCompiler` satellite edge cases stay behind `plan_meta.allow_compiler_satellites` / design_requirements. *(ongoing)*
 
 ## Required metamorphic acceptance suite
 Run original request and related variants; test both plan-level and compiled Patch-level properties.

@@ -72,11 +72,69 @@ def _text_blob(user_text: str, profile: Optional[BuildingProfile], plan: Dict[st
     return " ".join(parts).lower()
 
 
+def _positive_marker_present(blob: str, markers: Tuple[str, ...]) -> bool:
+    """True when any marker appears in blob without an immediate negation prefix.
+
+    Longer markers are scanned first; a negated long hit occupies its span so a
+    shorter marker inside (e.g. 「庙」 inside 「不要寺庙」) cannot still fire.
+    """
+    if not blob:
+        return False
+
+    occupied: List[Tuple[int, int]] = []
+    ordered = sorted(markers, key=lambda m: -len(m))
+    for marker in ordered:
+        if not marker:
+            continue
+        needle = marker.lower()
+        start = 0
+        while True:
+            idx = blob.find(needle, start)
+            if idx < 0:
+                break
+            end = idx + len(needle)
+            if any(not (end <= a or idx >= b) for a, b in occupied):
+                start = end
+                continue
+            if _is_locally_negated(blob, idx):
+                # Swallow a short CJK compound tail so 「不要寺庙」masks 庙 after 寺.
+                neg_end = end
+                while (
+                    neg_end < len(blob)
+                    and neg_end - idx < 6
+                    and "\u4e00" <= blob[neg_end] <= "\u9fff"
+                ):
+                    neg_end += 1
+                occupied.append((idx, neg_end))
+                start = neg_end
+                continue
+            return True
+    return False
+
+
+def _is_locally_negated(blob: str, idx: int) -> bool:
+    """Negation at idx, or at the start of a short CJK compound containing idx."""
+    from .request_intent import _is_negated_at
+
+    if _is_negated_at(blob, idx):
+        return True
+    for back in range(1, 5):
+        start = idx - back
+        if start < 0:
+            break
+        ch = blob[start]
+        if not ("\u4e00" <= ch <= "\u9fff"):
+            break
+        if _is_negated_at(blob, start):
+            return True
+    return False
+
+
 def detect_detail_tier(user_text: str, profile: Optional[BuildingProfile], plan: Dict[str, Any]) -> str:
     blob = _text_blob(user_text, profile, plan)
-    if any(m in blob for m in _MONUMENTAL_MARKERS):
+    if _positive_marker_present(blob, _MONUMENTAL_MARKERS):
         return "monumental"
-    if any(m in blob for m in ("house", "cottage", "小屋", "农舍", "villa", "住宅")):
+    if _positive_marker_present(blob, ("house", "cottage", "小屋", "农舍", "villa", "住宅")):
         return "standard"
     return "rich"
 
@@ -85,7 +143,11 @@ def infer_heuristic_proportion_card(
     user_text: str,
     profile: Optional[BuildingProfile] = None,
 ) -> Dict[str, Any]:
-    """Open-world fallback when no proportion_cards JSON matches."""
+    """Open-world fallback when no proportion_cards JSON matches.
+
+    Classification: NONBINDING_HINT. Ratio envelopes and soft composition examples only —
+    never a mandatory roof/facade/typology template. Negated markers do not select a pack.
+    """
     blob = _text_blob(user_text, profile, {})
     # East-Asian hall / temple cues: never route to classical_monument pilaster packs.
     _east_asian = (
@@ -93,7 +155,7 @@ def infer_heuristic_proportion_card(
         "道观", "寺庙", "庙宇", "殿堂", "正殿", "四合院", "xieshan", "xuanshan", "wudian",
         "double_eave", "chinese temple", "chinese hall",
     )
-    if any(m in blob for m in _east_asian):
+    if _positive_marker_present(blob, _east_asian):
         return {
             "id": "heuristic_chinese_hall",
             "typology": "chinese_timber_hall",
@@ -109,13 +171,13 @@ def infer_heuristic_proportion_card(
                 "max_void_ratio": 0.22,
             },
             "aiInstruction": (
-                "Chinese timber hall: MASS_MAIN + ROOF with roof_type xieshan/wudian (honour 重檐), "
-                "front 月台 platform when requested, left/right 配殿 with xuanshan roofs when requested; "
-                "no classical pilasters, no cupola CROWN, wrap FACADE_WINDOWS on all faces, "
-                "central ENTRANCE door_width 3–5."
+                "NON-BINDING EXAMPLE (ratios only; honour user/LLM design): "
+                "East-Asian timber hall proportions often pair MASS_MAIN with a timber ROOF "
+                "(xieshan/wudian when the user or model chooses them; honour 重檐 if requested), "
+                "optional 月台 / 配殿 only when requested; avoid classical pilasters/cupola unless asked."
             ),
         }
-    if any(m in blob for m in _MONUMENTAL_MARKERS):
+    if _positive_marker_present(blob, _MONUMENTAL_MARKERS):
         return {
             "id": "heuristic_classical_monument",
             "typology": "classical_monument",
@@ -131,9 +193,9 @@ def infer_heuristic_proportion_card(
                 "max_void_ratio": 0.15,
             },
             "aiInstruction": (
-                "Monumental/classical building: use vertical bay windows, pilasters on MASS_MAIN "
-                "(params.facade_profile=vertical_pilasters), base plinth, cornice DECOR_DETAIL, "
-                "ROOF with overhang and roof_height ≈ 25–35% of body height."
+                "NON-BINDING EXAMPLE (ratios only; honour user/LLM design): "
+                "Monumental massing often uses taller bays and stronger enclosure; "
+                "pilasters/plinth/cornice are optional only when the request or model chooses them."
             ),
         }
     return {
@@ -151,8 +213,9 @@ def infer_heuristic_proportion_card(
             "max_void_ratio": 0.18,
         },
         "aiInstruction": (
-            "Include FOUNDATION + ROOF + FACADE_WINDOWS + at least one DECOR_DETAIL band; "
-            "avoid a bare MASS box."
+            "NON-BINDING EXAMPLE (ratios only; honour user/LLM design): "
+            "Prefer a complete shell when the request implies enclosure; "
+            "omit ROOF/windows/doors when the user explicitly declines them."
         ),
     }
 

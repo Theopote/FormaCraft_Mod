@@ -312,6 +312,77 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertEqual("xieshan", mass["params"]["roof_type"])
         self.assertEqual("USER_EXPLICIT", mass["params"]["design_sources"]["roof_type"])
 
+    def test_user_omission_strips_satellites_and_stamps_none(self):
+        from unittest.mock import Mock
+
+        profile = BuildingProfile(query="地下神殿", structure=ProfileStructure())
+        plan = {
+            "mode": "build",
+            "style_profile": "DEFAULT",
+            "anchor": {"x": 0, "y": 40, "z": 0},
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 18, "depth": 14, "height": 8},
+                    "features": [],
+                    "params": {
+                        "component_id": "hall",
+                        "roof_type": "gable",
+                        "window_style": "casement",
+                        "entrance_type": "arched",
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 8, "z": 0},
+                    "dimensions": {"width": 20, "depth": 16, "height": 4},
+                    "features": [],
+                    "params": {"component_id": "roof_a", "host_id": "hall", "roof_type": "gable"},
+                },
+                {
+                    "component_type": "FACADE_WINDOWS",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 2, "z": 0},
+                    "dimensions": {"width": 18, "depth": 1, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "win_a", "host_id": "hall"},
+                },
+                {
+                    "component_type": "ENTRANCE",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 3, "depth": 1, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "door_a", "host_id": "hall"},
+                },
+            ],
+        }
+        req = Mock()
+        req.userMessage = "建造一座地下神殿，无屋顶，不要窗，不要门"
+        req.requestText = req.userMessage
+        req.selection = None
+        req.brushSelection = None
+        out = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
+        types = [c["component_type"] for c in out["components"]]
+        self.assertNotIn("ROOF", types)
+        self.assertNotIn("FACADE_WINDOWS", types)
+        self.assertNotIn("ENTRANCE", types)
+        mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
+        self.assertEqual("none", mass["params"]["roof_type"])
+        self.assertEqual("none", mass["params"]["window_style"])
+        self.assertEqual(0, mass["params"]["window_ratio"])
+        self.assertEqual("none", mass["params"]["entrance_type"])
+        self.assertEqual("USER_EXPLICIT", mass["params"]["design_sources"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", mass["params"]["design_sources"]["window_style"])
+        self.assertEqual("USER_EXPLICIT", mass["params"]["design_sources"]["entrance_type"])
+        reqs = out["plan_meta"]["design_requirements"]
+        self.assertEqual("OMITTED", reqs["roof"])
+        self.assertEqual("OMITTED", reqs["facade"])
+        self.assertEqual("OMITTED", reqs["entrance"])
+
     def test_user_explicit_xieshan_stamps_provenance_and_overrides_ai(self):
         from unittest.mock import Mock
 

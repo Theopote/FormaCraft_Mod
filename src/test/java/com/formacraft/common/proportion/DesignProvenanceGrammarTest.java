@@ -97,7 +97,7 @@ class DesignProvenanceGrammarTest {
         DesignProvenance.removeIfAllowed(plan, params, "roof_dormers");
 
         assertFalse(params.containsKey("roof_specialty"));
-        assertTrue(Boolean.TRUE.equals(params.get("roof_dormers")));
+        assertEquals(Boolean.TRUE, params.get("roof_dormers"));
     }
 
     @Test
@@ -193,5 +193,30 @@ class DesignProvenanceGrammarTest {
 
         assertFalse(DesignProvenance.putIfAllowed(plan, params, "roofType", "xuanshan"));
         assertEquals("xieshan", params.get("roof_type"));
+    }
+
+    @Test
+    void styleIntentPreservesUserExplicitCourtyardPlanType() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("plan_type", "courtyard");
+        params.put("roof_type", "xieshan");
+        params.put("design_sources", Map.of(
+                "plan_type", "USER_EXPLICIT",
+                "roof_type", "AI_PLANNED"));
+        Component mass = new Component(
+                "MASS_MAIN",
+                "house",
+                new Vec3i(0, 0, 0),
+                new Dimensions(28, 22, 8),
+                List.of(),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Chinese_Classical")
+                .components(List.of(mass))
+                .build();
+
+        Component out = StyleIntentResolver.apply(plan, mass);
+        assertEquals("courtyard", out.params().get("plan_type"));
+        assertEquals("xieshan", out.params().get("roof_type"));
     }
 }

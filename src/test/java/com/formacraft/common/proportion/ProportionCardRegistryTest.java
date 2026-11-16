@@ -30,5 +30,8 @@ class ProportionCardRegistryTest {
         String block = ProportionCardRegistry.promptBlockForCard(card);
         assertTrue(block.contains("PROPORTION ONTOLOGY"));
         assertTrue(block.contains("proportion_hints"));
+        assertTrue(block.contains("NON-BINDING research hint"));
+        assertTrue(!block.contains("You MUST output proportion_hints"));
+        assertTrue(block.contains("Honour the user's text"));
     }
 }

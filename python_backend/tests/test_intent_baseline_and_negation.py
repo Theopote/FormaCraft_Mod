@@ -132,7 +132,7 @@ class IntentBaselineTest(unittest.TestCase):
         )
         self.assertEqual(merged["building_class"], "generic")
 
-        # Strong keyword still overrides a wrong LLM guess.
+        # Strong keyword may FILL a blank/generic LLM class (scaffold recovery).
         pagoda_kw = extract_keyword_intent("生成一座白色藏式佛塔")
         merged_pagoda = merge_request_intent(
             pagoda_kw,
@@ -140,6 +140,20 @@ class IntentBaselineTest(unittest.TestCase):
         )
         self.assertEqual(merged_pagoda["building_class"], "tower_like")
         self.assertEqual(merged_pagoda["source"], "keyword_override")
+        self.assertEqual(merged_pagoda.get("building_class_source"), "keyword_fill")
+
+        # Strong user markers may also repair a wrong non-generic LLM class; provenance is stamped.
+        temple_kw = extract_keyword_intent("生成一座传统道观")
+        self.assertEqual(temple_kw["building_class"], "temple")
+        merged_repair = merge_request_intent(
+            temple_kw,
+            {"building_class": "garden", "confidence": 0.9},
+        )
+        self.assertEqual(merged_repair["building_class"], "temple")
+        self.assertEqual(merged_repair["source"], "keyword_override")
+        self.assertEqual(merged_repair.get("building_class_source"), "keyword_user_marker")
+        self.assertEqual(merged_repair.get("stale_building_class"), "garden")
+        self.assertTrue(merged_repair.get("intent_structure_mismatch"))
 
     def test_low_confidence_does_not_scaffold(self):
         intent = resolve_request_intent("建一座钟楼")

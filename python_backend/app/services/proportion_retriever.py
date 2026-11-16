@@ -119,23 +119,29 @@ def _compact_card(card: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def proportion_prompt_block(card: Optional[Dict[str, Any]]) -> str:
+    """NONBINDING proportion research hint — ratios only; never a style/template mandate."""
     if not card:
         return ""
     lines = [
         "",
         "========================================",
-        "PROPORTION ONTOLOGY (research before dimensions)",
+        "PROPORTION ONTOLOGY (NON-BINDING research hint)",
         "========================================",
-        f"Typology: {card.get('typology', card.get('id'))}",
+        f"Reference typology id (non-binding): {card.get('typology', card.get('id'))}",
+        "Honour the user's text and your own architectural decisions over this card.",
+        "Do not treat this block as a mandatory building class, roof type, or facade template.",
     ]
     instr = card.get("aiInstruction")
     if isinstance(instr, str) and instr.strip():
         lines.append(instr.strip())
-    lines.append("You MUST output proportion_hints in LlmPlan (numeric targets from ratios below).")
-    lines.append("Java will clamp dimensions to ratio ranges.")
+    lines.append(
+        "Prefer emitting proportion_hints in LlmPlan when useful "
+        "(numeric targets from the ratio envelopes below)."
+    )
+    lines.append("Java may clamp dimensions to ratio ranges for geometry safety only.")
     ratios = card.get("ratios")
     if isinstance(ratios, dict):
-        lines.append("Ratio targets:")
+        lines.append("Ratio targets (soft envelopes):")
         for name, spec in ratios.items():
             if isinstance(spec, dict):
                 ideal = spec.get("ideal")
@@ -145,7 +151,7 @@ def proportion_prompt_block(card: Optional[Dict[str, Any]]) -> str:
                 lines.append(f"  - {name}: ideal={ideal} range=[{mn},{mx}] {desc}")
     og = card.get("openingGrammar")
     if isinstance(og, dict):
-        lines.append("Opening / enclosure grammar:")
+        lines.append("Opening / enclosure grammar (soft):")
         for k, v in og.items():
             lines.append(f"  - {k}: {v}")
     lines.append("")

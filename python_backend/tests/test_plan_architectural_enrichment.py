@@ -251,6 +251,23 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
         self.assertNotIn("DECOR_DETAIL", profile.minecraft_strategy.recommended_components)
         self.assertNotIn("FOUNDATION", profile.minecraft_strategy.recommended_components)
 
+    def test_heuristic_proportion_card_is_nonbinding_and_negation_aware(self):
+        from app.services.plan_architectural_enrichment import infer_heuristic_proportion_card
+        from app.services.proportion_retriever import proportion_prompt_block
+
+        chinese = infer_heuristic_proportion_card("生成一座传统道观，歇山顶")
+        self.assertEqual(chinese["id"], "heuristic_chinese_hall")
+        self.assertIn("NON-BINDING EXAMPLE", chinese["aiInstruction"])
+        self.assertNotIn("wrap FACADE_WINDOWS on all faces", chinese["aiInstruction"])
+
+        negated = infer_heuristic_proportion_card("建一座现代住宅，不要寺庙，不要歇山")
+        self.assertEqual(negated["id"], "heuristic_general_building")
+
+        block = proportion_prompt_block(chinese)
+        self.assertIn("NON-BINDING research hint", block)
+        self.assertNotIn("You MUST output proportion_hints", block)
+        self.assertIn("Honour the user's text", block)
+
 
 if __name__ == "__main__":
     unittest.main()

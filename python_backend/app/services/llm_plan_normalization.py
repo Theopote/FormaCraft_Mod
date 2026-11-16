@@ -97,40 +97,129 @@ def _resolve_user_explicit_roof(user_text: str) -> Optional[str]:
     return None
 
 
-def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) -> Dict[str, Any]:
-    """Stamp USER_EXPLICIT provenance for player-stated design constraints.
+def _merge_design_requirements(plan: Dict[str, Any], updates: Dict[str, str]) -> None:
+    if not updates:
+        return
+    meta = plan.get("plan_meta")
+    if not isinstance(meta, dict):
+        meta = {}
+        plan["plan_meta"] = meta
+    requirements = meta.get("design_requirements")
+    if not isinstance(requirements, dict):
+        requirements = {}
+        meta["design_requirements"] = requirements
+    for key, value in updates.items():
+        existing = str(requirements.get(key) or "").strip().upper()
+        # Never downgrade an explicit OMITTED / REQUIRED already authored by the model/user.
+        if existing in ("OMITTED", "REQUIRED") and existing != value.upper():
+            if existing == "OMITTED":
+                continue
+        requirements[key] = value
 
-    User constraints outrank AI_PLANNED / TECHNICAL_DEFAULT. Values already present
-    are preserved when they match; mismatches are corrected to the explicit value.
+
+_COURTYARD_LITERALS = (
+    "courtyard", "siheyuan", "中庭", "庭院", "四合院", "院落", "内院",
+)
+
+
+def _user_explicit_courtyard(text: str) -> bool:
+    from .planning_request_hints import _keyword_hit_unnegated
+    return _keyword_hit_unnegated((text or "").lower(), _COURTYARD_LITERALS)
+
+
+def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) -> Dict[str, Any]:
+    """Stamp USER_EXPLICIT provenance for player-stated design constraints and omissions.
+
+    User constraints outrank AI_PLANNED / TECHNICAL_DEFAULT. Explicit omissions
+    (无屋顶 / 不要窗 / 不要门) mark MASS params as ``none`` and drop conflicting satellites.
+    Explicit courtyard language locks ``plan_type=courtyard``.
     """
     if not isinstance(plan, dict):
         return plan
-    explicit_roof = _resolve_user_explicit_roof(user_text)
-    if not explicit_roof:
+    from .request_intent import extract_request_intent
+    from .building_contract import extract_requirements
+
+    text = (user_text or "").strip()
+    intent = extract_request_intent(text) if text else {}
+    forbids = {str(x).strip().lower() for x in (intent.get("forbids") or []) if x}
+    explicit_roof = _resolve_user_explicit_roof(text)
+    explicit_courtyard = _user_explicit_courtyard(text)
+    for requirement in extract_requirements(text) if text else []:
+        prop = str(requirement.get("property") or "")
+        value = requirement.get("value")
+        source = str(requirement.get("source") or "").lower()
+        if source not in ("user_explicit", "user", "player"):
+            continue
+        if prop == "roof_type" and value == "none":
+            explicit_roof = "none"
+        elif prop == "window_style" and value == "none":
+            forbids.add("windows")
+        elif prop == "entrance_type" and value == "none":
+            forbids.add("entrance")
+
+    if not explicit_roof and not forbids and not explicit_courtyard:
         return plan
+
     components = plan.get("components")
     if not isinstance(components, list):
         return plan
-    touched = False
+
+    omit_roof = explicit_roof == "none"
+    omit_windows = "windows" in forbids
+    omit_entrance = "entrance" in forbids
+    design_req_updates: Dict[str, str] = {}
+    if omit_roof:
+        design_req_updates["roof"] = "OMITTED"
+    if omit_windows:
+        design_req_updates["facade"] = "OMITTED"
+    if omit_entrance:
+        design_req_updates["entrance"] = "OMITTED"
+    _merge_design_requirements(plan, design_req_updates)
+
+    kept: list = []
     for comp in components:
         if not isinstance(comp, dict):
             continue
         ctype = str(comp.get("component_type") or "").upper()
-        if ctype not in (
-            "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS", "ROOF",
-        ):
+        if omit_roof and ctype in ("ROOF", "ROOF_STRUCTURE"):
             continue
+        if omit_windows and ctype in ("FACADE_WINDOWS", "FACADE"):
+            continue
+        if omit_entrance and ctype == "ENTRANCE":
+            continue
+
         params = comp.get("params")
         if not isinstance(params, dict):
             params = {}
             comp["params"] = params
-        current = str(params.get("roof_type") or "").strip().lower()
-        if current != explicit_roof:
-            params["roof_type"] = explicit_roof
-        _tag_param_source(params, "roof_type", "USER_EXPLICIT")
-        touched = True
-    if touched:
-        _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
+
+        if ctype in (
+            "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS", "ROOF",
+        ):
+            if explicit_roof:
+                if str(params.get("roof_type") or "").strip().lower() != explicit_roof:
+                    params["roof_type"] = explicit_roof
+                _tag_param_source(params, "roof_type", "USER_EXPLICIT")
+                _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
+            if omit_windows and ctype != "ROOF":
+                params["window_style"] = "none"
+                params["window_ratio"] = 0
+                _tag_param_source(params, "window_style", "USER_EXPLICIT")
+                _tag_param_source(params, "window_ratio", "USER_EXPLICIT")
+                _tag_plan_level_source(plan, "window_style", "USER_EXPLICIT")
+            if omit_entrance and ctype != "ROOF":
+                params["entrance_type"] = "none"
+                _tag_param_source(params, "entrance_type", "USER_EXPLICIT")
+                _tag_plan_level_source(plan, "entrance_type", "USER_EXPLICIT")
+            if explicit_courtyard and ctype != "ROOF":
+                if str(params.get("plan_type") or "").strip().lower() != "courtyard":
+                    params["plan_type"] = "courtyard"
+                _tag_param_source(params, "plan_type", "USER_EXPLICIT")
+                _tag_plan_level_source(plan, "plan_type", "USER_EXPLICIT")
+        elif ctype == "COURTYARD" and explicit_courtyard:
+            _tag_param_source(params, "plan_type", "USER_EXPLICIT")
+        kept.append(comp)
+    plan["components"] = kept
     return plan
 
 

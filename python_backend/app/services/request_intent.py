@@ -430,15 +430,25 @@ def merge_request_intent(
     if llm and isinstance(llm, dict):
         llm_class = str(llm.get("building_class") or "generic")
         llm_conf = float(llm.get("confidence") or 0.0)
+        # Strong keyword markers are treated as USER_EXPLICIT class cues from the
+        # player text (scaffold recovery / wrong-LLM repair). Weak hits cannot demote
+        # a confident LLM class. Scaffold templates still require keyword agreement.
         if kw_conf >= kw_override and kw_class != "generic":
             out["building_class"] = kw_class
             out["confidence"] = kw_conf
             out["source"] = "keyword_override"
+            out["building_class_source"] = (
+                "keyword_fill" if llm_class == "generic" else "keyword_user_marker"
+            )
             out["llm_declared"] = llm
+            if llm_class != "generic" and llm_class != kw_class:
+                out["intent_structure_mismatch"] = True
+                out["stale_building_class"] = llm_class
         elif llm_conf >= llm_min and llm_class in _VALID_CLASSES:
             out["building_class"] = llm_class
             out["confidence"] = max(llm_conf, kw_conf * 0.5)
             out["source"] = "llm_declared"
+            out["building_class_source"] = "llm_retained"
             out["keyword_hint_class"] = kw_class
             out["keyword_hint_confidence"] = kw_conf
             # Recompute tower subtype / composition for the final class.
