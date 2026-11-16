@@ -6,8 +6,8 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 
 | Location | Trigger | Design params | Tag | Migration |
 |----------|---------|---------------|-----|-----------|
-| `ComponentPlanCompiler.java` ~968–974 | MASS without FACADE_WINDOWS | facade rhythm, window_style | DESIGN_INFER | Gated: `plan_meta.allow_compiler_satellites` or `E_DESIGN_INCOMPLETE` |
-| `ComponentPlanCompiler.java` ~976–984 | MASS without ENTRANCE | entrance_type, door width | DESIGN_INFER | Same |
+| `ComponentPlanCompiler.java` ~968–974 | MASS without FACADE_WINDOWS | facade rhythm, window_style | DESIGN_INFER | Gated: `plan_meta.allow_compiler_satellites` or `E_DESIGN_INCOMPLETE`; **Extended (2026-11-17):** inferred `window_ratio`/`rhythm` stamp `TECHNICAL_DEFAULT`; classical profile fills stamp `COMPILER_INFERRED` |
+| `ComponentPlanCompiler.java` ~976–984 | MASS without ENTRANCE | entrance_type, door width | DESIGN_INFER | Same; **Extended (2026-11-17):** inferred `door_width`/`door_height`/`canopy_depth` stamp `TECHNICAL_DEFAULT` (request-honoured sizes → `COMPILER_INFERRED`) |
 | `ComponentPlanCompiler.java` ~1001–1008 | MASS without ROOF | roof_type, roof height (dims) | DESIGN_INFER | Same; height cap `span/3` max 8 at ~1800–1801 |
 | `ComponentPlanCompiler.java` ~1014–1027 | MASS without CROWN | crown_type | DESIGN_INFER | Same + `ComponentCrownDecorator` |
 | `ComponentPlanCompiler.java` `makeRoofComponent` | missing roof_type / height | roof_type default; height via `RoofPitchGeometry` | DESIGN_INFER | **Wired:** explicit `roof_height` / `roof_pitch_degrees` preferred; no silent cap 8 when pitch set; default gable/flat via `putWithSource` (`COMPILER_INFERRED` / `DERIVED_GEOMETRY` / last-resort `TECHNICAL_DEFAULT`) |

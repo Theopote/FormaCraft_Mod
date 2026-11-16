@@ -624,23 +624,47 @@ final class ComponentSatelliteInference {
         params.put("anchor_mode", "min_corner");
         Double ratio = ComponentParamParsers.doubleOrNull(params, "window_ratio", "windowRatio");
         if (ratio == null) {
-            params.put("window_ratio", 0.25);
+            com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                    null, params, "window_ratio", 0.25,
+                    com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT);
         }
-        params.putIfAbsent("rhythm", "regular");
+        if (ComponentPlanTypes.getParamString(params, "rhythm") == null) {
+            com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                    null, params, "rhythm", "regular",
+                    com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT);
+        }
         String facadeProfile = ComponentPlanTypes.getParamString(params, "facade_profile", "facadeProfile", "facade");
         if (facadeProfile != null) {
             String fp = facadeProfile.toLowerCase(Locale.ROOT);
             if (fp.contains("pilaster") || fp.contains("colonnade") || fp.contains("classical")) {
-                params.putIfAbsent("rhythm_preset", ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY);
-                params.putIfAbsent("rhythm", "vertical_bay");
+                if (ComponentPlanTypes.getParamString(params, "rhythm_preset", "rhythmPreset") == null) {
+                    com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                            null, params, "rhythm_preset",
+                            ComponentFacadeRhythmPlanner.PRESET_CLASSICAL_PILASTER_BAY,
+                            com.formacraft.common.generation.design.DesignParamSource.COMPILER_INFERRED);
+                }
+                // Prefer vertical_bay only when rhythm was still the technical default / absent.
+                Object rhythmSrc = params.get("design_sources") instanceof Map<?, ?> ds
+                        ? ds.get("rhythm") : null;
+                if (ComponentPlanTypes.getParamString(params, "rhythm") == null
+                        || "regular".equalsIgnoreCase(ComponentPlanTypes.getParamString(params, "rhythm"))
+                        && (rhythmSrc == null
+                        || "TECHNICAL_DEFAULT".equalsIgnoreCase(String.valueOf(rhythmSrc)))) {
+                    com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                            null, params, "rhythm", "vertical_bay",
+                            com.formacraft.common.generation.design.DesignParamSource.COMPILER_INFERRED);
+                }
+                if (ComponentPlanTypes.getParamString(params, "window_order", "windowOrder") == null) {
+                    com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                            null, params, "window_order", "full",
+                            com.formacraft.common.generation.design.DesignParamSource.COMPILER_INFERRED);
+                }
             }
         }
-        params.putIfAbsent("reserve_entrance_bay", true);
-        if (facadeProfile != null) {
-            String fp = facadeProfile.toLowerCase(Locale.ROOT);
-            if (fp.contains("pilaster") || fp.contains("colonnade") || fp.contains("classical")) {
-                params.putIfAbsent("window_order", "full");
-            }
+        if (!params.containsKey("reserve_entrance_bay")) {
+            com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                    null, params, "reserve_entrance_bay", true,
+                    com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT);
         }
 
         List<String> features = new ArrayList<>();
@@ -803,7 +827,11 @@ final class ComponentSatelliteInference {
         }
 
         Map<String, Object> params = new HashMap<>();
-        params.put("door_width", doorWidth);
+        var doorWidthSource = paramDoorW > 0
+                ? com.formacraft.common.generation.design.DesignParamSource.COMPILER_INFERRED
+                : com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT;
+        com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                plan, params, "door_width", doorWidth, doorWidthSource);
         if (courtyardFacing != null) {
             if (facing != null) {
                 params.put("facing", facing.name());
@@ -811,12 +839,24 @@ final class ComponentSatelliteInference {
             params.put("entrance_orientation_source", "enclosed_courtyard");
         }
         bindDerived(params, base, "entrance");
-        params.put("door_height", Math.max(2, Math.min(entranceHeight - 1, entranceHeight)));
-        params.put("canopy_depth", paramCanopy > 0 ? paramCanopy : 1);
+        var doorHeightSource = paramDoorH > 0
+                ? com.formacraft.common.generation.design.DesignParamSource.COMPILER_INFERRED
+                : com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT;
+        com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                plan, params, "door_height",
+                Math.max(2, Math.min(entranceHeight - 1, entranceHeight)),
+                doorHeightSource);
+        var canopySource = paramCanopy > 0
+                ? com.formacraft.common.generation.design.DesignParamSource.COMPILER_INFERRED
+                : com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT;
+        com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                plan, params, "canopy_depth", paramCanopy > 0 ? paramCanopy : 1, canopySource);
         if (baySnap != null) {
             params.put("entrance_bay_start", baySnap.axisStart());
             params.put("entrance_bay_span", baySnap.axisSpan());
-            params.put("reserve_entrance_bay", true);
+            com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                    plan, params, "reserve_entrance_bay", true,
+                    com.formacraft.common.generation.design.DesignParamSource.DERIVED_GEOMETRY);
         }
 
         List<String> features = new ArrayList<>();

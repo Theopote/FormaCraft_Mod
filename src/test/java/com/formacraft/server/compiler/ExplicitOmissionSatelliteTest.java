@@ -147,4 +147,52 @@ class ExplicitOmissionSatelliteTest {
         // resolveDefaultRoofType → gable is stamped COMPILER_INFERRED (not a silent untagged put).
         assertEquals("COMPILER_INFERRED", String.valueOf(sources.get("roof_type")));
     }
+
+    @Test
+    void inferredFacadeDefaultsAreTaggedTechnicalDefault() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "house");
+        Component mass = new Component(
+                "MASS_MAIN",
+                "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 6),
+                List.of(),
+                params);
+        Component facade = ComponentSatelliteInference.makeFacadeComponent(mass, "main");
+        assertEquals(0.25, ((Number) facade.params().get("window_ratio")).doubleValue(), 1e-9);
+        assertEquals("regular", String.valueOf(facade.params().get("rhythm")));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sources = (Map<String, Object>) facade.params().get("design_sources");
+        assertTrue(sources != null);
+        assertEquals("TECHNICAL_DEFAULT", String.valueOf(sources.get("window_ratio")));
+        assertEquals("TECHNICAL_DEFAULT", String.valueOf(sources.get("rhythm")));
+    }
+
+    @Test
+    void inferredEntranceDefaultsAreTaggedTechnicalDefault() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "house");
+        Component mass = new Component(
+                "MASS_MAIN",
+                "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 6),
+                List.of(),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("DEFAULT")
+                .components(List.of(mass))
+                .build();
+        Component entrance = ComponentSatelliteInference.makeEntranceComponent(
+                plan, mass, "main", null);
+        assertTrue(entrance != null);
+        assertTrue(entrance.params().containsKey("door_width"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sources = (Map<String, Object>) entrance.params().get("design_sources");
+        assertTrue(sources != null);
+        assertEquals("TECHNICAL_DEFAULT", String.valueOf(sources.get("door_width")));
+        assertEquals("TECHNICAL_DEFAULT", String.valueOf(sources.get("door_height")));
+        assertEquals("TECHNICAL_DEFAULT", String.valueOf(sources.get("canopy_depth")));
+    }
 }
