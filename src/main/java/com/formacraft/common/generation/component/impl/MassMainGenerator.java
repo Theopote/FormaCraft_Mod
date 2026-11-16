@@ -357,6 +357,7 @@ public class MassMainGenerator implements ComponentGenerator {
 
         Map<String, Object> massParams = semantic.source() != null ? semantic.source().params() : null;
         var buildingGeom = resolveMassGeometry(semantic, massParams, width, depth, height);
+        var interiorFloorLevels = new java.util.HashSet<>(buildingGeom.floors().floorYs());
         var footprint = buildingGeom.footprint();
         var layers = buildingGeom.layers();
         com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.RhythmPlan widthRhythm =
@@ -461,7 +462,7 @@ public class MassMainGenerator implements ComponentGenerator {
                                 }
                             }
                         }
-                        if (y == 0 || storeys > 1 && userFloorHeight > 0 && y % userFloorHeight == 0 && y / userFloorHeight < storeys) {
+                        if (y == 0 || storeys > 1 && interiorFloorLevels.contains(y)) {
                             SemanticPart part = SemanticPart.FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
                             if (block.isEmpty()) {

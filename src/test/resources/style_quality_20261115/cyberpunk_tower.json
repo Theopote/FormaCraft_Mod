@@ -1,0 +1,586 @@
+{
+  "mode": "build",
+  "style_profile": "Cyberpunk",
+  "style_attributes": {
+    "wall_material": "minecraft:end_stone_bricks",
+    "roof_material": "minecraft:end_stone_bricks",
+    "accent_material": "minecraft:sandstone",
+    "palette": {
+      "wall": "minecraft:end_stone_bricks",
+      "wall_secondary": "minecraft:sandstone",
+      "wall_accent": "minecraft:cracked_stone_bricks",
+      "floor": "minecraft:sandstone",
+      "roof": "minecraft:end_stone_bricks",
+      "glass": "minecraft:cyan_stained_glass_pane",
+      "neon": "minecraft:cyan_concrete",
+      "light": "minecraft:sea_lantern",
+      "pipe": "minecraft:iron_bars",
+      "chain": "minecraft:chain"
+    },
+    "materials": {
+      "wall": "minecraft:end_stone_bricks",
+      "wall_secondary": "minecraft:sandstone",
+      "wall_accent": "minecraft:cracked_stone_bricks",
+      "floor": "minecraft:sandstone",
+      "roof": "minecraft:end_stone_bricks",
+      "glass": "minecraft:cyan_stained_glass_pane",
+      "neon": "minecraft:cyan_concrete",
+      "light": "minecraft:sea_lantern",
+      "pipe": "minecraft:iron_bars",
+      "chain": "minecraft:chain"
+    },
+    "block_palette": {
+      "wall": "minecraft:end_stone_bricks",
+      "wall_secondary": "minecraft:sandstone",
+      "wall_accent": "minecraft:cracked_stone_bricks",
+      "floor": "minecraft:sandstone",
+      "roof": "minecraft:end_stone_bricks",
+      "glass": "minecraft:cyan_stained_glass_pane",
+      "neon": "minecraft:cyan_concrete",
+      "light": "minecraft:sea_lantern",
+      "pipe": "minecraft:iron_bars",
+      "chain": "minecraft:chain"
+    }
+  },
+  "layout": {
+    "skeleton_type": "COMPOUND",
+    "path_based": false,
+    "slots": [
+      {
+        "slot_id": "main",
+        "anchor": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "facing": "NORTH",
+        "dimensions": {
+          "width": 12,
+          "depth": 12,
+          "height": 20
+        }
+      }
+    ]
+  },
+  "global_constraints": {
+    "facing": "NORTH",
+    "symmetry": "NONE"
+  },
+  "proportion_hints": {
+    "typology": "flat_roof_pavilion",
+    "height_to_width": 1.67,
+    "depth_to_width": 1.0,
+    "window_wall_ratio": 0.25,
+    "building_contract": {
+      "schema": "formacraft.building_contract.v1",
+      "requirements": [],
+      "diagnostics": [],
+      "validation_stage": "plan",
+      "scope_bindings": {
+        "named_tower": [
+          "cyber_tower_main"
+        ],
+        "named_main_body": [
+          "cyber_tower_main"
+        ]
+      },
+      "resolved_buildings": [
+        {
+          "component_id": "cyber_tower_main",
+          "slot_id": "main",
+          "local_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -6
+          },
+          "plan_origin": {
+            "x": -6,
+            "y": 0,
+            "z": -6
+          },
+          "dimensions": {
+            "width": 12,
+            "depth": 12,
+            "height": 20
+          },
+          "floor_ys_local": [
+            0,
+            4,
+            8,
+            12,
+            16
+          ],
+          "roof_y_local": 19,
+          "floor_layout_fits": true,
+          "coordinate_stage": "plan",
+          "geometry_status": "parameters_only",
+          "multi_mass": {
+            "parts": [
+              {
+                "part_id": "cyber_tower_main",
+                "local_origin": {
+                  "x": -6,
+                  "y": 0,
+                  "z": -6
+                },
+                "dimensions": {
+                  "width": 12,
+                  "depth": 12,
+                  "height": 20
+                },
+                "roof_y_local": 19
+              }
+            ],
+            "envelope_local": {
+              "min_x": -6,
+              "min_z": -6,
+              "max_x": 6,
+              "max_z": 6,
+              "min_y": 0,
+              "max_y": 20
+            },
+            "footprint_status": "rectangular_union",
+            "outline_local": [
+              {
+                "direction": "EAST",
+                "plane": 6,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "NORTH",
+                "plane": -6,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "SOUTH",
+                "plane": 6,
+                "start": -6,
+                "end": 6
+              },
+              {
+                "direction": "WEST",
+                "plane": -6,
+                "start": -6,
+                "end": 6
+              }
+            ],
+            "direction_convention": "minecraft_world",
+            "coverage_status": "parameters_only"
+          }
+        }
+      ]
+    },
+    "architecture_intent": {
+      "schema": "formacraft.architecture_intent.v1",
+      "stage": "request_observation",
+      "precedence": [
+        "explicit_request",
+        "purpose_rules",
+        "style_defaults",
+        "material_defaults"
+      ],
+      "style_identities": [
+        {
+          "requested_id": "Cyberpunk",
+          "identity_id": "Cyberpunk",
+          "status": "canonical",
+          "profile_id": "Cyberpunk"
+        }
+      ],
+      "scopes": [
+        {
+          "scope": "global",
+          "text": "生成一座 12x12 格、高 20 格的赛博朋克风高密住宅。 使用末地石砖与砂岩作为主墙面 ，混入裂纹石砖； 外墙挂满铁链、铁栏杆管线、 青色霓虹灯牌以及二层凸出的植物露台",
+          "purposes": [
+            {
+              "id": "residential",
+              "phrase": "住宅",
+              "start": 27,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "styles": [
+            {
+              "id": "Cyberpunk",
+              "phrase": "赛博朋克",
+              "start": 20,
+              "status": "requested",
+              "part": "building"
+            }
+          ],
+          "structures": []
+        }
+      ],
+      "original_text": "生成一座 12x12 格、高 20 \n格的赛博朋克风高密住宅。\n使用末地石砖与砂岩作为主墙面\n，混入裂纹石砖；\n外墙挂满铁链、铁栏杆管线、\n青色霓虹灯牌以及二层凸出的植物露台",
+      "scope_binding": "lexical_not_component_binding",
+      "unrecognized_text_preserved": true,
+      "limits": [
+        "Alias coverage is finite.",
+        "Observations do not certify generated style or functional rooms."
+      ],
+      "materials": []
+    },
+    "window_language_report": {
+      "schema": "formacraft.window_language.v1",
+      "requirements": []
+    },
+    "building_use_intent": {
+      "schema": "formacraft.building_use.v1",
+      "detected_uses": [
+        "residential"
+      ],
+      "scope_status": "bound",
+      "bindings": [
+        {
+          "scope": "single_main_building",
+          "uses": [
+            "residential"
+          ],
+          "status": "bound",
+          "target_components": [
+            "cyber_tower_main"
+          ]
+        }
+      ],
+      "verification_level": "intent_only",
+      "geometry_verified": false
+    },
+    "building_use_audit": {
+      "schema": "formacraft.building_use_audit.v1",
+      "verification_level": "plan_components_only",
+      "blocking": false,
+      "buildings": [
+        {
+          "building_id": "cyber_tower_main",
+          "uses": [
+            "residential"
+          ],
+          "status": "plan_review",
+          "checks": {
+            "entrance_component": "declared",
+            "interfloor_circulation": "not_declared",
+            "interior_clearance": "not_assessed",
+            "final_block_traversability": "not_assessed"
+          },
+          "entrance_components": [
+            "cyber_tower_entrance"
+          ],
+          "stair_components": [],
+          "notes": [
+            "An entrance may also be generated inline by the main mass; missing ENTRANCE is not proof of a missing door.",
+            "Declared stairs do not prove connection to every floor or final clearance."
+          ]
+        }
+      ]
+    },
+    "emissive_contract": {
+      "schema": "formacraft.emissive_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "gothic_building_contract": {
+      "schema": "formacraft.gothic_building.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    },
+    "huizhou_gable_contract": {
+      "schema": "formacraft.huizhou_gable_contract.v1",
+      "requirements": [],
+      "verification_level": "plan_parameters_only"
+    }
+  },
+  "components": [
+    {
+      "component_type": "MASS_MAIN",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 20
+      },
+      "features": [],
+      "params": {
+        "component_id": "cyber_tower_main",
+        "anchor_mode": "min_corner",
+        "hollow": true,
+        "floor_count": 5,
+        "floor_height": 4,
+        "wall_block": "minecraft:end_stone_bricks",
+        "secondary_wall_block": "minecraft:sandstone",
+        "accent_block": "minecraft:cracked_stone_bricks",
+        "foundation_block": "minecraft:cracked_stone_bricks",
+        "floor_block": "minecraft:sandstone",
+        "roof_block": "minecraft:end_stone_bricks",
+        "window_block": "minecraft:cyan_stained_glass_pane",
+        "trim_block": "minecraft:cyan_concrete",
+        "pillar_block": "minecraft:cracked_stone_bricks",
+        "pipe_block": "minecraft:iron_bars",
+        "chain_block": "minecraft:chain",
+        "neon_block": "minecraft:cyan_concrete",
+        "balcony_block": "minecraft:sandstone",
+        "roof_type": "flat",
+        "window_style": "pane",
+        "window_ratio": 0.25,
+        "facade_profile": "none",
+        "wall_pattern": "neon_bands",
+        "emissive_enabled": true,
+        "emissive_block": "minecraft:sea_lantern",
+        "shape": "rectangle",
+        "void_ratio": 0.15,
+        "building_id": "cyber_tower_main"
+      }
+    },
+    {
+      "component_type": "ROOF",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -6,
+        "y": 20,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "cyber_tower_roof",
+        "host_id": "cyber_tower_main",
+        "anchor_mode": "min_corner",
+        "roof_type": "flat",
+        "overhang": 0,
+        "roof_block": "minecraft:end_stone_bricks",
+        "parapet": true,
+        "parapet_block": "minecraft:cracked_stone_bricks",
+        "trim_block": "minecraft:cyan_concrete",
+        "roof_height": 2,
+        "building_id": "cyber_tower_main"
+      }
+    },
+    {
+      "component_type": "FACADE_WINDOWS",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -6,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 12,
+        "depth": 12,
+        "height": 20
+      },
+      "features": [],
+      "params": {
+        "component_id": "cyber_tower_windows",
+        "host_id": "cyber_tower_main",
+        "anchor_mode": "min_corner",
+        "sides": [
+          "north",
+          "south",
+          "east",
+          "west"
+        ],
+        "window_block": "minecraft:cyan_stained_glass_pane",
+        "window_style": "pane",
+        "window_ratio": 0.25,
+        "window_width": 2,
+        "window_height": 2,
+        "floor_height": 4,
+        "start_floor": 1,
+        "end_floor": 4,
+        "frame_block": "minecraft:cyan_concrete",
+        "building_id": "cyber_tower_main"
+      }
+    },
+    {
+      "component_type": "ENTRANCE",
+      "slot_id": "main",
+      "facing": "SOUTH",
+      "relative_position": {
+        "x": -1,
+        "y": 0,
+        "z": -6
+      },
+      "dimensions": {
+        "width": 3,
+        "depth": 1,
+        "height": 3
+      },
+      "features": [],
+      "params": {
+        "component_id": "cyber_tower_entrance",
+        "host_id": "cyber_tower_main",
+        "anchor_mode": "min_corner",
+        "entrance_type": "door",
+        "facing": "SOUTH",
+        "world_facing": "NORTH",
+        "width": 3,
+        "height": 3,
+        "door_block": "minecraft:iron_door",
+        "frame_block": "minecraft:cyan_concrete",
+        "canopy_block": "minecraft:sandstone",
+        "light_block": "minecraft:sea_lantern",
+        "door_width": 2,
+        "door_height": 3,
+        "building_id": "cyber_tower_main"
+      }
+    },
+    {
+      "component_type": "PAVING",
+      "slot_id": "main",
+      "relative_position": {
+        "x": -10,
+        "y": 4,
+        "z": -2
+      },
+      "dimensions": {
+        "width": 4,
+        "depth": 6,
+        "height": 1
+      },
+      "features": [],
+      "params": {
+        "component_id": "cyber_terrace_deck",
+        "host_id": "cyber_tower_main",
+        "anchor_mode": "min_corner",
+        "paving_block": "minecraft:sandstone",
+        "edge_block": "minecraft:cracked_stone_bricks",
+        "fence_block": "minecraft:iron_bars",
+        "planter_block": "minecraft:grass_block",
+        "foliage_block": "minecraft:oak_leaves",
+        "neon_block": "minecraft:cyan_concrete",
+        "light_block": "minecraft:sea_lantern",
+        "terrace": true,
+        "floor_level": 2
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "main",
+      "relative_position": {
+        "x": 6,
+        "y": 10,
+        "z": -3
+      },
+      "dimensions": {
+        "width": 1,
+        "depth": 4,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "cyber_neon_sign",
+        "host_id": "cyber_tower_main",
+        "anchor_mode": "min_corner",
+        "kind": "box",
+        "material": "minecraft:cyan_concrete",
+        "emissive_block": "minecraft:sea_lantern",
+        "hollow": false
+      }
+    }
+  ],
+  "plan_meta": {
+    "declared_intent": {
+      "building_class": "generic",
+      "confidence": 0.82
+    },
+    "request_intent": {
+      "schema": "formacraft.request_intent.v1",
+      "source": "llm_declared",
+      "original_text": "生成一座 12x12 格、高 20 \n格的赛博朋克风高密住宅。\n使用末地石砖与砂岩作为主墙面\n，混入裂纹石砖；\n外墙挂满铁链、铁栏杆管线、\n青色霓虹灯牌以及二层凸出的植物露台",
+      "building_class": "generic",
+      "confidence": 0.82,
+      "composition": "single",
+      "tower_subtype": null,
+      "markers": [],
+      "roof_type": null,
+      "roof_explicit": false,
+      "roof_forbids": [],
+      "footprint": {
+        "width": 12,
+        "depth": 12
+      },
+      "forbids": [],
+      "materials": {
+        "wall": "minecraft:stone_bricks"
+      },
+      "refuse_residential_autofill": false,
+      "scaffold_eligible": false,
+      "keyword_hint_class": "generic",
+      "keyword_hint_confidence": 0.0
+    },
+    "request_intent_text": "生成一座 12x12 格、高 20 \n格的赛博朋克风高密住宅。\n使用末地石砖与砂岩作为主墙面\n，混入裂纹石砖；\n外墙挂满铁链、铁栏杆管线、\n青色霓虹灯牌以及二层凸出的植物露台",
+    "building_class": "generic"
+  },
+  "anchor": {
+    "x": 1697,
+    "y": 66,
+    "z": -1570
+  },
+  "genome": {
+    "genomeVersion": "1.0",
+    "archetype": {
+      "id": "generic",
+      "confidence": 0.0
+    },
+    "topology": {
+      "layout": "rectangular",
+      "composition": "single",
+      "axis": "none",
+      "levels": "mixed"
+    },
+    "structure": {
+      "type": "hybrid",
+      "massiveness": null,
+      "voidRatio": null,
+      "supports": null
+    },
+    "form": {
+      "repetition": null,
+      "progression": null,
+      "curvature": null,
+      "rhythm": null
+    },
+    "symmetry": {
+      "type": "none",
+      "order": null,
+      "mirror": null
+    },
+    "modules": [],
+    "materials": {
+      "primary": null,
+      "secondary": null,
+      "accent": null,
+      "textureBias": null,
+      "extra": null
+    },
+    "culturalStyle": {
+      "region": null,
+      "era": null,
+      "keywords": null
+    },
+    "constraints": {
+      "maxHeight": null,
+      "respectTerrain": null,
+      "insideSelectionOnly": null,
+      "noModifyZones": null
+    },
+    "aiHints": {
+      "reference": null,
+      "priority": null,
+      "avoid": null,
+      "extra": null
+    }
+  },
+  "kind": "llmplan"
+}

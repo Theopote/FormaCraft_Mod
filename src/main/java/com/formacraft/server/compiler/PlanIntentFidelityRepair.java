@@ -200,6 +200,20 @@ final class PlanIntentFidelityRepair {
     static int parseFloorCount(String text) {
         if (text == null || text.isBlank()) return 0;
         String lower = text.toLowerCase(Locale.ROOT);
+        // A reference to a particular floor is not the building's total storey count.
+        // E.g. "二层凸出的植物露台" must not replace a five-storey model plan with two storeys.
+        Matcher mentions = Pattern.compile("(?:第\\s*)?(?:[一二两三四五六七八九]|[0-9]+)\\s*层").matcher(lower);
+        StringBuffer totals = new StringBuffer();
+        while (mentions.find()) {
+            String before = lower.substring(0, mentions.start()).stripTrailing();
+            String after = lower.substring(mentions.end()).stripLeading();
+            boolean explicitTotal = before.endsWith("共") || before.endsWith("总计") || before.endsWith("层数为");
+            boolean localFloor = mentions.group().startsWith("第") || before.endsWith("在")
+                    || !explicitTotal && after.matches("(?s)^(?:凸出|突出|外挑|悬挑|向外|设有|设置|之间|[与和]\\s*(?:第\\s*)?[一二两三四五六七八九0-9]+\\s*层).*");
+            mentions.appendReplacement(totals, localFloor ? " " : Matcher.quoteReplacement(mentions.group()));
+        }
+        mentions.appendTail(totals);
+        lower = totals.toString();
         // Prefer higher explicit counts when both appear (「三层」 beats a later 「两层」 gloss).
         if (lower.contains("九层") || lower.contains("9层") || lower.contains("nine-stor")) return 9;
         if (lower.contains("七层") || lower.contains("7层") || lower.contains("seven-stor")) return 7;
