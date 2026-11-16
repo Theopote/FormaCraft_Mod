@@ -306,10 +306,61 @@ class AiDesignPreservationTest(unittest.TestCase):
         req.userMessage = "建造一座中式大殿"
         req.selection = None
         req.brushSelection = None
+        req.requestText = req.userMessage
         out = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
         mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
         self.assertEqual("xieshan", mass["params"]["roof_type"])
         self.assertEqual("USER_EXPLICIT", mass["params"]["design_sources"]["roof_type"])
+
+    def test_user_explicit_xieshan_stamps_provenance_and_overrides_ai(self):
+        from unittest.mock import Mock
+
+        profile = BuildingProfile(query="歇山顶大殿", structure=ProfileStructure())
+        plan = {
+            "mode": "build",
+            "style_profile": "Chinese_Classical",
+            "genome": {"culturalStyle": {"region": "chinese"}},
+            "anchor": {"x": 0, "y": 64, "z": 0},
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 20, "depth": 14, "height": 9},
+                    "features": [],
+                    "params": {
+                        "component_id": "hall",
+                        "roof_type": "xuanshan",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "main",
+                    "relative_position": {"x": 0, "y": 9, "z": 0},
+                    "dimensions": {"width": 22, "depth": 16, "height": 5},
+                    "features": [],
+                    "params": {
+                        "component_id": "roof_a",
+                        "host_id": "hall",
+                        "roof_type": "xuanshan",
+                    },
+                },
+            ],
+        }
+        req = Mock()
+        req.userMessage = "生成一座歇山顶大殿"
+        req.requestText = req.userMessage
+        req.selection = None
+        req.brushSelection = None
+        out = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
+        mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
+        roof = next(c for c in out["components"] if c["component_type"] == "ROOF")
+        self.assertEqual("xieshan", mass["params"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", mass["params"]["design_sources"]["roof_type"])
+        self.assertEqual("xieshan", roof["params"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", roof["params"]["design_sources"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", out["design_sources"]["roof_type"])
 
 
 if __name__ == "__main__":

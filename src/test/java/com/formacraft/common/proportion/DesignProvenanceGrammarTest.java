@@ -6,6 +6,7 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.common.style.StyleIntentResolver;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -139,5 +140,58 @@ class DesignProvenanceGrammarTest {
 
         Component out = CrownGrammarResolver.apply(plan, crown);
         assertEquals("spire", out.params().get("crown_template"));
+    }
+
+    @Test
+    void styleIntentPreservesComponentLevelAiPlannedXieshan() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("roof_type", "xieshan");
+        params.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component mass = new Component(
+                "MASS_MAIN",
+                "hall",
+                new Vec3i(0, 0, 0),
+                new Dimensions(24, 16, 10),
+                List.of(),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Chinese_Classical")
+                .components(List.of(mass))
+                .build();
+
+        Component out = StyleIntentResolver.apply(plan, mass);
+        assertEquals("xieshan", out.params().get("roof_type"));
+    }
+
+    @Test
+    void styleIntentDoesNotFillRoofWhenComponentAiPlannedLockBlocks() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component mass = new Component(
+                "MASS_MAIN",
+                "hall",
+                new Vec3i(0, 0, 0),
+                new Dimensions(24, 16, 10),
+                List.of(),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Chinese_Classical")
+                .components(List.of(mass))
+                .build();
+
+        Component out = StyleIntentResolver.apply(plan, mass);
+        Object roofType = out.params() == null ? null : out.params().get("roof_type");
+        assertTrue(roofType == null || String.valueOf(roofType).isBlank());
+    }
+
+    @Test
+    void putIfAllowedRespectsUserExplicitRoofAcrossAlias() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("roof_type", "xieshan");
+        params.put("design_sources", Map.of("roof_type", "USER_EXPLICIT"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+
+        assertFalse(DesignProvenance.putIfAllowed(plan, params, "roofType", "xuanshan"));
+        assertEquals("xieshan", params.get("roof_type"));
     }
 }

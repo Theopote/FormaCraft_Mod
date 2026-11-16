@@ -52,7 +52,7 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `llm_plan_system_prompt` category bullets | composition exemplars | **Fixed (2026-11-17 P1):** framed as NON-BINDING EXAMPLES, not routes |
 | `_infer_mass_height` | mass height | Protocol repair only |
 | `llm_plan_normalization` Chinese roof/courtyard | was DESIGN_OVERRIDE (`xieshan`→`xuanshan`, strip COURTYARD without user keywords) | **Fixed (2026-11-17):** preserve AI-planned values; empty roof only → `xuanshan` TECHNICAL_DEFAULT + `design_sources` |
-| `llm_plan_normalization` design_sources stamp | roof_type / plan_type provenance | **Partial (2026-11-17 P1):** tag TECHNICAL_DEFAULT / AI_PLANNED; never downgrade USER_EXPLICIT |
+| `llm_plan_normalization` design_sources stamp | roof_type / plan_type provenance | **Extended (2026-11-17):** TECHNICAL_DEFAULT / AI_PLANNED; user-stated roof → USER_EXPLICIT (component + plan-level) for Java locks |
 | `assembly_plan_validator.resolve_preset_for_intent` / `auto_apply_assembly_presets` | was keyword→preset DESIGN_OVERRIDE | **Fixed (2026-11-17):** explicit `preset:<id>` only; incomplete ASSEMBLY → repair/`capability_gap` |
 | `assembly_plan_repair` | assembly graph | Protocol only, not design substitute |
 | `typology_plan_repair` | typology fields | Protocol only |

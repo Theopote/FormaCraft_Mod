@@ -60,6 +60,80 @@ def _tag_present_param_as_ai_planned(params: Dict[str, Any], *keys: str) -> None
         _tag_param_source(params, key, "AI_PLANNED")
 
 
+def _tag_plan_level_source(plan: Dict[str, Any], key: str, source: str) -> None:
+    sources = plan.get("design_sources")
+    if not isinstance(sources, dict):
+        sources = {}
+        plan["design_sources"] = sources
+    existing = str(sources.get(key) or "").strip().upper()
+    incoming = source.strip().upper()
+    if existing in _LOCKED_DESIGN_SOURCES and _DESIGN_SOURCE_RANK.get(incoming, -1) < _DESIGN_SOURCE_RANK.get(existing, -1):
+        return
+    if existing and _DESIGN_SOURCE_RANK.get(incoming, -1) < _DESIGN_SOURCE_RANK.get(existing, -1):
+        return
+    sources[key] = incoming
+
+
+def _resolve_user_explicit_roof(user_text: str) -> Optional[str]:
+    """Return explicit roof_type from user text, or None when not stated."""
+    text = (user_text or "").strip()
+    if not text:
+        return None
+    from .request_intent import extract_request_intent
+    from .building_contract import extract_requirements
+
+    intent = extract_request_intent(text)
+    if intent.get("roof_explicit") and intent.get("roof_type"):
+        return str(intent["roof_type"]).strip().lower() or None
+    for requirement in extract_requirements(text):
+        if requirement.get("property") != "roof_type":
+            continue
+        if str(requirement.get("source") or "").lower() not in ("user_explicit", "user", "player"):
+            continue
+        value = requirement.get("value")
+        if value is None:
+            continue
+        return str(value).strip().lower() or None
+    return None
+
+
+def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) -> Dict[str, Any]:
+    """Stamp USER_EXPLICIT provenance for player-stated design constraints.
+
+    User constraints outrank AI_PLANNED / TECHNICAL_DEFAULT. Values already present
+    are preserved when they match; mismatches are corrected to the explicit value.
+    """
+    if not isinstance(plan, dict):
+        return plan
+    explicit_roof = _resolve_user_explicit_roof(user_text)
+    if not explicit_roof:
+        return plan
+    components = plan.get("components")
+    if not isinstance(components, list):
+        return plan
+    touched = False
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        ctype = str(comp.get("component_type") or "").upper()
+        if ctype not in (
+            "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS", "ROOF",
+        ):
+            continue
+        params = comp.get("params")
+        if not isinstance(params, dict):
+            params = {}
+            comp["params"] = params
+        current = str(params.get("roof_type") or "").strip().lower()
+        if current != explicit_roof:
+            params["roof_type"] = explicit_roof
+        _tag_param_source(params, "roof_type", "USER_EXPLICIT")
+        touched = True
+    if touched:
+        _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
+    return plan
+
+
 def _looks_like_min_corner_anchor(rp: Dict[str, int], dims: Dict[str, int]) -> bool:
     hx = max(1, dims.get("width", 1)) // 2
     hz = max(1, dims.get("depth", 1)) // 2
@@ -322,6 +396,11 @@ def _normalize_llm_plan_output(
             plan["player_fidelity_notice_zh"] = str(fidelity_msg).strip()
 
     plan = apply_building_contract(plan, contract_text)
+    try:
+        explicit_text = (req.userMessage or "").strip() if req is not None else (contract_text or "")
+        plan = _apply_user_explicit_design_sources(plan, explicit_text or contract_text or "")
+    except Exception as exc:
+        logger.warning("USER_EXPLICIT design_sources stamp skipped: %s", exc)
     try:
         from .generation_capability import apply_stage_b_capability_repair
 

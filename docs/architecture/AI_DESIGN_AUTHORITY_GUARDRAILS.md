@@ -37,7 +37,7 @@ Track `user_intent`, `raw_llm_plan`, `normalized_plan`, `compiler_decisions`, `e
 2. `python_backend/app/services/assembly_plan_validator.py`: **Fixed (2026-11-17 Phase B)** — `resolve_preset_for_intent` / `auto_apply_assembly_presets` require explicit `preset:<id>`; incomplete ASSEMBLY goes repair → `capability_gap`.
 3. `python_backend/app/services/planning_request_hints.py`: **Fixed (2026-11-17 P1)** — bare 「山」removed; roof tokens (歇山/悬山) stripped before terrain inference; scale/intent keywords respect negation (`不要大型`).
 4. `python_backend/app/services/llm_plan_system_prompt.py`: **Fixed (2026-11-17 P1)** — category composition bullets framed as NON-BINDING EXAMPLES; residential kit is not a universal default.
-5. `llm_plan_normalization` `design_sources`: **Partial (2026-11-17 P1)** — stamps `TECHNICAL_DEFAULT` for empty Chinese roof fill and `AI_PLANNED` for authored roof/courtyard fields without downgrading `USER_EXPLICIT`. Full Python↔Java provenance plumbing remains ongoing.
+5. `llm_plan_normalization` `design_sources`: **Extended (2026-11-17)** — stamps `TECHNICAL_DEFAULT` / `AI_PLANNED`, and upgrades player-stated roofs to `USER_EXPLICIT` (component + plan-level) so Java `DesignProvenance.putIfAllowed` / `StyleIntentResolver` cannot silently rewrite them.
 6. Verify any `ComponentPlanCompiler` missing-satellite behavior remains behind existing `plan_meta.allow_compiler_satellites` and never silently changes model-provided design. *(ongoing)*
 
 ## Required metamorphic acceptance suite
