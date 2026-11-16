@@ -41,13 +41,21 @@ class BaroqueMansionStyleRepairTest {
                 "CHIMNEY", "main", new Vec3i(12, 10, 20),
                 new Dimensions(2, 2, 5), List.of(),
                 Map.of("component_id", "chimney_east", "host_id", "mansard_roof"));
+        Component beam = new Component(
+                "BALCONY", "main", new Vec3i(15, 4, 8),
+                new Dimensions(6, 1, 1), List.of(),
+                Map.of("component_id", "wall_beam_noise", "host_id", "main_house"));
+        Component atticSpike = new Component(
+                "DECOR_DETAIL", "main", new Vec3i(2, 12, 4),
+                new Dimensions(2, 2, 5), List.of("attic column"),
+                Map.of("component_id", "pediment_column", "host_id", "mansard_roof"));
         Map<String, Object> meta = new HashMap<>();
         meta.put("request_intent_text", "生成一座 15x25 格的双层巴洛克式大宅。顶部为高耸的马萨折线屋顶，带有椭圆山花老虎窗");
         meta.put("request_intent", Map.of(
                 "original_text", "生成一座 15x25 格的双层巴洛克式大宅。顶部为高耸的马萨折线屋顶，带有椭圆山花老虎窗"));
         LlmPlan plan = LlmPlanTestFixtures.builder()
                 .styleProfile("baroque")
-                .components(List.of(mass, plate, roof, decorDormers, chimney1, chimney2))
+                .components(List.of(mass, plate, roof, decorDormers, chimney1, chimney2, beam, atticSpike))
                 .planMeta(meta)
                 .playerFidelityNoticeZh("组合式生成「双层巴洛克式大宅」")
                 .build();
@@ -56,12 +64,17 @@ class BaroqueMansionStyleRepairTest {
         assertTrue(out.components().stream().noneMatch(c ->
                 c.params() != null && "oval_pediment_dormers".equals(c.params().get("component_id"))),
                 "oversized roof decor rings must be dropped");
+        assertTrue(out.components().stream().noneMatch(c ->
+                c.params() != null && "wall_beam_noise".equals(c.params().get("component_id"))));
+        assertTrue(out.components().stream().noneMatch(c ->
+                c.params() != null && "pediment_column".equals(c.params().get("component_id"))));
         assertEquals(1, out.components().stream().filter(c -> "CHIMNEY".equals(c.componentType())).count());
 
         Component fixedMass = out.components().stream()
                 .filter(c -> "MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
-        assertTrue(((Number) fixedMass.params().get("floor_height")).intValue() >= 3);
-        assertTrue(fixedMass.dimensions().height() >= 6);
+        assertEquals(5, ((Number) fixedMass.params().get("floor_height")).intValue());
+        assertEquals(6, ((Number) fixedMass.params().get("ground_clear_height")).intValue());
+        assertTrue(fixedMass.dimensions().height() >= 11);
 
         Component fixedPlate = out.components().stream()
                 .filter(c -> c.params() != null && "floor_plate_1".equals(c.params().get("component_id")))

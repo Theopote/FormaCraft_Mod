@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.component.impl.WindowAspect;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -71,6 +72,38 @@ class GothicBellTowerFidelityRepairTest {
         Component mass = out.components().stream()
                 .filter(c -> "MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
         assertEquals("gradient", mass.params().get("wall_pattern"));
+    }
+
+    @Test
+    void resolvesTallAspectConflictWithPlainSlitStyle() {
+        Component shaft = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 24), List.of(),
+                Map.of("component_id", "shaft"));
+        Component windows = new Component(
+                "FACADE_WINDOWS", "main", new Vec3i(0, 4, 0),
+                new Dimensions(8, 8, 16), List.of(),
+                Map.of("host_id", "shaft", "window_style", "slit", "window_aspect", "tall",
+                        "glass_block", "minecraft:glass_pane"));
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("request_intent_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼。长条形铁栏杆狭窗");
+        meta.put("request_intent", Map.of(
+                "building_class", "tower_like",
+                "original_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼。长条形铁栏杆狭窗"));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Gothic_Cathedral")
+                .components(List.of(shaft, windows))
+                .planMeta(meta)
+                .build();
+
+        LlmPlan out = GothicBellTowerFidelityRepair.apply(plan);
+        Component win = out.components().stream()
+                .filter(c -> "FACADE_WINDOWS".equals(c.componentType())).findFirst().orElseThrow();
+        assertEquals("slit_bars", win.params().get("window_style"));
+        assertEquals("arrow_slit", win.params().get("window_aspect"));
+        assertFalse(WindowAspect.conflictsWithWindowStyle(
+                WindowAspect.parse(String.valueOf(win.params().get("window_aspect"))),
+                String.valueOf(win.params().get("window_style"))));
     }
 
     @Test

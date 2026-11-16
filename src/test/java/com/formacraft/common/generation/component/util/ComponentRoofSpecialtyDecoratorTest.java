@@ -82,7 +82,8 @@ class ComponentRoofSpecialtyDecoratorTest {
         assertTrue(out.isEmpty());
         ComponentRoofSpecialtyDecorator.emitDormers(out, roof, 0, 0, 0,
                 13, 17, profile, 1, "minecraft:stone_bricks", "minecraft:glass_pane", "minecraft:bricks");
-        assertEquals(List.of(4), out.stream().filter(p -> p.dy() == 8 && "minecraft:glass_pane".equals(p.targetBlock()))
+        // Fold surfaceY=7 → dormer glass sill at surfaceY - 1.
+        assertEquals(List.of(4), out.stream().filter(p -> p.dy() == 6 && "minecraft:glass_pane".equals(p.targetBlock()))
                 .map(BlockPatch::dz).toList());
     }
 

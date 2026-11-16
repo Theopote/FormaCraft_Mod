@@ -26,14 +26,14 @@ class MansardDormerMaterialTest {
                 var patches=roof(material,"minecraft:white_concrete",face);
                 var allowed=Set.of(material,"minecraft:white_concrete","minecraft:glass_pane","minecraft:air");
                 assertTrue(patches.stream().allMatch(p -> allowed.contains(base(p.targetBlock()))),material+" "+face);
-                assertTrue(patches.stream().anyMatch(p -> p.dy()>30 && material.equals(base(p.targetBlock()))));
+                assertTrue(patches.stream().anyMatch(p -> p.dy()>28 && material.equals(base(p.targetBlock()))));
             }
     }
 
     @Test void roofAndLintelUseTheirOwnStairFamiliesWhenAvailable() {
         for(String face:List.of("north","south","east","west")) {
             var patches=roof("minecraft:oak_planks","minecraft:cobblestone",face);
-            assertTrue(patches.stream().anyMatch(p -> p.dy()>30 && base(p.targetBlock()).equals("minecraft:oak_stairs")));
+            assertTrue(patches.stream().anyMatch(p -> p.dy()>28 && base(p.targetBlock()).equals("minecraft:oak_stairs")));
             assertTrue(patches.stream().anyMatch(p -> p.targetBlock().startsWith("minecraft:cobblestone_stairs[")
                     && p.targetBlock().contains("half=top")));
             assertFalse(patches.stream().anyMatch(p -> base(p.targetBlock()).equals("minecraft:stone_brick_stairs")));
@@ -45,19 +45,19 @@ class MansardDormerMaterialTest {
             var patches=roof("minecraft:hay_block","minecraft:white_concrete",face);
             var finalAt=new HashMap<List<Integer>,BlockPatch>();
             for(var p:patches) finalAt.put(List.of(p.dx(),p.dy(),p.dz()),p);
-            var window=patches.stream().filter(p -> p.dy()==28 && base(p.targetBlock()).equals("minecraft:glass_pane"))
+            var window=patches.stream().filter(p -> p.dy()==26 && base(p.targetBlock()).equals("minecraft:glass_pane"))
                     .findFirst().orElseThrow();
             int dx=switch(face) {case "west" -> 1;case "east" -> -1;default -> 0;};
             int dz=switch(face) {case "north" -> 1;case "south" -> -1;default -> 0;};
             int x=window.dx()+2*dx,z=window.dz()+2*dz;
-            assertEquals("minecraft:hay_block",base(finalAt.get(List.of(x,31,z)).targetBlock()),face);
+            assertEquals("minecraft:hay_block",base(finalAt.get(List.of(x,29,z)).targetBlock()),face);
             for(int side:List.of(-1,1)) {
                 int cheekX=x+(dz!=0 ? side : 0),cheekZ=z+(dx!=0 ? side : 0);
-                var cheek=finalAt.get(List.of(cheekX,31,cheekZ));
+                var cheek=finalAt.get(List.of(cheekX,29,cheekZ));
                 assertEquals(BlockPatch.PLACE,cheek.action());
                 assertEquals("minecraft:white_concrete",base(cheek.targetBlock()),face);
             }
-            var room=finalAt.get(List.of(x,29,z));
+            var room=finalAt.get(List.of(x,27,z));
             assertEquals(BlockPatch.REMOVE,room.action(),face);
             assertEquals("minecraft:air",base(room.targetBlock()),face);
         }

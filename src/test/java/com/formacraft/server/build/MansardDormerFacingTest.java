@@ -20,7 +20,8 @@ class MansardDormerFacingTest {
     }
 
     private List<BlockPatch> windows(List<BlockPatch> roof) {
-        return roof.stream().filter(p -> p.dy()==28 && p.targetBlock().startsWith("minecraft:glass_pane")).toList();
+        // Dormer shell sits at fold surfaceY - 1 (glass sill).
+        return roof.stream().filter(p -> p.dy()==26 && p.targetBlock().startsWith("minecraft:glass_pane")).toList();
     }
 
     @Test void allFourFacesPlaceWindowsOnTheRequestedSideAndPointLintelsInward() {
@@ -30,7 +31,7 @@ class MansardDormerFacingTest {
             var panes=windows(roof);
             assertEquals(2,panes.size(),face);
             String inward=switch(face) {case "north" -> "south";case "south" -> "north";case "west" -> "east";default -> "west";};
-            var roofStairs=roof.stream().filter(p -> p.dy()>30
+            var roofStairs=roof.stream().filter(p -> p.dy()>28
                     && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")).toList();
             assertFalse(roofStairs.isEmpty(),face);
             assertTrue(roofStairs.stream().allMatch(p -> p.targetBlock().contains("facing="+inward)),face);
@@ -41,7 +42,7 @@ class MansardDormerFacingTest {
                     case "west" -> assertEquals(origin.x()+1,pane.dx());
                     case "east" -> assertEquals(origin.x()+15,pane.dx());
                 }
-                assertTrue(roof.stream().anyMatch(p -> p.dx()==pane.dx() && p.dz()==pane.dz() && p.dy()==30
+                assertTrue(roof.stream().anyMatch(p -> p.dx()==pane.dx() && p.dz()==pane.dz() && p.dy()==28
                         && p.targetBlock().startsWith("minecraft:stone_brick_stairs[")
                         && p.targetBlock().contains("facing="+inward)),face);
             }

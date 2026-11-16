@@ -538,8 +538,8 @@ public final class ComponentRoofSpecialtyDecorator {
             String glassBlock,
             String roofBlock
     ) {
-        // Shell sits one block above the roof skin; carve the host slope at surfaceY.
-        int baseY = surfaceY + 1;
+        // Sit two blocks lower into the mansard fold so dormers do not tower over the ridge.
+        int baseY = surfaceY - 1;
         String stairs = MaterialBlockFamily.stairs(roofBlock);
         String capBlock = MaterialBlockFamily.fullBlock(roofBlock);
         if (capBlock == null) capBlock = roofBlock;
@@ -556,10 +556,11 @@ public final class ComponentRoofSpecialtyDecorator {
                     // Carve a pocket into the host slope before placing the dormer shell.
                     // Cheek columns (across=±1) must stay solid wall — never leave empty roof voids.
                     if (inRoof && roofPatches != null) {
+                        int carveY = baseY + dy;
                         if (Math.abs(across) == 1) {
-                            out.add(new BlockPatch(BlockPatch.PLACE, x, surfaceY + dy, z, trimBlock));
+                            out.add(new BlockPatch(BlockPatch.PLACE, x, carveY, z, trimBlock));
                         } else {
-                            out.add(new BlockPatch(BlockPatch.REMOVE, x, surfaceY + dy, z, "minecraft:air"));
+                            out.add(new BlockPatch(BlockPatch.REMOVE, x, carveY, z, "minecraft:air"));
                         }
                     }
                     String block;

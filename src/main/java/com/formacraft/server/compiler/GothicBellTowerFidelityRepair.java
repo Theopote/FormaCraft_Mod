@@ -1,6 +1,7 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.component.impl.WindowAspect;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -139,15 +140,26 @@ final class GothicBellTowerFidelityRepair {
         Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
         boolean changed = false;
         String style = String.valueOf(params.getOrDefault("window_style",
-                params.getOrDefault("windowStyle", ""))).toLowerCase(Locale.ROOT);
-        if (!style.contains("bar") && !style.contains("slit") && !style.contains("lattice")) {
+                params.getOrDefault("windowStyle", ""))).toLowerCase(Locale.ROOT)
+                .replace('-', '_').replace(' ', '_');
+        // Plain "slit" + window_aspect=tall hard-fails E_WINDOW_ASPECT_CONFLICT. Prefer slit_bars
+        // (iron-bar gothic slits) which does not conflict, and keep aspect on arrow_slit.
+        boolean plainSlit = "slit".equals(style) || "arrow_slit".equals(style)
+                || "arrow_slits".equals(style) || "slit_window".equals(style);
+        if (plainSlit || (!style.contains("bar") && !style.contains("slit") && !style.contains("lattice"))) {
             params.put("window_style", "slit_bars");
+            style = "slit_bars";
             changed = true;
         }
         Object aspect = params.get("window_aspect");
         if (aspect == null) aspect = params.get("windowAspect");
-        if (aspect == null || String.valueOf(aspect).isBlank()) {
-            params.put("window_aspect", "tall");
+        String aspectRaw = aspect == null ? "" : String.valueOf(aspect).trim();
+        String resolvedStyle = String.valueOf(params.getOrDefault("window_style", style));
+        // "tall" is not a real WindowAspect token (parses as SQUARE) and conflicts with plain slit.
+        if (aspectRaw.isBlank()
+                || "tall".equalsIgnoreCase(aspectRaw)
+                || WindowAspect.conflictsWithWindowStyle(WindowAspect.parse(aspectRaw), resolvedStyle)) {
+            params.put("window_aspect", "arrow_slit");
             changed = true;
         }
         if (glazing != null) {

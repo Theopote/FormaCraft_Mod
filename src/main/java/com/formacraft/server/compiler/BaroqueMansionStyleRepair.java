@@ -1,6 +1,7 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.component.util.InteriorSpaceDefaults;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
@@ -77,6 +78,14 @@ final class BaroqueMansionStyleRepair {
                         c.params() == null ? c.componentType() : c.params().get("component_id"));
                 continue;
             }
+            // Misplaced cantilever beams / attic spikes are authored as BALCONY or thin DECOR.
+            if (isMisplacedWallOrRoofDecor(c)) {
+                changed = true;
+                FormacraftMod.LOGGER.info(
+                        "BaroqueMansionStyleRepair: drop misplaced decor id={}",
+                        c.params() == null ? c.componentType() : c.params().get("component_id"));
+                continue;
+            }
             if ("CHIMNEY".equalsIgnoreCase(c.componentType())) {
                 keptChimneys++;
                 if (keptChimneys > 1) {
@@ -147,6 +156,47 @@ final class BaroqueMansionStyleRepair {
             }
         }
         return null;
+    }
+
+    /**
+     * Thin wall cantilevers and attic spikes often arrive as BALCONY / DECOR and land in the
+     * wrong place (deepslate beams mid-facade, quartz columns atop the mansard).
+     */
+    private static boolean isMisplacedWallOrRoofDecor(Component c) {
+        if (c == null || c.componentType() == null || c.dimensions() == null) {
+            return false;
+        }
+        String type = c.componentType().trim().toUpperCase(Locale.ROOT);
+        Dimensions d = c.dimensions();
+        String id = c.params() == null ? ""
+                : String.valueOf(c.params().getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
+        if ("BALCONY".equals(type) || "TERRACE".equals(type) || "DECK".equals(type)) {
+            // Beam-like: short in height, thin on one axis, long on the other.
+            boolean beamLike = d.height() <= 2
+                    && Math.min(d.width(), d.depth()) <= 2
+                    && Math.max(d.width(), d.depth()) >= 3;
+            if (beamLike) {
+                return true;
+            }
+            // Unlabelled shallow protrusions are usually authored noise on baroque facades.
+            boolean labelled = id.contains("balcony") || id.contains("terrace") || id.contains("deck")
+                    || id.contains("阳台") || id.contains("露台");
+            if (!labelled && d.height() <= 2 && Math.min(d.width(), d.depth()) <= 3) {
+                return true;
+            }
+        }
+        if ("DECOR_DETAIL".equals(type) || "DECOR".equals(type)) {
+            boolean atticCue = id.contains("pediment") || id.contains("dormer") || id.contains("attic")
+                    || id.contains("column") || id.contains("pilaster") || id.contains("山花")
+                    || id.contains("老虎窗");
+            boolean roofSpike = d.height() >= 3
+                    && Math.min(d.width(), d.depth()) <= 3
+                    && Math.max(d.width(), d.depth()) <= 8;
+            if (atticCue && roofSpike) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** True when DECOR covers ~whole roof footprint as stacked edge rings (not a real dormer). */
@@ -268,6 +318,9 @@ final class BaroqueMansionStyleRepair {
                 changed = true;
             }
             if (!plate) {
+                // Baroque mansion: 净高 4 upper / 5 ground → storey bands clear+1.
+                int upperBand = InteriorSpaceDefaults.storeyBandForClear(4);
+                int groundBand = InteriorSpaceDefaults.storeyBandForClear(5);
                 Object fh = params.get("floor_height");
                 if (fh == null) fh = params.get("floorHeight");
                 int floorHeight = 0;
@@ -276,19 +329,32 @@ final class BaroqueMansionStyleRepair {
                     try { floorHeight = Integer.parseInt(String.valueOf(fh).trim()); }
                     catch (NumberFormatException ignored) {}
                 }
-                // Default storey clear height must never fall below 3 unless user asked smaller.
-                if (floorHeight > 0 && floorHeight < 3 && !corpusContainsLowCeiling(corpus)) {
-                    params.put("floor_height", 3);
+                if ((floorHeight <= 0 || floorHeight < upperBand) && !corpusContainsLowCeiling(corpus)) {
+                    params.put("floor_height", upperBand);
+                    floorHeight = upperBand;
                     changed = true;
-                } else if (floorHeight <= 0) {
-                    params.put("floor_height", 4);
+                }
+                Object gch = params.get("ground_clear_height");
+                if (gch == null) gch = params.get("groundClearHeight");
+                int groundClear = 0;
+                if (gch instanceof Number n) groundClear = n.intValue();
+                else if (gch != null) {
+                    try { groundClear = Integer.parseInt(String.valueOf(gch).trim()); }
+                    catch (NumberFormatException ignored) {}
+                }
+                if ((groundClear <= 0 || groundClear < groundBand) && !corpusContainsLowCeiling(corpus)) {
+                    params.put("ground_clear_height", groundBand);
+                    groundClear = groundBand;
                     changed = true;
                 }
                 if (dims != null) {
                     Object fc = params.get("floor_count");
                     if (fc == null) fc = params.get("floorCount");
                     int floors = fc instanceof Number n ? n.intValue() : 0;
-                    int minHeight = Math.max(3, (floors > 0 ? floors : 2) * 3);
+                    if (floors <= 0) floors = 2;
+                    int minHeight = groundClear > 0
+                            ? groundClear + Math.max(0, floors - 1) * Math.max(upperBand, floorHeight)
+                            : floors * Math.max(upperBand, floorHeight);
                     if (dims.height() < minHeight && !corpusContainsLowCeiling(corpus)) {
                         dims = new Dimensions(dims.width(), dims.depth(), minHeight);
                         changed = true;
