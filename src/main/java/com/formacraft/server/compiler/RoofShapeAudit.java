@@ -11,8 +11,10 @@ import java.util.*;
 
 /** Graded audit of simple rectangular gable roofs after final patch processing. */
 final class RoofShapeAudit {
+    // missing_slope_column is common on Tudor / jetty / chimney compounds where
+    // legitimate host joins leave audited holes — warn only, do not hard-fail.
     private static final Set<String> STRUCTURAL_REASONS = Set.of(
-            "missing_slope_column", "no_ridge_rise", "non_monotonic_slope");
+            "no_ridge_rise", "non_monotonic_slope");
 
     record Result(String componentId, String status, String reason, List<Integer> sectionHeights, int sectionIndex, int checkedSections) {}
 

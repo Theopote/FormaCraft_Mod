@@ -198,6 +198,65 @@ class RequestIntentAuthorityTest(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertEqual(extract_request_intent(text)["building_class"], expected)
 
+    def test_japanese_setback_tower_stack_passes_morphology(self):
+        """Short tapering MASS tiers with windows/door must not be rejected as a house kit."""
+        user = "生成一座 18x18 格的日式风格建筑。多层交错的破风"
+        plan = {
+            "mode": "build",
+            "style_profile": "japanese",
+            "anchor": {"x": 0, "y": 64, "z": 0},
+            "distinguishing_features": ["三层退台堆叠的日式天守／橹式体量"],
+            "layout": {"skeleton_type": "VERTICAL_STACK", "slots": [{"slot_id": "slot_main", "anchor": {"x": 0, "y": 0, "z": 0}}]},
+            "proportion_hints": {"typology": "square_tower"},
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "slot_main",
+                    "relative_position": {"x": -7, "y": 6, "z": -7},
+                    "dimensions": {"width": 14, "depth": 14, "height": 4},
+                    "features": ["一层塔身"],
+                    "params": {"component_id": "tier1_body", "extrude_mode": "solid"},
+                },
+                {
+                    "component_type": "MASS_SECONDARY",
+                    "slot_id": "slot_main",
+                    "relative_position": {"x": -5, "y": 10, "z": -5},
+                    "dimensions": {"width": 10, "depth": 10, "height": 4},
+                    "features": ["二层退台"],
+                    "params": {"component_id": "tier2_body", "host_id": "tier1_body", "extrude_mode": "solid"},
+                },
+                {
+                    "component_type": "MASS_SECONDARY",
+                    "slot_id": "slot_main",
+                    "relative_position": {"x": -3, "y": 14, "z": -3},
+                    "dimensions": {"width": 6, "depth": 6, "height": 4},
+                    "features": ["顶层小塔身"],
+                    "params": {"component_id": "tier3_body", "host_id": "tier2_body", "extrude_mode": "solid"},
+                },
+                {
+                    "component_type": "FACADE_WINDOWS",
+                    "slot_id": "slot_main",
+                    "relative_position": {"x": -7, "y": 6, "z": -7},
+                    "dimensions": {"width": 14, "depth": 14, "height": 4},
+                    "features": [],
+                    "params": {"host_id": "tier1_body"},
+                },
+                {
+                    "component_type": "ENTRANCE",
+                    "slot_id": "slot_main",
+                    "relative_position": {"x": -2, "y": 6, "z": 6},
+                    "dimensions": {"width": 4, "depth": 1, "height": 4},
+                    "features": [],
+                    "params": {"host_id": "tier1_body"},
+                },
+            ],
+        }
+        attach_request_intent(plan, user)
+        plan["plan_meta"]["request_intent"]["building_class"] = "tower_like"
+        plan["plan_meta"]["request_intent"]["confidence"] = 0.72
+        errors = evaluate_plan_semantics(plan, user)
+        self.assertEqual(errors, [], errors)
+
 
 if __name__ == "__main__":
     unittest.main()

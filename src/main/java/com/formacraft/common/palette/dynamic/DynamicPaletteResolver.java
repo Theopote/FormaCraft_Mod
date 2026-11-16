@@ -158,6 +158,17 @@ public final class DynamicPaletteResolver {
      * 解析窗户方块
      */
     private static String resolveWindow(StyleAttributes attrs) {
+        // Orchestrator often puts glazing under palette/materials (window_material / glazing).
+        String fromPalette = attrs.resolvePaletteBlock(
+                "glazing", "window", "glass", "window_material", "window_block");
+        if (fromPalette != null && !fromPalette.isBlank()) {
+            String id = fromPalette.contains(":") ? fromPalette : "minecraft:" + fromPalette;
+            if (id.contains("bars") || id.contains("fence") || id.contains("glass")
+                    || id.contains("pane")) {
+                return id;
+            }
+        }
+
         List<String> decorative = attrs.decorativeElements();
         
         if (decorative != null && decorative.contains("lattice_windows")) {
@@ -170,6 +181,9 @@ public final class DynamicPaletteResolver {
                     continue;
                 }
                 String lower = element.toLowerCase().trim();
+                if (lower.contains("iron_bars") || lower.contains("lattice") || lower.contains("狭窗")) {
+                    return "minecraft:iron_bars";
+                }
                 if (lower.contains("stained_glass") || lower.contains("rose_window") || lower.contains("rose_windows")) {
                     // 使用墙体的强调颜色，如果没有则使用墙体主色
                     String accent = attrs.wallColor();

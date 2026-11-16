@@ -23,10 +23,12 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Tools 面板：选择/管理工具（首个工具：区域选区）。
@@ -200,7 +202,7 @@ public class ToolPanel extends BasePanel {
         planeDownButton = optionButton("高度 -1", () -> WorkPlaneTool.INSTANCE.changeHeight(-1));
         planeUpButton = optionButton("高度 +1", () -> WorkPlaneTool.INSTANCE.changeHeight(1));
         planeApplyButton = optionButton("应用 Y 坐标", this::applyPlaneHeight);
-        planeClearButton = optionButton("清除基准平面", () -> WorkPlaneTool.INSTANCE.clear());
+        planeClearButton = optionButton("清除基准平面", WorkPlaneTool.INSTANCE::clear);
 
         labelNameInput.setMaxLength(64);
         labelNameInput.setText("入口");
@@ -430,8 +432,8 @@ public class ToolPanel extends BasePanel {
         y = drawOptionButton(ctx, planeClearButton, x, y, w, plane.hasPlane());
         if (plane.fixed()) {
             y = drawWrappedText(ctx, Text.literal("轮廓、路径和笔刷使用平面交点；即使前方没有方块也能绘制。已有范围不会随平面自动移动。"), x, y, w, 0xFFAAAAAA);
-            if (SelectionTool.INSTANCE.hasSelection() && (plane.height() < SelectionTool.INSTANCE.getMin().getY()
-                    || plane.height() > SelectionTool.INSTANCE.getMax().getY())) {
+            if (SelectionTool.INSTANCE.hasSelection() && (plane.height() < Objects.requireNonNull(SelectionTool.INSTANCE.getMin()).getY()
+                    || plane.height() > Objects.requireNonNull(SelectionTool.INSTANCE.getMax()).getY())) {
                 y = drawWrappedText(ctx, Text.literal("基准高度超出当前选区，请调整选区高度以免生成被裁剪。"), x, y + 2, w, 0xFFFFAA66);
             }
         }
@@ -440,6 +442,21 @@ public class ToolPanel extends BasePanel {
 
     // 绘制 SelectionTool 的选项
     private int drawSelectionToolOptions(DrawContext ctx, int x, int y, int w) {
+        String status = getString();
+        y = drawWrappedText(ctx, Text.literal(status), x, y, w, 0xFFAAAAAA);
+        y += 2; // 小间距
+
+        clearSelectionButton.setPosition(x, y);
+        clearSelectionButton.setWidth(w);
+        clearSelectionButton.visible = true;
+        clearSelectionButton.active = SelectionTool.INSTANCE.hasSelection() || SelectionTool.INSTANCE.isSelecting();
+        clearSelectionButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
+        y += LABEL_OFFSET;
+
+        return y;
+    }
+
+    private static @NotNull String getString() {
         String status;
         if (SelectionTool.INSTANCE.isSelecting()) {
             status = "选区中：点击设置起点/终点";
@@ -456,17 +473,7 @@ public class ToolPanel extends BasePanel {
         } else {
             status = "提示：左键点方块设置起点，再点一次设置终点";
         }
-        y = drawWrappedText(ctx, Text.literal(status), x, y, w, 0xFFAAAAAA);
-        y += 2; // 小间距
-
-        clearSelectionButton.setPosition(x, y);
-        clearSelectionButton.setWidth(w);
-        clearSelectionButton.visible = true;
-        clearSelectionButton.active = SelectionTool.INSTANCE.hasSelection() || SelectionTool.INSTANCE.isSelecting();
-        clearSelectionButton.render(ctx, (int) getScaledMouseX(), (int) getScaledMouseY(), 0f);
-        y += LABEL_OFFSET;
-
-        return y;
+        return status;
     }
 
     // 绘制 ProtectedZoneTool 的选项

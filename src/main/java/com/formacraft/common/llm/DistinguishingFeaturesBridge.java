@@ -162,6 +162,13 @@ public final class DistinguishingFeaturesBridge {
                     ? new HashMap<>(component.params())
                     : new HashMap<>();
 
+            // Floor plates must not inherit research tokens like "oval_pediment_dormers"
+            // (substring "dormer" falsely triggers RoofHostedDormerSupport).
+            if (isFloorPlate(component, params)) {
+                out.add(component);
+                continue;
+            }
+
             List<String> features = new ArrayList<>();
             if (component.features() != null) {
                 features.addAll(component.features());
@@ -209,6 +216,36 @@ public final class DistinguishingFeaturesBridge {
         for (String feature : features) {
             if (feature != null && feature.toLowerCase(Locale.ROOT).equals(needle)) {
                 return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isFloorPlate(Component component, Map<String, Object> params) {
+        if (params != null) {
+            for (String key : List.of("extrude_mode", "extrudeMode", "plate_role", "plateRole")) {
+                Object raw = params.get(key);
+                if (raw == null) continue;
+                String value = String.valueOf(raw).toLowerCase(Locale.ROOT);
+                if (value.contains("plate") || "floor".equals(value)) return true;
+            }
+            Object id = params.get("component_id");
+            if (id != null) {
+                String idLower = String.valueOf(id).toLowerCase(Locale.ROOT);
+                if (idLower.contains("floor_plate") || idLower.contains("floorplate")
+                        || idLower.endsWith("_plate") || idLower.startsWith("plate_")) {
+                    return true;
+                }
+            }
+        }
+        if (component.features() != null) {
+            for (String feature : component.features()) {
+                if (feature == null) continue;
+                String lower = feature.toLowerCase(Locale.ROOT);
+                if (lower.contains("floor_plate") || lower.contains("floor plate")
+                        || "plate".equals(lower)) {
+                    return true;
+                }
             }
         }
         return false;

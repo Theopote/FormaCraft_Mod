@@ -197,17 +197,42 @@ def _structure_tower_typology(plan: Dict[str, Any]) -> bool:
 
 
 def _stacked_tower_masses(plan: Dict[str, Any]) -> bool:
-    """Accept tall stacked MASS kits (gothic clocktower shaft + belfry) as tower morphology."""
+    """Accept tall stacked MASS kits (gothic clocktower shaft + belfry) as tower morphology.
+
+    Short setback tiers (天守 / 四角塔 / keep) also count when multiple solid bodies
+    stack and taper — individual storeys are often only 3–5 blocks tall.
+    """
     comps = plan.get("components") or []
     if not isinstance(comps, list):
         return False
     tall_masses = 0
     towerish = 0
+    stacked_bodies = 0
+    prev_footprint = None
+    taper_steps = 0
+    _TOWERISH = (
+        "tower", "belfry", "spire", "钟楼", "塔楼", "楼阁", "天守", "橹", "keep",
+        "donjon", "shaft", "pinnacle", "cantilever", "gothic_tower", "clock",
+        "tier1", "tier2", "tier3", "tier_", "square_tower", "setback_tower",
+        "pagoda", "楼",
+    )
     for c in comps:
         if not isinstance(c, dict):
             continue
         ctype = str(c.get("component_type") or "").upper()
         if not (ctype.startswith("MASS") or ctype.startswith("TOWER") or ctype.startswith("STRUCTURE")):
+            continue
+        params = c.get("params") if isinstance(c.get("params"), dict) else {}
+        extrude = str(params.get("extrude_mode") or params.get("extrudeMode") or "").lower()
+        if "plate" in extrude or extrude == "floor":
+            continue
+        id_blob = str(params.get("component_id") or "").lower()
+        if (
+            "floor_plate" in id_blob
+            or "floorplate" in id_blob
+            or id_blob.endswith("_plate")
+            or id_blob.startswith("plate_")
+        ):
             continue
         dims = c.get("dimensions") if isinstance(c.get("dimensions"), dict) else {}
         try:
@@ -219,21 +244,34 @@ def _stacked_tower_masses(plan: Dict[str, Any]) -> bool:
         footprint = max(w, d)
         if footprint > 0 and h >= max(16, footprint * 2):
             tall_masses += 1
+        if h >= 3 and footprint > 0:
+            stacked_bodies += 1
+            if prev_footprint is not None and footprint < prev_footprint:
+                taper_steps += 1
+            if prev_footprint is None or footprint <= prev_footprint:
+                prev_footprint = footprint
         feat_blob = " ".join(str(f) for f in (c.get("features") or []) if f).lower()
-        id_blob = str((c.get("params") or {}).get("component_id") or "").lower()
         blob = f"{feat_blob} {id_blob}"
-        if any(
-            tok in blob
-            for tok in (
-                "tower", "belfry", "spire", "钟楼", "塔楼", "shaft", "pinnacle",
-                "cantilever", "gothic_tower", "clock",
-            )
-        ):
+        if any(tok in blob for tok in _TOWERISH):
             towerish += 1
+    # Also scan plan-level distinguishing features / proportion typology.
+    dist = " ".join(str(f) for f in (plan.get("distinguishing_features") or []) if f).lower()
+    hints = plan.get("proportion_hints") if isinstance(plan.get("proportion_hints"), dict) else {}
+    typology = str(hints.get("typology") or "").lower()
+    layout = plan.get("layout") if isinstance(plan.get("layout"), dict) else {}
+    skeleton = str(layout.get("skeleton_type") or "").upper()
+    if any(tok in dist or tok in typology for tok in _TOWERISH):
+        towerish += 1
+    if skeleton == "VERTICAL_STACK" and stacked_bodies >= 2:
+        towerish += 1
     # Shaft + upper stage, or one very tall towerish mass.
     if tall_masses >= 1 and towerish >= 1:
         return True
     if towerish >= 2:
+        return True
+    if stacked_bodies >= 3 and (towerish >= 1 or taper_steps >= 1):
+        return True
+    if stacked_bodies >= 2 and taper_steps >= 1 and towerish >= 1:
         return True
     return False
 

@@ -510,12 +510,16 @@ final class PlanSemanticValidator {
 
     /**
      * Tall stacked MASS kits (gothic clocktower shaft + belfry / spire) count as tower
-     * morphology even without a STRUCTURE typology carrier.
+     * morphology even without a STRUCTURE typology carrier. Short setback tiers
+     * (天守 / 四角塔 / keep) also count when multiple stacked bodies taper upward.
      */
     private static boolean hasStackedTowerMasses(List<Component> components) {
         if (components == null || components.isEmpty()) return false;
         int tallMasses = 0;
         int towerish = 0;
+        int stackedBodies = 0;
+        int prevFootprint = Integer.MAX_VALUE;
+        int taperSteps = 0;
         for (Component c : components) {
             if (c == null || c.componentType() == null) continue;
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
@@ -523,6 +527,23 @@ final class PlanSemanticValidator {
                     || type.startsWith("TOWER") || type.startsWith("STRUCTURE")
                     || "ROOF".equals(type))) {
                 continue;
+            }
+            // Floor plates are not tower bodies.
+            if (c.params() != null) {
+                Object extrude = c.params().get("extrude_mode");
+                if (extrude == null) extrude = c.params().get("extrudeMode");
+                if (extrude != null) {
+                    String e = String.valueOf(extrude).toLowerCase(Locale.ROOT);
+                    if (e.contains("plate") || "floor".equals(e)) continue;
+                }
+                Object id = c.params().get("component_id");
+                if (id != null) {
+                    String idLower = String.valueOf(id).toLowerCase(Locale.ROOT);
+                    if (idLower.contains("floor_plate") || idLower.contains("floorplate")
+                            || idLower.endsWith("_plate") || idLower.startsWith("plate_")) {
+                        continue;
+                    }
+                }
             }
             if (c.dimensions() != null) {
                 int w = Math.max(0, c.dimensions().width());
@@ -532,14 +553,31 @@ final class PlanSemanticValidator {
                 if (footprint > 0 && h >= Math.max(16, footprint * 2)) {
                     tallMasses++;
                 }
+                // Count solid bodies (height >= 3) for setback stacks.
+                if (h >= 3 && footprint > 0
+                        && (type.startsWith("MASS") || "MAIN_MASS".equals(type)
+                        || type.startsWith("TOWER") || type.startsWith("STRUCTURE"))) {
+                    stackedBodies++;
+                    if (footprint < prevFootprint) {
+                        if (prevFootprint != Integer.MAX_VALUE) taperSteps++;
+                        prevFootprint = footprint;
+                    } else if (footprint == prevFootprint && stackedBodies > 1) {
+                        // Same footprint stacked storeys still count as a vertical stack.
+                        taperSteps = Math.max(taperSteps, 0);
+                    }
+                }
             }
             String blob = monumentTokenBlob(c);
-            if (blob.matches("(?s).*(tower|belfry|spire|钟楼|塔楼|shaft|pinnacle|cantilever|"
-                    + "gothic_tower|gothic_bell|clock.?tower|bell_tower|clocktower).*")) {
+            if (blob.matches("(?s).*(tower|belfry|spire|钟楼|塔楼|楼阁|天守|橹|keep|donjon|shaft|"
+                    + "pinnacle|cantilever|gothic_tower|gothic_bell|clock.?tower|bell_tower|"
+                    + "clocktower|tier\\d|tier_|square_tower|setback_tower|pagoda|楼).*")) {
                 towerish++;
             }
         }
-        return (tallMasses >= 1 && towerish >= 1) || towerish >= 2;
+        if ((tallMasses >= 1 && towerish >= 1) || towerish >= 2) return true;
+        // 3+ stacked bodies, or 2+ tapering setbacks with a towerish cue.
+        if (stackedBodies >= 3 && (towerish >= 1 || taperSteps >= 1)) return true;
+        return stackedBodies >= 2 && taperSteps >= 1 && towerish >= 1;
     }
 
     /**
@@ -848,6 +886,12 @@ final class PlanSemanticValidator {
             }
             String have = componentRoofType(c);
             if (have == null) continue;
+            // MASS roof_type=flat means "no pitched roof on the shell" — compatible with a
+            // separate DOME/CUPOLA component (Roman tholos / pantheon).
+            if (isDomeWant(want) && isFlatShellRoof(have)
+                    && planHasDomeComponent(components, primaryHost)) {
+                continue;
+            }
             var haveKind = com.formacraft.common.generation.component.util.RoofTypeCatalog.parseExplicit(have);
             if (wantKind.isPresent() && haveKind.isPresent()) {
                 if (wantKind.get() != haveKind.get()) {
@@ -894,6 +938,7 @@ final class PlanSemanticValidator {
     private static boolean isRoofDeclaringComponent(Component c) {
         if (c == null) return false;
         String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        if ("DOME".equals(t) || "CUPOLA".equals(t) || t.contains("DOME")) return true;
         return t.contains("ROOF") || componentRoofType(c) != null || hasDoubleEaveSignal(c);
     }
 
@@ -920,6 +965,10 @@ final class PlanSemanticValidator {
     }
 
     private static String componentRoofType(Component c) {
+        if (c == null) return null;
+        String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        if ("DOME".equals(type) || type.contains("DOME")) return "dome";
+        if ("CUPOLA".equals(type)) return "dome";
         if (c.params() != null) {
             Object rt = c.params().get("roof_type");
             if (rt == null) rt = c.params().get("roofType");
@@ -932,6 +981,12 @@ final class PlanSemanticValidator {
             if (eave != null) {
                 String e = String.valueOf(eave).trim().toLowerCase(Locale.ROOT);
                 if (e.contains("double")) return "double_eave_hip";
+            }
+            // Hemispherical / dome shells expressed via shape params.
+            Object shape = c.params().get("shape");
+            if (shape != null) {
+                String s = String.valueOf(shape).trim().toLowerCase(Locale.ROOT);
+                if (s.contains("hemisphere") || s.contains("dome")) return "dome";
             }
         }
         return null;
@@ -986,6 +1041,41 @@ final class PlanSemanticValidator {
             if (wantKind.isEmpty() && roofTokenCompatible(want, have)) {
                 return true;
             }
+            if (isDomeWant(want) && ("dome".equals(have) || "cupola".equals(have))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isDomeWant(String want) {
+        if (want == null || want.isBlank()) return false;
+        String w = want.trim().toLowerCase(Locale.ROOT);
+        return "dome".equals(w) || w.contains("dome") || "cupola".equals(w) || w.contains("hemispher");
+    }
+
+    private static boolean isFlatShellRoof(String have) {
+        if (have == null || have.isBlank()) return false;
+        String h = have.trim().toLowerCase(Locale.ROOT);
+        return "flat".equals(h) || "none".equals(h) || "open".equals(h);
+    }
+
+    /** True when a DOME/CUPOLA (or dome-typed ROOF) exists for the primary host / unbound. */
+    private static boolean planHasDomeComponent(List<Component> components, String primaryHost) {
+        if (components == null) return false;
+        for (Component c : components) {
+            if (c == null || c.componentType() == null) continue;
+            String type = c.componentType().trim().toUpperCase(Locale.ROOT);
+            boolean domeType = "DOME".equals(type) || "CUPOLA".equals(type) || type.contains("DOME");
+            String have = componentRoofType(c);
+            boolean domeRoof = have != null && (have.contains("dome") || "cupola".equals(have)
+                    || have.contains("hemispher"));
+            if (!domeType && !domeRoof) continue;
+            if (primaryHost == null || primaryHost.isBlank()) return true;
+            String host = BuildingHostResolver.roofHostId(c);
+            if (host == null || host.isBlank() || primaryHost.equals(host)) return true;
+            String self = BuildingHostResolver.massId(c);
+            if (primaryHost.equals(self)) return true;
         }
         return false;
     }

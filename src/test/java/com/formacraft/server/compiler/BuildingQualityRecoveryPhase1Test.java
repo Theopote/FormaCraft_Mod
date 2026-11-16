@@ -177,6 +177,73 @@ class BuildingQualityRecoveryPhase1Test {
     }
 
     @Test
+    void romanCellaFlatShellWithDomeComponentDoesNotConflictRoofIntent() {
+        Component cella = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 3, 0),
+                new Dimensions(11, 11, 9), List.of("cylindrical cella drum"),
+                Map.of("component_id", "cella", "shape", "cylinder", "roof_type", "flat"));
+        Component dome = new Component(
+                "DOME", "main", new Vec3i(0, 12, 0),
+                new Dimensions(12, 12, 6), List.of("hemispherical smooth sandstone dome"),
+                Map.of("component_id", "dome", "host_id", "cella", "shape", "hemisphere"));
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("building_class", "temple");
+        meta.put("request_intent", Map.of(
+                "building_class", "temple",
+                "confidence", 0.93,
+                "roof_type", "dome",
+                "roof_explicit", true,
+                "original_text", "生成一座半径为 9 的圆形罗马神殿。中央为半球形平滑砂岩穹顶"));
+        meta.put("request_intent_text", "生成一座半径为 9 的圆形罗马神殿。中央为半球形平滑砂岩穹顶");
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("Classical_GrecoRoman")
+                .components(List.of(cella, dome))
+                .planMeta(meta)
+                .build();
+        assertTrue(PlanSemanticValidator.check(plan).isEmpty(),
+                () -> PlanSemanticValidator.check(plan).map(CapabilityGap::message).orElse(""));
+    }
+
+    @Test
+    void japaneseSetbackTowerStackPassesTowerSemanticGate() {
+        Component tier1 = new Component(
+                "MASS_MAIN", "slot_main", new Vec3i(-7, 6, -7),
+                new Dimensions(14, 14, 4), List.of("一层塔身"),
+                Map.of("component_id", "tier1_body", "extrude_mode", "solid", "roof_type", "hip"));
+        Component tier2 = new Component(
+                "MASS_SECONDARY", "slot_main", new Vec3i(-5, 10, -5),
+                new Dimensions(10, 10, 4), List.of("二层退台"),
+                Map.of("component_id", "tier2_body", "host_id", "tier1_body", "extrude_mode", "solid"));
+        Component tier3 = new Component(
+                "MASS_SECONDARY", "slot_main", new Vec3i(-3, 14, -3),
+                new Dimensions(6, 6, 4), List.of("顶层小塔身"),
+                Map.of("component_id", "tier3_body", "host_id", "tier2_body", "extrude_mode", "solid"));
+        Component windows = new Component(
+                "FACADE_WINDOWS", "slot_main", new Vec3i(-7, 6, -7),
+                new Dimensions(14, 14, 4), List.of(),
+                Map.of("host_id", "tier1_body", "window_style", "grid"));
+        Component entrance = new Component(
+                "ENTRANCE", "slot_main", new Vec3i(-2, 6, 6),
+                new Dimensions(4, 1, 4), List.of(),
+                Map.of("host_id", "tier1_body"));
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("building_class", "tower_like");
+        meta.put("request_intent", Map.of(
+                "building_class", "tower_like",
+                "confidence", 0.72,
+                "original_text", "生成一座 18x18 格的日式风格建筑。多层交错的破风"));
+        meta.put("request_intent_text", "生成一座 18x18 格的日式风格建筑。多层交错的破风");
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("japanese")
+                .distinguishingFeatures(List.of("三层退台堆叠的日式天守／橹式体量"))
+                .components(List.of(tier1, tier2, tier3, windows, entrance))
+                .planMeta(meta)
+                .build();
+        assertTrue(PlanSemanticValidator.check(plan).isEmpty(),
+                () -> PlanSemanticValidator.check(plan).map(CapabilityGap::message).orElse(""));
+    }
+
+    @Test
     void denseEavesPagodaStructurePassesSemanticGate() {
         Component structure = new Component(
                 "STRUCTURE",

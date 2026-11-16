@@ -175,6 +175,8 @@ public final class ComponentPlanCompiler {
         plan = DenseEavesPagodaMisrouteRepair.apply(plan);
         // Gothic hall STRUCTURE must honour user 12×20 envelopes (not typology 25×45 defaults).
         plan = GothicHallDimensionRepair.apply(plan);
+        // Compositional gothic bell towers: iron-bar slits, steep spire, mixed walls, centered door.
+        plan = GothicBellTowerFidelityRepair.apply(plan);
         // 吊脚楼/干栏避难所 must not stay locked to suspension_bridge (吊桥 keyword collision).
         plan = StiltShelterMisrouteRepair.apply(plan);
         // Non-suspension bridge prompts must not stay locked to twin-tower suspension typology.
@@ -450,10 +452,11 @@ public final class ComponentPlanCompiler {
             }
             shapeAudit.ifPresent(audit ->
                     FormacraftMod.LOGGER.info("[RoofShapeAudit] stage=postprocess result={}", audit));
-            if (shapeAudit.isPresent()) {
+                if (shapeAudit.isPresent()) {
                 if ("mismatch".equals(shapeAudit.get().status())
-                        && !Set.of("missing_slope_column", "no_ridge_rise", "non_monotonic_slope")
+                        && !Set.of("no_ridge_rise", "non_monotonic_slope")
                         .contains(shapeAudit.get().reason())) {
+                    // missing_slope_column and longitudinal shifts are warn-only.
                     FormacraftMod.LOGGER.warn("[RoofShapeAudit] visual mismatch (non-blocking): {}", shapeAudit.get());
                 }
                 var shapeGap = RoofShapeAudit.toCapabilityGap(shapeAudit.get());

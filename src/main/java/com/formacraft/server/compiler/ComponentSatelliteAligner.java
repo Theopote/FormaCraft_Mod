@@ -246,12 +246,44 @@ final class ComponentSatelliteAligner {
         if (component == null) return false;
         String type = ComponentPlanTypes.normalizeType(component.componentType());
         if (!ComponentPlanTypes.isMassType(type) && !"MASS_ANCILLARY".equals(type)) return false;
+        // Floor plates / solid extrusions are never dormers — DistinguishingFeaturesBridge may
+        // inject research tokens like "oval_pediment_dormers" onto every MASS_SECONDARY.
+        String extrude = ComponentPlanTypes.getParamString(
+                component.params(), "extrude_mode", "extrudeMode", "plate_role", "plateRole");
+        if (extrude != null) {
+            String e = extrude.toLowerCase(Locale.ROOT);
+            if (e.contains("plate") || "floor".equals(e)) return false;
+        }
         String id = ComponentPlanTypes.getParamString(component.params(), "component_id");
-        String kind = ComponentPlanTypes.getParamString(component.params(), "detail_kind");
-        String text = ((id == null ? "" : id) + " " + (kind == null ? "" : kind)
-                + " " + (component.features() == null ? "" : String.join(" ", component.features())))
-                .toLowerCase(Locale.ROOT);
-        return text.contains("dormer") || text.contains("老虎窗");
+        if (id != null) {
+            String idLower = id.toLowerCase(Locale.ROOT);
+            if (idLower.contains("floor_plate") || idLower.contains("floorplate")
+                    || idLower.endsWith("_plate") || idLower.startsWith("plate_")) {
+                return false;
+            }
+        }
+        String kind = ComponentPlanTypes.getParamString(
+                component.params(), "detail_kind", "detailKind", "decor_type", "decorType");
+        if (kind != null) {
+            String k = kind.toLowerCase(Locale.ROOT);
+            if (k.contains("dormer") || k.contains("老虎窗")) return true;
+        }
+        if (id != null) {
+            String idLower = id.toLowerCase(Locale.ROOT);
+            if (idLower.contains("dormer") || idLower.contains("老虎窗")) return true;
+        }
+        if (component.features() == null) return false;
+        for (String feature : component.features()) {
+            if (feature == null || feature.isBlank()) continue;
+            String lower = feature.toLowerCase(Locale.ROOT).trim();
+            // Whole-token match only — avoid "oval_pediment_dormers" research blobs on floor plates.
+            if (lower.equals("dormer") || lower.equals("老虎窗") || lower.equals("mansard_dormer")
+                    || lower.equals("roof_dormer") || lower.startsWith("dormer_")
+                    || lower.endsWith("_dormer") || lower.contains("老虎窗")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Component explicitDormerRoof(Component dormer, List<Component> components, String slotKey) {
@@ -1003,8 +1035,14 @@ final class ComponentSatelliteAligner {
         int thickness = Math.max(1, ComponentParamParsers.intParam(mass.params(),1,"wall_thickness"));
         int center = side ? rp.z()+dims.depth()/2 : rp.x()+dims.width()/2;
         Object intent = plan==null || plan.proportionHints()==null ? null : plan.proportionHints().get("architecture_intent");
-        if (!params.containsKey("stair_connection") && intent instanceof Map<?,?> observation
-                && String.valueOf(observation.get("original_text")).contains("中央入口"))
+        String intentText = intent instanceof Map<?,?> observation
+                ? String.valueOf(observation.get("original_text")) : "";
+        // Narrow towers / explicit center-door cues: snap opening to mass mid-face.
+        int massSpan = side ? mass.dimensions().depth() : mass.dimensions().width();
+        boolean centerCue = intentText.contains("中央入口") || intentText.contains("对称")
+                || intentText.contains("钟楼") || intentText.toLowerCase(Locale.ROOT).contains("bell tower")
+                || intentText.toLowerCase(Locale.ROOT).contains("gothic");
+        if (!params.containsKey("stair_connection") && (centerCue || massSpan <= 12))
             center = side ? origin.z()+mass.dimensions().depth()/2 : origin.x()+mass.dimensions().width()/2;
         int span = side ? mass.dimensions().depth() : mass.dimensions().width();
         int base = side ? origin.z() : origin.x();

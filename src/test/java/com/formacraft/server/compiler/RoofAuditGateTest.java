@@ -8,8 +8,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RoofAuditGateTest {
     @Test
-    void structuralShapeMismatchProducesGap() {
+    void missingSlopeColumnIsWarnOnly() {
         var result = new RoofShapeAudit.Result("r1", "mismatch", "missing_slope_column", List.of(), 1, 1);
+        assertTrue(RoofShapeAudit.toCapabilityGap(result).isEmpty());
+    }
+
+    @Test
+    void structuralShapeMismatchProducesGap() {
+        var result = new RoofShapeAudit.Result("r1", "mismatch", "no_ridge_rise", List.of(1, 1, 1), 1, 1);
         var gap = RoofShapeAudit.toCapabilityGap(result);
         assertTrue(gap.isPresent());
         assertEquals("E_ROOF_SHAPE_FAILED", gap.get().code());

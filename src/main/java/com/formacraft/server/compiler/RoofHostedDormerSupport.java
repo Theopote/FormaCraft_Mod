@@ -29,13 +29,18 @@ final class RoofHostedDormerSupport {
 
     Optional<CapabilityGap> supportGap(Component dormer, Vec3i slotOffset) {
         if (!ComponentSatelliteAligner.isDormer(dormer)) return Optional.empty();
-        String host = ComponentPlanTypes.getParamString(dormer.params(), "host_id", "hostId");
+        String host = resolveDormerRoofHostId(dormer);
         // Unhosted dormers are outside this check; an explicit host that cannot be resolved is a gap.
         if (host == null || host.isBlank()) return Optional.empty();
         Vec3i origin = ComponentPlanCompiler.resolveMassOrigin(dormer);
         Dimensions dims = dormer.dimensions();
         if (origin == null || dims == null) return Optional.empty();
         var roof = roofs.get(new Key(ComponentPlanTypes.slotKey(dormer), host));
+        if (roof == null) {
+            // host_id often points at the owning MASS; prefer an explicit roof attachment id,
+            // else accept any recorded roof in the same slot (mansard dormers bind late).
+            roof = findRoofForMassHost(dormer, host);
+        }
         if (roof == null) {
             return Optional.of(new CapabilityGap(
                     "E_DORMER_ROOF_SUPPORT",
@@ -57,10 +62,42 @@ final class RoofHostedDormerSupport {
         return Optional.empty();
     }
 
+    /** Prefer explicit roof attachment ids over mass host_id. */
+    private static String resolveDormerRoofHostId(Component dormer) {
+        String roofHost = ComponentPlanTypes.getParamString(
+                dormer.params(), "attachment_host_id", "attachmentHostId", "roof_host_id", "roofHostId");
+        if (roofHost != null && !roofHost.isBlank()) return roofHost;
+        return ComponentPlanTypes.getParamString(dormer.params(), "host_id", "hostId");
+    }
+
+    private Map<BlockPos, Integer> findRoofForMassHost(Component dormer, String massHost) {
+        if (dormer == null || massHost == null || massHost.isBlank()) return null;
+        // Only remap mass-like hosts (mass_main / shaft / tier1_body). A wrong or missing roof
+        // id such as "missing" / "roof" must stay a hard gap — do not steal another roof.
+        String lower = massHost.toLowerCase(Locale.ROOT);
+        boolean massLike = lower.contains("mass") || lower.contains("body") || lower.contains("cella")
+                || lower.contains("hall") || lower.contains("shaft") || lower.contains("tier")
+                || lower.contains("tower") || lower.contains("keep") || lower.contains("wing")
+                || lower.startsWith("main") || lower.endsWith("_main");
+        if (!massLike) return null;
+        String slot = ComponentPlanTypes.slotKey(dormer);
+        Map<BlockPos, Integer> best = null;
+        for (var entry : roofs.entrySet()) {
+            if (!slot.equals(entry.getKey().slot())) continue;
+            if (entry.getValue() != null && !entry.getValue().isEmpty()) {
+                if (best == null || entry.getValue().size() > best.size()) {
+                    best = entry.getValue();
+                }
+            }
+        }
+        return best;
+    }
+
     Component extendToRoof(Component dormer, Vec3i slotOffset) {
         if (!ComponentSatelliteAligner.isDormer(dormer)) return dormer;
-        String host = ComponentPlanTypes.getParamString(dormer.params(), "host_id", "hostId");
+        String host = resolveDormerRoofHostId(dormer);
         var roof = roofs.get(new Key(ComponentPlanTypes.slotKey(dormer), host));
+        if (roof == null) roof = findRoofForMassHost(dormer, host);
         Vec3i origin = ComponentPlanCompiler.resolveMassOrigin(dormer);
         Dimensions dims = dormer.dimensions();
         if (roof == null || origin == null || dims == null) return dormer;

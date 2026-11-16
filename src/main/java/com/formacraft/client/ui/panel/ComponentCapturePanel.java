@@ -1339,7 +1339,7 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         if (clickButton(undoAutoFixButton, click)) return true;
         
         if (clickButton(cancelButton, click)) return true;
-        if (clickButton(saveButton, click)) return true;
+        clickButton(saveButton, click);
 
         return true; // 消费所有面板内点击
     }
