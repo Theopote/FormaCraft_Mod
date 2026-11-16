@@ -75,6 +75,41 @@ public final class DesignProvenance {
     }
 
     /**
+     * Like {@link #putIfAllowed} but also stamps {@code params.design_sources[paramKey]}
+     * when the existing source is absent or not design-locked.
+     */
+    public static boolean putWithSource(
+            LlmPlan plan,
+            Map<String, Object> params,
+            String paramKey,
+            Object value,
+            DesignParamSource source
+    ) {
+        if (!putIfAllowed(plan, params, paramKey, value)) {
+            return false;
+        }
+        if (params == null || paramKey == null || source == null) {
+            return true;
+        }
+        Object raw = params.get("design_sources");
+        Map<String, Object> sources = new HashMap<>();
+        if (raw instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> e : map.entrySet()) {
+                if (e.getKey() != null) {
+                    sources.put(String.valueOf(e.getKey()), e.getValue());
+                }
+            }
+        }
+        DesignParamSource existing = DesignParamSource.parse(
+                sources.get(paramKey) == null ? null : String.valueOf(sources.get(paramKey)));
+        if (existing == null || !existing.isDesignLocked()) {
+            sources.put(paramKey, source.name());
+            params.put("design_sources", sources);
+        }
+        return true;
+    }
+
+    /**
      * Removes each key independently when provenance allows mutation of that key.
      * Unlike {@link #putIfAllowed}, alias lock groups are not shared — a locked
      * {@code crownTemplate} must not block removal of unlocked {@code crown_template}.

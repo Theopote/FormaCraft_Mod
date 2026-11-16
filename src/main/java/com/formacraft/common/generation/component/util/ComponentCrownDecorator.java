@@ -19,6 +19,20 @@ public final class ComponentCrownDecorator {
     public static boolean shouldApply(LlmPlan plan, Map<String, Object> massParams) {
         if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, massParams)
                 || com.formacraft.common.style.ExplicitDesignPolicy.none(massParams, "crown_type", "crownType", "crown_template", "crownTemplate")) return false;
+        // Explicit plan_meta / mass crown requirement must outrank typology heuristics.
+        // Pass wouldInferCrown=true so an absent requirement stays UNSPECIFIED (not auto-OMITTED).
+        var crownReq = resolveCrownRequirement(plan, massParams);
+        if (crownReq == com.formacraft.common.generation.design.DesignRequirement.OMITTED) {
+            return false;
+        }
+        if (crownReq == com.formacraft.common.generation.design.DesignRequirement.OPTIONAL
+                && !hasTemplateHint(massParams)
+                && !(plan != null && plan.proportionHints() != null
+                && (isEnabled(plan.proportionHints().get("crown_assembly"))
+                || isEnabled(plan.proportionHints().get("crownAssembly"))
+                || hasTemplateHint(plan.proportionHints())))) {
+            return false;
+        }
         if (NonClassicalEnrichmentGuard.blocksCrownInference(plan)) {
             return false;
         }
@@ -129,6 +143,21 @@ public final class ComponentCrownDecorator {
         int width = radius * 2 + 1;
         int depth = radius * 2 + 1;
         return new CrownDimensions(width, depth, height, radius);
+    }
+
+    private static com.formacraft.common.generation.design.DesignRequirement resolveCrownRequirement(
+            LlmPlan plan, Map<String, Object> massParams) {
+        var fromPlan = com.formacraft.common.generation.design.DesignRequirementAccess.crown(plan, null, true);
+        if (massParams != null) {
+            Object raw = massParams.get("crown_requirement");
+            if (raw != null) {
+                var parsed = com.formacraft.common.generation.design.DesignRequirement.parse(String.valueOf(raw));
+                if (parsed != null) {
+                    return parsed;
+                }
+            }
+        }
+        return fromPlan;
     }
 
     private static boolean hasTemplateHint(Map<String, Object> params) {

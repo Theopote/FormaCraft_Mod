@@ -10,8 +10,9 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `ComponentPlanCompiler.java` ~976–984 | MASS without ENTRANCE | entrance_type, door width | DESIGN_INFER | Same |
 | `ComponentPlanCompiler.java` ~1001–1008 | MASS without ROOF | roof_type, roof height (dims) | DESIGN_INFER | Same; height cap `span/3` max 8 at ~1800–1801 |
 | `ComponentPlanCompiler.java` ~1014–1027 | MASS without CROWN | crown_type | DESIGN_INFER | Same + `ComponentCrownDecorator` |
-| `ComponentPlanCompiler.java` `makeRoofComponent` | missing roof_type / height | roof_type default; height via `RoofPitchGeometry` | DESIGN_INFER | **Wired:** explicit `roof_height` / `roof_pitch_degrees` preferred; no silent cap 8 when pitch set |
-| `ComponentPlanCompiler.java` `resolveDefaultRoofType` | style/heuristic | roof_type | DESIGN_ENRICH | Source-aware `putIfAllowed` |
+| `ComponentPlanCompiler.java` `makeRoofComponent` | missing roof_type / height | roof_type default; height via `RoofPitchGeometry` | DESIGN_INFER | **Wired:** explicit `roof_height` / `roof_pitch_degrees` preferred; no silent cap 8 when pitch set; default gable/flat via `putWithSource` (`COMPILER_INFERRED` / `DERIVED_GEOMETRY` / last-resort `TECHNICAL_DEFAULT`) |
+| `ComponentPlanCompiler.java` `resolveDefaultRoofType` | style/heuristic | roof_type | DESIGN_ENRICH | Source-aware `putWithSource` |
+| `ComponentCrownDecorator.shouldApply` | typology/heuristic crown | CROWN satellite | DESIGN_INFER | **Extended (2026-11-17):** `design_requirements.crown=OMITTED` / OPTIONAL without explicit template blocks inference |
 | `RoofGenerator.java` | rise resolution | height from pitch/height params | GEOMETRY | **Wired:** `RoofPitchGeometry.resolveRise` (pitch 58° on span 30 → rise 24, not 8) |
 | `HouseGenerator` / `HouseRoofGenerator` | whole-building roof | hardcoded rise caps | AUTHORITY_SUBSTITUTE | Template path only; do not use for AI-planned pitch — prefer LlmPlan ROOF |
 
@@ -84,3 +85,4 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | Assembly prompt soft rule | `AssemblyIntentSectionsTest` |
 | Proportion prompt non-binding | `ProportionCardRegistryTest`, `test_plan_architectural_enrichment.py` |
 | Keyword class provenance | `PlanIntentFidelityRepairTest.matchingEchoUserMarkersRepairWrongLlmClassWithProvenance`, `test_intent_baseline_and_negation.py` |
+| Crown OMITTED + gable provenance | `ExplicitOmissionSatelliteTest` |

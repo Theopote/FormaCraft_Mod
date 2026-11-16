@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -87,5 +88,63 @@ class ExplicitOmissionSatelliteTest {
                 .anyMatch(c -> c != null && "ENTRANCE".equalsIgnoreCase(c.componentType())));
         assertTrue(prepared.components().stream()
                 .anyMatch(c -> c != null && "MASS_MAIN".equalsIgnoreCase(c.componentType())));
+    }
+
+    @Test
+    void prepareComponentsDoesNotInferCrownWhenDesignRequirementOmitted() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "hall");
+        params.put("roof_type", "flat");
+        params.put("facade_profile", "classical_colonnade");
+        Component mass = new Component(
+                "MASS_MAIN",
+                "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(20, 20, 12),
+                List.of(),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("DEFAULT")
+                .components(List.of(mass))
+                .proportionHints(Map.of("typology", "classical_monument"))
+                .planMeta(Map.of(
+                        "allow_compiler_satellites", true,
+                        "design_requirements", Map.of(
+                                "crown", "OMITTED",
+                                "facade", "OMITTED",
+                                "entrance", "OMITTED")))
+                .build();
+
+        var prepared = ComponentSatelliteInference.prepareComponents(plan, Map.of(), false);
+        assertFalse(prepared.components().stream()
+                .anyMatch(c -> c != null && "CROWN".equalsIgnoreCase(c.componentType())),
+                "OMITTED crown must block typology-triggered crown inference");
+    }
+
+    @Test
+    void inferredDefaultGableIsTaggedTechnicalDefault() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "house");
+        Component mass = new Component(
+                "MASS_MAIN",
+                "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 6),
+                List.of(),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .styleProfile("DEFAULT")
+                .components(List.of(mass))
+                .planMeta(Map.of("allow_compiler_satellites", true))
+                .build();
+
+        Component roof = ComponentSatelliteInference.makeRoofComponent(plan, mass, "main");
+        assertTrue(roof != null);
+        assertEquals("gable", String.valueOf(roof.params().get("roof_type")));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sources = (Map<String, Object>) roof.params().get("design_sources");
+        assertTrue(sources != null);
+        // resolveDefaultRoofType → gable is stamped COMPILER_INFERRED (not a silent untagged put).
+        assertEquals("COMPILER_INFERRED", String.valueOf(sources.get("roof_type")));
     }
 }

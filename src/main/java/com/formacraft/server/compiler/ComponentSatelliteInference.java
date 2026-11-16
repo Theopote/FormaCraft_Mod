@@ -927,15 +927,20 @@ final class ComponentSatelliteInference {
                 && (Boolean.TRUE.equals(params.get("terraced")) || plan.components().stream().anyMatch(body ->
                     body.params() != null && Boolean.TRUE.equals(body.params().get("terraced"))
                         && java.util.Objects.equals(body.params().get("component_id"), params.get("host_id"))))) {
-            roofType = "flat";
-            params.put("roof_type", roofType);
+            // Geometry safety for terraced setbacks — not an aesthetic redesign.
+            if (com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                    plan, params, "roof_type", "flat",
+                    com.formacraft.common.generation.design.DesignParamSource.DERIVED_GEOMETRY)) {
+                roofType = "flat";
+            }
         }
         if (roofType == null || roofType.isBlank()) {
             String explicitRoof = PlanSemanticValidator.explicitRoofType(plan, null);
             roofType = resolveDefaultRoofType(plan, base);
             if (roofType != null) {
-                com.formacraft.common.generation.design.DesignProvenance.putIfAllowed(
-                        plan, params, "roof_type", roofType);
+                com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                        plan, params, "roof_type", roofType,
+                        com.formacraft.common.generation.design.DesignParamSource.COMPILER_INFERRED);
                 roofType = ComponentPlanTypes.getParamString(params, "roof_type", "roofType");
             }
             if (roofType == null || roofType.isBlank()) {
@@ -957,8 +962,13 @@ final class ComponentSatelliteInference {
                             ComponentPlanTypes.getParamString(base.params(), "component_id"));
                     return null;
                 }
-                roofType = "gable";
-                params.put("roof_type", roofType);
+                if (com.formacraft.common.generation.design.DesignProvenance.putWithSource(
+                        plan, params, "roof_type", "gable",
+                        com.formacraft.common.generation.design.DesignParamSource.TECHNICAL_DEFAULT)) {
+                    roofType = "gable";
+                } else {
+                    return null;
+                }
             }
         }
         if (params.get("component_id") != null) params.putIfAbsent("host_id", params.get("component_id"));

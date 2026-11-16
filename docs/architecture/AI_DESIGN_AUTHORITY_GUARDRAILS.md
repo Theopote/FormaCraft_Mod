@@ -43,7 +43,8 @@ Track `user_intent`, `raw_llm_plan`, `normalized_plan`, `compiler_decisions`, `e
 8. Open-world routing regressions + CI invariant script (`scripts/check_design_authority_invariants.py`) guard against keyword→preset resurrection and missing governance files.
 9. Proportion ontology prompts (`proportion_prompt_block` / `ProportionCardRegistry` / heuristic cards): **Fixed (2026-11-17)** — NON-BINDING research hint; no MUST composition/template language; negated markers do not select packs.
 10. Request-intent `building_class`: **Extended (2026-11-17)** — provenance stamps (`keyword_fill` / `keyword_user_marker` / `llm_retained`); scaffold templates still require keyword agreement.
-11. Verify remaining `ComponentPlanCompiler` satellite edge cases stay behind `plan_meta.allow_compiler_satellites` / design_requirements. *(ongoing)*
+11. Compiler satellite edges: **Extended (2026-11-17)** — default gable/flat roofs stamp provenance via `DesignProvenance.putWithSource`; `design_requirements.crown=OMITTED` blocks typology-triggered CROWN inference (`ExplicitOmissionSatelliteTest`).
+12. Remaining satellite gaps: facade/entrance TECHNICAL_DEFAULT stamps; opt-in-only `allow_compiler_satellites` default flip remains a larger migration. *(ongoing)*
 
 ## Required metamorphic acceptance suite
 Run original request and related variants; test both plan-level and compiled Patch-level properties.
