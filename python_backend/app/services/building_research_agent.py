@@ -607,34 +607,42 @@ _EXPLICIT_TYPOLOGY_RE = re.compile(
     r"(?:typology|structural_typology|typology_id)\s*[:=]\s*([A-Za-z][A-Za-z0-9_]*)",
     re.IGNORECASE,
 )
+_EXPLICIT_TYPOLOGY_NEGATION_PREFIX = re.compile(
+    r"(?:不要(?:使用|用)?|不使用|不用|禁用|关闭|do\s+not\s+use|don't\s+use)\s*"
+    r"(?:(?:typology|structural_typology|typology_id)\s*[:=]\s*)?$",
+    re.IGNORECASE,
+)
 
 
 def resolve_explicit_structural_typology(user_text: str) -> Optional[str]:
     """Whole-building typology only when the user explicitly requests it.
 
-    Mentions under negation (不要使用 typology_id=… / do not use typology:…) never bind.
+    Negation is evaluated per mention, so
+    「不要使用 typology_id=A，改用 typology_id=B」 binds B (not neither).
     """
     text = (user_text or "").strip()
     if not text:
         return None
-    lowered = text.lower()
-    if re.search(
-        r"(?:不要(?:使用|用)?|不使用|不用|禁用|关闭)\s*"
-        r"(?:typology|structural_typology|typology_id)\s*[:=]|"
-        r"do\s+not\s+use\s+(?:typology|structural_typology|typology_id)\s*[:=]",
-        lowered,
-    ):
-        return None
-    match = _EXPLICIT_TYPOLOGY_RE.search(text)
-    if not match:
-        return None
-    token = match.group(1).strip()
+    chosen: Optional[str] = None
     try:
         from .typology_registry import get_typology
-
-        return token if get_typology(token) is not None else None
     except Exception:
-        return token or None
+        get_typology = None  # type: ignore[assignment]
+    for match in _EXPLICIT_TYPOLOGY_RE.finditer(text):
+        prefix = text[max(0, match.start() - 48) : match.start()]
+        if _EXPLICIT_TYPOLOGY_NEGATION_PREFIX.search(prefix):
+            continue
+        token = match.group(1).strip()
+        if not token:
+            continue
+        if get_typology is not None:
+            try:
+                if get_typology(token) is None:
+                    continue
+            except Exception:
+                pass
+        chosen = token
+    return chosen
 
 
 def finalize_profile_minecraft_strategy(

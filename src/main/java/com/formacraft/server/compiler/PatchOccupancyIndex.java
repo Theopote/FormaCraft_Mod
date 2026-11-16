@@ -44,14 +44,27 @@ public final class PatchOccupancyIndex {
 
     /** Read-only: does not mutate formal state. */
     public Optional<Conflict> validate(Component writer, List<BlockPatch> patches) {
-        return validate(writer, patches, Set.of());
+        return validate(writer, patches, Set.of(), BlockPos.ORIGIN);
     }
 
     public Optional<Conflict> validate(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
+        return validate(writer, patches, connectorAccess, BlockPos.ORIGIN);
+    }
+
+    /**
+     * @param slotOffset plan-space translation already applied to {@code patches}
+     *                   (layout.slots[].anchor); dormer join envelopes use the same frame.
+     */
+    public Optional<Conflict> validate(
+            Component writer,
+            List<BlockPatch> patches,
+            Set<BlockPos> connectorAccess,
+            BlockPos slotOffset
+    ) {
         if (patches == null || patches.isEmpty()) return Optional.empty();
         Map<BlockPos, PlaceRecord> simPlaces = new HashMap<>(places);
         Set<BlockPos> simRemoves = new HashSet<>(removes);
-        return apply(writer, patches, simPlaces, simRemoves, connectorAccess);
+        return apply(writer, patches, simPlaces, simRemoves, connectorAccess, slotOffset);
     }
 
     /** Preserve existing geometry when an optional attachment cannot join it. */
@@ -172,12 +185,21 @@ public final class PatchOccupancyIndex {
 
     /** Mutates formal state; call only after {@link #validate} succeeded. */
     public void commit(Component writer, List<BlockPatch> patches) {
-        commit(writer, patches, Set.of());
+        commit(writer, patches, Set.of(), BlockPos.ORIGIN);
     }
 
     public void commit(Component writer, List<BlockPatch> patches, Set<BlockPos> connectorAccess) {
+        commit(writer, patches, connectorAccess, BlockPos.ORIGIN);
+    }
+
+    public void commit(
+            Component writer,
+            List<BlockPatch> patches,
+            Set<BlockPos> connectorAccess,
+            BlockPos slotOffset
+    ) {
         if (patches == null || patches.isEmpty()) return;
-        apply(writer, patches, places, removes, connectorAccess);
+        apply(writer, patches, places, removes, connectorAccess, slotOffset);
     }
 
     /** Convenience: validate then commit if ok. */
@@ -341,10 +363,22 @@ public final class PatchOccupancyIndex {
             Set<BlockPos> removeSet,
             Set<BlockPos> connectorAccess
     ) {
+        return apply(writer, patches, placeMap, removeSet, connectorAccess, BlockPos.ORIGIN);
+    }
+
+    private static Optional<Conflict> apply(
+            Component writer,
+            List<BlockPatch> patches,
+            Map<BlockPos, PlaceRecord> placeMap,
+            Set<BlockPos> removeSet,
+            Set<BlockPos> connectorAccess,
+            BlockPos slotOffset
+    ) {
         String type = writer != null && writer.componentType() != null
                 ? writer.componentType().trim().toUpperCase(Locale.ROOT) : "";
         boolean overwriteOk = canOverwritePlace(writer);
         boolean carveOk = canCarve(writer);
+        BlockPos offset = slotOffset == null ? BlockPos.ORIGIN : slotOffset;
 
         for (BlockPatch p : patches) {
             if (p == null) continue;
@@ -355,7 +389,7 @@ public final class PatchOccupancyIndex {
                         && !isHostedStairJoin(writer, existing, pos)
                         && !isBoundUpperMassSeam(writer, existing, pos)
                         && !isHostedMassSecondaryCarve(writer, existing)
-                        && !isHostedDormerRoofJoin(writer, existing, pos)
+                        && !isHostedDormerRoofJoin(writer, existing, pos, offset)
                         && !isHostedStructuralJoin(writer, existing)
                         && !connectorAccess.contains(pos)) {
                     return Optional.of(new Conflict(pos, existing.writerType(), existing.targetBlock(),
@@ -422,7 +456,7 @@ public final class PatchOccupancyIndex {
                         && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)
-                        && !isHostedDormerRoofJoin(writer, prev, pos)
+                        && !isHostedDormerRoofJoin(writer, prev, pos, offset)
                         && !isSameSlotCrownPeerJoin(writer, prev, pos)
                         && !isSoftFoliageOverRail(writer, prev, p.targetBlock())) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
@@ -442,8 +476,10 @@ public final class PatchOccupancyIndex {
     /**
      * Dormer geometry may intersect only its explicitly named roof in the same slot,
      * and only inside the dormer footprint column down to that roof's vertical band.
+     * {@code pos} and the envelope share the same plan frame (component local + slotOffset).
      */
-    private static boolean isHostedDormerRoofJoin(Component writer, PlaceRecord previous, BlockPos pos) {
+    private static boolean isHostedDormerRoofJoin(
+            Component writer, PlaceRecord previous, BlockPos pos, BlockPos slotOffset) {
         if (!ComponentSatelliteAligner.isDormer(writer) || previous == null || previous.owner() == null
                 || !ComponentPlanTypes.isRoofType(ComponentPlanTypes.normalizeType(previous.writerType()))
                 || !java.util.Objects.equals(writer.slotId(), previous.owner().slotId())) return false;
@@ -451,31 +487,37 @@ public final class PatchOccupancyIndex {
         if (host == null || !host.equals(ComponentPlanTypes.getParamString(previous.owner().params(), "component_id"))) {
             return false;
         }
-        return isWithinDormerRoofJoinEnvelope(writer, previous.owner(), pos);
+        return isWithinDormerRoofJoinEnvelope(writer, previous.owner(), pos, slotOffset);
     }
 
     /** Footprint column of the dormer, vertically spanning the host roof up through the dormer body. */
-    private static boolean isWithinDormerRoofJoinEnvelope(Component dormer, Component roof, BlockPos pos) {
-        if (dormer == null || dormer.relativePosition() == null || dormer.dimensions() == null || pos == null) {
+    private static boolean isWithinDormerRoofJoinEnvelope(
+            Component dormer, Component roof, BlockPos pos, BlockPos slotOffset) {
+        if (dormer == null || dormer.dimensions() == null || pos == null) {
             return false;
         }
-        var origin = dormer.relativePosition();
+        var origin = ComponentPlanCompiler.resolveMassOrigin(dormer);
+        if (origin == null) {
+            return false;
+        }
         var dims = dormer.dimensions();
+        int ox = slotOffset == null ? 0 : slotOffset.getX();
+        int oy = slotOffset == null ? 0 : slotOffset.getY();
+        int oz = slotOffset == null ? 0 : slotOffset.getZ();
         int marginXZ = 1;
-        int minX = origin.x() - marginXZ;
-        int maxX = origin.x() + Math.max(0, dims.width() - 1) + marginXZ;
-        int minZ = origin.z() - marginXZ;
-        int maxZ = origin.z() + Math.max(0, dims.depth() - 1) + marginXZ;
+        int minX = origin.x() + ox - marginXZ;
+        int maxX = origin.x() + ox + Math.max(0, dims.width() - 1) + marginXZ;
+        int minZ = origin.z() + oz - marginXZ;
+        int maxZ = origin.z() + oz + Math.max(0, dims.depth() - 1) + marginXZ;
         if (pos.getX() < minX || pos.getX() > maxX || pos.getZ() < minZ || pos.getZ() > maxZ) {
             return false;
         }
-        int dormerTop = origin.y() + Math.max(0, dims.height() - 1) + 1;
-        int roofBottom = origin.y() - 16;
-        if (roof != null && roof.relativePosition() != null) {
-            roofBottom = roof.relativePosition().y() - 1;
-            if (roof.dimensions() != null) {
-                // Keep the full roof height band under the dormer column joinable.
-                roofBottom = Math.min(roofBottom, roof.relativePosition().y() - 1);
+        int dormerTop = origin.y() + oy + Math.max(0, dims.height() - 1) + 1;
+        int roofBottom = origin.y() + oy - 16;
+        if (roof != null) {
+            var roofOrigin = ComponentPlanCompiler.resolveMassOrigin(roof);
+            if (roofOrigin != null) {
+                roofBottom = roofOrigin.y() + oy - 1;
             }
         }
         return pos.getY() >= roofBottom && pos.getY() <= dormerTop;

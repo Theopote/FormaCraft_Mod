@@ -449,6 +449,8 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
 
             building_kb = _building_knowledge_retrieve(qtext, topK=1)
             if building_kb:
+                # Knowledge only — never forward llmPlanRouting / fixed-executor instructions
+                # through ordinary research context (those belong in explicit preset catalogs).
                 building_info = {
                     "name": building_kb.get("name"),
                     "nameEn": building_kb.get("nameEn"),
@@ -456,7 +458,6 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
                     "descriptionZh": building_kb.get("descriptionZh"),
                     "features": building_kb.get("features"),
                     "dimensions": building_kb.get("dimensions"),
-                    "llmPlanRouting": building_kb.get("llmPlanRouting"),
                 }
                 try:
                     from app.services.typology_registry import is_migrated_landmark

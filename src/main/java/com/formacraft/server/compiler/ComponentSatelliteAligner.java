@@ -59,6 +59,7 @@ final class ComponentSatelliteAligner {
             }
         }
         if (massBySlot.isEmpty()) {
+            EntranceApproachAlignment.apply(components, plan, slotMap, assemblyPrimarySlots);
             return;
         }
 
@@ -169,6 +170,10 @@ final class ComponentSatelliteAligner {
                 var params = new HashMap<String, Object>();
                 if (aligned.params() != null) params.putAll(aligned.params());
                 params.putIfAbsent("host_id", mass.params().get("component_id"));
+                if ("PAVING".equals(type) && hostId == null
+                        && ComponentPlanTypes.getParamString(c.params(), "hostId") == null) {
+                    params.put("compiler_inferred_host_id", mass.params().get("component_id"));
+                }
                 params.putIfAbsent("building_id", mass.params().getOrDefault("building_id", mass.params().get("component_id")));
                 if (Set.of("ENTRANCE", "FACADE_WINDOWS", "ROOF", "ROOF_STRUCTURE").contains(type) && ComponentPlanTypes.hasComponentRequest(aligned.features())) {
                     params.put("resolved_host_attachment", true);
@@ -182,6 +187,7 @@ final class ComponentSatelliteAligner {
                 realigned++;
             }
         }
+        realigned += EntranceApproachAlignment.apply(components, plan, slotMap, assemblyPrimarySlots);
         if (realigned > 0) {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: realigned {} satellite component(s) to MASS min_corner", realigned);
         }
@@ -1007,11 +1013,18 @@ final class ComponentSatelliteAligner {
         int start = Math.max(base,Math.min(base+span-bay,center-bay/2));
         int x = side ? ("EAST".equals(face) ? origin.x() : origin.x()+mass.dimensions().width()-thickness) : start;
         int z = side ? start : ("SOUTH".equals(face) ? origin.z() : origin.z()+mass.dimensions().depth()-thickness);
+        // Explicit wall-facing main doors share this alignment path with stair portals.
+        // Keep their authored canopy outside the wall; stair portals keep their clearance.
+        int canopy = params.containsKey("stair_connection") ? 0
+                : Math.max(0, ComponentParamParsers.intParam(params, 0, "canopy_depth", "canopyDepth"));
+        canopy = Math.min(canopy, Math.max(1, (side ? mass.dimensions().width() : mass.dimensions().depth()) / 2));
+        if ("EAST".equals(face)) x -= canopy;
+        if ("SOUTH".equals(face)) z -= canopy;
         params.put("anchor_mode","min_corner");
-        params.put("canopy_depth",0);
+        params.put("canopy_depth",canopy);
         int openingY = rp.y() + (Boolean.TRUE.equals(params.get("entrance_at_deck_level")) ? 1 : 0);
         return new Component("ENTRANCE",door.slotId(),new Vec3i(x,openingY,z),
-                new Dimensions(side ? thickness : bay,side ? bay : thickness,height+1),
+                new Dimensions(side ? thickness + canopy : bay,side ? bay : thickness + canopy,height+1),
                 door.features(),params);
     }
 

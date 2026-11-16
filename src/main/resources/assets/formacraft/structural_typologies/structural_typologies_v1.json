@@ -1427,7 +1427,7 @@
         "dark_fortress",
         "dwarven_underground_hall"
       ],
-      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=gable only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=timber_gable_house. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+      "llmPlanGuidance": "When a weatherproof enclosed building is needed, a MASS_MAIN with optional hosted ROOF, FACADE_WINDOWS, and ENTRANCE is a valid composition — not a mandatory kit; abstract / sculptural massing without those parts is allowed. Use roof_type=gable only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=timber_gable_house. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
     },
     {
       "id": "masonry_palazzo",
@@ -1497,7 +1497,7 @@
         "neoclassical_civic_hall",
         "georgian_civic_hall"
       ],
-      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=hip only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=masonry_palazzo. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+      "llmPlanGuidance": "When a weatherproof enclosed building is needed, a MASS_MAIN with optional hosted ROOF, FACADE_WINDOWS, and ENTRANCE is a valid composition — not a mandatory kit; abstract / sculptural massing without those parts is allowed. Use roof_type=hip only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=masonry_palazzo. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
     },
     {
       "id": "industrial_brick_hall",
@@ -1553,7 +1553,7 @@
       "cultureCardIds": [
         "industrial_brick_hall"
       ],
-      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=gable only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=industrial_brick_hall. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+      "llmPlanGuidance": "When a weatherproof enclosed building is needed, a MASS_MAIN with optional hosted ROOF, FACADE_WINDOWS, and ENTRANCE is a valid composition — not a mandatory kit; abstract / sculptural massing without those parts is allowed. Use roof_type=gable only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=industrial_brick_hall. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
     },
     {
       "id": "concrete_civic_block",
@@ -1614,7 +1614,7 @@
         "brutalist_civic",
         "international_glass_office"
       ],
-      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=flat only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=concrete_civic_block. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+      "llmPlanGuidance": "When a weatherproof enclosed building is needed, a MASS_MAIN with optional hosted ROOF, FACADE_WINDOWS, and ENTRANCE is a valid composition — not a mandatory kit; abstract / sculptural massing without those parts is allowed. Use roof_type=flat only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=concrete_civic_block. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
     },
     {
       "id": "stucco_tile_house",
@@ -1674,7 +1674,7 @@
         "mediterranean_stucco_house",
         "mediterranean_guesthouse"
       ],
-      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=hip only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=stucco_tile_house. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+      "llmPlanGuidance": "When a weatherproof enclosed building is needed, a MASS_MAIN with optional hosted ROOF, FACADE_WINDOWS, and ENTRANCE is a valid composition — not a mandatory kit; abstract / sculptural massing without those parts is allowed. Use roof_type=hip only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=stucco_tile_house. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
     },
     {
       "id": "flat_roof_pavilion",
@@ -1749,7 +1749,7 @@
         "prairie_earth",
         "cyberpunk_block"
       ],
-      "llmPlanGuidance": "Compose MASS_MAIN, an explicit hosted ROOF, FACADE_WINDOWS, and ENTRANCE. Use roof_type=flat only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=flat_roof_pavilion. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
+      "llmPlanGuidance": "When a weatherproof enclosed building is needed, a MASS_MAIN with optional hosted ROOF, FACADE_WINDOWS, and ENTRANCE is a valid composition — not a mandatory kit; abstract / sculptural massing without those parts is allowed. Use roof_type=flat only when unspecified by the user. Bind attachments with unique component_id and host_id. Set proportion_hints.typology=flat_roof_pavilion. Do not emit typology:* features, STRUCTURE, MODULE, or landmark:*; no dedicated native interpreter exists for this composition."
     }
   ],
   "migrationMap": {

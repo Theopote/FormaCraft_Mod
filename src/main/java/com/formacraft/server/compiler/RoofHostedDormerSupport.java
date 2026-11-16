@@ -30,10 +30,20 @@ final class RoofHostedDormerSupport {
     Optional<CapabilityGap> supportGap(Component dormer, Vec3i slotOffset) {
         if (!ComponentSatelliteAligner.isDormer(dormer)) return Optional.empty();
         String host = ComponentPlanTypes.getParamString(dormer.params(), "host_id", "hostId");
-        var roof = roofs.get(new Key(ComponentPlanTypes.slotKey(dormer), host));
+        // Unhosted dormers are outside this check; an explicit host that cannot be resolved is a gap.
+        if (host == null || host.isBlank()) return Optional.empty();
         Vec3i origin = ComponentPlanCompiler.resolveMassOrigin(dormer);
         Dimensions dims = dormer.dimensions();
-        if (roof == null || origin == null || dims == null) return Optional.empty();
+        if (origin == null || dims == null) return Optional.empty();
+        var roof = roofs.get(new Key(ComponentPlanTypes.slotKey(dormer), host));
+        if (roof == null) {
+            return Optional.of(new CapabilityGap(
+                    "E_DORMER_ROOF_SUPPORT",
+                    "老虎窗声明的宿主屋顶不存在：id=" + ComponentPlanTypes.paramIdentity(dormer)
+                            + " host=" + host + " slot=" + ComponentPlanTypes.slotKey(dormer),
+                    "components[]",
+                    List.of("将 host_id 指向同 slot 下真实存在的 ROOF component_id，或先生成该屋面。")));
+        }
         int ox = slotOffset == null ? 0 : slotOffset.x();
         int oz = slotOffset == null ? 0 : slotOffset.z();
         for (int x = 0; x < dims.width(); x++) for (int z = 0; z < dims.depth(); z++) {

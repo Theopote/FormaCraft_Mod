@@ -475,7 +475,7 @@ final class ComponentEmitPass {
                             return patchOccupancy;
                         }
                     }
-                    var occupancyConflict = patchOccupancy.validate(c, shiftedPatches, connectorAccess);
+                    var occupancyConflict = patchOccupancy.validate(c, shiftedPatches, connectorAccess, flightOffset);
                     if (occupancyConflict.isPresent()) {
                         var oc = occupancyConflict.get();
                         var previous = patchOccupancy.placeAt(oc.position());
@@ -491,7 +491,7 @@ final class ComponentEmitPass {
                                         "禁止无关构件互相覆盖同坐标")));
                         return patchOccupancy;
                     }
-                    patchOccupancy.commit(c, shiftedPatches, connectorAccess);
+                    patchOccupancy.commit(c, shiftedPatches, connectorAccess, flightOffset);
 
                     // Phase 1 building-edit: stamp roof provenance for part-index registration.
                     if (ComponentPlanTypes.isRoofType(normalizedType)) {

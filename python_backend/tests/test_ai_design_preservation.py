@@ -56,7 +56,58 @@ def _unique_plan() -> dict:
     }
 
 
+def _mass_only_brutalist() -> dict:
+    return {
+        "mode": "build",
+        "style_profile": "Brutalist",
+        "components": [
+            {
+                "component_type": "MASS_MAIN",
+                "slot_id": "main",
+                "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": 18, "depth": 18, "height": 22},
+                "features": ["monolith"],
+                "params": {"component_id": "mono", "wall_block": "minecraft:stone"},
+            },
+        ],
+    }
+
+
+def _open_structure_plan() -> dict:
+    return {
+        "mode": "build",
+        "style_profile": "Parametric",
+        "components": [
+            {
+                "component_type": "STRUCTURE",
+                "slot_id": "main",
+                "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": 40, "depth": 40, "height": 16},
+                "features": ["freeform_shell"],
+                "params": {"component_id": "shell", "generation_authority": "STRUCTURE"},
+            },
+        ],
+    }
+
+
 class AiDesignPreservationTest(unittest.TestCase):
+    def test_three_divergent_compositions_survive_normalization(self):
+        profile = BuildingProfile(
+            query="开放式展馆",
+            structure=ProfileStructure(distinguishing_features=["glass dome"]),
+        )
+        for plan in (_unique_plan(), _mass_only_brutalist(), _open_structure_plan()):
+            with self.subTest(types=[c["component_type"] for c in plan["components"]]):
+                before = copy.deepcopy(plan)
+                out = _normalize_llm_plan_output(copy.deepcopy(plan), req=None, building_profile=profile)
+                self.assertEqual(
+                    [c["component_type"] for c in out["components"]],
+                    [c["component_type"] for c in before["components"]],
+                )
+                for b, a in zip(before["components"], out["components"]):
+                    self.assertEqual(b["dimensions"], a["dimensions"])
+                    self.assertEqual(b["relative_position"], a["relative_position"])
+
     def test_enrichment_preserves_authored_geometry(self):
         profile = BuildingProfile(
             query="带玻璃穹顶的现代展馆",

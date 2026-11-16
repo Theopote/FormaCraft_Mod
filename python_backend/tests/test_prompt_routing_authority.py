@@ -92,6 +92,22 @@ class PromptRoutingAuthorityTest(unittest.TestCase):
         self.assertIn("optional research evidence", without_profile)
         self.assertNotIn("MUST output ONE MODULE", without_profile)
 
+    def test_castle_knowledge_omits_llm_plan_routing_mandate(self):
+        from app.services.ai_planner import _llm_plan_context_block
+
+        class _Req:
+            requestText = "建造一座中世纪城堡"
+            userMessage = "建造一座中世纪城堡"
+            chatHistory = []
+
+        context = _llm_plan_context_block(_Req(), None)
+        self.assertNotIn("llmPlanRouting", context)
+        self.assertNotIn("LandmarkModuleRouting(JSON)", context)
+        self.assertNotIn("MANDATORY STRUCTURE", context)
+        self.assertNotIn("MUST output ONE MODULE", context)
+        # Soft typology evidence is allowed; hard executor grants are not.
+        self.assertNotIn("You MUST set proportion_hints.typology", context)
+
 
 if __name__ == "__main__":
     unittest.main()

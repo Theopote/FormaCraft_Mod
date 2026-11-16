@@ -98,11 +98,20 @@ class RoofHostedDormerSupportTest {
     @Test void doesNotUseOtherRoofsSlotsOrRaiseAlreadyEmbeddedDormers() {
         var support = new RoofHostedDormerSupport();
         support.record(roof(), slope(new Vec3i(0, 0, 0)));
-        for (var original : List.of(dormer("missing", "main"), dormer("roof", "other")))
+        for (var original : List.of(dormer("missing", "main"), dormer("roof", "other"))) {
             assertSame(original, support.extendToRoof(original, null));
+            assertEquals("E_DORMER_ROOF_SUPPORT", support.supportGap(original, null).orElseThrow().code());
+        }
         var embedded = new Component("MASS_ANCILLARY", "main", new Vec3i(1, 11, 2), new Dimensions(3, 3, 10),
                 List.of("dormer"), dormer("roof", "main").params());
         assertSame(embedded, support.extendToRoof(embedded, null));
+    }
+
+    @Test void missingHostRoofIsExplicitSupportGap() {
+        var support = new RoofHostedDormerSupport();
+        var gap = support.supportGap(dormer("missing", "main"), null).orElseThrow();
+        assertEquals("E_DORMER_ROOF_SUPPORT", gap.code());
+        assertTrue(gap.message().contains("不存在") || gap.message().contains("host=missing"));
     }
 
     @Test void hostedDormersDoNotPunchOutTheirOwnSupportSkin() {
@@ -140,5 +149,21 @@ class RoofHostedDormerSupportTest {
         var dormer = dormer("roof", "main");
         assertTrue(index.validate(dormer, List.of(replacement)).isPresent());
         assertTrue(index.validate(dormer, List.of(carve)).isPresent());
+    }
+
+    @Test void dormerJoinAuthorityHonorsNonZeroSlotOffset() {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+        var index = new PatchOccupancyIndex();
+        var slot = new BlockPos(20, 30, -40);
+        // Local roof cell (1,12,2) shifted by slot → world/plan (21,42,-38)
+        var cell = new BlockPatch(BlockPatch.PLACE, 21, 42, -38, "minecraft:stone");
+        index.commit(roof(), List.of(cell), Set.of(), slot);
+        var replacement = new BlockPatch(BlockPatch.PLACE, 21, 42, -38, "minecraft:bricks");
+        var carve = new BlockPatch(BlockPatch.REMOVE, 21, 42, -38, null);
+        var hosted = dormer("roof", "main");
+        assertTrue(index.validate(hosted, List.of(replacement), Set.of(), slot).isEmpty());
+        assertTrue(index.validate(hosted, List.of(carve), Set.of(), slot).isEmpty());
+        // Same absolute cell without the slot offset must not match the local dormer envelope.
+        assertTrue(index.validate(hosted, List.of(replacement)).isPresent());
     }
 }
