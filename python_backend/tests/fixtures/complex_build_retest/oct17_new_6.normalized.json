@@ -959,14 +959,10 @@
           "source_text": [
             "双坡屋顶"
           ],
-          "scope": "named_chapel",
-          "scope_source": "NAMED",
+          "scope": "unresolved",
+          "scope_source": "INFERRED",
           "priority": "hard",
-          "status": "planned",
-          "target_components": [
-            "chapel_main"
-          ],
-          "mismatched_components": []
+          "status": "pending"
         },
         {
           "id": "req_glass_windows",

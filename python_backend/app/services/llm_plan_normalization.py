@@ -191,6 +191,26 @@ def _looks_courtyard_named(comp: Dict[str, Any]) -> bool:
     return any(hint in blob for hint in _COURTYARD_NAME_HINTS)
 
 
+def _named_scope_mass_hits(masses: list, scope_key: str) -> list:
+    """Resolve ``named_<key>`` scopes via NAMED_BUILDINGS aliases / component ids — never whole prompt."""
+    if not scope_key.startswith("named_"):
+        return []
+    from .building_contract import NAMED_BUILDINGS
+
+    key = scope_key[len("named_") :]
+    aliases = tuple(str(n).lower() for n in NAMED_BUILDINGS.get(key, ()) if n)
+    hits = []
+    for mass in masses:
+        cid = _comp_id(mass).lower()
+        blob = _mass_name_blob(mass)
+        if key and (key in cid or key.replace("_", "") in cid.replace("_", "")):
+            hits.append(mass)
+            continue
+        if any(alias and (alias in cid or alias in blob) for alias in aliases):
+            hits.append(mass)
+    return hits
+
+
 def _resolve_scoped_mass_targets(
     masses: list,
     scope: str | None,
@@ -216,6 +236,10 @@ def _resolve_scoped_mass_targets(
     if scope_key in ("unresolved", "element_scope"):
         return []
     if scope_key and scope_key not in ("plan", "all_main_masses"):
+        if scope_key.startswith("named_"):
+            named_hits = _named_scope_mass_hits(masses, scope_key)
+            # Unique named host only — ambiguous aliases must not guess.
+            return named_hits if len(named_hits) == 1 else []
         scoped = [
             m for m in masses
             if str((m.get("params") or {}).get("requirement_scope") or "").strip() == scope_key
@@ -298,35 +322,87 @@ _PAVILION_HOST_HINTS = (
     "pavilion", "gazebo", "ting", "kiosk", "凉亭", "亭子", "水上亭", "水榭", "八角亭", "六角亭", "方亭", "亭",
 )
 _HALL_HOST_HINTS = (
-    "hall", "house", "main", "殿", "堂", "住宅", "主殿", "正殿", "main_hall",
+    "hall", "house", "殿", "堂", "住宅", "主殿", "正殿", "大殿", "main_hall", "main_body",
 )
+_CLAUSE_BOUNDARIES = ("。", "；", ";", "，", ",", "\n", "\r", "、")
 
 
 def _mass_name_blob(comp: dict) -> str:
+    """Identity/role corpus for host matching — never MASS_MAIN type (contains 'main')."""
     params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
     parts = [
-        comp.get("component_type"),
         comp.get("slot_id"),
         params.get("component_id"),
+        params.get("building_id"),
         params.get("building_role"),
         params.get("buildingRole"),
         params.get("label"),
+        params.get("requirement_scope"),
     ]
     if isinstance(comp.get("features"), list):
         parts.extend(comp.get("features") or [])
     return " ".join(str(x or "").lower() for x in parts)
 
 
+def _local_clause_for_token(user_text: str, token: str) -> str:
+    """Clause window around the first occurrence of ``token`` — never the whole prompt."""
+    text = user_text or ""
+    needle = str(token or "").strip()
+    if not text or not needle:
+        return ""
+    idx = text.find(needle)
+    if idx < 0:
+        idx = text.lower().find(needle.lower())
+    if idx < 0:
+        return ""
+    start = idx
+    while start > 0 and text[start - 1] not in _CLAUSE_BOUNDARIES:
+        start -= 1
+    end = idx + len(needle)
+    while end < len(text) and text[end] not in _CLAUSE_BOUNDARIES:
+        end += 1
+    return text[start:end]
+
+
+def _roof_req_host_cue(req: dict, user_text: str = "") -> str:
+    """Host evidence for one roof requirement: source_text + its local clause only."""
+    source_bits = [str(x or "") for x in (req.get("source_text") or []) if x]
+    parts = list(source_bits)
+    scope = str(req.get("scope") or "").strip()
+    if scope and scope not in ("unresolved", "plan", "all_main_masses", "element_scope"):
+        parts.append(scope)
+    for bit in source_bits:
+        clause = _local_clause_for_token(user_text, bit)
+        if clause:
+            parts.append(clause)
+    return " ".join(parts).lower()
+
+
 def _infer_unique_named_roof_host(masses: list, req: dict, user_text: str = "") -> list:
-    """When scope is unresolved, bind to a unique mass whose id/features match nearby cues."""
+    """When scope is unresolved, bind to a unique mass using this requirement's clause only.
+
+    Classification: FORMAT_REPAIR — must not borrow host cues from other clauses in ``user_text``.
+    """
     if not masses or len(masses) <= 1:
         return []
-    source_bits = req.get("source_text") or []
-    cue = " ".join(str(x or "") for x in source_bits).lower()
-    cue += " " + str(req.get("scope") or "").lower()
-    cue += " " + (user_text or "").lower()
+    # Prefer explicit ids already on the requirement.
+    ids = {str(x).strip() for x in (req.get("target_components") or []) if x}
+    if ids:
+        hit = [m for m in masses if _comp_id(m) in ids]
+        return hit if len(hit) == 1 else []
+    scope = str(req.get("scope") or "").strip()
+    if scope.startswith("named_"):
+        named = _named_scope_mass_hits(masses, scope)
+        return named if len(named) == 1 else []
+
+    cue = _roof_req_host_cue(req, user_text)
+    if not cue.strip():
+        return []
     want_pavilion = any(h in cue for h in _PAVILION_HOST_HINTS)
     want_hall = any(h in cue for h in _HALL_HOST_HINTS)
+    # Same-clause dual cues are ambiguous — never prefer pavilion over hall from whole prompt.
+    if want_pavilion and want_hall:
+        return []
     if not want_pavilion and not want_hall:
         return []
     hits = []
@@ -336,13 +412,6 @@ def _infer_unique_named_roof_host(masses: list, req: dict, user_text: str = "") 
             hits.append(mass)
         elif want_hall and any(h in blob for h in _HALL_HOST_HINTS):
             hits.append(mass)
-    # Prefer pavilion hits when both cues appear (house + pavilion compounds).
-    if want_pavilion:
-        pavilion_hits = [
-            m for m in hits if any(h in _mass_name_blob(m) for h in _PAVILION_HOST_HINTS)
-        ]
-        if len(pavilion_hits) == 1:
-            return pavilion_hits
     return hits if len(hits) == 1 else []
 
 

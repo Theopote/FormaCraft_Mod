@@ -239,8 +239,8 @@
           "source_text": [
             "平屋顶"
           ],
-          "scope": "named_main_body",
-          "scope_source": "NAMED",
+          "scope": "unresolved",
+          "scope_source": "INFERRED",
           "priority": "hard",
           "status": "planned",
           "target_components": [

@@ -37,6 +37,23 @@ public final class UserConstraintContract {
     public record HeightBinding(int blocks, String roleHint) {}
 
     /**
+     * One player-authored design omission (roof / windows / entrance), optionally role/ordinal-scoped.
+     * Classification: HARD_CONSTRAINT — server re-verifies from real player text before sealing.
+     */
+    public record DesignOmitBinding(String domain, String roleHint, String ordinalScope) {
+        public DesignOmitBinding(String domain, String roleHint) {
+            this(domain, roleHint, null);
+        }
+    }
+
+    private static final Pattern ORDINAL_BUILDING = Pattern.compile(
+            "第([一二两三四五六七八九十]|\\d+)栋");
+    private static final Map<String, Integer> CN_ORDINAL = Map.ofEntries(
+            Map.entry("一", 1), Map.entry("二", 2), Map.entry("两", 2), Map.entry("三", 3),
+            Map.entry("四", 4), Map.entry("五", 5), Map.entry("六", 6), Map.entry("七", 7),
+            Map.entry("八", 8), Map.entry("九", 9), Map.entry("十", 10));
+
+    /**
      * Height in blocks: requires an explicit unit (格/块/m/米) or English {@code height}.
      * Rejects 「高28层」 and {@code height 100 floors} (storey count, not envelope height).
      * English digits require a full-number boundary so {@code height 100} cannot match as {@code 10}.
@@ -45,6 +62,13 @@ public final class UserConstraintContract {
             "(?:高度|高)\\s*(\\d{1,3})\\s*[格块m米](?!\\s*层)"
                     + "|height\\s*[:=]?\\s*(\\d{1,3})(?!\\d)(?!\\s*(?:storeys?|floors?|层))",
             Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern DESIGN_OMIT_ROOF = Pattern.compile(
+            "(?:不要|不需要|不需)(?:生成|添加|建造)?屋顶|无屋顶");
+    private static final Pattern DESIGN_OMIT_WINDOW = Pattern.compile(
+            "(?:不要|不需要|不需)(?:生成|添加)?(?:窗户|窗洞)|不开窗|无窗(?:户)?");
+    private static final Pattern DESIGN_OMIT_ENTRANCE = Pattern.compile(
+            "(?:不要|不需要|不需)(?:生成|添加)?(?:入口|门洞)|无入口");
 
     private UserConstraintContract() {}
 
@@ -149,13 +173,14 @@ public final class UserConstraintContract {
      * and seal as USER_EXPLICIT. No-op when the text has no block height cue.
      */
     public static void applyAuthoritativeHeight(Map<String, Object> params, String userText) {
+        if (params == null) return;
+        stripUntrustedMarkers(params);
         applyAuthoritativeHeightValue(params, parseExplicitHeightBlocks(userText));
     }
 
-    /** Bind a concrete height value and seal height/towerHeight. */
+    /** Bind a concrete height value and seal height/towerHeight (caller must strip forgeries first). */
     public static void applyAuthoritativeHeightValue(Map<String, Object> params, int heightBlocks) {
         if (params == null || heightBlocks <= 0) return;
-        stripUntrustedMarkers(params);
         params.put("height", heightBlocks);
         params.put("towerHeight", heightBlocks);
         stampVerified(params, "height", "towerHeight");
@@ -167,6 +192,120 @@ public final class UserConstraintContract {
      */
     public static void stampHeightFromUserText(Map<String, Object> params, String userText) {
         applyAuthoritativeHeight(params, userText);
+    }
+
+    /**
+     * Re-mint seals for previously verified keys after a strip, when the values are still present.
+     * Used when compile re-enters {@code RequestIntentInjector} without a FormaRequest text.
+     */
+    public static void restampPreserved(Map<String, Object> params, Map<String, Object> priorVerified) {
+        if (params == null || priorVerified == null || priorVerified.isEmpty()) return;
+        List<String> keys = new ArrayList<>();
+        for (Map.Entry<String, Object> e : priorVerified.entrySet()) {
+            if (e.getKey() == null || e.getKey().isBlank()) continue;
+            if (!params.containsKey(e.getKey()) || params.get(e.getKey()) == null) continue;
+            if (e.getValue() != null
+                    && TypologyParamResolver.SOURCE_USER_EXPLICIT.equalsIgnoreCase(
+                    String.valueOf(e.getValue()).trim())) {
+                keys.add(e.getKey());
+            }
+        }
+        if (!keys.isEmpty()) {
+            stampVerified(params, keys.toArray(String[]::new));
+        }
+    }
+
+    /**
+     * Parse local roof/window/entrance omission cues with clause-local role hints.
+     * Does not invent ownership from the whole prompt — roleHint may be null.
+     */
+    public static List<DesignOmitBinding> parseDesignOmitBindings(String userText) {
+        List<DesignOmitBinding> out = new ArrayList<>();
+        if (userText == null || userText.isBlank()) return out;
+        collectOmit(out, DESIGN_OMIT_ROOF, userText, "roof");
+        collectOmit(out, DESIGN_OMIT_WINDOW, userText, "window");
+        collectOmit(out, DESIGN_OMIT_ENTRANCE, userText, "entrance");
+        return out;
+    }
+
+    private static void collectOmit(
+            List<DesignOmitBinding> out, Pattern pattern, String text, String domain) {
+        Matcher m = pattern.matcher(text);
+        while (m.find()) {
+            // Skip gable-window clauses for window domain (山墙…无窗).
+            if ("window".equals(domain)) {
+                int from = Math.max(0, m.start() - 30);
+                String prefix = text.substring(from, m.start());
+                if (prefix.matches("(?s).*山墙[^。；\\n]*")) continue;
+            }
+            String hint = inferDesignOmitRoleHint(text, m.start(), m.end());
+            out.add(new DesignOmitBinding(domain, hint));
+        }
+    }
+
+    /**
+     * Prefer ordinal {@code building_N} from the local clause; else hall/pavilion/tower role.
+     */
+    static String inferDesignOmitRoleHint(String text, int matchStart, int matchEnd) {
+        if (text == null) return null;
+        int from = matchStart;
+        while (from > 0) {
+            char c = text.charAt(from - 1);
+            if (isHeightClauseBoundary(c)) break;
+            from--;
+        }
+        int to = matchEnd;
+        while (to < text.length()) {
+            char c = text.charAt(to);
+            if (isHeightClauseBoundary(c)) break;
+            to++;
+        }
+        String window = text.substring(from, to);
+        Matcher ordinal = ORDINAL_BUILDING.matcher(window);
+        if (ordinal.find()) {
+            String raw = ordinal.group(1);
+            Integer mapped = CN_ORDINAL.get(raw);
+            int n = mapped != null ? mapped : -1;
+            if (n < 0) {
+                try {
+                    n = Integer.parseInt(raw);
+                } catch (NumberFormatException ex) {
+                    n = -1;
+                }
+            }
+            if (n > 0) return "building_" + n;
+        }
+        return inferHeightRoleHint(text, matchStart, matchEnd);
+    }
+
+    /**
+     * Apply a verified local omission onto mass params and seal the relevant keys.
+     * Classification: HARD_CONSTRAINT — values come from server-checked player text.
+     */
+    public static void applyVerifiedDesignOmit(Map<String, Object> params, String domain) {
+        if (params == null || domain == null) return;
+        switch (domain) {
+            case "roof" -> {
+                params.put("roof_type", "none");
+                params.put("roof_requirement", "OMITTED");
+                stampVerified(params, "roof_type", "roof_requirement");
+            }
+            case "window" -> {
+                params.put("window_style", "none");
+                params.put("window_ratio", 0);
+                params.put("facade_requirement", "OMITTED");
+                params.put("window_requirement", "OMITTED");
+                stampVerified(params, "window_style", "window_ratio",
+                        "facade_requirement", "window_requirement");
+            }
+            case "entrance" -> {
+                params.put("entrance_type", "none");
+                params.put("entrance_requirement", "OMITTED");
+                stampVerified(params, "entrance_type", "entrance_requirement");
+            }
+            default -> {
+            }
+        }
     }
 
     /** Build a plan_meta contract snapshot from server user text (not from LLM params). */

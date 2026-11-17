@@ -68,6 +68,11 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `_strip_forged_user_explicit` | LLM `design_sources=USER_EXPLICIT` | **Added (2026-11-18):** demote forged USER_EXPLICIT + strip Java seal markers before server re-stamp |
 | `DesignRequirementAccess.resolveOmitAware` | mass REQUIRED/OPTIONAL before plan | **Fixed (2026-11-18):** only `UserConstraintContract` sealed keys beat plan_meta; forged JSON USER_EXPLICIT ignored |
 | `PavilionOpenFrameRepair.applyOpenFrame` | id/role pavilion → force open | **Fixed (2026-11-18):** open-frame only when already open / open-pavilion features; `looksAuthoredEnclosed` preserves walls/windows/doors |
+| `RequestIntentInjector.applyServerConstraintsToComponents` | height seals only | **Extended (2026-11-18):** FormaRequest text mints roof/window/entrance OMITTED seals; `ensure(null)` may rebind height numbers from plan echo for geometry only (no new design seals); prior seals restamped after strip |
+| `UserConstraintContract.parseDesignOmitBindings` | — | **Added (2026-11-18):** HARD_CONSTRAINT clause/ordinal omit parsing; Java re-verifies before `stampVerified` |
+| `_infer_unique_named_roof_host` / `_roof_req_host_cue` | whole `user_text` as cue | **Fixed (2026-11-18):** clause-local source_text evidence only; dual hall+pavilion cues in one clause → no bind; `named_*` via NAMED_BUILDINGS (主殿/亭子) |
+| `_roof_clause_subject` / roof conflict collapse | sentence-wide subject; unresolved multi-value wipe | **Fixed (2026-11-18):** comma-bounded nearest named host; do not null distinct unresolved roofs |
+| `NAMED_BUILDINGS` | missing 主殿/pavilion | **Extended (2026-11-18):** `main_hall`+=主殿/正殿/大殿; add `pavilion` aliases for named scope resolution |
 | `building_contract` specialty roofs | classical 歇山/悬山/硬山/庑殿 | **Extended:** participate in ordinal `building_N` scopes (not only western specialty roofs) |
 | `TransitionalSatellitePlans` / migrate whitelist | historical satellite opt-in | **Fixed:** load-time inject only (test sources); migrate script denied for `complex_build_retest` / `llmplan_examples` / eval plans |
 | `llm_plan_normalization` explicit omissions | roof/windows/entrance none | **Extended (2026-11-17):** USER_EXPLICIT + design_requirements OMITTED; drop conflicting satellites |

@@ -18,7 +18,8 @@ NAMED_BUILDINGS = {
     'office': ('办公楼', 'office'),
     'workshop': ('主车间', '维修车间', 'workshop'),
     'boiler': ('锅炉房', 'boiler'),
-    'main_hall': ('正厅', '中央大厅', 'main_hall', 'townhall_main'),
+    'main_hall': ('正厅', '中央大厅', '主殿', '正殿', '大殿', 'main_hall', 'townhall_main'),
+    'pavilion': ('凉亭', '亭子', '小亭', '水上亭', '水榭', '八角亭', '六角亭', '方亭', 'garden_pavilion', 'pavilion'),
     'wing': ('厢房', '侧翼', 'east_wing', 'west_wing'),
     'gatehouse': ('门楼', 'gatehouse'),
     'mill': ('磨坊', 'mill'),
@@ -52,6 +53,39 @@ def _explicit_all_mass_quantifier(text: str, match: re.Match | None = None) -> b
     return bool(_EXPLICIT_ALL_MASS_QUANTIFIERS.search(blob))
 
 
+def _roof_clause_subject(text: str, match: re.Match) -> str:
+    """Named/ordinal subject for a roof token using comma-bounded clause evidence only.
+
+    Unlike ``_numeric_subject`` (dimensions may span commas), roof ownership must not
+    borrow a building name from a sibling clause in the same sentence.
+    """
+    bounds = ('。', '；', ';', '，', ',', '、')
+    start = max(text.rfind(s, 0, match.start()) for s in bounds) + 1
+    end_at = [text.find(s, match.end()) for s in bounds]
+    end_at = [i for i in end_at if i >= 0]
+    end = min(end_at) if end_at else len(text)
+    window = text[start:end]
+    # Prefer the named building closest to the roof token (never a later clause subject).
+    rel_token = match.start() - start
+    candidates: list[tuple[int, str]] = []
+    for key, names in NAMED_BUILDINGS.items():
+        for name in names:
+            if not name:
+                continue
+            from_idx = 0
+            while True:
+                idx = window.find(name, from_idx)
+                if idx < 0:
+                    break
+                # Distance to roof token; names after the token in-clause still count.
+                candidates.append((abs(idx - rel_token), key))
+                from_idx = idx + len(name)
+    if candidates:
+        candidates.sort()
+        return 'named_' + candidates[0][1]
+    return 'unresolved'
+
+
 def _refine_roof_scope(text: str, requirement: dict, match: re.Match | None) -> None:
     """Separate EXPLICIT global quantifiers from INFERRED default whole-compound scopes.
 
@@ -62,7 +96,7 @@ def _refine_roof_scope(text: str, requirement: dict, match: re.Match | None) -> 
         requirement['scope_source'] = 'INFERRED'
         # Keep status=pending: the roof value is known; only ownership is unresolved.
         return
-    subject = _numeric_subject(text, match)
+    subject = _roof_clause_subject(text, match)
     if subject.startswith('named_') or subject.startswith('building_'):
         requirement['scope'] = subject
         requirement['scope_source'] = 'NAMED' if subject.startswith('named_') else 'EXPLICIT_ORDINAL'
@@ -199,6 +233,8 @@ def _extract_global_requirements(text: str) -> list[dict]:
     roof_requirements = [requirement for requirement in result if requirement['property']=='roof_type']
     if any(requirement['value'] in specialty_roofs for requirement in roof_requirements):
         for scope in {requirement['scope'] for requirement in roof_requirements}:
+            # Same scope with multiple roof values is incompatible (incl. unresolved co-mentions).
+            # Distinct clause subjects refine to different named_* scopes first, so they survive.
             scoped = [requirement for requirement in roof_requirements if requirement['scope']==scope]
             if len({requirement['value'] for requirement in scoped if requirement.get('value') is not None}) > 1:
                 for requirement in scoped:

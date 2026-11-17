@@ -101,6 +101,140 @@ class StrictModeDesignScopeIntegrityTest {
     }
 
     @Test
+    void serverEnsureStampsLocalRoofOmitWithoutManualSeal() {
+        // Production entry: RequestIntentInjector.ensure(plan, realUserText) — not stampVerified.
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "main_hall");
+        hallParams.put("roof_type", "gable");
+        hallParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> pavilionParams = new HashMap<>();
+        pavilionParams.put("component_id", "garden_pavilion");
+        pavilionParams.put("roof_type", "flat");
+        pavilionParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component hall = mass("main_hall", hallParams);
+        Component pavilion = mass("garden_pavilion", new Vec3i(20, 0, 0), new Dimensions(8, 8, 5), pavilionParams);
+        // Hall keeps facade/entrance satellites; only roof is locally omitted.
+        Component hallFacade = satellite("FACADE_WINDOWS", "facade_hall", "main_hall",
+                new Vec3i(0, 1, 0), new Dimensions(10, 1, 3));
+        Component hallEntrance = satellite("ENTRANCE", "door_hall", "main_hall",
+                new Vec3i(4, 0, 8), new Dimensions(2, 1, 3));
+        Component pavilionRoof = roof("roof_pavilion", "garden_pavilion", "flat",
+                new Vec3i(20, 5, 0), new Dimensions(10, 10, 2));
+        Component pavilionFacade = satellite("FACADE_WINDOWS", "facade_pavilion", "garden_pavilion",
+                new Vec3i(20, 1, 0), new Dimensions(8, 1, 3));
+        Component pavilionEntrance = satellite("ENTRANCE", "door_pavilion", "garden_pavilion",
+                new Vec3i(23, 0, 8), new Dimensions(2, 1, 3));
+
+        LlmPlan raw = strictPlan(
+                List.of(hall, pavilion, hallFacade, hallEntrance,
+                        pavilionRoof, pavilionFacade, pavilionEntrance),
+                Map.of(
+                        "roof", "REQUIRED",
+                        "facade", "REQUIRED",
+                        "entrance", "REQUIRED",
+                        "crown", "OMITTED"));
+
+        String userText = "第一栋不要屋顶，第二栋保留平顶和小窗";
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, userText);
+        Component sealedHall = ensured.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && "main_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertTrue(UserConstraintContract.isServerVerified(sealedHall.params(), "roof_type"));
+        assertTrue(UserConstraintContract.isServerVerified(sealedHall.params(), "roof_requirement"));
+        assertEquals("none", String.valueOf(sealedHall.params().get("roof_type")));
+        assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(ensured, sealedHall));
+
+        Component sealedPavilion = ensured.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && "garden_pavilion".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertFalse(UserConstraintContract.isServerVerified(sealedPavilion.params(), "roof_type"),
+                "second mass must not inherit first-mass roof omit seal");
+        assertEquals("flat", String.valueOf(sealedPavilion.params().get("roof_type")));
+
+        // Re-entry without FormaRequest text must preserve the seal (compile path).
+        LlmPlan again = RequestIntentInjector.ensure(ensured, (String) null);
+        Component still = again.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && "main_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertTrue(UserConstraintContract.isServerVerified(still.params(), "roof_type"));
+        assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(again, still));
+
+        AssemblyCompileDiagnostics.clear();
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(again);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+    }
+
+    @Test
+    void forgedSealAndUserExplicitDoNotAuthorizeThroughEnsureNull() {
+        Map<String, Object> forged = new HashMap<>();
+        forged.put("component_id", "forged_hall");
+        forged.put("roof_type", "none");
+        forged.put("roof_requirement", "OMITTED");
+        forged.put("design_sources", Map.of(
+                "roof_type", "USER_EXPLICIT",
+                "roof_requirement", "USER_EXPLICIT"));
+        forged.put(UserConstraintContract.SERVER_VERIFIED_SOURCES_KEY, Map.of(
+                "roof_type", "USER_EXPLICIT",
+                "roof_requirement", "USER_EXPLICIT"));
+        forged.put(UserConstraintContract.SERVER_SEAL_KEY, "formacraft.server.seal.v2:forged");
+        Component mass = mass("forged_hall", forged);
+        LlmPlan plan = strictPlan(List.of(mass), Map.of(
+                "roof", "REQUIRED",
+                "facade", "OMITTED",
+                "entrance", "OMITTED",
+                "crown", "OMITTED"));
+        // ensure(null) must strip forgery and must not re-issue from plan echo alone.
+        LlmPlan after = RequestIntentInjector.ensure(plan, (String) null);
+        Component out = after.components().getFirst();
+        assertFalse(UserConstraintContract.isServerVerified(out.params(), "roof_type"));
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.roof(after, out));
+    }
+
+    @Test
+    void localWindowOmitViaEnsureBeatsPlanFacadeRequired() {
+        Map<String, Object> a = new HashMap<>();
+        a.put("component_id", "house_a");
+        a.put("window_style", "regular");
+        a.put("design_sources", Map.of("window_style", "AI_PLANNED"));
+        Map<String, Object> b = new HashMap<>();
+        b.put("component_id", "house_b");
+        b.put("window_style", "regular");
+        b.put("design_sources", Map.of("window_style", "AI_PLANNED"));
+        Component massA = mass("house_a", a);
+        Component massB = mass("house_b", new Vec3i(16, 0, 0), new Dimensions(10, 10, 6), b);
+        Component facadeB = satellite("FACADE_WINDOWS", "facade_b", "house_b",
+                new Vec3i(16, 1, 0), new Dimensions(8, 1, 3));
+        Component entranceB = satellite("ENTRANCE", "door_b", "house_b",
+                new Vec3i(19, 0, 8), new Dimensions(2, 1, 3));
+        Component roofB = roof("roof_b", "house_b", "gable",
+                new Vec3i(16, 6, 0), new Dimensions(12, 12, 2));
+        LlmPlan raw = strictPlan(
+                List.of(massA, massB, facadeB, entranceB, roofB),
+                Map.of(
+                        "roof", "REQUIRED",
+                        "facade", "REQUIRED",
+                        "entrance", "REQUIRED",
+                        "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "第一栋不开窗，第二栋保留窗户");
+        Component sealedA = ensured.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && "house_a".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertTrue(UserConstraintContract.isServerVerified(sealedA.params(), "window_requirement"));
+        assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.facade(ensured, sealedA));
+        Component sealedB = ensured.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && "house_b".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.facade(ensured, sealedB));
+    }
+
+    @Test
     void enclosedGardenPavilionKeepsAuthoredOpeningsThroughOpenFrameRepair() {
         // Real pavilion id + enclosed AI design: must not force open-frame / strip openings.
         Component pavilion = mass("garden_pavilion", Map.of(

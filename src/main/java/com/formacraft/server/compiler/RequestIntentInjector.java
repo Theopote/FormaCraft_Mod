@@ -10,9 +10,11 @@ import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,6 +44,8 @@ public final class RequestIntentInjector {
     public static LlmPlan ensure(LlmPlan plan, String userText) {
         if (plan == null) return null;
         String text = userText == null ? "" : userText.trim();
+        // Only FormaRequest-backed non-blank text may mint/reissue server seals.
+        boolean authorizeFromText = !text.isBlank();
         Map<String, Object> meta = plan.planMeta() == null
                 ? new HashMap<>()
                 : new HashMap<>(plan.planMeta());
@@ -53,7 +57,7 @@ public final class RequestIntentInjector {
             Map<String, Object> reconciled = new HashMap<>((Map<String, Object>) existingMap);
             String echo = String.valueOf(existingMap.get("original_text")).trim();
             // Server userText is authoritative. Python/LLM echo must not replace it.
-            boolean mismatch = !text.isBlank() && !textEqualsIgnoreSpace(text, echo);
+            boolean mismatch = authorizeFromText && !textEqualsIgnoreSpace(text, echo);
             if (mismatch) {
                 reconciled.put("parsed_intent_echo", echo);
                 reconciled.put("stale_parsed_intent", snapshotStructuredIntent(existingMap));
@@ -62,38 +66,47 @@ public final class RequestIntentInjector {
                 FormacraftMod.LOGGER.info(
                         "RequestIntentInjector: INTENT_ECHO_MISMATCH serverText≠plan echo; re-extracting intent");
                 echo = text;
-            } else if (!text.isBlank()) {
+            } else if (authorizeFromText) {
                 reconciled.put("original_text", text);
                 echo = text;
             }
-            // Always verify structured intent against server text — matching echo can still have wrong class.
-            if (!echo.isBlank()) {
-                applyKeywordAuthority(reconciled, extractKeyword(echo), mismatch || !text.isBlank());
+            // Keyword class reconciliation may use echo for continuity, but seals need server text.
+            String intentText = authorizeFromText ? text : echo;
+            if (!intentText.isBlank()) {
+                applyKeywordAuthority(reconciled, extractKeyword(intentText), authorizeFromText);
             } else {
-                reconcileRoofFromText(reconciled, echo);
+                reconcileRoofFromText(reconciled, intentText);
             }
-            int explicitH = com.formacraft.common.typology.UserConstraintContract
-                    .parseExplicitHeightBlocks(echo);
+            int explicitH = authorizeFromText
+                    ? com.formacraft.common.typology.UserConstraintContract
+                    .parseExplicitHeightBlocks(text)
+                    : 0;
             if (explicitH > 0) {
                 reconciled.put("height_explicit", Boolean.TRUE);
                 reconciled.put("explicit_height_blocks", explicitH);
-            } else {
+            } else if (authorizeFromText) {
                 reconciled.remove("height_explicit");
                 reconciled.remove("explicit_height_blocks");
             }
             meta.put("request_intent", reconciled);
-            meta.put("request_intent_text", echo);
+            meta.put("request_intent_text", authorizeFromText ? text : echo);
+            // Keep plan_meta height contract in sync with the active intent text (server or echo).
+            // Component design-omit seals still require authorizeFromText below.
             meta.put(com.formacraft.common.typology.UserConstraintContract.PLAN_META_KEY,
-                    com.formacraft.common.typology.UserConstraintContract.buildPlanMetaContract(echo));
+                    com.formacraft.common.typology.UserConstraintContract.buildPlanMetaContract(
+                            authorizeFromText ? text : echo));
             if (reconciled.get("building_class") != null) {
                 meta.put("building_class", reconciled.get("building_class"));
             }
             LlmPlan withIntent = withMeta(plan, meta);
-            withIntent = applyServerConstraintsToComponents(withIntent, echo);
+            // Geometry height may rebind from plan echo during compile; seals mint only from FormaRequest.
+            withIntent = applyServerConstraintsToComponents(
+                    withIntent, authorizeFromText ? text : echo, authorizeFromText);
             return OpeningConstraintProvenance.stamp(withIntent);
         }
-        if (text.isBlank()) {
-            return plan;
+        if (!authorizeFromText) {
+            // No server text and no prior request_intent: preserve existing valid seals only.
+            return applyServerConstraintsToComponents(plan, "", false);
         }
         Map<String, Object> keyword = extractKeyword(text);
         Map<String, Object> intent = mergeWithLlmDeclared(keyword, meta);
@@ -109,21 +122,35 @@ public final class RequestIntentInjector {
                 com.formacraft.common.typology.UserConstraintContract.buildPlanMetaContract(text));
         meta.put("building_class", intent.get("building_class"));
         LlmPlan withIntent = withMeta(plan, meta);
-        withIntent = applyServerConstraintsToComponents(withIntent, text);
+        withIntent = applyServerConstraintsToComponents(withIntent, text, true);
         return OpeningConstraintProvenance.stamp(withIntent);
     }
 
     /**
-     * Strip forged verification markers, then bind server-authoritative heights onto host masses.
-     * Multiple height cues are matched by role hint (hall / pavilion / tower); a single cue still
-     * binds the primary mass. Params and {@link com.formacraft.common.llm.dto.Dimensions#height()}
-     * stay in lockstep.
+     * Strip forged verification markers, then bind server-authoritative heights and local design
+     * omissions onto host masses. Seals are issued only when {@code authorizeFromText} is true
+     * (FormaRequest-backed text). Compile-time {@code ensure(plan, null)} preserves prior seals.
      */
     static LlmPlan applyServerConstraintsToComponents(LlmPlan plan, String userText) {
+        return applyServerConstraintsToComponents(plan, userText, userText != null && !userText.isBlank());
+    }
+
+    static LlmPlan applyServerConstraintsToComponents(
+            LlmPlan plan, String userText, boolean authorizeFromText) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         String text = userText == null ? "" : userText;
+        // Height numbers may rebind from plan echo for compile geometry continuity.
+        // Design-omit seals and USER_EXPLICIT stamps require authorizeFromText (FormaRequest).
         List<com.formacraft.common.typology.UserConstraintContract.HeightBinding> bindings =
-                com.formacraft.common.typology.UserConstraintContract.parseExplicitHeightBindings(text);
+                text.isBlank()
+                        ? List.of()
+                        : com.formacraft.common.typology.UserConstraintContract
+                        .parseExplicitHeightBindings(text);
+        List<com.formacraft.common.typology.UserConstraintContract.DesignOmitBinding> omits =
+                authorizeFromText
+                        ? com.formacraft.common.typology.UserConstraintContract
+                        .parseDesignOmitBindings(text)
+                        : List.of();
         String primary = BuildingHostResolver.primaryMassId(plan, plan.components());
         List<Component> hosts = new ArrayList<>();
         for (Component c : plan.components()) {
@@ -131,6 +158,8 @@ public final class RequestIntentInjector {
         }
         boolean multi = hosts.size() > 1;
         Map<String, Integer> heightByMassId = resolveHeightBindings(hosts, primary, multi, bindings);
+        Map<String, Set<String>> omitByMassId = resolveDesignOmitBindings(
+                hosts, primary, multi, omits);
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
@@ -140,25 +169,55 @@ public final class RequestIntentInjector {
             }
             String mid = BuildingHostResolver.massId(c);
             Integer boundH = heightByMassId.get(mid);
+            Set<String> omitDomains = omitByMassId.getOrDefault(mid, Set.of());
             boolean needHeight = boundH != null && boundH > 0;
+            boolean needOmit = !omitDomains.isEmpty();
             boolean hadParams = c.params() != null && !c.params().isEmpty();
-            if (!hadParams && !needHeight) {
+            if (!hadParams && !needHeight && !needOmit) {
                 out.add(c);
                 continue;
             }
             Map<String, Object> params = hadParams ? new HashMap<>(c.params()) : new HashMap<>();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> priorVerified =
+                    (!authorizeFromText
+                            && com.formacraft.common.typology.UserConstraintContract.hasServerSeal(params)
+                            && params.get(com.formacraft.common.typology.UserConstraintContract
+                            .SERVER_VERIFIED_SOURCES_KEY) instanceof Map<?, ?> raw)
+                            ? new HashMap<>((Map<String, Object>) raw)
+                            : null;
             com.formacraft.common.typology.UserConstraintContract.stripUntrustedMarkers(params);
             com.formacraft.common.llm.dto.Dimensions dims = c.dimensions();
             if (needHeight) {
                 int explicitH = boundH;
-                com.formacraft.common.typology.UserConstraintContract
-                        .applyAuthoritativeHeightValue(params, explicitH);
+                if (authorizeFromText) {
+                    com.formacraft.common.typology.UserConstraintContract
+                            .applyAuthoritativeHeightValue(params, explicitH);
+                } else {
+                    // Geometry continuity only — do not mint seals from plan echo.
+                    params.put("height", explicitH);
+                    params.put("towerHeight", explicitH);
+                }
                 if (dims == null) {
                     dims = new com.formacraft.common.llm.dto.Dimensions(8, 8, explicitH);
                 } else if (dims.height() != explicitH) {
                     dims = new com.formacraft.common.llm.dto.Dimensions(
                             Math.max(1, dims.width()), Math.max(1, dims.depth()), explicitH);
                 }
+            }
+            if (authorizeFromText) {
+                for (String domain : omitDomains) {
+                    com.formacraft.common.typology.UserConstraintContract
+                            .applyVerifiedDesignOmit(params, domain);
+                }
+            } else if (priorVerified != null) {
+                // Drop height keys if we overwrote them from untrusted echo without re-authorization.
+                if (needHeight) {
+                    priorVerified.remove("height");
+                    priorVerified.remove("towerHeight");
+                }
+                com.formacraft.common.typology.UserConstraintContract
+                        .restampPreserved(params, priorVerified);
             }
             boolean paramsChanged = !params.equals(hadParams ? c.params() : Map.of());
             boolean dimsChanged = dims != c.dimensions()
@@ -176,6 +235,72 @@ public final class RequestIntentInjector {
             }
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+    }
+
+    /**
+     * Map mass ids to local design-omit domains using clause role hints.
+     * Single cue / single host → that host (or primary). Multi-host without a unique role match → skip.
+     */
+    static Map<String, Set<String>> resolveDesignOmitBindings(
+            List<Component> hosts,
+            String primary,
+            boolean multi,
+            List<com.formacraft.common.typology.UserConstraintContract.DesignOmitBinding> bindings
+    ) {
+        Map<String, Set<String>> out = new HashMap<>();
+        if (bindings == null || bindings.isEmpty() || hosts == null || hosts.isEmpty()) return out;
+        for (var b : bindings) {
+            if (b == null || b.domain() == null || b.domain().isBlank()) continue;
+            String target = null;
+            String hint = b.roleHint();
+            if (!multi || hosts.size() == 1) {
+                target = primary != null ? primary : BuildingHostResolver.massId(hosts.getFirst());
+            } else if (hint != null && hint.startsWith("building_")) {
+                target = resolveOrdinalOmitHost(hosts, primary, hint);
+            } else if (hint != null && !hint.isBlank()) {
+                Component best = null;
+                int bestScore = 0;
+                for (Component host : hosts) {
+                    int score = heightRoleScore(host, hint);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = host;
+                    }
+                }
+                if (best != null && bestScore > 0) {
+                    target = BuildingHostResolver.massId(best);
+                }
+            }
+            // Unscoped multi-mass omit must not stamp every building.
+            if (target == null || target.isBlank()) continue;
+            out.computeIfAbsent(target, k -> new HashSet<>()).add(b.domain());
+        }
+        return out;
+    }
+
+    private static String resolveOrdinalOmitHost(
+            List<Component> hosts, String primary, String buildingHint) {
+        for (Component host : hosts) {
+            if (host.params() == null) continue;
+            Object scope = host.params().get("requirement_scope");
+            if (scope != null && buildingHint.equals(String.valueOf(scope).trim())) {
+                return BuildingHostResolver.massId(host);
+            }
+        }
+        int n;
+        try {
+            n = Integer.parseInt(buildingHint.substring("building_".length()));
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+        if (n == 1 && primary != null) return primary;
+        if (n == 2) {
+            for (Component host : hosts) {
+                String mid = BuildingHostResolver.massId(host);
+                if (mid != null && (primary == null || !primary.equals(mid))) return mid;
+            }
+        }
+        return null;
     }
 
     /**

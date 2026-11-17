@@ -210,14 +210,10 @@
           "source_text": [
             "双坡屋顶"
           ],
-          "scope": "named_mill",
-          "scope_source": "NAMED",
+          "scope": "unresolved",
+          "scope_source": "INFERRED",
           "priority": "hard",
-          "status": "planned",
-          "target_components": [
-            "mill_mass"
-          ],
-          "mismatched_components": []
+          "status": "pending"
         }
       ],
       "diagnostics": [],

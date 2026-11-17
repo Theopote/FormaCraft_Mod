@@ -1042,7 +1042,11 @@ class AiDesignPreservationTest(unittest.TestCase):
         reqs = [r for r in extract_requirements(text) if r.get("property") == "roof_type"]
         self.assertTrue(reqs)
         self.assertTrue(all(r.get("scope") != "all_main_masses" for r in reqs))
-        self.assertTrue(all(r.get("scope_source") == "INFERRED" or r.get("status") == "unresolved" for r in reqs))
+        # Clause-local 亭子 may resolve as named_pavilion; must not escalate to whole compound.
+        self.assertTrue(all(
+            r.get("scope_source") in ("INFERRED", "NAMED") or r.get("status") == "unresolved"
+            for r in reqs
+        ))
 
         plan = {
             "mode": "build",
@@ -1119,6 +1123,81 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertEqual("xieshan", main["params"]["roof_type"])
         self.assertEqual("flat", annex["params"]["roof_type"])
         self.assertNotEqual("USER_EXPLICIT", (out.get("design_sources") or {}).get("roof_type"))
+
+    def test_main_hall_xieshan_and_flat_pavilion_do_not_cross_bind(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        def run(text: str):
+            plan = {
+                "mode": "build",
+                "components": [
+                    {
+                        "component_type": "MASS_MAIN",
+                        "slot_id": "hall",
+                        "relative_position": {"x": 0, "y": 0, "z": 0},
+                        "dimensions": {"width": 18, "depth": 14, "height": 10},
+                        "features": [],
+                        "params": {
+                            "component_id": "main_hall",
+                            "roof_type": "gable",
+                            "design_sources": {"roof_type": "AI_PLANNED"},
+                        },
+                    },
+                    {
+                        "component_type": "MASS_MAIN",
+                        "slot_id": "ting",
+                        "relative_position": {"x": 24, "y": 0, "z": 0},
+                        "dimensions": {"width": 8, "depth": 8, "height": 5},
+                        "features": [],
+                        "params": {
+                            "component_id": "garden_pavilion",
+                            "roof_type": "flat",
+                            "design_sources": {"roof_type": "AI_PLANNED"},
+                        },
+                    },
+                ],
+            }
+            return _apply_user_explicit_design_sources(copy.deepcopy(plan), text)
+
+        for text in (
+            "建一座主殿，主殿采用歇山顶，旁边有一座平顶小亭",
+            "旁边有一座平顶小亭，建一座主殿，主殿采用歇山顶",
+        ):
+            with self.subTest(text=text):
+                out = run(text)
+                hall = next(c for c in out["components"] if c["params"]["component_id"] == "main_hall")
+                pavilion = next(
+                    c for c in out["components"] if c["params"]["component_id"] == "garden_pavilion"
+                )
+                self.assertEqual("xieshan", hall["params"]["roof_type"], text)
+                self.assertEqual("flat", pavilion["params"]["roof_type"], text)
+                self.assertEqual("USER_EXPLICIT", hall["params"]["design_sources"]["roof_type"])
+                self.assertEqual("USER_EXPLICIT", pavilion["params"]["design_sources"]["roof_type"])
+
+    def test_infer_unique_named_roof_host_ignores_other_clause_cues(self):
+        from app.services.llm_plan_normalization import _infer_unique_named_roof_host
+
+        masses = [
+            {
+                "component_type": "MASS_MAIN",
+                "params": {"component_id": "main_hall"},
+            },
+            {
+                "component_type": "MASS_MAIN",
+                "params": {"component_id": "garden_pavilion"},
+            },
+        ]
+        req = {
+            "value": "xieshan",
+            "source_text": ["歇山顶"],
+            "scope": "unresolved",
+            "scope_source": "INFERRED",
+        }
+        # Whole prompt mentions 小亭, but the 歇山 clause subject is 主殿 — must not bind pavilion.
+        text = "建一座主殿，主殿采用歇山顶，旁边有一座平顶小亭"
+        hits = _infer_unique_named_roof_host(masses, req, user_text=text)
+        self.assertEqual(1, len(hits))
+        self.assertEqual("main_hall", hits[0]["params"]["component_id"])
 
     def test_unknown_japanese_garden_roof_not_replaced_with_xieshan(self):
         from app.services.generation_capability import apply_stage_b_capability_repair
@@ -1433,13 +1512,16 @@ class AiDesignPreservationTest(unittest.TestCase):
             copy.deepcopy(plan), "住宅旁边的亭子不要屋顶"
         )
         house = next(c for c in out["components"] if c["params"]["component_id"] == "modern_house")
+        pavilion = next(c for c in out["components"] if c["params"]["component_id"] == "garden_pavilion")
         self.assertEqual("flat", house["params"]["roof_type"])
         self.assertTrue(any(
             c.get("params", {}).get("component_id") == "roof_house"
             for c in out["components"]
         ))
-        self.assertEqual("capability_gap", out.get("plan_status"))
-        self.assertEqual("E_OMIT_SCOPE_AMBIGUOUS", (out.get("capability_gap") or {}).get("code"))
+        # Named 亭子 omit binds locally — house roof stays; pavilion roof omitted.
+        self.assertEqual("none", pavilion["params"].get("roof_type"))
+        self.assertNotEqual("capability_gap", out.get("plan_status"))
+
 
     def test_forged_user_explicit_is_demoted_before_server_stamp(self):
         from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
