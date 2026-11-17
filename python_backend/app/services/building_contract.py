@@ -53,20 +53,42 @@ def _explicit_all_mass_quantifier(text: str, match: re.Match | None = None) -> b
     return bool(_EXPLICIT_ALL_MASS_QUANTIFIERS.search(blob))
 
 
-def _roof_clause_subject(text: str, match: re.Match) -> str:
-    """Named/ordinal subject for a roof token using comma-bounded clause evidence only.
+_JOINT_MULTI_SUBJECT = re.compile(r'(?:都|均|全部|一起|皆)(?:要|采用|使用|改成|改用|设置)?')
 
-    Unlike ``_numeric_subject`` (dimensions may span commas), roof ownership must not
-    borrow a building name from a sibling clause in the same sentence.
-    """
+
+def _roof_clause_window(text: str, match: re.Match) -> tuple[str, int]:
+    """Comma-bounded clause window and match offset inside it."""
     bounds = ('。', '；', ';', '，', ',', '、')
     start = max(text.rfind(s, 0, match.start()) for s in bounds) + 1
     end_at = [text.find(s, match.end()) for s in bounds]
     end_at = [i for i in end_at if i >= 0]
     end = min(end_at) if end_at else len(text)
-    window = text[start:end]
+    return text[start:end], match.start() - start
+
+
+def _named_keys_in_window(window: str) -> list[str]:
+    """Unique NAMED_BUILDINGS keys present in window, preserving first-seen order."""
+    found: list[str] = []
+    for key, names in NAMED_BUILDINGS.items():
+        for name in names:
+            if name and name in window and key not in found:
+                found.append(key)
+                break
+    return found
+
+
+def _roof_clause_subject(text: str, match: re.Match) -> str:
+    """Named/ordinal subject for a roof token using comma-bounded clause evidence only.
+
+    Unlike ``_numeric_subject`` (dimensions may span commas), roof ownership must not
+    borrow a building name from a sibling clause in the same sentence.
+    Joint multi-subject clauses (主殿和亭子都…) return ``multi_named``.
+    """
+    window, rel_token = _roof_clause_window(text, match)
+    keys = _named_keys_in_window(window)
+    if len(keys) > 1 and _JOINT_MULTI_SUBJECT.search(window):
+        return 'multi_named'
     # Prefer the named building closest to the roof token (never a later clause subject).
-    rel_token = match.start() - start
     candidates: list[tuple[int, str]] = []
     for key, names in NAMED_BUILDINGS.items():
         for name in names:
@@ -77,11 +99,15 @@ def _roof_clause_subject(text: str, match: re.Match) -> str:
                 idx = window.find(name, from_idx)
                 if idx < 0:
                     break
-                # Distance to roof token; names after the token in-clause still count.
                 candidates.append((abs(idx - rel_token), key))
                 from_idx = idx + len(name)
     if candidates:
         candidates.sort()
+        # Ambiguous equidistant distinct keys without a joint quantifier → unresolved.
+        best = candidates[0][0]
+        best_keys = {k for d, k in candidates if d == best}
+        if len(best_keys) > 1:
+            return 'unresolved'
         return 'named_' + candidates[0][1]
     return 'unresolved'
 
@@ -96,7 +122,19 @@ def _refine_roof_scope(text: str, requirement: dict, match: re.Match | None) -> 
         requirement['scope_source'] = 'INFERRED'
         # Keep status=pending: the roof value is known; only ownership is unresolved.
         return
+    window, _ = _roof_clause_window(text, match)
+    keys = _named_keys_in_window(window)
+    if len(keys) > 1 and _JOINT_MULTI_SUBJECT.search(window):
+        requirement['scope'] = 'multi_named'
+        requirement['scope_source'] = 'EXPLICIT_MULTI'
+        requirement['named_keys'] = list(keys)
+        return
     subject = _roof_clause_subject(text, match)
+    if subject == 'multi_named':
+        requirement['scope'] = 'multi_named'
+        requirement['scope_source'] = 'EXPLICIT_MULTI'
+        requirement['named_keys'] = keys
+        return
     if subject.startswith('named_') or subject.startswith('building_'):
         requirement['scope'] = subject
         requirement['scope_source'] = 'NAMED' if subject.startswith('named_') else 'EXPLICIT_ORDINAL'
@@ -114,6 +152,16 @@ def _refine_roof_scope(text: str, requirement: dict, match: re.Match | None) -> 
     # status stays pending — unresolved ownership is expressed by scope, not status.
     requirement['scope'] = 'unresolved'
     requirement['scope_source'] = 'INFERRED'
+
+
+def _omit_positive_match(text: str, match: re.Match) -> bool:
+    """True when an omit cue is not wrapped in outer negation (不是无窗 / 并非无屋顶)."""
+    prefix = text[max(0, match.start() - 16):match.start()]
+    if re.search(r'(?:不是|并非|绝非|绝不是)\s*$', prefix):
+        return False
+    if re.search(r'(?:不能|不会|别)没有\s*$', prefix):
+        return False
+    return _positive_match(text, match)
 
 
 def _numeric_subject(text: str, match: re.Match) -> str:
@@ -186,14 +234,20 @@ def _extract_global_requirements(text: str) -> list[dict]:
     # 破风 / 三角山墙屋顶 is a Japanese pediment cue — do NOT force western gable
     # (pattern 山墙屋顶 previously false-triggered req_roof_gable).
     # Only explicit 双坡/人字顶 should hard-require roof_type=gable.
-    if any(_positive_match(text, m) for m in re.finditer(r'(?<!十字)双坡屋\s*顶|人字顶', text)):
-        result.append({'id': 'req_roof_gable', 'property': 'roof_type', 'value': 'gable', 'source': 'user_explicit',
-                       'source_text': ['双坡屋顶'], 'scope': 'unresolved', 'scope_source': 'INFERRED',
-                       'priority': 'hard', 'status': 'pending'})
-    if any(_positive_match(text, m) for m in re.finditer(r'平屋顶|平顶', text)):
-        result.append({'id': 'req_roof_type', 'property': 'roof_type', 'value': 'flat', 'source': 'user_explicit',
-                       'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'unresolved',
-                       'scope_source': 'INFERRED', 'priority': 'hard', 'status': 'pending'})
+    for i, match in enumerate(
+            m for m in re.finditer(r'(?<!十字)双坡屋\s*顶|人字顶', text) if _positive_match(text, m)):
+        req = {'id': f'req_roof_gable_{i}' if i else 'req_roof_gable', 'property': 'roof_type',
+               'value': 'gable', 'source': 'user_explicit', 'source_text': [match.group(0)],
+               'scope': 'unresolved', 'scope_source': 'INFERRED', 'priority': 'hard', 'status': 'pending'}
+        _refine_roof_scope(text, req, match)
+        result.append(req)
+    for i, match in enumerate(
+            m for m in re.finditer(r'平屋顶|平顶', text) if _positive_match(text, m)):
+        req = {'id': f'req_roof_type_{i}' if i else 'req_roof_type', 'property': 'roof_type',
+               'value': 'flat', 'source': 'user_explicit', 'source_text': [match.group(0)],
+               'scope': 'unresolved', 'scope_source': 'INFERRED', 'priority': 'hard', 'status': 'pending'}
+        _refine_roof_scope(text, req, match)
+        result.append(req)
     specialty_roofs = {
         # Classical Chinese / East Asian roofs — must participate in ordinal building scopes
         # (第一栋歇山 / 第二栋平顶) the same way as western specialty roofs.
@@ -219,13 +273,21 @@ def _extract_global_requirements(text: str) -> list[dict]:
     }
     for roof_type, pattern in specialty_roofs.items():
         hits = [match for match in re.finditer(pattern, text, re.I) if _positive_match(text, match)]
-        if hits:
-            result.append({'id':'req_roof_'+roof_type, 'property':'roof_type', 'value':roof_type,
-                           'source':'user_explicit', 'source_text':[hits[0][0]],
-                           'scope':'unresolved', 'scope_source': 'INFERRED',
-                           'priority':'hard', 'status':'pending'})
+        # One requirement per player declaration — do not collapse identical roof values.
+        for i, match in enumerate(hits):
+            req = {'id': f'req_roof_{roof_type}' + (f'_{i}' if i else ''),
+                   'property': 'roof_type', 'value': roof_type,
+                   'source': 'user_explicit', 'source_text': [match.group(0)],
+                   'scope': 'unresolved', 'scope_source': 'INFERRED',
+                   'priority': 'hard', 'status': 'pending'}
+            _refine_roof_scope(text, req, match)
+            result.append(req)
     for requirement in result:
         if requirement['property'] != 'roof_type':
+            continue
+        # Already scoped at declaration time (per-hit refine).
+        if requirement.get('scope_source') in (
+                'NAMED', 'EXPLICIT_ORDINAL', 'EXPLICIT_QUANTIFIER', 'EXPLICIT_MULTI', 'ELEMENT'):
             continue
         token = (requirement.get('source_text') or [''])[0]
         hit = re.search(re.escape(token), text) if token else None
@@ -253,17 +315,18 @@ def _extract_global_requirements(text: str) -> list[dict]:
         ('window_style', r'(?:不要|不需要|不需)(?:生成|添加)?(?:窗户|窗洞)|不开窗|无窗(?:户)?'),
         ('entrance_type', r'(?:不要|不需要|不需)(?:生成|添加)?(?:入口|门洞)|无入口'),
     ):
-        hits = list(re.finditer(pattern, text))
+        hits = [m for m in re.finditer(pattern, text) if _omit_positive_match(text, m)]
         if prop == 'window_style':
             hits = [m for m in hits if not re.search(r'山墙[^。；\n]*$', text[max(0, m.start()-30):m.start()])]
-        if hits:
-            req = {'id': 'req_disable_' + prop, 'property': prop, 'value': 'none',
-                   'source': 'user_explicit', 'source_text': [m[0] for m in hits],
+        # One omit declaration per text span — keep each host binding independent.
+        for i, match in enumerate(hits):
+            req = {'id': f'req_disable_{prop}' + (f'_{i}' if i else ''), 'property': prop,
+                   'value': 'none', 'source': 'user_explicit', 'source_text': [match.group(0)],
                    'scope': 'unresolved', 'scope_source': 'INFERRED',
                    'priority': 'hard', 'status': 'pending'}
             if prop == 'roof_type':
-                _refine_roof_scope(text, req, hits[0])
-            elif _explicit_all_mass_quantifier(text, hits[0]):
+                _refine_roof_scope(text, req, match)
+            elif _explicit_all_mass_quantifier(text, match):
                 req['scope'] = 'all_main_masses'
                 req['scope_source'] = 'EXPLICIT_QUANTIFIER'
             result.append(req)
@@ -758,6 +821,18 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             targets = masses
         elif scope in ('all_main_masses', 'plan'):
             targets = masses
+        elif scope == 'multi_named':
+            keys = [str(k).strip() for k in (requirement.get('named_keys') or []) if k]
+            targets = []
+            seen: set[str] = set()
+            for key in keys:
+                for mass in bindings.get('named_' + key, []):
+                    cid = str(mass['params'].get('component_id') or '')
+                    if cid and cid not in seen:
+                        seen.add(cid)
+                        targets.append(mass)
+                    elif not cid and mass not in targets:
+                        targets.append(mass)
         else:
             targets = bindings.get(scope, [])
         if not targets or (str(scope).startswith('building_') and len(targets) != 1):
@@ -766,7 +841,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 contract['diagnostics'].append({'code': 'E_REQUIREMENT_SCOPE', 'scope': scope, 'requirement_id': requirement['id']})
             continue
         target_ids = {m['params']['component_id'] for m in targets}
-        owned = components if scope in ('all_main_masses', 'plan', 'unresolved') else [
+        owned = components if scope in ('all_main_masses', 'plan', 'unresolved', 'multi_named') else [
             c for c in components if c['params'].get('host_id') in target_ids or c['params']['component_id'] in target_ids]
         key, expected = requirement['property'], requirement['value']
         if key == 'no_complex_decor':

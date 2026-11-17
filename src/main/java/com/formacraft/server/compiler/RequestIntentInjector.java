@@ -90,18 +90,18 @@ public final class RequestIntentInjector {
             }
             meta.put("request_intent", reconciled);
             meta.put("request_intent_text", authorizeFromText ? text : echo);
-            // Keep plan_meta height contract in sync with the active intent text (server or echo).
-            // Component design-omit seals still require authorizeFromText below.
-            meta.put(com.formacraft.common.typology.UserConstraintContract.PLAN_META_KEY,
-                    com.formacraft.common.typology.UserConstraintContract.buildPlanMetaContract(
-                            authorizeFromText ? text : echo));
+            // Height/design contracts remint only from FormaRequest text — never from plan echo.
+            if (authorizeFromText) {
+                meta.put(com.formacraft.common.typology.UserConstraintContract.PLAN_META_KEY,
+                        com.formacraft.common.typology.UserConstraintContract.buildPlanMetaContract(text));
+            }
             if (reconciled.get("building_class") != null) {
                 meta.put("building_class", reconciled.get("building_class"));
             }
             LlmPlan withIntent = withMeta(plan, meta);
-            // Geometry height may rebind from plan echo during compile; seals mint only from FormaRequest.
+            // Seals and height writes require FormaRequest text; echo only preserves prior seals.
             withIntent = applyServerConstraintsToComponents(
-                    withIntent, authorizeFromText ? text : echo, authorizeFromText);
+                    withIntent, authorizeFromText ? text : "", authorizeFromText);
             return OpeningConstraintProvenance.stamp(withIntent);
         }
         if (!authorizeFromText) {
@@ -139,13 +139,12 @@ public final class RequestIntentInjector {
             LlmPlan plan, String userText, boolean authorizeFromText) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         String text = userText == null ? "" : userText;
-        // Height numbers may rebind from plan echo for compile geometry continuity.
-        // Design-omit seals and USER_EXPLICIT stamps require authorizeFromText (FormaRequest).
+        // Height + design-omit seals require authorizeFromText (FormaRequest). Echo cannot rewrite geometry.
         List<com.formacraft.common.typology.UserConstraintContract.HeightBinding> bindings =
-                text.isBlank()
-                        ? List.of()
-                        : com.formacraft.common.typology.UserConstraintContract
-                        .parseExplicitHeightBindings(text);
+                authorizeFromText && !text.isBlank()
+                        ? com.formacraft.common.typology.UserConstraintContract
+                        .parseExplicitHeightBindings(text)
+                        : List.of();
         List<com.formacraft.common.typology.UserConstraintContract.DesignOmitBinding> omits =
                 authorizeFromText
                         ? com.formacraft.common.typology.UserConstraintContract
@@ -158,8 +157,29 @@ public final class RequestIntentInjector {
         }
         boolean multi = hosts.size() > 1;
         Map<String, Integer> heightByMassId = resolveHeightBindings(hosts, primary, multi, bindings);
-        Map<String, Set<String>> omitByMassId = resolveDesignOmitBindings(
-                hosts, primary, multi, omits);
+        OmitBindResult omitResult = resolveDesignOmitBindings(plan, hosts, primary, multi, omits);
+        Map<String, Set<String>> omitByMassId = omitResult.byMassId();
+        if (authorizeFromText && (!omitResult.diagnostics().isEmpty() || omitResult.capabilityGap())) {
+            Map<String, Object> meta = plan.planMeta() == null
+                    ? new HashMap<>()
+                    : new HashMap<>(plan.planMeta());
+            @SuppressWarnings("unchecked")
+            List<Object> diags = meta.get("scope_diagnostics") instanceof List<?> raw
+                    ? new ArrayList<>((List<Object>) raw)
+                    : new ArrayList<>();
+            diags.addAll(omitResult.diagnostics());
+            meta.put("scope_diagnostics", diags);
+            plan = withMeta(plan, meta);
+            if (omitResult.capabilityGap()) {
+                plan = withCapabilityGap(plan,
+                        new com.formacraft.common.llm.dto.CapabilityGap(
+                                "E_DESIGN_OMIT_HOST_SCOPE",
+                                "局部设计省略无法唯一绑定宿主，或与计划目标不一致",
+                                "RequestIntentInjector.resolveDesignOmitBindings",
+                                List.of("clarify building host", "use ordinal building_N or unique name"),
+                                Map.of("diagnostics", omitResult.diagnostics())));
+            }
+        }
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         for (Component c : plan.components()) {
@@ -188,16 +208,10 @@ public final class RequestIntentInjector {
                             : null;
             com.formacraft.common.typology.UserConstraintContract.stripUntrustedMarkers(params);
             com.formacraft.common.llm.dto.Dimensions dims = c.dimensions();
-            if (needHeight) {
+            if (authorizeFromText && needHeight) {
                 int explicitH = boundH;
-                if (authorizeFromText) {
-                    com.formacraft.common.typology.UserConstraintContract
-                            .applyAuthoritativeHeightValue(params, explicitH);
-                } else {
-                    // Geometry continuity only — do not mint seals from plan echo.
-                    params.put("height", explicitH);
-                    params.put("towerHeight", explicitH);
-                }
+                com.formacraft.common.typology.UserConstraintContract
+                        .applyAuthoritativeHeightValue(params, explicitH);
                 if (dims == null) {
                     dims = new com.formacraft.common.llm.dto.Dimensions(8, 8, explicitH);
                 } else if (dims.height() != explicitH) {
@@ -211,11 +225,6 @@ public final class RequestIntentInjector {
                             .applyVerifiedDesignOmit(params, domain);
                 }
             } else if (priorVerified != null) {
-                // Drop height keys if we overwrote them from untrusted echo without re-authorization.
-                if (needHeight) {
-                    priorVerified.remove("height");
-                    priorVerified.remove("towerHeight");
-                }
                 com.formacraft.common.typology.UserConstraintContract
                         .restampPreserved(params, priorVerified);
             }
@@ -239,54 +248,192 @@ public final class RequestIntentInjector {
 
     /**
      * Map mass ids to local design-omit domains using clause role hints.
-     * Single cue / single host → that host (or primary). Multi-host without a unique role match → skip.
+     * Unique max role score required; ties and Python/Java host mismatches do not stamp.
      */
-    static Map<String, Set<String>> resolveDesignOmitBindings(
+    static OmitBindResult resolveDesignOmitBindings(
+            LlmPlan plan,
             List<Component> hosts,
             String primary,
             boolean multi,
             List<com.formacraft.common.typology.UserConstraintContract.DesignOmitBinding> bindings
     ) {
         Map<String, Set<String>> out = new HashMap<>();
-        if (bindings == null || bindings.isEmpty() || hosts == null || hosts.isEmpty()) return out;
+        List<Map<String, Object>> diagnostics = new ArrayList<>();
+        boolean gap = false;
+        if (bindings == null || bindings.isEmpty() || hosts == null || hosts.isEmpty()) {
+            return new OmitBindResult(out, diagnostics, false);
+        }
         for (var b : bindings) {
             if (b == null || b.domain() == null || b.domain().isBlank()) continue;
-            String target = null;
             String hint = b.roleHint();
+            String javaTarget = null;
             if (!multi || hosts.size() == 1) {
-                target = primary != null ? primary : BuildingHostResolver.massId(hosts.getFirst());
+                javaTarget = primary != null ? primary : BuildingHostResolver.massId(hosts.getFirst());
             } else if (hint != null && hint.startsWith("building_")) {
-                target = resolveOrdinalOmitHost(hosts, primary, hint);
+                javaTarget = resolveOrdinalOmitHost(hosts, primary, hint);
             } else if (hint != null && !hint.isBlank()) {
-                Component best = null;
-                int bestScore = 0;
-                for (Component host : hosts) {
-                    int score = heightRoleScore(host, hint);
-                    if (score > bestScore) {
-                        bestScore = score;
-                        best = host;
-                    }
+                javaTarget = uniqueRoleHostId(hosts, hint);
+                if (javaTarget == null) {
+                    diagnostics.add(Map.of(
+                            "code", "E_OMIT_HOST_TIE",
+                            "domain", b.domain(),
+                            "roleHint", hint,
+                            "message", "omit host role score is not unique"));
                 }
-                if (best != null && bestScore > 0) {
-                    target = BuildingHostResolver.massId(best);
+            } else {
+                diagnostics.add(Map.of(
+                        "code", "E_OMIT_HOST_UNSCOPED",
+                        "domain", b.domain(),
+                        "message", "multi-mass omit without role/ordinal scope"));
+            }
+            Set<String> pythonTargets = pythonOmitTargetIds(plan, b.domain());
+            String target = javaTarget;
+            if (!pythonTargets.isEmpty()) {
+                if (javaTarget != null && pythonTargets.equals(Set.of(javaTarget))) {
+                    target = javaTarget;
+                } else if (javaTarget == null && pythonTargets.size() == 1) {
+                    String only = pythonTargets.iterator().next();
+                    Component host = findHostById(hosts, only);
+                    if (host != null && (hint == null || hint.isBlank()
+                            || heightRoleScore(host, hint) > 0
+                            || (hint.startsWith("building_") && only.equals(
+                            resolveOrdinalOmitHost(hosts, primary, hint))))) {
+                        target = only;
+                    } else {
+                        target = null;
+                        gap = true;
+                        diagnostics.add(Map.of(
+                                "code", "E_OMIT_HOST_MISMATCH",
+                                "domain", b.domain(),
+                                "pythonTargets", List.copyOf(pythonTargets),
+                                "javaTarget", "",
+                                "message", "python omit host could not be re-verified from text"));
+                    }
+                } else {
+                    target = null;
+                    gap = true;
+                    Map<String, Object> detail = new HashMap<>();
+                    detail.put("code", "E_OMIT_HOST_MISMATCH");
+                    detail.put("domain", b.domain());
+                    detail.put("pythonTargets", List.copyOf(pythonTargets));
+                    detail.put("javaTarget", javaTarget == null ? "" : javaTarget);
+                    detail.put("message", "python and java omit hosts disagree");
+                    diagnostics.add(detail);
                 }
             }
-            // Unscoped multi-mass omit must not stamp every building.
             if (target == null || target.isBlank()) continue;
             out.computeIfAbsent(target, k -> new HashSet<>()).add(b.domain());
+        }
+        return new OmitBindResult(out, diagnostics, gap);
+    }
+
+    /** Unique role-score winner; ties return null (order must not decide). */
+    private static String uniqueRoleHostId(List<Component> hosts, String hint) {
+        Component best = null;
+        int bestScore = 0;
+        boolean tie = false;
+        for (Component host : hosts) {
+            int score = heightRoleScore(host, hint);
+            if (score > bestScore) {
+                bestScore = score;
+                best = host;
+                tie = false;
+            } else if (score > 0 && score == bestScore) {
+                tie = true;
+            }
+        }
+        if (tie || best == null || bestScore <= 0) return null;
+        return BuildingHostResolver.massId(best);
+    }
+
+    private static Component findHostById(List<Component> hosts, String massId) {
+        if (massId == null || massId.isBlank()) return null;
+        for (Component host : hosts) {
+            if (massId.equals(BuildingHostResolver.massId(host))) return host;
+        }
+        return null;
+    }
+
+    /**
+     * Python-normalized omit targets from building_contract requirements or pre-marked params.
+     * Used only for cross-check — never as a forged seal substitute.
+     */
+    @SuppressWarnings("unchecked")
+    private static Set<String> pythonOmitTargetIds(LlmPlan plan, String domain) {
+        Set<String> out = new HashSet<>();
+        if (plan == null || domain == null) return out;
+        String prop = switch (domain) {
+            case "roof" -> "roof_type";
+            case "window" -> "window_style";
+            case "entrance" -> "entrance_type";
+            default -> "";
+        };
+        if (prop.isEmpty()) return out;
+        Object hints = plan.proportionHints();
+        if (hints instanceof Map<?, ?> hintMap) {
+            Object contract = hintMap.get("building_contract");
+            if (contract instanceof Map<?, ?> cMap) {
+                Object reqs = cMap.get("requirements");
+                if (reqs instanceof List<?> list) {
+                    for (Object raw : list) {
+                        if (!(raw instanceof Map<?, ?> req)) continue;
+                        if (!prop.equals(String.valueOf(req.get("property")))) continue;
+                        if (!"none".equalsIgnoreCase(String.valueOf(req.get("value")))) continue;
+                        Object targets = req.get("target_components");
+                        if (targets instanceof List<?> ids) {
+                            for (Object id : ids) {
+                                if (id != null && !String.valueOf(id).isBlank()) {
+                                    out.add(String.valueOf(id).trim());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (!out.isEmpty()) return out;
+        // Fallback: component params already carrying USER_EXPLICIT omit values from Python.
+        if (plan.components() != null) {
+            for (Component c : plan.components()) {
+                if (c == null || c.params() == null || !BuildingHostResolver.isHostMass(c)) continue;
+                Object sources = c.params().get("design_sources");
+                if (!(sources instanceof Map<?, ?> src)) continue;
+                boolean marked = "USER_EXPLICIT".equalsIgnoreCase(
+                        String.valueOf(src.get(prop)).trim());
+                if (!marked && "window".equals(domain)) {
+                    marked = "USER_EXPLICIT".equalsIgnoreCase(
+                            String.valueOf(src.get("window_requirement")).trim())
+                            || "USER_EXPLICIT".equalsIgnoreCase(
+                            String.valueOf(src.get("facade_requirement")).trim());
+                }
+                if (!marked && "roof".equals(domain)) {
+                    marked = "USER_EXPLICIT".equalsIgnoreCase(
+                            String.valueOf(src.get("roof_requirement")).trim());
+                }
+                if (!marked) continue;
+                Object val = c.params().get(prop);
+                if (val != null && "none".equalsIgnoreCase(String.valueOf(val).trim())) {
+                    String mid = BuildingHostResolver.massId(c);
+                    if (mid != null) out.add(mid);
+                }
+            }
         }
         return out;
     }
 
     private static String resolveOrdinalOmitHost(
             List<Component> hosts, String primary, String buildingHint) {
+        List<String> scoped = new ArrayList<>();
         for (Component host : hosts) {
             if (host.params() == null) continue;
             Object scope = host.params().get("requirement_scope");
             if (scope != null && buildingHint.equals(String.valueOf(scope).trim())) {
-                return BuildingHostResolver.massId(host);
+                String mid = BuildingHostResolver.massId(host);
+                if (mid != null) scoped.add(mid);
             }
         }
+        if (scoped.size() == 1) return scoped.getFirst();
+        if (scoped.size() > 1) return null; // ambiguous — never first-in-list
         int n;
         try {
             n = Integer.parseInt(buildingHint.substring("building_".length()));
@@ -295,13 +442,23 @@ public final class RequestIntentInjector {
         }
         if (n == 1 && primary != null) return primary;
         if (n == 2) {
+            List<String> secondaries = new ArrayList<>();
             for (Component host : hosts) {
                 String mid = BuildingHostResolver.massId(host);
-                if (mid != null && (primary == null || !primary.equals(mid))) return mid;
+                if (mid != null && (primary == null || !primary.equals(mid))) {
+                    secondaries.add(mid);
+                }
             }
+            return secondaries.size() == 1 ? secondaries.getFirst() : null;
         }
         return null;
     }
+
+    private record OmitBindResult(
+            Map<String, Set<String>> byMassId,
+            List<Map<String, Object>> diagnostics,
+            boolean capabilityGap
+    ) {}
 
     /**
      * Map mass ids to player height values. Multi-cue texts bind by role hint; single cue → primary.
@@ -373,29 +530,39 @@ public final class RequestIntentInjector {
         return out;
     }
 
+    /**
+     * Identity-only role score. Never includes {@code componentType} (MASS_MAIN contains "main").
+     * Classification: HARD_CONSTRAINT host matching — no DESIGN_OVERRIDE from type enums.
+     */
     private static int heightRoleScore(Component host, String roleHint) {
         if (roleHint == null || roleHint.isBlank() || host == null) return 0;
-        String blob = (BuildingHostResolver.massId(host) == null ? "" : BuildingHostResolver.massId(host))
-                + " " + (host.slotId() == null ? "" : host.slotId())
-                + " " + (host.componentType() == null ? "" : host.componentType());
+        StringBuilder sb = new StringBuilder();
+        if (BuildingHostResolver.massId(host) != null) sb.append(BuildingHostResolver.massId(host)).append(' ');
+        if (host.slotId() != null) sb.append(host.slotId()).append(' ');
         if (host.params() != null) {
-            for (String k : List.of("building_role", "buildingRole", "role", "part")) {
+            for (String k : List.of(
+                    "component_id", "building_id", "requirement_scope",
+                    "building_role", "buildingRole", "role", "part")) {
                 Object v = host.params().get(k);
-                if (v != null) blob += " " + v;
+                if (v != null) sb.append(v).append(' ');
             }
         }
         if (host.features() != null) {
             for (String f : host.features()) {
-                if (f != null) blob += " " + f;
+                if (f != null) sb.append(f).append(' ');
             }
         }
-        String lower = blob.toLowerCase(Locale.ROOT);
+        String lower = sb.toString().toLowerCase(Locale.ROOT);
         return switch (roleHint) {
-            case "pavilion" -> (lower.contains("pavilion") || lower.contains("亭") || lower.contains("廊")
-                    || lower.contains("wing") || lower.contains("wood")) ? 3 : 0;
-            case "hall" -> (lower.contains("hall") || lower.contains("main") || lower.contains("殿")
-                    || lower.contains("正房") || lower.contains("主")) ? 3 : 0;
-            case "tower" -> (lower.contains("tower") || lower.contains("塔") || lower.contains("pagoda")) ? 3 : 0;
+            case "pavilion" -> (lower.contains("pavilion") || lower.contains("亭")
+                    || lower.contains("廊") || lower.contains("wing")) ? 3 : 0;
+            case "hall" -> (lower.contains("main_hall") || lower.contains("townhall")
+                    || lower.contains("hall") || lower.contains("殿")
+                    || lower.contains("正房") || lower.contains("主殿")
+                    || lower.contains("正殿") || lower.contains("大殿")
+                    || lower.contains("主楼") || lower.contains("主厅")) ? 3 : 0;
+            case "tower" -> (lower.contains("tower") || lower.contains("塔")
+                    || lower.contains("pagoda")) ? 3 : 0;
             default -> 0;
         };
     }
@@ -1137,6 +1304,34 @@ public final class RequestIntentInjector {
                 plan.distinguishingFeatures(),
                 plan.enrichmentGuard(),
                 meta,
+                plan.designSources());
+    }
+
+    private static LlmPlan withCapabilityGap(
+            LlmPlan plan, com.formacraft.common.llm.dto.CapabilityGap gap) {
+        return new LlmPlan(
+                plan.mode(),
+                plan.styleProfile(),
+                plan.anchor(),
+                plan.globalConstraints(),
+                plan.layout(),
+                plan.components(),
+                plan.genome(),
+                plan.styleAttributes(),
+                plan.proportionHints(),
+                plan.alignmentAndSymmetry(),
+                plan.targetSlotId(),
+                plan.allowedArea(),
+                plan.patch(),
+                plan.planProgram(),
+                plan.planSkeleton(),
+                "capability_gap",
+                plan.error(),
+                gap,
+                plan.playerFidelityNoticeZh(),
+                plan.distinguishingFeatures(),
+                plan.enrichmentGuard(),
+                plan.planMeta(),
                 plan.designSources());
     }
 

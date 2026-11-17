@@ -110,6 +110,24 @@
             "townhall_main"
           ],
           "mismatched_components": []
+        },
+        {
+          "id": "req_roof_gable_1",
+          "property": "roof_type",
+          "value": "gable",
+          "source": "user_explicit",
+          "source_text": [
+            "双坡屋顶"
+          ],
+          "scope": "named_wing",
+          "scope_source": "NAMED",
+          "priority": "hard",
+          "status": "planned",
+          "target_components": [
+            "townhall_wing_north",
+            "townhall_wing_south"
+          ],
+          "mismatched_components": []
         }
       ],
       "diagnostics": [],

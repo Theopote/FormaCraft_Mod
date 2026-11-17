@@ -233,7 +233,8 @@ def _resolve_scoped_mass_targets(
         return hit
     scope_key = str(scope or "").strip()
     source = str(scope_source or "").strip().upper()
-    if scope_key in ("unresolved", "element_scope"):
+    if scope_key in ("unresolved", "element_scope", "multi_named"):
+        # multi_named is handled in _targets_for_req with named_keys; bare scope alone is empty.
         return []
     if scope_key and scope_key not in ("plan", "all_main_masses"):
         if scope_key.startswith("named_"):
@@ -304,15 +305,31 @@ def _user_reqs(requirements: list, prop: str) -> list:
 
 
 def _targets_for_req(masses: list, req: dict) -> list:
+    scope = str(req.get("scope") or "").strip()
+    if scope == "multi_named":
+        keys = [str(k).strip() for k in (req.get("named_keys") or []) if k]
+        hits: list = []
+        seen: set[str] = set()
+        for key in keys:
+            for mass in _named_scope_mass_hits(masses, f"named_{key}"):
+                cid = _comp_id(mass)
+                if cid and cid not in seen:
+                    seen.add(cid)
+                    hits.append(mass)
+                elif not cid:
+                    hits.append(mass)
+        if hits:
+            return hits
+        # Joint multi-subject declared but hosts unresolved → surface gap, do not guess.
+        return []
     targets = _resolve_scoped_mass_targets(
         masses,
-        str(req.get("scope") or ""),
+        scope,
         list(req.get("target_components") or []),
         scope_source=str(req.get("scope_source") or ""),
     )
     if not targets and len(masses) <= 1:
         # Single-mass compounds: unresolved INFERRED roof may still bind locally.
-        scope = str(req.get("scope") or "").strip()
         if scope in ("", "unresolved", "plan", "all_main_masses"):
             return list(masses)
     return targets

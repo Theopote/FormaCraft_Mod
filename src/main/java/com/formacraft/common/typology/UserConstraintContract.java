@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -232,6 +233,8 @@ public final class UserConstraintContract {
             List<DesignOmitBinding> out, Pattern pattern, String text, String domain) {
         Matcher m = pattern.matcher(text);
         while (m.find()) {
+            // Double negation / meta-negation: 「不是无窗」「并非无屋顶」must not mint OMITTED.
+            if (!omitCueAuthorized(text, m.start())) continue;
             // Skip gable-window clauses for window domain (山墙…无窗).
             if ("window".equals(domain)) {
                 int from = Math.max(0, m.start() - 30);
@@ -244,7 +247,24 @@ public final class UserConstraintContract {
     }
 
     /**
-     * Prefer ordinal {@code building_N} from the local clause; else hall/pavilion/tower role.
+     * Reject omit cues wrapped in outer negation (不是无窗 / 并非无屋顶 / 不能没有…).
+     * Classification: FORMAT_REPAIR — preserves player affirmation of openings/roofs.
+     */
+    static boolean omitCueAuthorized(String text, int matchStart) {
+        if (text == null || matchStart <= 0) return true;
+        String prefix = text.substring(Math.max(0, matchStart - 16), matchStart);
+        if (Pattern.compile("(?:不是|并非|绝非|绝不是)\\s*$").matcher(prefix).find()) {
+            return false;
+        }
+        if (Pattern.compile("(?:不能|不会|别)没有\\s*$").matcher(prefix).find()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Prefer ordinal {@code building_N}; else nearest hall/pavilion/tower marker in the clause.
+     * Does not reuse height's hall-before-pavilion priority — 「主殿旁的亭子不要屋顶」binds pavilion.
      */
     static String inferDesignOmitRoleHint(String text, int matchStart, int matchEnd) {
         if (text == null) return null;
@@ -275,7 +295,46 @@ public final class UserConstraintContract {
             }
             if (n > 0) return "building_" + n;
         }
-        return inferHeightRoleHint(text, matchStart, matchEnd);
+        return nearestOmitRoleHint(window, matchStart - from);
+    }
+
+    /**
+     * Role nearest the omit token wins. Dual markers at equal distance → null (no guess).
+     * Never uses bare {@code main} — that false-matches {@code MASS_MAIN}.
+     */
+    private static String nearestOmitRoleHint(String window, int relToken) {
+        if (window == null || window.isBlank()) return null;
+        String lower = window.toLowerCase(Locale.ROOT);
+        record Marker(String role, int dist) {}
+        List<Marker> hits = new ArrayList<>();
+        String[][] groups = {
+                {"hall", "主殿", "正殿", "正房", "大殿", "主楼", "主厅", "main_hall", "townhall", "hall"},
+                {"pavilion", "凉亭", "亭子", "小亭", "水上亭", "水榭", "八角亭", "六角亭", "方亭",
+                        "garden_pavilion", "pavilion", "亭"},
+                {"tower", "塔楼", "钟楼", "pagoda", "tower", "塔"}
+        };
+        for (String[] group : groups) {
+            String role = group[0];
+            for (int i = 1; i < group.length; i++) {
+                String n = group[i].toLowerCase(Locale.ROOT);
+                int fromIdx = 0;
+                while (true) {
+                    int idx = lower.indexOf(n, fromIdx);
+                    if (idx < 0) break;
+                    hits.add(new Marker(role, Math.abs(idx - relToken)));
+                    fromIdx = idx + Math.max(1, n.length());
+                }
+            }
+        }
+        if (hits.isEmpty()) return null;
+        hits.sort(Comparator.comparingInt(Marker::dist));
+        int best = hits.getFirst().dist();
+        String role = hits.getFirst().role();
+        for (Marker m : hits) {
+            if (m.dist() > best) break;
+            if (!role.equals(m.role())) return null;
+        }
+        return role;
     }
 
     /**
@@ -356,10 +415,10 @@ public final class UserConstraintContract {
             to++;
         }
         String window = text.substring(from, to).toLowerCase(Locale.ROOT);
-        // Hall/main before pavilion — a clause should not inherit a later annex type.
+        // Hall before pavilion for height cues — never bare "main" (MASS_MAIN false positive).
         if (window.contains("主殿") || window.contains("正殿") || window.contains("正房")
                 || window.contains("大殿") || window.contains("主楼") || window.contains("主厅")
-                || window.contains("hall") || window.contains("main")) {
+                || window.contains("main_hall") || window.contains("hall")) {
             return "hall";
         }
         if (window.contains("亭") || window.contains("pavilion") || window.contains("廊")) {

@@ -235,6 +235,142 @@ class StrictModeDesignScopeIntegrityTest {
     }
 
     @Test
+    void massMainHallOmitDoesNotFollowComponentListOrder() {
+        // Both hosts are MASS_MAIN; "main" in componentType must not score pavilion as hall.
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "main_hall");
+        hallParams.put("roof_type", "xieshan");
+        hallParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> pavilionParams = new HashMap<>();
+        pavilionParams.put("component_id", "garden_pavilion");
+        pavilionParams.put("roof_type", "flat");
+        pavilionParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component hall = mass("main_hall", hallParams);
+        Component pavilion = mass("garden_pavilion", new Vec3i(20, 0, 0), new Dimensions(8, 8, 5), pavilionParams);
+        String userText = "主殿不要屋顶，旁边亭子保留屋顶";
+        for (List<Component> order : List.of(
+                List.of(hall, pavilion),
+                List.of(pavilion, hall))) {
+            LlmPlan raw = strictPlan(order, Map.of(
+                    "roof", "REQUIRED",
+                    "facade", "OMITTED",
+                    "entrance", "OMITTED",
+                    "crown", "OMITTED"));
+            LlmPlan ensured = RequestIntentInjector.ensure(raw, userText);
+            Component sealedHall = byId(ensured, "main_hall");
+            Component sealedPavilion = byId(ensured, "garden_pavilion");
+            assertTrue(UserConstraintContract.isServerVerified(sealedHall.params(), "roof_type"),
+                    "hall omit must seal regardless of list order");
+            assertEquals("none", String.valueOf(sealedHall.params().get("roof_type")));
+            assertFalse(UserConstraintContract.isServerVerified(sealedPavilion.params(), "roof_type"),
+                    "pavilion must not inherit hall omit when both are MASS_MAIN");
+            assertEquals("flat", String.valueOf(sealedPavilion.params().get("roof_type")));
+        }
+    }
+
+    @Test
+    void pavilionBesideHallOmitBindsPavilionOnly() {
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "main_hall");
+        hallParams.put("roof_type", "xieshan");
+        hallParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> pavilionParams = new HashMap<>();
+        pavilionParams.put("component_id", "garden_pavilion");
+        pavilionParams.put("roof_type", "flat");
+        pavilionParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component hall = mass("main_hall", hallParams);
+        Component pavilion = mass("garden_pavilion", new Vec3i(20, 0, 0), new Dimensions(8, 8, 5), pavilionParams);
+        LlmPlan raw = strictPlan(List.of(hall, pavilion), Map.of(
+                "roof", "REQUIRED",
+                "facade", "OMITTED",
+                "entrance", "OMITTED",
+                "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "主殿旁的亭子不要屋顶");
+        Component sealedHall = byId(ensured, "main_hall");
+        Component sealedPavilion = byId(ensured, "garden_pavilion");
+        assertFalse(UserConstraintContract.isServerVerified(sealedHall.params(), "roof_type"));
+        assertEquals("xieshan", String.valueOf(sealedHall.params().get("roof_type")));
+        assertTrue(UserConstraintContract.isServerVerified(sealedPavilion.params(), "roof_type"));
+        assertEquals("none", String.valueOf(sealedPavilion.params().get("roof_type")));
+    }
+
+    @Test
+    void twoPavilionsWithoutUniqueScopeDoNotGuessOmitHost() {
+        Map<String, Object> a = new HashMap<>();
+        a.put("component_id", "garden_pavilion_east");
+        a.put("roof_type", "flat");
+        a.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> b = new HashMap<>();
+        b.put("component_id", "garden_pavilion_west");
+        b.put("roof_type", "flat");
+        b.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component east = mass("east", a);
+        Component west = mass("west", new Vec3i(16, 0, 0), new Dimensions(8, 8, 5), b);
+        LlmPlan raw = strictPlan(List.of(east, west), Map.of(
+                "roof", "REQUIRED",
+                "facade", "OMITTED",
+                "entrance", "OMITTED",
+                "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "亭子不要屋顶");
+        Component sealedEast = byId(ensured, "garden_pavilion_east");
+        Component sealedWest = byId(ensured, "garden_pavilion_west");
+        assertFalse(UserConstraintContract.isServerVerified(sealedEast.params(), "roof_type"),
+                "ambiguous pavilion role must not seal first-in-list");
+        assertFalse(UserConstraintContract.isServerVerified(sealedWest.params(), "roof_type"));
+        assertEquals("flat", String.valueOf(sealedEast.params().get("roof_type")));
+        assertEquals("flat", String.valueOf(sealedWest.params().get("roof_type")));
+    }
+
+    @Test
+    void doubleNegationWindowOmitDoesNotSeal() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "house");
+        params.put("window_style", "regular");
+        params.put("design_sources", Map.of("window_style", "AI_PLANNED"));
+        Component house = mass("house", params);
+        LlmPlan raw = strictPlan(List.of(house), Map.of(
+                "roof", "OMITTED",
+                "facade", "REQUIRED",
+                "entrance", "OMITTED",
+                "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "建一座不是无窗的建筑，要有很多窗户");
+        Component out = byId(ensured, "house");
+        assertFalse(UserConstraintContract.isServerVerified(out.params(), "window_style"));
+        assertFalse(UserConstraintContract.isServerVerified(out.params(), "window_requirement"));
+        assertEquals("regular", String.valueOf(out.params().get("window_style")));
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.facade(ensured, out));
+    }
+
+    @Test
+    void ensureNullDoesNotRewriteHeightFromUntrustedEcho() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "tower");
+        params.put("height", 12);
+        params.put("towerHeight", 12);
+        params.put("design_sources", Map.of("height", "AI_PLANNED"));
+        Component tower = mass("tower", new Vec3i(0, 0, 0), new Dimensions(8, 8, 12), params);
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("allow_compiler_satellites", false);
+        meta.put("design_requirements", Map.of(
+                "roof", "OMITTED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        meta.put("request_intent", Map.of(
+                "original_text", "建一座塔，高度40格",
+                "height_explicit", true,
+                "explicit_height_blocks", 40));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .styleProfile("DEFAULT")
+                .components(List.of(tower))
+                .planMeta(meta)
+                .build();
+        LlmPlan after = RequestIntentInjector.ensure(plan, (String) null);
+        Component out = byId(after, "tower");
+        assertEquals(12, out.dimensions().height());
+        assertEquals(12, ((Number) out.params().get("height")).intValue());
+        assertFalse(UserConstraintContract.isServerVerified(out.params(), "height"));
+    }
+
+    @Test
     void enclosedGardenPavilionKeepsAuthoredOpeningsThroughOpenFrameRepair() {
         // Real pavilion id + enclosed AI design: must not force open-frame / strip openings.
         Component pavilion = mass("garden_pavilion", Map.of(
@@ -367,6 +503,14 @@ class StrictModeDesignScopeIntegrityTest {
         // BlockPatch emission must not empty-out a complete multi-mass plan.
         assertTrue(patches.stream().anyMatch(p -> p.dy() >= 5),
                 "expected roof-height patches for wing/house roofs");
+    }
+
+    private static Component byId(LlmPlan plan, String componentId) {
+        return plan.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && componentId.equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("missing component_id=" + componentId));
     }
 
     private static String roofTypeOf(List<Component> components, String id) {
