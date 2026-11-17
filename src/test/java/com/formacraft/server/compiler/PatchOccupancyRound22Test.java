@@ -148,6 +148,6 @@ class PatchOccupancyRound22Test {
     }
 
     private static LlmPlan emptyPlan() {
-        return LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of()).build();
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of()).build();
     }
 }

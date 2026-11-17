@@ -36,7 +36,7 @@ class WindowOrderPostProcessorTest {
                 Map.of("window_order", "full", "window_aspect", "vertical_bay")
         );
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("MEDIEVAL_CLASSIC")
                 .globalConstraints(new GlobalConstraints(
                         GlobalConstraints.Facing.SOUTH,

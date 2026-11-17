@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class StyleMorphologyTest {
     private Component resolve(String style, String type, Dimensions dims, Map<String,Object> params) {
-        return StyleIntentResolver.apply(LlmPlanTestFixtures.builder().styleProfile(style).build(),
+        return StyleIntentResolver.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleProfile(style).build(),
                 new Component(type,null,new Vec3i(0,10,0),dims,List.of(),params));
     }
     @Test void roofDefaultsProduceDistinctAttachedBlockSilhouettes() {
@@ -69,7 +69,7 @@ class StyleMorphologyTest {
     }
     @Test void declaredModernIdentityWinsOverIncidentalLatticeFeature() {
         var c=new Component("ROOF",null,new Vec3i(0,10,0),new Dimensions(9,7,4),List.of("hui_lattice"),Map.of());
-        var resolved=StyleIntentResolver.apply(LlmPlanTestFixtures.builder().styleProfile("Modern_International").build(),c);
+        var resolved=StyleIntentResolver.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleProfile("Modern_International").build(),c);
         assertEquals("flat",resolved.params().get("roof_type"));
     }
 }

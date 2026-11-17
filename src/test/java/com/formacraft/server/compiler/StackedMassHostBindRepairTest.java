@@ -23,7 +23,7 @@ class StackedMassHostBindRepairTest {
                 Map.of("extrude_mode", "plate", "plate_role", "bridge",
                         "host_id", "mill_main", "target_host_id", "bank_landing"));
         LlmPlan out = StackedMassHostBindRepair.apply(
-                LlmPlanTestFixtures.builder().components(List.of(mill, landing, bridge)).build());
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mill, landing, bridge)).build());
 
         Component repairedLanding = out.components().stream()
                 .filter(c -> "bank_landing".equals(String.valueOf(c.params().get("component_id"))))
@@ -39,7 +39,7 @@ class StackedMassHostBindRepairTest {
         var ground = mass("MASS_MAIN", "tower_ground", new Vec3i(0, 0, 0), new Dimensions(6, 6, 8), Map.of());
         var belfry = mass("MASS_SECONDARY", "tower_belfry", new Vec3i(1, 8, 1), new Dimensions(4, 4, 5), Map.of());
         LlmPlan out = StackedMassHostBindRepair.apply(
-                LlmPlanTestFixtures.builder().components(List.of(ground, belfry)).build());
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(ground, belfry)).build());
         Component upper = out.components().stream()
                 .filter(c -> "tower_belfry".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow();

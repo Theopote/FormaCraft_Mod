@@ -35,7 +35,7 @@ class FacetedDomeRoofTest {
         for(var type:List.of("polyhedral_dome","faceted_dome","polygonal_dome")) {
             var c=roof(type,8);
             assertEquals(RoofTypeKind.DOME,RoofTypeCatalog.parseExplicit(type).orElseThrow());
-            assertTrue(RoofDesignValidator.check(LlmPlanTestFixtures.builder().components(List.of(c)).build(),List.of(c)).isEmpty());
+            assertTrue(RoofDesignValidator.check(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(c)).build(),List.of(c)).isEmpty());
             var patches=new RoofGenerator().generate(new SemanticComponent("ROOF",null,c));
             assertEquals(26,patches.stream().mapToInt(p -> p.dy()).max().orElseThrow());
             assertTrue(patches.stream().anyMatch(p -> p.dx()==8 && p.dz()==8 && p.dy()==26));

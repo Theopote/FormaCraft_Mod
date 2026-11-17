@@ -39,7 +39,7 @@ class LlmPlanParserParseBoundaryTest {
 
     @Test
     void compileRejectsInvalidAuthorityWhenPlanBypassesParse() {
-        var plan = LlmPlanTestFixtures.builder()
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
                 .anchor(new Vec3i(0, 64, 0))
                 .planMeta(java.util.Map.of("generation_authority", "BOGUS"))

@@ -42,7 +42,7 @@ class FacadeDesignValidatorTest {
                 new Dimensions(14, 12, 10),
                 List.of("large"),
                 Map.of("window_aspect", "square", "window_ratio", 0.2));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(facade)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(facade)).build();
         assertTrue(FacadeDesignValidator.check(plan, List.of(facade)).isEmpty());
     }
 
@@ -53,7 +53,7 @@ class FacadeDesignValidatorTest {
                 Map.<String, Object>of("compiler_connector_body", true, "floor_count", 3, "floor_height", 4))) {
             var slab = new Component("MASS_SECONDARY", "body", new Vec3i(0,4,0),
                     new Dimensions(15,13,1), List.of(), params);
-            var plan = LlmPlanTestFixtures.builder().components(List.of(slab)).build();
+            var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(slab)).build();
             assertTrue(FacadeDesignValidator.check(plan, List.of(slab)).isEmpty());
         }
     }

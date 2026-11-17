@@ -22,7 +22,7 @@ class AccessConnectionGeometryTest {
         var east=body("east",11,0,7,11);
         var court=new Component("COURTYARD_SPACE","s",new Vec3i(0,0,0),new Dimensions(11,11,1),List.of(),
                 Map.of("component_id","court","anchor_mode","min_corner"));
-        var plan=LlmPlanTestFixtures.builder().components(List.of(north,south,west,east,court)).build();
+        var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(north,south,west,east,court)).build();
         var patches=ComponentPlanCompiler.compile(plan);
         assertFalse(patches.isEmpty(),String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var occupancy=BridgeWalkability.occupancyFromPatches(patches);
@@ -37,7 +37,7 @@ class AccessConnectionGeometryTest {
                 Map.of("host_id","body","facing","WEST","stair_connection","stairs","door_width",3,"door_height",2,"entrance_at_deck_level",true));
         var method=ComponentPlanCompiler.class.getDeclaredMethod("alignEntranceToMass",Component.class,Component.class,LlmPlan.class,GlobalConstraints.Facing.class);
         method.setAccessible(true);
-        var plan=LlmPlanTestFixtures.builder().components(List.of(mass,door)).build();
+        var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass,door)).build();
         var aligned=(Component)method.invoke(null,door,mass,plan,GlobalConstraints.Facing.SOUTH);
         var patches=new com.formacraft.common.generation.component.impl.EntranceGenerator().generate(
                 new com.formacraft.common.compiler.semantic.SemanticComponent("ENTRANCE",null,aligned));
@@ -54,7 +54,7 @@ class AccessConnectionGeometryTest {
         var bridge=new Component("MASS_SECONDARY","s",new Vec3i(10,0,4),new Dimensions(9,3,1),List.of(),
                 Map.of("component_id","bridge","host_id","left","target_host_id","right",
                         "anchor_mode","min_corner","extrude_mode","plate","plate_role","bridge","connection_level",0));
-        var plan=LlmPlanTestFixtures.builder().components(List.of(left,right,bridge)).build();
+        var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(left,right,bridge)).build();
         var patches=ComponentPlanCompiler.compile(plan,net.minecraft.util.math.BlockPos.ORIGIN,null,null);
         assertFalse(patches.isEmpty(),String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var occupancy=BridgeWalkability.occupancyFromPatches(patches);

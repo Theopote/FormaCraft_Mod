@@ -27,7 +27,7 @@ class DistinguishingFeaturesBridgeTest {
 
     @Test
     void enrichMergesTopLevelIntoStyleAttributesAndComponentFeatures() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Modern_Expressionist")
                 .anchor(new Vec3i(0, 64, 0))
@@ -57,7 +57,7 @@ class DistinguishingFeaturesBridgeTest {
 
     @Test
     void enrichSkipsFeatureAppendWhenFeaturesAreAiPlanned() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Modern_Expressionist")
                 .anchor(new Vec3i(0, 64, 0))
@@ -81,7 +81,7 @@ class DistinguishingFeaturesBridgeTest {
 
     @Test
     void enrichIsIdempotent() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0))
@@ -108,7 +108,7 @@ class DistinguishingFeaturesBridgeTest {
 
     @Test
     void enrichNoOpWhenDistinguishingFeaturesMissing() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0))

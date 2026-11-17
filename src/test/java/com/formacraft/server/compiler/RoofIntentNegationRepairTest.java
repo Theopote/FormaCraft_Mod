@@ -24,7 +24,7 @@ class RoofIntentNegationRepairTest {
     @Test
     void doNotMakeXieshanDoesNotRequireXieshan() {
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(mass(), gableRoof()))
                         .build(),
                 "生成一座徽派民居，马头墙，白墙黑瓦，双坡屋顶，天井院落，不要做成歇山大殿。");
@@ -37,7 +37,7 @@ class RoofIntentNegationRepairTest {
     @Test
     void pythonAuthoredXieshanForbidIsClearedByEnsure() {
         // Simulates backend stamping roof_type=xieshan despite 「不要做成歇山」.
-        LlmPlan seeded = LlmPlanTestFixtures.builder()
+        LlmPlan seeded = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass(), gableRoof()))
                 .planMeta(Map.of(
                         "request_intent", Map.of(
@@ -67,7 +67,7 @@ class RoofIntentNegationRepairTest {
                 Map.of("component_id", "main_roof", "host_id", "main_hall",
                         "roof_type", "gable", "anchor_mode", "min_corner"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(hall, roof)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(hall, roof)).build(),
                 "生成一座重檐歇山顶大雄宝殿，主殿必须是重檐歇山。");
         LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
         Component outRoof = repaired.components().stream()
@@ -90,7 +90,7 @@ class RoofIntentNegationRepairTest {
                 Map.of("component_id", "main_roof", "host_id", "main_hall",
                         "roof_type", "hip", "anchor_mode", "min_corner"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(hall, roof)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(hall, roof)).build(),
                 "生成一个小院落：主屋歇山顶白墙黑瓦，东侧一座攒尖六角亭，西侧一座硬山厢房，三者屋顶类型不要串。");
         LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
         assertEquals("xieshan", String.valueOf(repaired.components().stream()

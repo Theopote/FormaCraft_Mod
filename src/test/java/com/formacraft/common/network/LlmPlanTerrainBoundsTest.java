@@ -28,7 +28,7 @@ class LlmPlanTerrainBoundsTest {
 
     @Test
     void oakFenceWallPlanIsLightweightLinear() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(new Component(
                         "WALL", "s", new Vec3i(0, 0, 0), new Dimensions(12, 1, 2), List.of(),
@@ -39,7 +39,7 @@ class LlmPlanTerrainBoundsTest {
 
     @Test
     void massPlusFenceIsNotLightweightLinear() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(
                         new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0), new Dimensions(9, 7, 5), null, null),
@@ -85,7 +85,7 @@ class LlmPlanTerrainBoundsTest {
 
     @Test
     void computeComponentBoundsUsesMassFootprint() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("modern")
                 .anchor(new Vec3i(0, 64, 0))
@@ -110,7 +110,7 @@ class LlmPlanTerrainBoundsTest {
 
     @Test
     void lightweightFencePlanSkipsTerrainPadClassification() {
-        LlmPlan fence = LlmPlanTestFixtures.builder()
+        LlmPlan fence = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(new Component(
                         "WALL", "s", new Vec3i(0, 0, 0), new Dimensions(12, 1, 2), List.of(),
@@ -118,7 +118,7 @@ class LlmPlanTerrainBoundsTest {
                 .build();
         assertTrue(LlmPlanTerrainBounds.isLightweightLinearPlan(fence));
 
-        LlmPlan house = LlmPlanTestFixtures.builder()
+        LlmPlan house = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(new Component(
                         "MASS_MAIN", "main", new Vec3i(0, 0, 0), new Dimensions(10, 8, 12), null, null)))

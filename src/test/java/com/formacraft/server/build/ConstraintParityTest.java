@@ -772,7 +772,7 @@ class ConstraintParityTest {
                         "window_style", window, "wall_block", "minecraft:stone_bricks",
                         "roof_block", "minecraft:deepslate_tiles", "window_block", "minecraft:blue_stained_glass",
                         "plan_type", "rectangle", "window_ratio", 0.35));
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile(style)
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile(style)
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of()))
                 .components(List.of(body)).build();
         var raw = ComponentPlanCompiler.compile(plan, ORIGIN, null, null, false);

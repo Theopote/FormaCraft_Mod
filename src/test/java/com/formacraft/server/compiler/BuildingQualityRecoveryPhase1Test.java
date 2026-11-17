@@ -46,7 +46,7 @@ class BuildingQualityRecoveryPhase1Test {
 
     @Test
     void emptyPagodaPlanFailsSemanticGate() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0))
@@ -74,7 +74,7 @@ class BuildingQualityRecoveryPhase1Test {
         Component facade = new Component(
                 "FACADE_WINDOWS", "main", new Vec3i(0, 1, 0),
                 new Dimensions(9, 1, 3), List.of(), Map.of("window_ratio", 0.3));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("中式古塔", "重檐", "塔刹"))
                 .components(List.of(mass, roof, facade))
                 .build();
@@ -116,7 +116,7 @@ class BuildingQualityRecoveryPhase1Test {
                 "confidence", 0.9,
                 "original_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼。"));
         meta.put("request_intent_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼。");
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Gothic_Cathedral")
                 .components(List.of(shaft, belfry, spire, windows, entrance))
                 .planMeta(meta)
@@ -142,7 +142,7 @@ class BuildingQualityRecoveryPhase1Test {
                 "confidence", 0.72,
                 "original_text", "生成一座 20x20 格的非对称废土风格中式楼阁。"));
         meta.put("request_intent_text", "生成一座 20x20 格的非对称废土风格中式楼阁。");
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass, roof))
                 .planMeta(meta)
                 .build();
@@ -167,7 +167,7 @@ class BuildingQualityRecoveryPhase1Test {
                 "confidence", 0.92,
                 "original_text", "生成一座半径为 9 的圆形罗马神殿。外围由 12 根石英柱环绕"));
         meta.put("request_intent_text", "生成一座半径为 9 的圆形罗马神殿。外围由 12 根石英柱环绕");
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Classical_GrecoRoman")
                 .components(List.of(cella, roof))
                 .planMeta(meta)
@@ -195,7 +195,7 @@ class BuildingQualityRecoveryPhase1Test {
                 "roof_explicit", true,
                 "original_text", "生成一座半径为 9 的圆形罗马神殿。中央为半球形平滑砂岩穹顶"));
         meta.put("request_intent_text", "生成一座半径为 9 的圆形罗马神殿。中央为半球形平滑砂岩穹顶");
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Classical_GrecoRoman")
                 .components(List.of(cella, dome))
                 .planMeta(meta)
@@ -233,7 +233,7 @@ class BuildingQualityRecoveryPhase1Test {
                 "confidence", 0.72,
                 "original_text", "生成一座 18x18 格的日式风格建筑。多层交错的破风"));
         meta.put("request_intent_text", "生成一座 18x18 格的日式风格建筑。多层交错的破风");
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("japanese")
                 .distinguishingFeatures(List.of("三层退台堆叠的日式天守／橹式体量"))
                 .components(List.of(tier1, tier2, tier3, windows, entrance))
@@ -252,7 +252,7 @@ class BuildingQualityRecoveryPhase1Test {
                 new Dimensions(7, 7, 21),
                 List.of("dense_eaves_pagoda", "finial_spire"),
                 Map.of("typology", "dense_eaves_pagoda", "levels", 3));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("白色藏式佛塔"))
                 .components(List.of(structure))
                 .build();
@@ -265,7 +265,7 @@ class BuildingQualityRecoveryPhase1Test {
     void emptyPagodaCompileDoesNotRecoverAsGableHouse() {
         Map<String, Object> meta = new HashMap<>();
         meta.put("allow_compiler_satellites", true);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("佛塔", "藏式"))
                 .playerFidelityNoticeZh("组合式生成「白色藏式佛塔」")
                 .components(List.of())
@@ -292,7 +292,7 @@ class BuildingQualityRecoveryPhase1Test {
         Component roof = new Component(
                 "ROOF", "main", new Vec3i(0, 6, 0),
                 new Dimensions(10, 10, 3), List.of(), Map.of("roof_type", "gable"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("寺庙山门"))
                 .components(List.of(mass, roof))
                 .build();
@@ -306,7 +306,7 @@ class BuildingQualityRecoveryPhase1Test {
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(10, 8, 5), List.of(), Map.of());
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("江南园林"))
                 .components(List.of(mass))
                 .build();
@@ -324,7 +324,7 @@ class BuildingQualityRecoveryPhase1Test {
                 "ROOF", "main", new Vec3i(0, 6, 0),
                 new Dimensions(11, 9, 3), List.of(), Map.of("roof_type", "gable"));
         // No distinguishing_features — LLM forgot 佛塔 entirely.
-        LlmPlan raw = LlmPlanTestFixtures.builder()
+        LlmPlan raw = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass, roof))
                 .build();
         LlmPlan plan = RequestIntentInjector.ensure(raw, "生成一座白色藏式佛塔，主体尺寸7×7");
@@ -347,7 +347,7 @@ class BuildingQualityRecoveryPhase1Test {
                 new Dimensions(11, 9, 3), List.of(), Map.of("roof_type", "gable"));
         // Avoid 「重檐」 here so roof-intent conflict does not mask morphology failure.
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(mass, crown, roof)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass, crown, roof)).build(),
                 "生成一座三层中式古塔，顶部有塔刹");
         Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
         assertTrue(gap.isPresent());
@@ -363,7 +363,7 @@ class BuildingQualityRecoveryPhase1Test {
                 "ROOF", "main", new Vec3i(0, 7, 0),
                 new Dimensions(13, 11, 3), List.of(), Map.of("roof_type", "gable"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(mass, roof)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass, roof)).build(),
                 "生成歇山顶徽派民居，白墙黑瓦");
         Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
         assertTrue(gap.isPresent());
@@ -426,7 +426,7 @@ class BuildingQualityRecoveryPhase1Test {
                 "ROOF", "main", new Vec3i(0, 7, 0),
                 new Dimensions(13, 11, 3), List.of(), Map.of("roof_type", "hip"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(mass, roof)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass, roof)).build(),
                 "生成歇山顶徽派民居，白墙黑瓦");
         Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
         assertTrue(gap.isPresent());
@@ -442,7 +442,7 @@ class BuildingQualityRecoveryPhase1Test {
                 "ROOF", "main", new Vec3i(0, 7, 0),
                 new Dimensions(13, 11, 3), List.of(), Map.of("roof_type", "gable"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(mass, roof)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass, roof)).build(),
                 "生成重檐歇山殿堂");
         Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
         assertTrue(gap.isPresent());
@@ -460,7 +460,7 @@ class BuildingQualityRecoveryPhase1Test {
                 new Dimensions(13, 11, 3), List.of(),
                 Map.of("roof_type", "hip", "host_id", "hall"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(mass, roof)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass, roof)).build(),
                 "生成重檐庑殿顶大殿");
         Optional<CapabilityGap> gap = PlanSemanticValidator.check(plan);
         assertTrue(gap.isPresent());
@@ -486,7 +486,7 @@ class BuildingQualityRecoveryPhase1Test {
                 new Dimensions(9, 9, 3), List.of(),
                 Map.of("roof_type", "pyramid", "host_id", "pavilion"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(hall, hallRoof, pavilion, pavilionRoof))
                         .build(),
                 "生成歇山顶主殿，旁边一座攒尖亭");

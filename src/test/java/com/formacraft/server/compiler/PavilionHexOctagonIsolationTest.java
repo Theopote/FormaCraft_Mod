@@ -38,7 +38,7 @@ class PavilionHexOctagonIsolationTest {
                 Map.of("component_id", "west_oct_pavilion", "shape", "octagon",
                         "plan_type", "octagon", "building_role", "pavilion",
                         "anchor_mode", "min_corner"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("园林", "六角亭", "八角亭"))
                 .components(List.of(hall, hex, oct))
                 .build();
@@ -79,7 +79,7 @@ class PavilionHexOctagonIsolationTest {
                 new Dimensions(8, 8, 5), List.of("六角亭"),
                 mapOf("component_id", "garden_六角亭", "shape", "hexagon",
                         "anchor_mode", "min_corner"));
-        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(ting))
                 .build());
         Component out = repaired.components().getFirst();

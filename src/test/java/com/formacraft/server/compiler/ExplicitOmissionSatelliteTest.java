@@ -34,7 +34,7 @@ class ExplicitOmissionSatelliteTest {
                 new Dimensions(16, 12, 8),
                 List.of(),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(mass))
                 .planMeta(Map.of(
@@ -70,7 +70,7 @@ class ExplicitOmissionSatelliteTest {
                 new Dimensions(16, 12, 8),
                 List.of(),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(mass))
                 .planMeta(Map.of(
@@ -103,7 +103,7 @@ class ExplicitOmissionSatelliteTest {
                 new Dimensions(20, 20, 12),
                 List.of(),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(mass))
                 .proportionHints(Map.of("typology", "classical_monument"))
@@ -132,7 +132,7 @@ class ExplicitOmissionSatelliteTest {
                 new Dimensions(12, 10, 6),
                 List.of(),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(mass))
                 .planMeta(Map.of("allow_compiler_satellites", true))
@@ -180,7 +180,7 @@ class ExplicitOmissionSatelliteTest {
                 new Dimensions(12, 10, 6),
                 List.of(),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(mass))
                 .build();
@@ -238,7 +238,7 @@ class ExplicitOmissionSatelliteTest {
                 new Dimensions(16, 12, 8),
                 List.of(),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(mass))
                 .planMeta(Map.of(

@@ -20,7 +20,7 @@ class RoofHostedDormerAlignmentTest {
             components.add(roof);
             if (!dormersFirst) components.addAll(dormers);
             var originalIds = components.stream().map(c -> c.params().get("component_id")).toList();
-            var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
+            var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
             ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), Set.of());
             var finalRoof = components.stream().filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();
             var origin = ComponentPlanCompiler.resolveMassOrigin(finalRoof);
@@ -47,7 +47,7 @@ class RoofHostedDormerAlignmentTest {
         var missing = dormer("missing", 20, 20, "unknown", "main");
         var otherSlot = dormer("other", 20, 20, "roof", "other");
         var components = new ArrayList<>(List.of(roof, missing, otherSlot));
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
         ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), Set.of());
         assertSame(missing, components.get(1));
         assertSame(otherSlot, components.get(2));

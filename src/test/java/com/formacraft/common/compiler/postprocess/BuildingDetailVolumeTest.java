@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BuildingDetailVolumeTest {
     private final DetailRulePostProcessor processor = new DetailRulePostProcessor();
     private LlmPlan plan(Map<String, Object> hints) {
-        return LlmPlanTestFixtures.builder().styleProfile("DEFAULT").proportionHints(hints).build();
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleProfile("DEFAULT").proportionHints(hints).build();
     }
     private BlockPatch wall(int x, int y, int z) { return new BlockPatch(BlockPatch.PLACE, x, y, z, "minecraft:stone_bricks"); }
     private PostProcessContext.BuildingVolume volume(String slot, int x, int y, int z, int h, int floor) {
@@ -84,7 +84,7 @@ class BuildingDetailVolumeTest {
     @Test void missingGlobalHeightUsesThisMassRatherThanAnotherMassInPlan() {
         var first = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0), new Dimensions(5, 5, 9), List.of(), Map.of("floor_height", 3));
         var second = new Component("MASS_MAIN", "b", new Vec3i(0, 0, 0), new Dimensions(5, 5, 8), List.of(), Map.of("floor_height", 4));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(first, second)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(first, second)).build();
         assertEquals(4, com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator.resolveFloorHeight(plan, second, 8));
     }
 

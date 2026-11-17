@@ -17,7 +17,7 @@ class ExplicitWindowSizeFeedbackTest {
                 Map.of("host_id","chapel","window_width",1,"window_height",6,"window_count",3,"glass_block","minecraft:glass"));
         var method=ComponentPlanCompiler.class.getDeclaredMethod("alignFacadeToMass",Component.class,Component.class,LlmPlan.class,GlobalConstraints.Facing.class);
         method.setAccessible(true);
-        var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).build();
+        var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).build();
         var aligned=(Component)method.invoke(null,windows,mass,plan,GlobalConstraints.Facing.SOUTH);
         var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",null,aligned)));
         assertEquals(18,cells.size());
@@ -57,7 +57,7 @@ class ExplicitWindowSizeFeedbackTest {
     @Test void explicitFrontWindowsSurviveHostGableOptOut() throws Exception {
         var mass=new Component("MASS_MAIN","house",new Vec3i(0,0,0),new Dimensions(15,13,10),List.of(),
                 Map.of("component_id","house","anchor_mode","min_corner","gable_windows",false,"floor_height",5,"floor_count",2));
-        var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("Hui_Style").build();
+        var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("Hui_Style").build();
         var method=ComponentPlanCompiler.class.getDeclaredMethod("alignFacadeToMass",Component.class,Component.class,LlmPlan.class,GlobalConstraints.Facing.class);
         method.setAccessible(true);
         var aligned=(Component)method.invoke(null,facade("front"),mass,plan,GlobalConstraints.Facing.WEST);
@@ -174,7 +174,7 @@ class ExplicitWindowSizeFeedbackTest {
                 Map.of("component_id","tower","anchor_mode","min_corner","floor_count",4,"floor_height",3));
         var method=ComponentPlanCompiler.class.getDeclaredMethod("alignFacadeToMass",Component.class,Component.class,LlmPlan.class,GlobalConstraints.Facing.class);
         method.setAccessible(true);
-        var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).build();
+        var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).build();
         for(String mode:List.of("hint","explicit","locked")) {
             var params=new HashMap<String,Object>();
             params.put("component_id","windows"); params.put("host_id","tower");

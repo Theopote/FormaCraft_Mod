@@ -58,7 +58,7 @@ class DesignFidelityTest {
                 Map.of());
         Map<String, Object> planMeta = new HashMap<>();
         planMeta.put("allow_compiler_satellites", false);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .planMeta(planMeta)
                 .build();

@@ -27,7 +27,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(7, 7, 12), List.of(),
                 Map.of("floor_count", 3, "component_id", "main_body"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(mass))
                         .proportionHints(Map.of("architecture_intent", "三层中式楼阁 7×7"))
                         .build(),
@@ -40,7 +40,7 @@ class PlanIntentFidelityRepairTest {
 
     @Test
     void intentCorpusPrefersRequestIntentOriginalText() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(new Component(
                         "MASS_MAIN", null, new Vec3i(0, 0, 0),
                         new Dimensions(8, 8, 10), List.of(), Map.of())))
@@ -78,7 +78,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(9, 9, 3), List.of(),
                 Map.of("roof_type", "pyramid", "host_id", "pavilion_1"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(hall, hallRoof, pavilion, pavilionRoof))
                         .build(),
                 "生成一座重檐庑殿顶主殿，旁边有一座单檐攒尖亭");
@@ -112,7 +112,7 @@ class PlanIntentFidelityRepairTest {
                         "eaves_per_level", 1,
                         "footprint", "octagon"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(mass))
                         .proportionHints(Map.of("architecture_intent", "两层建筑 单檐"))
                         .build(),
@@ -145,7 +145,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(9, 9, 3), List.of(),
                 Map.of("roof_type", "pyramid")); // no host_id
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(hall, hallRoof, pavilion, unboundRoof))
                         .build(),
                 "生成一座重檐庑殿顶主殿，旁边有一座单檐攒尖亭");
@@ -170,7 +170,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(7, 7, 5), List.of(),
                 Map.of("component_id", "pavilion_1", "building_role", "pavilion", "floor_count", 1));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(hall, pavilion))
                         .build(),
                 "生成一座三层道观主殿，旁边建一座单层亭子");
@@ -184,7 +184,7 @@ class PlanIntentFidelityRepairTest {
 
     @Test
     void serverUserTextOverridesWrongLlmOriginalTextEcho() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(new Component(
                         "MASS_MAIN", null, new Vec3i(0, 0, 0),
                         new Dimensions(8, 8, 10), List.of(), Map.of("floor_count", 2))))
@@ -210,7 +210,7 @@ class PlanIntentFidelityRepairTest {
     void matchingEchoUserMarkersRepairWrongLlmClassWithProvenance() {
         // Same server text / echo: strong user markers (道观) repair a wrong LLM garden class.
         String text = "生成一座传统道观";
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(new Component(
                         "MASS_MAIN", null, new Vec3i(0, 0, 0),
                         new Dimensions(14, 14, 8), List.of(), Map.of())))
@@ -234,7 +234,7 @@ class PlanIntentFidelityRepairTest {
 
     @Test
     void intentEchoMismatchReclassifiesTempleEchoAsTibetanStupa() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(new Component(
                         "MASS_MAIN", null, new Vec3i(0, 0, 0),
                         new Dimensions(10, 10, 16), List.of(), Map.of())))
@@ -264,7 +264,7 @@ class PlanIntentFidelityRepairTest {
                         "wall_block", "minecraft:oak_planks",
                         "roof_block", "minecraft:oak_stairs"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(mass)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).build(),
                 "生成一座徽派民居，白墙黑瓦");
         LlmPlan repaired = PlanIntentFidelityRepair.apply(plan);
         Component out = repaired.components().getFirst();
@@ -291,7 +291,7 @@ class PlanIntentFidelityRepairTest {
                         "wall_block", "minecraft:oak_log",
                         "roof_block", "minecraft:oak_stairs"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(hall, pavilion))
                         .build(),
                 "生成一座江南园林，主厅白墙黑瓦，旁边建一座木结构亭子");
@@ -307,7 +307,7 @@ class PlanIntentFidelityRepairTest {
 
     @Test
     void matchingEchoStillFixesWrongBuildingClass() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(new Component(
                         "MASS_MAIN", null, new Vec3i(0, 0, 0),
                         new Dimensions(10, 10, 16), List.of(), Map.of())))
@@ -342,7 +342,7 @@ class PlanIntentFidelityRepairTest {
                         "height", 40,
                         "design_sources", Map.of("height", "USER_EXPLICIT"))));
         LlmPlan ensured = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(tower)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(tower)).build(),
                 "生成一座高度24格的三层重檐古塔");
         Component out = ensured.components().getFirst();
         assertEquals(24, ((Number) out.params().get("height")).intValue());
@@ -357,7 +357,7 @@ class PlanIntentFidelityRepairTest {
 
     @Test
     void weakKeywordGenericDoesNotDemoteLlmTempleClass() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(new Component(
                         "MASS_MAIN", null, new Vec3i(0, 0, 0),
                         new Dimensions(12, 10, 8), List.of(), Map.of())))
@@ -386,7 +386,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(3, 1, 3), List.of(),
                 Map.of("host_id", "house", "door_width", 2));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(mass, groundDoor)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass, groundDoor)).build(),
                 "二层设置一个连接室外楼梯的入口");
         var gap = UpperStoreyEntranceAudit.check(plan);
         assertTrue(gap.isPresent(), "must fail when only a ground door exists");
@@ -404,7 +404,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(5, 5, 6), List.of(),
                 Map.of("component_id", "wood_pavilion", "height", 6));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(mass, pavilion))
                         .planMeta(Map.of("primary_building_id", "house_main"))
                         .build(),
@@ -432,7 +432,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(5, 5, 16), List.of(),
                 Map.of("component_id", "wood_pavilion", "building_role", "pavilion", "height", 16));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(hall, pavilion))
                         .planMeta(Map.of("primary_building_id", "hall_main"))
                         .build(),
@@ -455,7 +455,7 @@ class PlanIntentFidelityRepairTest {
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(7, 7, 40), List.of(),
                 Map.of("component_id", "house_main", "height", 40));
-        LlmPlan raw = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        LlmPlan raw = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).build();
         String before = RequestIntentInjector.constraintFingerprint(raw);
         LlmPlan ensured = RequestIntentInjector.ensure(raw, "生成一座高度24格的住宅");
         String after = RequestIntentInjector.constraintFingerprint(ensured);
@@ -465,7 +465,7 @@ class PlanIntentFidelityRepairTest {
 
     @Test
     void teaHouseWithCourtyardAnnexDoesNotBecomeGarden() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(new Component(
                         "MASS_MAIN", "main", new Vec3i(0, 0, 0),
                         new Dimensions(9, 7, 6), List.of(),
@@ -494,7 +494,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(2, 1, 3), List.of(),
                 Map.of("host_id", "house", "door_width", 2));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(mass, upperDoor)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass, upperDoor)).build(),
                 "二层设置一个连接室外楼梯的入口");
         var gap = UpperStoreyEntranceAudit.check(plan);
         assertTrue(gap.isPresent(), "floating upper door without stair must fail");
@@ -523,7 +523,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(3, 4, 4), List.of(),
                 Map.of("host_id", "other_house", "exterior", true));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(house, upperDoor, other, foreignStair))
                         .build(),
                 "二层设置一个连接室外楼梯的入口");
@@ -551,7 +551,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(2, 1, 3), List.of(),
                 Map.of("entrance_role", "main", "host_id", "side_hall", "door_width", 1));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(hall, hallDoor, sideHall, sideDoor))
                         .planMeta(Map.of("primary_building_id", "hall_main"))
                         .build(),
@@ -585,7 +585,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(1, 2, 3), List.of(),
                 Map.of("entrance_role", "side", "host_id", "house_main", "door_width", 1));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(mass, mainDoor, sideDoor))
                         .build(),
                 "生成一栋徽派民居，正门宽三格，侧门保持普通单门");
@@ -609,7 +609,7 @@ class PlanIntentFidelityRepairTest {
         Component roof = new Component(
                 "ROOF", null, new Vec3i(0, 8, 0),
                 new Dimensions(12, 10, 3), List.of(), params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(
                         new Component("MASS_MAIN", null, new Vec3i(0, 0, 0),
                                 new Dimensions(12, 10, 8), List.of(), Map.of()),
@@ -638,7 +638,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(13, 13, 5), List.of(),
                 Map.of("component_id", "tier_4", "host_id", "house_main", "tier_index", 3,
                         "floor_count", 1, "floor_height", 5, "anchor_mode", "min_corner"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(house, tier4))
                 .distinguishingFeatures(List.of(
                         "四层仅占三层面积的一半（13x13），四周留出回形露台",
@@ -675,7 +675,7 @@ class PlanIntentFidelityRepairTest {
                 "MASS_MAIN", "gate", new Vec3i(0, 0, 0),
                 new Dimensions(8, 4, 8), List.of(),
                 Map.of("component_id", "gate_body", "anchor_mode", "min_corner"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .layout(new Layout(null, false, List.of(
                         new Slot("main", new Vec3i(-10, 0, -12), null, null, null, null, null),
                         new Slot("gate", new Vec3i(-4, 0, 8), null, null, null, null, null))))
@@ -700,7 +700,7 @@ class PlanIntentFidelityRepairTest {
                 "MASS_MAIN", "dispatch", new Vec3i(-6, 0, -4),
                 new Dimensions(11, 9, 10), List.of(),
                 Map.of("component_id", "dispatch_body", "anchor_mode", "min_corner", "floor_count", 2));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .layout(new Layout(null, false, List.of(
                         new Slot("hall", new Vec3i(0, 0, 0), null, null, null, null, null),
                         new Slot("dispatch", new Vec3i(20, 0, 0), null, null, null, null, null))))
@@ -731,7 +731,7 @@ class PlanIntentFidelityRepairTest {
                 new Dimensions(9, 9, 5), List.of("roof"),
                 Map.of("component_id", "tower_dome", "host_id", "tower_main",
                         "roof_type", "dome", "roof_block", "minecraft:black_concrete"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Modern_Observatory_Stepped")
                 .components(List.of(reception, tower, towerDome))
                 .distinguishingFeatures(List.of(

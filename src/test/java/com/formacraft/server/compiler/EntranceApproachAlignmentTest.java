@@ -18,7 +18,7 @@ class EntranceApproachAlignmentTest {
                 : Map.of("component_id", "plaza", "host_id", host));
     }
     private void align(List<Component> components, Set<String> assemblySlots) {
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
         ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), assemblySlots);
     }
 

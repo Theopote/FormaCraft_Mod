@@ -29,7 +29,7 @@ class TerrainHeightQueryTest {
                 queries.incrementAndGet();
                 return 70;
             });
-            var plan = LlmPlanTestFixtures.builder().globalConstraints(new GlobalConstraints(
+            var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).globalConstraints(new GlobalConstraints(
                     GlobalConstraints.Facing.SOUTH, GlobalConstraints.Symmetry.NONE, entry.getKey())).build();
             var result = processor.process(patches, PostProcessContext.create(plan, new BlockPos(100, 64, 200)));
             assertEquals(1 + entry.getValue(), result.get(0).dy());

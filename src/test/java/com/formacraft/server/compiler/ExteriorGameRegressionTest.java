@@ -18,7 +18,7 @@ class ExteriorGameRegressionTest {
                     new com.formacraft.common.llm.dto.Dimensions(9,9,8), List.of("hollow"),
                     Map.of("anchor_mode","min_corner","hollow",true,"wall_block",wall,
                             "suppress_windows",true,"suppress_doors",true));
-            var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+            var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                     .mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build).components(List.of(mass)).build();
             var result = ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false);
             if (wall.equals("minecraft:air")) {
@@ -39,7 +39,7 @@ class ExteriorGameRegressionTest {
                     new com.formacraft.common.llm.dto.Dimensions(6, 6, 1), List.of(),
                     Map.of("roof_type", "flat", "overhang", 0, "host_id", "house",
                             "resolved_mass_part_roof", true, "host_part_id", "missing"));
-            var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
+            var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
                     .components(List.of(mass, roof)).build();
             var method = ComponentPlanCompiler.class.getDeclaredMethod("prepareComponents",
                     com.formacraft.common.llm.dto.LlmPlan.class, Map.class, boolean.class);

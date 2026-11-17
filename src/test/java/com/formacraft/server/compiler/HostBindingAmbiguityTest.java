@@ -59,7 +59,7 @@ class HostBindingAmbiguityTest {
                 new Dimensions(6, 6, 2), null,
                 Map.of("component_id", "roof", "host_id", "a", "roof_type", "flat"));
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(massA, massB, roof))
                 .layout(new Layout(null, false, List.of(new Slot("s0", new Vec3i(0, 64, 0), null, null, null, null))))

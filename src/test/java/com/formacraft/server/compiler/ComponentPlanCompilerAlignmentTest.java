@@ -36,7 +36,7 @@ class ComponentPlanCompilerAlignmentTest {
                         null
                 )
         );
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Neoclassical")
                 .anchor(new Vec3i(0, 64, 0))

@@ -12,7 +12,7 @@ class HostedFloorBoundaryTest {
                     Map.of("component_id","house","anchor_mode","min_corner","floor_height",5,"floor_count",2,"wall_thickness",2));
             var plate=new Component("MASS_SECONDARY","main",new Vec3i(0,5,0),new Dimensions(25,17,1),List.of(),
                     Map.of("component_id","floor","host_id","house","anchor_mode","min_corner","extrude_mode","plate","material","minecraft:spruce_planks","exposed_floor_edges",exposed));
-            var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(mass,plate)).build();
+            var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of(mass,plate)).build();
             var method=ComponentPlanCompiler.class.getDeclaredMethod("prepareComponents",LlmPlan.class,Map.class,boolean.class);
             method.setAccessible(true);
             var prepared=method.invoke(null,plan,Map.of(),false);

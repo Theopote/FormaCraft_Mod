@@ -328,7 +328,7 @@ class BuildingLandingPlannerTest {
                     new com.formacraft.common.llm.dto.Vec3i(0,0,0),
                     new com.formacraft.common.llm.dto.Dimensions(35,45,40),
                     List.of("typology:gothic_cathedral_hall"),Map.of("facing",facing,"typology_id","gothic_cathedral_hall"));
-            var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build).components(List.of(component)).build();
+            var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build).components(List.of(component)).build();
             var origin=new BlockPos(10,64,20);
             var sites=BuildingLandingPlanner.sites(plan,origin);
             assertEquals(1,sites.size(),"native structure must not fall into the legacy terrain pad route");
@@ -410,7 +410,7 @@ class BuildingLandingPlannerTest {
     @Test void patchPlansDoNotAcquireAutomaticLandingTranslations() {
         var component=new com.formacraft.common.llm.dto.Component("MASS_MAIN",null,
                 new com.formacraft.common.llm.dto.Vec3i(0,0,0),new com.formacraft.common.llm.dto.Dimensions(9,7,6),null,null);
-        var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(com.formacraft.common.llm.dto.LlmPlan.Mode.patch)
+        var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(com.formacraft.common.llm.dto.LlmPlan.Mode.patch)
                 .components(List.of(component)).build();
         assertTrue(BuildingLandingPlanner.sites(plan,BlockPos.ORIGIN).isEmpty());
     }

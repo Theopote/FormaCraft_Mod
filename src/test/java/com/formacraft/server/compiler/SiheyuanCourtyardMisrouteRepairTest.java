@@ -16,7 +16,7 @@ class SiheyuanCourtyardMisrouteRepairTest {
 
     @Test
     void threeJinSiheyuanKeepsCompositionalPlan() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Chinese_Vernacular_Siheyuan")
                 .planMeta(Map.of(
                         "request_intent_text",
@@ -35,7 +35,7 @@ class SiheyuanCourtyardMisrouteRepairTest {
 
     @Test
     void incompleteSingleJinWithoutCourtStillRewrites() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Chinese_Vernacular_Siheyuan")
                 .planMeta(Map.of("request_intent_text", "生成一座四合院，正房和厢房"))
                 .components(List.of(
@@ -56,7 +56,7 @@ class SiheyuanCourtyardMisrouteRepairTest {
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(12, 8, 6), List.of(),
                 Map.of("component_id", "main", "facing", "NORTH", "anchor_mode", "min_corner"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Chinese_Vernacular_Siheyuan")
                 .planMeta(Map.of("request_intent_text", "生成一座朝北的四合院，正房和厢房"))
                 .components(List.of(
@@ -74,7 +74,7 @@ class SiheyuanCourtyardMisrouteRepairTest {
                 "STRUCTURE", "main", new Vec3i(0, 0, 0),
                 new Dimensions(36, 44, 10), List.of("typology:courtyard_compound"),
                 Map.of("typology_id", "courtyard_compound", "component_id", "yard"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Chinese_Vernacular_Siheyuan")
                 .planMeta(Map.of("request_intent_text", "生成一座四合院"))
                 .components(List.of(structure))

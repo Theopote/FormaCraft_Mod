@@ -25,7 +25,7 @@ class DenseEavesPagodaMisrouteRepairTest {
                 new Dimensions(20, 20, 28),
                 List.of("typology:dense_eaves_pagoda"),
                 Map.of("component_id", "tower", "typology_id", "dense_eaves_pagoda", "footprint", "octagon"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(structure))
                 .planMeta(Map.of(
                         "request_intent_text", "生成一座 20x20 格的非对称废土风格中式楼阁。"))
@@ -49,7 +49,7 @@ class DenseEavesPagodaMisrouteRepairTest {
                 new Dimensions(16, 16, 23),
                 List.of("typology:dense_eaves_pagoda", "four_corner"),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(structure))
                 .planMeta(Map.of(
                         "request_intent_text", "生成一座 16x16 格的中式三层四角塔楼。"))
@@ -72,7 +72,7 @@ class DenseEavesPagodaMisrouteRepairTest {
                 new Dimensions(5, 5, 3),
                 List.of("column"),
                 Map.of("component_id", "pav1_main", "open", true, "wall_type", "none"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(pavilion))
                 .planMeta(Map.of(
                         "request_intent_text", "建三座开敞木亭，每座四角木柱支撑双坡屋顶。"))

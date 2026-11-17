@@ -46,7 +46,7 @@ class LlmPlanParserDistinguishingFeaturesTest {
 
     @Test
     void normalizePreservesDistinguishingFeatures() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new com.formacraft.common.llm.dto.Vec3i(0, 64, 0))

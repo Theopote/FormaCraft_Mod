@@ -30,7 +30,7 @@ class FlatRoofAttachmentRepairTest {
                         "roof_type", "flat", "anchor_mode", "min_corner"));
         Slot bodySlot = new Slot("body", new Vec3i(20, 10, 30), null, null, null, null);
         Slot roofSlot = new Slot("roof", new Vec3i(20, 11, 30), null, null, null, null);
-        LlmPlan repaired = FlatRoofAttachmentRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = FlatRoofAttachmentRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .layout(new Layout(null, false, List.of(bodySlot, roofSlot)))
                 .components(List.of(body, roof))
                 .build());
@@ -52,7 +52,7 @@ class FlatRoofAttachmentRepairTest {
                 new Dimensions(8, 8, 1), List.of(),
                 Map.of("component_id", "side_hall_roof", "host_id", "side_hall",
                         "roof_type", "flat", "anchor_mode", "min_corner"));
-        LlmPlan repaired = FlatRoofAttachmentRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = FlatRoofAttachmentRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(body, roof))
                 .build());
         Component snapped = repaired.components().stream()
@@ -83,7 +83,7 @@ class FlatRoofAttachmentRepairTest {
                 new Dimensions(8, 8, 1), List.of(),
                 Map.of("component_id", "house_roof", "host_id", "house",
                         "roof_type", "flat", "anchor_mode", "min_corner"));
-        LlmPlan repaired = FlatRoofAttachmentRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = FlatRoofAttachmentRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(main, attic, neighbor, roof))
                 .build());
         Component snapped = repaired.components().stream()
@@ -120,7 +120,7 @@ class FlatRoofAttachmentRepairTest {
                         "roof_type", "flat", "anchor_mode", "min_corner"));
         Slot bodySlot = new Slot("body", new Vec3i(0, 10, 0), null, null, null, null);
         Slot roofSlot = new Slot("roof", new Vec3i(0, 20, 0), null, null, null, null);
-        LlmPlan repaired = FlatRoofAttachmentRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = FlatRoofAttachmentRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .layout(new Layout(null, false, List.of(bodySlot, roofSlot)))
                 .components(List.of(body, annex, roof))
                 .build());

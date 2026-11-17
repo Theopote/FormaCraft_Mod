@@ -114,7 +114,7 @@ class BuildingCirculationValidatorTest {
     @Test
     void requiredFlagsDisconnectedStoreys() {
         Component mass = twoStoreyMass();
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
                 .build();
@@ -126,7 +126,7 @@ class BuildingCirculationValidatorTest {
     @Test
     void omittedSkipsDisconnectedStoreys() {
         Component mass = twoStoreyMass();
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "OMITTED")))
                 .build();
@@ -137,7 +137,7 @@ class BuildingCirculationValidatorTest {
     @Test
     void unspecifiedSkipsDisconnectedStoreys() {
         Component mass = twoStoreyMass();
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .build();
         var gap = BuildingCirculationValidator.validate(plan, List.of(mass), disconnectedStoreyPatches(), Map.of());
@@ -147,7 +147,7 @@ class BuildingCirculationValidatorTest {
     @Test
     void requiredWithEmptyPatchesIsDataMissing() {
         Component mass = twoStoreyMass();
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
                 .build();
@@ -165,7 +165,7 @@ class BuildingCirculationValidatorTest {
                 new Dimensions(4, 4, 1),
                 List.of(),
                 Map.of("extrude_mode", "plate", "plate_role", "bridge", "component_id", "deck"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(plate))
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
                 .build();
@@ -190,7 +190,7 @@ class BuildingCirculationValidatorTest {
                         "floor_count", 2,
                         "floor_height", 4
                 ));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(tower))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -216,7 +216,7 @@ class BuildingCirculationValidatorTest {
         // alpha interior (1,0,4); beta at x=20 → interior (21,0,4)
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 21, 0, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(a, b))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -232,7 +232,7 @@ class BuildingCirculationValidatorTest {
     @Test
     void invalidCirculationScopeHardFails() {
         Component mass = twoStoreyMass();
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -263,7 +263,7 @@ class BuildingCirculationValidatorTest {
         for (int[] s : steps) {
             patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
         }
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -289,7 +289,7 @@ class BuildingCirculationValidatorTest {
         // Wing floor present but disconnected from hall
         patches.add(new BlockPatch(BlockPatch.PLACE, 13, 4, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 14, 4, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -315,7 +315,7 @@ class BuildingCirculationValidatorTest {
         List<BlockPatch> patches = new ArrayList<>();
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 17, 0, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(a, b))
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
                 .build();
@@ -340,7 +340,7 @@ class BuildingCirculationValidatorTest {
         patches.add(new BlockPatch(BlockPatch.PLACE, 2, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 21, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 22, 0, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -367,7 +367,7 @@ class BuildingCirculationValidatorTest {
         for (int x = 1; x <= 22; x++) {
             patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
         }
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -395,7 +395,7 @@ class BuildingCirculationValidatorTest {
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 17, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 33, 0, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(a, b, c))
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
                 .build();
@@ -412,7 +412,7 @@ class BuildingCirculationValidatorTest {
                         "floor_count", 1, "floor_height", 4, "anchor_mode", "min_corner"));
         List<BlockPatch> patches = new ArrayList<>();
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(a))
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
                 .build();
@@ -440,7 +440,7 @@ class BuildingCirculationValidatorTest {
         for (int x = 1; x <= 26; x++) {
             patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
         }
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, mid, tip))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -463,7 +463,7 @@ class BuildingCirculationValidatorTest {
         List<BlockPatch> patches = new ArrayList<>();
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 25, 0, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, tip))
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
                 .build();
@@ -487,7 +487,7 @@ class BuildingCirculationValidatorTest {
         List<BlockPatch> patches = new ArrayList<>();
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
         // No wing floor — internal ground start must fail (not the old relative-y=0 fixed sample).
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -514,7 +514,7 @@ class BuildingCirculationValidatorTest {
         List<BlockPatch> patches = new ArrayList<>();
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 13, 4, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -537,7 +537,7 @@ class BuildingCirculationValidatorTest {
         List<BlockPatch> patches = new ArrayList<>();
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 13, 0, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
                 .build();
@@ -568,7 +568,7 @@ class BuildingCirculationValidatorTest {
         }
         patches.add(new BlockPatch(BlockPatch.PLACE, 29, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 30, 0, 4, "minecraft:oak_planks"));
-        LlmPlan directPlan = LlmPlanTestFixtures.builder()
+        LlmPlan directPlan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, mid, tip))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -600,7 +600,7 @@ class BuildingCirculationValidatorTest {
         patches.add(new BlockPatch(BlockPatch.PLACE, 19, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 22, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 23, 0, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -614,7 +614,7 @@ class BuildingCirculationValidatorTest {
     @Test
     void invalidCirculationHostLinksHardFails() {
         Component mass = twoStoreyMass();
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -654,7 +654,7 @@ class BuildingCirculationValidatorTest {
                         "hall", new Vec3i(0, 0, 0), null, null, null, null),
                 "wing", new com.formacraft.common.llm.dto.Slot(
                         "wing", new Vec3i(5, 2, 3), null, null, null, null));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -685,7 +685,7 @@ class BuildingCirculationValidatorTest {
                         "hall", new Vec3i(0, 0, 0), null, null, null, null),
                 "wing", new com.formacraft.common.llm.dto.Slot(
                         "wing", new Vec3i(5, 2, 3), null, null, null, null));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -705,7 +705,7 @@ class BuildingCirculationValidatorTest {
         List<BlockPatch> patches = new ArrayList<>();
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 0, 40, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 1, 4, 40, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(tower))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -736,7 +736,7 @@ class BuildingCirculationValidatorTest {
         // Far pocket: standable but not edge-connected (gap) — two region reps, entry hits one
         patches.add(new BlockPatch(BlockPatch.PLACE, 20, 0, 4, "minecraft:oak_planks"));
         patches.add(new BlockPatch(BlockPatch.PLACE, 21, 0, 4, "minecraft:oak_planks"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -764,7 +764,7 @@ class BuildingCirculationValidatorTest {
             patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
             patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 3, "minecraft:oak_planks"));
         }
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -785,7 +785,7 @@ class BuildingCirculationValidatorTest {
         for (int x = 1; x <= 12; x++) {
             patches.add(new BlockPatch(BlockPatch.PLACE, x, 0, 4, "minecraft:oak_planks"));
         }
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -840,7 +840,7 @@ class BuildingCirculationValidatorTest {
         for (int[] s : betaSteps) {
             patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
         }
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(alpha, beta))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -921,7 +921,7 @@ class BuildingCirculationValidatorTest {
                 com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, betaSampleL2),
                 "L2 fixed interior sample must sit in courtyard void");
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(alpha, beta))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -960,7 +960,7 @@ class BuildingCirculationValidatorTest {
                 com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, fixed),
                 "fixed interior sample must sit in courtyard void");
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -986,7 +986,7 @@ class BuildingCirculationValidatorTest {
             patches.add(new BlockPatch(BlockPatch.PLACE, 12, 0, z, "minecraft:oak_planks"));
         }
         patches.removeIf(p -> p.dy() == 0 && p.dx() == 1 && p.dz() >= 3 && p.dz() <= 10);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -1020,7 +1020,7 @@ class BuildingCirculationValidatorTest {
         Map<String, Slot> slots = Map.of(
                 "hall", new Slot("hall", new Vec3i(0, 0, 0), null, null, null, null),
                 "wing", new Slot("wing", new Vec3i(5, 2, 3), null, null, null, null));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -1066,7 +1066,7 @@ class BuildingCirculationValidatorTest {
                 com.formacraft.common.generation.component.util.WalkabilityGraph.canStand(occ, deck),
                 "bridge deck must be standable");
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(host, target, bridge))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -1093,7 +1093,7 @@ class BuildingCirculationValidatorTest {
                         "extrude_mode", "plate", "plate_role", "bridge", "anchor_mode", "min_corner",
                         "connection_level", 1));
         List<BlockPatch> patches = courtyardBridgeRingPatches(true);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(host, target, bridge))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),
@@ -1189,7 +1189,7 @@ class BuildingCirculationValidatorTest {
         for (int[] s : targetSteps) {
             patches.add(new BlockPatch(BlockPatch.PLACE, s[0], s[1], 4, "minecraft:oak_planks"));
         }
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(host, target, bridge))
                 .planMeta(Map.of(
                         "design_requirements", Map.of("circulation", "REQUIRED"),

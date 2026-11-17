@@ -23,7 +23,7 @@ class ExteriorIntegrityGuardTest {
         return new BlockPatch(BlockPatch.PLACE, x, y, z, id);
     }
     private PostProcessContext context(Set<BlockPos> reserved) {
-        return PostProcessContext.create(LlmPlanTestFixtures.builder().build(), BlockPos.ORIGIN,
+        return PostProcessContext.create(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build(), BlockPos.ORIGIN,
                 List.of(new PostProcessContext.BuildingVolume("main", new Bounds(0, 0, 0, 6, 8, 6), 4),
                         new PostProcessContext.BuildingVolume("main", new Bounds(6, 0, 2, 10, 5, 6), 4)), reserved);
     }

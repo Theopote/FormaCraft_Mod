@@ -30,7 +30,7 @@ class DuplicateComponentIdRepairTest {
                 Map.of("component_id", "hall_roof", "host_id", "hall",
                         "anchor_mode", "min_corner"));
 
-        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hallA, hallB, roofB))
                 .build());
 
@@ -67,7 +67,7 @@ class DuplicateComponentIdRepairTest {
                 Map.of("component_id", "tower_roof", "host_id", "tower",
                         "host_part_id", "tower", "anchor_mode", "min_corner"));
 
-        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(main, attic, roof))
                 .build());
 
@@ -105,7 +105,7 @@ class DuplicateComponentIdRepairTest {
                 Map.of("component_id", "tower", "host_id", "tower",
                         "anchor_mode", "min_corner"));
 
-        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(peerA, peerB, nested))
                 .build());
 
@@ -133,7 +133,7 @@ class DuplicateComponentIdRepairTest {
                 Map.of("component_id", "mystery_roof", "host_id", "hall",
                         "anchor_mode", "min_corner"));
 
-        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = DuplicateComponentIdRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hallA, hallB, roof))
                 .build());
 

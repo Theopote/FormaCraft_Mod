@@ -28,7 +28,7 @@ class OpeningConstraintProvenanceTest {
                 new Dimensions(2, 3, 1), List.of(),
                 Map.of("door_width", 2, "frame_block", "minecraft:oak_log"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(door)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(door)).build(),
                 "生成一座徽派民居");
         Component stamped = plan.components().getFirst();
         assertEquals("LLM_INFERRED", String.valueOf(stamped.params().get("constraint_source")));
@@ -55,7 +55,7 @@ class OpeningConstraintProvenanceTest {
                 new Dimensions(2, 3, 1), List.of(),
                 Map.of("door_width", 2));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(door)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(door)).build(),
                 "生成徽派民居，入口做双开门");
         Component stamped = plan.components().getFirst();
         assertEquals("USER_EXPLICIT", String.valueOf(stamped.params().get("constraint_source")));
@@ -82,7 +82,7 @@ class OpeningConstraintProvenanceTest {
                 new Dimensions(2, 2, 1), List.of(),
                 Map.of("glass_block", "minecraft:black_stained_glass"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(window)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(window)).build(),
                 "生成房屋，窗户使用黑色染色玻璃");
         Component stamped = plan.components().getFirst();
         assertTrue(OpeningMaterialAudit.isUserExplicitWindowMaterial(stamped));
@@ -111,7 +111,7 @@ class OpeningConstraintProvenanceTest {
                         "glass_block", "minecraft:black_stained_glass",
                         "constraint_source", "LLM_INFERRED"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(window)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(window)).build(),
                 "生成房屋，窗户使用黑色染色玻璃");
         Component stamped = plan.components().getFirst();
         // Material stays field-scoped — do not promote component-level constraint_source.
@@ -134,7 +134,7 @@ class OpeningConstraintProvenanceTest {
                         "glass_block", "minecraft:glass",
                         "constraint_source", "LLM_INFERRED"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(window)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(window)).build(),
                 "生成一栋现代住宅，所有窗户使用黑色染色玻璃");
         Component stamped = plan.components().getFirst();
         assertEquals("minecraft:black_stained_glass", stamped.params().get("glass_block"),
@@ -157,7 +157,7 @@ class OpeningConstraintProvenanceTest {
                 new Dimensions(3, 1, 3), List.of(),
                 Map.of("host_id", "house", "door_width", 2));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder().components(List.of(mass, groundDoor)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass, groundDoor)).build(),
                 "二层设置一个连接室外楼梯的入口");
         Component stamped = plan.components().stream()
                 .filter(c -> "ENTRANCE".equals(c.componentType()))

@@ -28,7 +28,7 @@ class WallThicknessFitRepairTest {
                 List.of(),
                 Map.of("component_id", "pinnacle_sw", "hollow", true, "wall_thickness", 1, "void_ratio", 0.15)
         );
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(pinnacle))
                 .build();

@@ -152,7 +152,7 @@ class InGameAcceptanceRepairTest {
                 GlobalConstraints.Facing.SOUTH,
                 null, null, null,
                 new Vec3i(12, 8, 10));
-        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .layout(new Layout(Layout.SkeletonType.COMPOUND, false, List.of(slot)))
                 .components(List.of())
@@ -177,7 +177,7 @@ class InGameAcceptanceRepairTest {
                 "scopes", List.of(Map.of(
                         "scope", "global",
                         "text", "盖一座约 12×16 的中式殿堂，深色橡木墙，深色橡木楼梯歇山顶，南向正门"))));
-        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .layout(new Layout(Layout.SkeletonType.COMPOUND, false, List.of(slot)))
                 .components(List.of())
@@ -237,7 +237,7 @@ class InGameAcceptanceRepairTest {
 
     @Test
     void hipRoofFromWudianContract() {
-        var hints = PlanIntentFidelityRepair.parse(com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+        var hints = PlanIntentFidelityRepair.parse(com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .distinguishingFeatures(List.of("庑殿顶四面落坡", "石砖楼梯瓦面"))
                 .proportionHints(Map.of(
@@ -356,7 +356,7 @@ class InGameAcceptanceRepairTest {
     void slotPrimaryAnchorRepairZerosResidualOffset() {
         Slot slot = new Slot("studio_slot", new Vec3i(-8, 0, 0), GlobalConstraints.Facing.SOUTH,
                 null, null, null, new Vec3i(12, 8, 12));
-        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .anchor(new Vec3i(1768, 72, -446))
                 .layout(new Layout(Layout.SkeletonType.COMPOUND, false, List.of(slot)))
@@ -392,7 +392,7 @@ class InGameAcceptanceRepairTest {
         Map<String, Object> hints = new HashMap<>();
         hints.put("architecture_intent", Map.of("scopes", List.of(Map.of("text",
                 "盖一座约12×10的单层木构小厅，深色橡木墙，橡木楼梯坡屋顶（双坡/人字顶），屋脊沿东西向，南北两坡用楼梯方块，南侧正门一门两窗"))));
-        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .layout(new Layout(Layout.SkeletonType.COMPOUND, false, List.of(slot)))
                 .components(List.of())
@@ -446,7 +446,7 @@ class InGameAcceptanceRepairTest {
         Component entrance = new Component(
                 "ENTRANCE", "main", new Vec3i(4, 0, 0),
                 new Dimensions(3, 1, 4), List.of(), doorParams);
-        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+        LlmPlan plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(mass, entrance))
                 .proportionHints(hints)
@@ -481,7 +481,7 @@ class InGameAcceptanceRepairTest {
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(10, 10, 14), List.of(), params);
         LlmPlan repaired = PlanIntentFidelityRepair.apply(
-                com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .mode(LlmPlan.Mode.build)
                         .components(List.of(mass))
                         .proportionHints(hints)

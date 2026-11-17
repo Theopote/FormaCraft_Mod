@@ -36,7 +36,7 @@ class PostProcessPipelineFailurePolicyTest {
     }
 
     private static PostProcessContext context() {
-        LlmPlan plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT").build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT").build();
         return PostProcessContext.create(plan, null);
     }
 

@@ -58,7 +58,7 @@ class Live2252RegressionTest {
                 Map.of("component_id","body", "anchor_mode","center", "roof_type","none", "window_style","none", "entrance_type","none"));
         var base = new Component("FOUNDATION", null, new Vec3i(20,0,-30), new Dimensions(16,14,2), List.of(),
                 Map.of("component_id","base", "host_id","body", "anchor_mode","center"));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(base, body)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(base, body)).build();
         var prepared = ComponentSatelliteInference.prepareComponents(plan, Map.of(), false);
         var resolved = prepared.components().stream().filter(c -> "base".equals(c.params().get("component_id"))).findFirst().orElseThrow();
         // Center-anchored foundation converts to min_corner from its authored center.

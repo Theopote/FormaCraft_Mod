@@ -30,7 +30,7 @@ class ChurchAndArchRepairTest {
                         "component_id", "brutalist_church",
                         "typology_id", "gothic_cathedral_hall",
                         "building_role", "hall_main"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .playerFidelityNoticeZh("建一座野兽派教堂")
                 .distinguishingFeatures(List.of("brutalist", "教堂"))
                 .components(List.of(mass))
@@ -49,7 +49,7 @@ class ChurchAndArchRepairTest {
                 new HashMap<>(Map.of(
                         "component_id", "brutalist_shell",
                         "typology_id", "gothic_cathedral_hall")));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .playerFidelityNoticeZh("生成一座野兽派风格教堂")
                 .distinguishingFeatures(List.of("brutalist", "教堂"))
                 .components(List.of(structure))
@@ -70,7 +70,7 @@ class ChurchAndArchRepairTest {
                 Map.of(
                         "component_id", "gothic_church",
                         "typology_id", "gothic_cathedral_hall"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .playerFidelityNoticeZh("建一座哥特式教堂")
                 .distinguishingFeatures(List.of("gothic", "教堂"))
                 .components(List.of(mass))
@@ -99,7 +99,7 @@ class ChurchAndArchRepairTest {
                         "host_id", "arch_body",
                         "facing", "SOUTH",
                         "anchor_mode", "min_corner"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .playerFidelityNoticeZh("巴洛克凯旋门")
                 .distinguishingFeatures(List.of("baroque", "凯旋门"))
                 .components(List.of(host, door))
@@ -138,7 +138,7 @@ class ChurchAndArchRepairTest {
                         "host_id", "arch_body",
                         "facing", "WEST",
                         "clear_width", 5));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .playerFidelityNoticeZh("三跨双向对称的巴洛克凯旋门")
                 .distinguishingFeatures(List.of("三跨", "凯旋门"))
                 .components(List.of(plinth, host, door))
@@ -176,7 +176,7 @@ class ChurchAndArchRepairTest {
                         "host_id", "gh_body",
                         "anchor_mode", "min_corner",
                         "kind", "column_ring"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .playerFidelityNoticeZh("边长为 5 的正八角形双层植物温室")
                 .distinguishingFeatures(List.of("正八角", "温室"))
                 .components(List.of(body, columns))
@@ -205,7 +205,7 @@ class ChurchAndArchRepairTest {
                         "window_ratio", 0.7,
                         "open", true,
                         "wall_type", "none"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .playerFidelityNoticeZh("正八角形双层植物温室")
                 .distinguishingFeatures(List.of("正八角", "温室"))
                 .components(List.of(greenhouse))

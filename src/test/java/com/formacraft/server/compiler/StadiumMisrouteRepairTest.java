@@ -29,7 +29,7 @@ class StadiumMisrouteRepairTest {
                         "window_aspect", "ribbon_glazing",
                         "elliptical", true,
                         "meshStructure", true));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Modern_Stadium_Elliptical")
                 .components(List.of(structure))
                 .planMeta(Map.of(
@@ -61,7 +61,7 @@ class StadiumMisrouteRepairTest {
                 new Dimensions(60, 80, 28),
                 List.of("typology:stadium_bowl"),
                 Map.of("component_id", "bowl", "typology_id", "stadium_bowl"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(structure))
                 .planMeta(Map.of("request_intent_text", "生成一座椭圆体育场，带看台"))
                 .build();

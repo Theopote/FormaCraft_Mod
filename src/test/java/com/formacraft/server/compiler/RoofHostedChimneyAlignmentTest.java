@@ -17,7 +17,7 @@ class RoofHostedChimneyAlignmentTest {
         var chimney = new Component("CHIMNEY", "main", new Vec3i(8, 15, 2),
                 new Dimensions(2, 2, 5), List.of("brick_stack"), Map.of("host_id", "roof", "component_id", "chimney"));
         var components = new ArrayList<>(chimneyFirst ? List.of(mass, chimney, roof) : List.of(mass, roof, chimney));
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
         ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), Set.of());
         var result = components.stream().filter(c -> "CHIMNEY".equals(c.componentType())).findFirst().orElseThrow();
         var alignedRoof = components.stream().filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();

@@ -54,7 +54,7 @@ class TempleGardenAlignmentRepairTest {
                 "ROOF", "gate", new Vec3i(-2, 15, -2),
                 new Dimensions(26, 31, 3), List.of(),
                 Map.of("component_id", "gate_roof", "host_id", "gate_body", "roof_type", "xuanshan"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("寺庙山门"))
                 .components(List.of(podium, body, roof))
                 .planMeta(Map.of(
@@ -91,7 +91,7 @@ class TempleGardenAlignmentRepairTest {
                 "ENTRANCE", "gate", new Vec3i(13, 0, 0),
                 new Dimensions(3, 1, 5), List.of("single_door"),
                 Map.of("component_id", "entrance_right", "host_id", "gate_body"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(body, roof, doorC, doorL, doorR))
                 .planMeta(Map.of(
                         "request_intent", Map.of(
@@ -117,7 +117,7 @@ class TempleGardenAlignmentRepairTest {
                 "MASS_MAIN", "garden", new Vec3i(10, 0, 0),
                 new Dimensions(13, 10, 5), List.of("main_hall"),
                 Map.of("component_id", "hall_main"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("jiangnan_garden")
                 .components(List.of(wall, decor, hall))
                 .planStatus("capability_gap")
@@ -153,7 +153,7 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(16, 12, 3), List.of("stilts"),
                 Map.of("component_id", "found_hall", "host_id", "hall_main",
                         "foundation_type", "stilts"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("江南园林", "亭"))
                 .components(List.of(hall, pavilion, stiltsOnHall))
                 .planMeta(Map.of(
@@ -197,7 +197,7 @@ class TempleGardenAlignmentRepairTest {
                 "STRUCTURE", "main", new Vec3i(4, 0, 12),
                 new Dimensions(4, 4, 1), List.of(),
                 Map.of("component_id", "haiden_steps", "anchor_mode", "min_corner"));
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(main, plinth, steps))
                 .build());
         assertEquals(plinth.relativePosition(), repaired.components().get(1).relativePosition());
@@ -216,7 +216,7 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(16, 16, 8), List.of(),
                 Map.of("component_id", "tier_l2", "host_id", "res_main",
                         "tier_index", 1, "anchor_mode", "min_corner"));
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(base, tier))
                 .build());
         Component kept = repaired.components().stream()
@@ -238,7 +238,7 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(6, 6, 5), List.of("pavilion"),
                 Map.of("component_id", "pavilion_water", "building_role", "pavilion",
                         "anchor_mode", "min_corner"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, pavilion))
                 .build();
         LlmPlan repaired = MassFootprintSeparationRepair.apply(plan);
@@ -294,7 +294,7 @@ class TempleGardenAlignmentRepairTest {
         Component door = new Component(
                 "ENTRANCE", "main", new Vec3i(13, 0, 7),
                 new Dimensions(1, 6, 5), List.of(), doorParams);
-        LlmPlan plan = LlmPlanTestFixtures.builder().components(List.of(mass, door)).build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass, door)).build();
         Component aligned = ComponentPlanCompiler.alignEntranceToMass(
                 door, mass, plan, com.formacraft.common.llm.dto.GlobalConstraints.Facing.EAST);
         assertEquals("EAST", aligned.params().get("facing"));
@@ -322,7 +322,7 @@ class TempleGardenAlignmentRepairTest {
                 "DECOR_DETAIL", "main", new Vec3i(0, 1, 0),
                 new Dimensions(1, 1, 2), List.of("censer"),
                 Map.of("component_id", "censer", "host_id", "courtyard"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(court, censer))
                 .planStatus("capability_gap")
                 .error("capability: host_id='courtyard' unknown for censer")
@@ -354,7 +354,7 @@ class TempleGardenAlignmentRepairTest {
                 "CROWN", "gate", new Vec3i(0, 12, 0),
                 new Dimensions(4, 4, 3), List.of(),
                 Map.of("component_id", "component_14", "host_id", "gate_mass_01"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(gate, roof, crown))
                 .build();
         LlmPlan repaired = ExplicitDesignConflictRepair.apply(plan);
@@ -378,7 +378,7 @@ class TempleGardenAlignmentRepairTest {
                 "WALL", "garden_slot", new Vec3i(0, 0, 0),
                 new Dimensions(8, 6, 8), List.of("decorative_wall_doorway"),
                 Map.of("component_id", "garden_wall"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("jiangnan_garden")
                 .distinguishingFeatures(List.of("江南园林"))
                 .components(List.of(hall, foundation, wall))
@@ -427,7 +427,7 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(6, 6, 5), List.of("pavilion"),
                 Map.of("component_id", "pavilion_water", "building_role", "pavilion",
                         "anchor_mode", "min_corner"));
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, pavilion))
                 .build());
         Component moved = repaired.components().stream()
@@ -463,7 +463,7 @@ class TempleGardenAlignmentRepairTest {
                 Map.of("component_id", "pavilion_a_roof", "host_id", "pavilion_a",
                         "anchor_mode", "min_corner"));
         Vec3i roofBefore = pavilionRoof.relativePosition();
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, pavilion, pavilionRoof))
                 .build());
         Component movedPavilion = repaired.components().stream()
@@ -502,7 +502,7 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(8, 8, 6), List.of(),
                 Map.of("component_id", "south_side_hall", "building_role", "side_hall",
                         "anchor_mode", "min_corner"));
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, north, northRoof, south))
                 .build());
         Component n = repaired.components().stream()
@@ -540,7 +540,7 @@ class TempleGardenAlignmentRepairTest {
                 Map.of("component_id", "garden_pavilion", "building_role", "pavilion",
                         "anchor_mode", "min_corner"));
         String prompt = "一座园林主厅与凉亭交叠穿插的构图";
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, pavilion))
                 .planMeta(Map.of(
                         "request_intent", Map.of("original_text", prompt),
@@ -566,7 +566,7 @@ class TempleGardenAlignmentRepairTest {
                 Map.of("component_id", "volume_b", "building_role", "sculpture_volume",
                         "anchor_mode", "min_corner"));
         String prompt = "两个体块互相交叠穿插";
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(a, b))
                 .planMeta(Map.of(
                         "request_intent", Map.of("original_text", prompt),
@@ -600,7 +600,7 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(3, 1, 4), List.of("passage"),
                 Map.of("component_id", "keep_passage", "host_id", "main_hall",
                         "clear_passage", true, "anchor_mode", "min_corner"));
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, wing, door))
                 .build());
         Component moved = repaired.components().stream()
@@ -627,7 +627,7 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(2, 1, 4), List.of("passage"),
                 Map.of("component_id", "guard_tower_portal_0", "host_id", "guard_tower_0",
                         "clear_passage", true, "anchor_mode", "min_corner"));
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(keep, tower, portal))
                 .build());
         Component stayed = repaired.components().stream()
@@ -653,7 +653,7 @@ class TempleGardenAlignmentRepairTest {
         Component stair = new Component(
                 "STRUCTURE", "tower_left", new Vec3i(-4, 1, -4),
                 new Dimensions(3, 8, 8), List.of("stair:straight_single_run"), stairParams);
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(tower, stair))
                 .build());
         Component kept = repaired.components().stream()
@@ -677,7 +677,7 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(10, 10, 16), List.of(),
                 Map.of("component_id", "inner_volume", "building_role", "hall",
                         "anchor_mode", "min_corner"));
-        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(outer, inner))
                 .build());
         Component moved = repaired.components().stream()

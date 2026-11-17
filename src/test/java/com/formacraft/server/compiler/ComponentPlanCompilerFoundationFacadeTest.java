@@ -56,7 +56,7 @@ class ComponentPlanCompilerFoundationFacadeTest {
                 Map.of("window_ratio", 0.2, "window_aspect", "vertical_strip")
         );
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0))
@@ -96,7 +96,7 @@ class ComponentPlanCompilerFoundationFacadeTest {
                 new Dimensions(9, 7, 1), List.of(), Map.of("anchor_mode", "center"));
         var slot = new com.formacraft.common.llm.dto.Slot("s", new Vec3i(0, 3, 0),
                 GlobalConstraints.Facing.SOUTH, null, null, null);
-        LlmPlan plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
                 .anchor(new Vec3i(100, 64, -100)).layout(new Layout(null, false, List.of(slot)))
                 .components(List.of(foundation, mass)).build();
         var blocks = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, null, null, null, false));
@@ -115,7 +115,7 @@ class ComponentPlanCompilerFoundationFacadeTest {
                 new Dimensions(9, 7, 6), List.of(), Map.of("anchor_mode", "min_corner", "plan_type", "rectangle"));
         Component roof = new Component("ROOF", null, new Vec3i(0, 10, 0),
                 new Dimensions(9, 7, 4), List.of(), Map.of("roof_type", "gable"));
-        LlmPlan plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0)).components(List.of(mass, roof)).build();
         var blocks = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, null, null, null, false));
         assertEquals(8, blocks.keySet().stream().mapToInt(Vec3i::y).max().orElseThrow(),

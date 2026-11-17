@@ -17,7 +17,7 @@ class Oct18NightCompatibilityTest {
                 Map.of("component_id","research","anchor_mode","min_corner","floor_height",3,"floor_count",2));
         var door=new Component("ENTRANCE","research",new Vec3i(12,0,2),new Dimensions(1,3,3),List.of(),
                 Map.of("host_id","research","stair_connection","stair","door_width",3,"door_height",4));
-        var plan=LlmPlanTestFixtures.builder().components(List.of(mass,door)).build();
+        var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass,door)).build();
         var method=ComponentPlanCompiler.class.getDeclaredMethod("alignStairEntrance",Component.class,Component.class,LlmPlan.class); method.setAccessible(true);
         var aligned=(Component)method.invoke(null,door,mass,plan);
         assertEquals("WEST",aligned.params().get("facing"));
@@ -34,7 +34,7 @@ class Oct18NightCompatibilityTest {
             var mass=new Component("MASS_MAIN","chapel",new Vec3i(0,0,0),new Dimensions(23,11,12),List.of(),params);
             var windows=new Component("FACADE_WINDOWS","chapel",mass.relativePosition(),mass.dimensions(),List.of("wrap"),
                     Map.of("host_id","chapel","window_width",1,"window_height",8,"sill_height",2,"glass_block","minecraft:glass"));
-            var plan=LlmPlanTestFixtures.builder().components(List.of(mass,windows)).build();
+            var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass,windows)).build();
             var aligned=(Component)method.invoke(null,windows,mass,plan,GlobalConstraints.Facing.SOUTH);
             assertEquals(8,aligned.params().get("window_height"));
             assertEquals(explicitFloors?4:1,aligned.params().get("floor_count"));

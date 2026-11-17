@@ -13,7 +13,7 @@ class HostedPavingPlinthAlignmentTest {
 
     private Component align(Component paving) {
         var components = new ArrayList<>(List.of(mass(), paving));
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
                 .components(components).build();
         ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), Set.of());
         return components.get(1);

@@ -110,7 +110,7 @@ class FbdIntegrationTest {
     @Test void materialFallbackStillNormalizesOrdinaryParamsBesideAnOpaqueProgram() {
         var ast = program(Map.of("stmt", "let", "id", "floor", "name", "floor", "value", "floor"), shell("shell"));
         var params = Map.<String, Object>of("fbd_program", ast, "floor", "floor");
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).anchor(new Vec3i(0,64,0))
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).anchor(new Vec3i(0,64,0))
                 .styleProfile("DEFAULT").components(List.of(component("ASSEMBLY", params))).build();
         var normalized = MaterialFallbackPolicy.normalize(plan);
         assertSame(ast, normalized.components().getFirst().params().get("fbd_program"));
@@ -209,7 +209,7 @@ class FbdIntegrationTest {
 
     @Test void realPlanCompilerRejectsBadProgramBeforeAnyWorldOrGeneratorIsNeeded() {
         var c = component("ASSEMBLY", Map.of("fbd_program", program(Map.of("stmt", "call", "id", "bad", "fn", "missing", "args", Map.of()))));
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).anchor(new Vec3i(0,64,0))
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).anchor(new Vec3i(0,64,0))
                 .styleProfile("DEFAULT").components(List.of(c)).build();
         assertTrue(ComponentPlanCompiler.compile(plan).isEmpty());
         assertEquals("E_FBD_UNKNOWN_FUNCTION", AssemblyCompileDiagnostics.get().code());

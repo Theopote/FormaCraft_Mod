@@ -92,16 +92,8 @@ public final class LlmPlanTestFixtures {
         }
 
         public LlmPlan build() {
-            Map<String, Object> meta = planMeta;
-            // TEST-ONLY convenience: unspecified planMeta still opts into satellite infer so
-            // legacy compiler fixtures keep compiling. Production PlanMetaAccess is opt-in
-            // (absent → false). Custom planMeta(...) WITHOUT the key is also absent→false —
-            // call allowCompilerSatellites(true) when the case needs transitional completion.
-            if (meta == null) {
-                meta = new HashMap<>();
-                meta.put(com.formacraft.common.generation.routing.PlanMetaAccess.ALLOW_COMPILER_SATELLITES, Boolean.TRUE);
-                meta.put("compiler_satellites_policy", "transitional_fixture");
-            }
+            // Production-aligned: unspecified planMeta → null → allowCompilerSatellites absent→false.
+            // Tests that need transitional satellite completion must call allowCompilerSatellites(true).
             return new LlmPlan(
                     mode,
                     styleProfile,
@@ -124,7 +116,7 @@ public final class LlmPlanTestFixtures {
                     playerFidelityNoticeZh,
                     distinguishingFeatures,
                     enrichmentGuard,
-                    meta,
+                    planMeta,
                     designSources);
         }
     }

@@ -29,7 +29,7 @@ class StructureAccessoryRemapRepairTest {
                 "STRUCTURE", "main", new Vec3i(-1, -1, -1),
                 new Dimensions(16, 14, 1), List.of("台基"),
                 Map.of("component_id", "haiden_plinth", "host_id", "haiden_main"));
-        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(main, plinth))
                 .build());
         assertEquals("STRUCTURE", repaired.components().get(0).componentType());
@@ -43,7 +43,7 @@ class StructureAccessoryRemapRepairTest {
                 "STRUCTURE", "main", new Vec3i(4, 0, 12),
                 new Dimensions(4, 6, 3), List.of(),
                 Map.of("component_id", "haiden_steps"));
-        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(steps))
                 .build());
         Component out = repaired.components().getFirst();
@@ -62,7 +62,7 @@ class StructureAccessoryRemapRepairTest {
                 new Dimensions(4, 4, 3), List.of(),
                 Map.of("component_id", "haiden_steps", "material", "minecraft:stone_bricks",
                         "facing", "SOUTH"));
-        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(steps))
                 .build());
         Component out = repaired.components().getFirst();
@@ -93,7 +93,7 @@ class StructureAccessoryRemapRepairTest {
                 "STRUCTURE", "main", new Vec3i(4, 0, -6),
                 new Dimensions(4, 6, 3), List.of(),
                 Map.of("component_id", "haiden_steps", "host_id", "haiden_main"));
-        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(main, steps))
                 .build());
         Component out = repaired.components().get(1);
@@ -116,7 +116,7 @@ class StructureAccessoryRemapRepairTest {
                         "to", Map.of("x", 4, "y", 4, "z", 0),
                         "width", 2, "landing_length", 2,
                         "stairs", "minecraft:oak_stairs", "floor", "minecraft:oak_planks"));
-        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(hall, stair))
                 .build());
         Component out = repaired.components().get(1);
@@ -165,7 +165,7 @@ class StructureAccessoryRemapRepairTest {
                 "STRUCTURE", "main", new Vec3i(0, 0, 0),
                 new Dimensions(2, 2, 4), List.of(),
                 Map.of("component_id", "haiden_kouhai_pillars"));
-        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(pillars))
                 .build());
         assertEquals("STRUCTURE", repaired.components().getFirst().componentType());

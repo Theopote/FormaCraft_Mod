@@ -72,7 +72,7 @@ class ResolvedComponentGeometryTest {
     @Test void contractedLocalFloorHeightWinsOverResearchHint() {
         var mass = new Component("MASS_MAIN", null, new Vec3i(0, 0, 0), new Dimensions(9, 9, 12),
                 List.of(), Map.of("floor_height", 6));
-        var plan = LlmPlanTestFixtures.builder().proportionHints(Map.of("floor_height", 3,
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).proportionHints(Map.of("floor_height", 3,
                 "building_contract", Map.of("schema", "formacraft.building_contract.v1"))).build();
         assertEquals(6, ComponentFloorCorniceDecorator.resolveFloorHeight(plan, mass, 12));
     }

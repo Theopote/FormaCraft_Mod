@@ -19,7 +19,7 @@ class DesignRequirementAccessTest {
     void planMetaOmittedOverridesUnspecifiedDefault() {
         Component mass = new Component("MASS_MAIN", "b", new Vec3i(0, 0, 0),
                 new Dimensions(6, 6, 4), List.of(), Map.of());
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .planMeta(Map.of("design_requirements", Map.of("facade", "OMITTED")))
                 .build();
@@ -30,19 +30,19 @@ class DesignRequirementAccessTest {
     void explicitDisableMapsToOmittedWhenNoMeta() {
         Component mass = new Component("MASS_MAIN", "b", new Vec3i(0, 0, 0),
                 new Dimensions(6, 6, 4), List.of(), Map.of("roof_type", "none"));
-        LlmPlan plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).build();
         assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(plan, mass));
     }
 
     @Test
     void circulationDefaultsToUnspecified() {
-        LlmPlan plan = LlmPlanTestFixtures.builder().components(List.of()).build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of()).build();
         assertEquals(DesignRequirement.UNSPECIFIED, DesignRequirementAccess.circulation(plan));
     }
 
     @Test
     void circulationRequiredFromPlanMeta() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .planMeta(Map.of("design_requirements", Map.of("circulation", "REQUIRED")))
                 .build();
         assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.circulation(plan));
@@ -50,13 +50,13 @@ class DesignRequirementAccessTest {
 
     @Test
     void circulationScopeDefaultsToBuildingLocal() {
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
         assertEquals(CirculationScope.BUILDING_LOCAL, DesignRequirementAccess.circulationScope(plan));
     }
 
     @Test
     void circulationScopeConnectedComplexFromPlanMeta() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .planMeta(Map.of("circulation_scope", "CONNECTED_COMPLEX"))
                 .build();
         assertEquals(CirculationScope.CONNECTED_COMPLEX, DesignRequirementAccess.circulationScope(plan));
@@ -64,7 +64,7 @@ class DesignRequirementAccessTest {
 
     @Test
     void validateCirculationScopeRejectsTypo() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .planMeta(Map.of("circulation_scope", "CONNECTED_COMPLES"))
                 .build();
         var gap = DesignRequirementAccess.validateCirculationScope(plan);
@@ -74,13 +74,13 @@ class DesignRequirementAccessTest {
 
     @Test
     void validateCirculationScopeAllowsAbsentKey() {
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
         assertTrue(DesignRequirementAccess.validateCirculationScope(plan).isEmpty());
     }
 
     @Test
     void validateCirculationScopeRejectsBlank() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .planMeta(Map.of("circulation_scope", "  "))
                 .build();
         var gap = DesignRequirementAccess.validateCirculationScope(plan);
@@ -90,13 +90,13 @@ class DesignRequirementAccessTest {
 
     @Test
     void circulationHostLinksDefaultsToRoot() {
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
         assertEquals(CirculationHostLinks.ROOT, DesignRequirementAccess.circulationHostLinks(plan));
     }
 
     @Test
     void circulationHostLinksDirectFromPlanMeta() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .planMeta(Map.of("circulation_host_links", "DIRECT"))
                 .build();
         assertEquals(CirculationHostLinks.DIRECT, DesignRequirementAccess.circulationHostLinks(plan));
@@ -104,7 +104,7 @@ class DesignRequirementAccessTest {
 
     @Test
     void validateCirculationHostLinksRejectsTypo() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .planMeta(Map.of("circulation_host_links", "FOO"))
                 .build();
         var gap = DesignRequirementAccess.validateCirculationHostLinks(plan);

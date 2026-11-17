@@ -25,7 +25,7 @@ class LlmPlanAnchorNormalizerTest {
 
     @Test
     void convertsAbsoluteSlotAnchorsToPlanRelative() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Chinese_Traditional")
                 .anchor(new Vec3i(-54, 111, 160))
@@ -56,7 +56,7 @@ class LlmPlanAnchorNormalizerTest {
 
     @Test
     void leavesAlreadyRelativeSlotAnchorsUntouched() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Chinese_Traditional")
                 .anchor(new Vec3i(-54, 111, 160))
@@ -87,7 +87,7 @@ class LlmPlanAnchorNormalizerTest {
     }
 
     private static LlmPlan threeVillaPlanWithAbsoluteSlots() {
-        return LlmPlanTestFixtures.builder()
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Chinese_Traditional")
                 .anchor(new Vec3i(-54, 111, 160))

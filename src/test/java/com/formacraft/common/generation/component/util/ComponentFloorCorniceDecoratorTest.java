@@ -52,7 +52,7 @@ class ComponentFloorCorniceDecoratorTest {
     @Test
     void shouldApplyForClassicalTypologyHints() {
         Map<String, Object> hints = Map.of("typology", "classical_monument", "floor_cornice", true);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .layout(new Layout(null, false, List.of()))
                 .components(List.of())
                 .proportionHints(hints)
@@ -71,7 +71,7 @@ class ComponentFloorCorniceDecoratorTest {
                 List.of(),
                 Map.of("floor_height", 4)
         );
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .layout(new Layout(null, false, List.of()))
                 .components(List.of(mass))
                 .build();

@@ -31,7 +31,7 @@ class DesignValidatorSuiteTest {
 
     @Test void roofFailureWinsOverFacadeFailureRegardlessOfComponentOrder() {
         var components = List.of(invalidFacade(), roof());
-        var plan = LlmPlanTestFixtures.builder().components(components).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(components).build();
         assertEquals("E_WINDOW_ASPECT_CONFLICT", FacadeDesignValidator.check(plan, components).orElseThrow().code());
         assertEquals("E_ROOF_TYPE_UNSUPPORTED", DesignValidatorSuite.checkAuthored(plan).orElseThrow().code());
         assertEquals("E_ROOF_TYPE_UNSUPPORTED", DesignValidatorSuite.checkPrepared(plan, components).orElseThrow().code());
@@ -41,7 +41,7 @@ class DesignValidatorSuiteTest {
         // Authored may be a valid mass-only plan; prepared pass validates the inferred snapshot.
         var mass = new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0), new Dimensions(12, 10, 8),
                 List.of(), Map.of());
-        var plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).build();
         assertTrue(DesignValidatorSuite.checkAuthored(plan).isEmpty());
         assertEquals("E_ROOF_TYPE_UNSUPPORTED",
                 DesignValidatorSuite.checkPrepared(plan, List.of(roof())).orElseThrow().code());
@@ -49,7 +49,7 @@ class DesignValidatorSuiteTest {
 
     @Test void authorityCheckStaysInPreparedPassAndPrecedesPreparedDesign() {
         var components = List.of(roof());
-        var plan = LlmPlanTestFixtures.builder().components(components)
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(components)
                 .planMeta(Map.of("generation_authority", "invalid_suite_authority")).build();
         assertEquals("E_ROOF_TYPE_UNSUPPORTED", DesignValidatorSuite.checkAuthored(plan).orElseThrow().code());
         assertEquals("E_INVALID_GENERATION_AUTHORITY",
@@ -61,7 +61,7 @@ class DesignValidatorSuiteTest {
         var mass = new Component("MASS_MAIN", "body", new Vec3i(0, 0, 0), new Dimensions(12, 10, 8),
                 List.of(), Map.of());
         // Non-empty components required so the empty-plan semantic gate does not mask material checks.
-        var authored = LlmPlanTestFixtures.builder().components(List.of(mass)).styleAttributes(attributes).build();
+        var authored = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).styleAttributes(attributes).build();
         var attributeGap = DesignValidatorSuite.checkAuthored(authored).orElseThrow();
         assertEquals("E_MATERIAL_INVALID", attributeGap.code());
         assertEquals("style_attributes", attributeGap.path());
@@ -69,7 +69,7 @@ class DesignValidatorSuiteTest {
 
         var component = new Component("DECOR_DETAIL", "s", new Vec3i(0, 0, 0), new Dimensions(1, 1, 1),
                 List.of(), Map.of("wall_block", "suite:missing_wall"));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(component)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(component)).build();
         assertTrue(DesignValidatorSuite.checkAuthored(plan).isEmpty(), "component material gate belongs to prepared pass");
         var componentGap = DesignValidatorSuite.checkPrepared(plan, plan.components()).orElseThrow();
         assertEquals("E_MATERIAL_INVALID", componentGap.code());
@@ -82,7 +82,7 @@ class DesignValidatorSuiteTest {
         AssemblyCompileDiagnostics.set(existing);
         AssemblyCompileDiagnostics.addSoftWarning("EXISTING_WARNING", "keep", null, null);
         var warnings = AssemblyCompileDiagnostics.softWarnings();
-        var plan = LlmPlanTestFixtures.builder().components(List.of(roof())).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(roof())).build();
         assertTrue(DesignValidatorSuite.checkAuthored(plan).isPresent());
         assertTrue(DesignValidatorSuite.checkPrepared(plan, plan.components()).isPresent());
         assertSame(existing, AssemblyCompileDiagnostics.get());
@@ -105,7 +105,7 @@ class DesignValidatorSuiteTest {
     }
 
     @Test void compilerStillPublishesAuthoredFailureAndReturnsNoPatches() {
-        var plan = LlmPlanTestFixtures.builder().components(List.of(roof())).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(roof())).build();
         assertTrue(ComponentPlanCompiler.compile(plan).isEmpty());
         assertEquals("E_ROOF_TYPE_UNSUPPORTED", AssemblyCompileDiagnostics.get().code());
     }

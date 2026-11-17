@@ -24,7 +24,7 @@ class FootprintShapeRemapRepairTest {
                 new Dimensions(8, 8, 6), List.of("六角亭"),
                 Map.of("component_id", "east_pavilion", "shape", "hexagon",
                         "anchor_mode", "min_corner"));
-        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(pavilion))
                 .build());
         Component out = repaired.components().getFirst();
@@ -39,7 +39,7 @@ class FootprintShapeRemapRepairTest {
                 "MASS_MAIN", "pavilion", new Vec3i(0, 0, 0),
                 new Dimensions(9, 9, 6), List.of(),
                 Map.of("component_id", "hex_pavilion", "plan_type", "hexagon"));
-        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(pavilion))
                 .build());
         Component out = repaired.components().getFirst();
@@ -75,7 +75,7 @@ class FootprintShapeRemapRepairTest {
                 new Dimensions(7, 5, 2), List.of("frontal processional stair"),
                 Map.of("component_id", "processional_stair", "shape", "steps",
                         "host_id", "tholos_cella"));
-        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(stair))
                 .build());
         assertEquals("rectangle", String.valueOf(repaired.components().getFirst().params().get("shape")));
@@ -89,7 +89,7 @@ class FootprintShapeRemapRepairTest {
                 "ROOF", "slot_tholos", new Vec3i(-2, 8, -2),
                 new Dimensions(13, 13, 3), List.of("hemispherical dome"),
                 Map.of("component_id", "dome", "shape", "hemisphere", "roof_type", "dome"));
-        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = FootprintShapeRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(roof))
                 .build());
         assertEquals("circle", String.valueOf(repaired.components().getFirst().params().get("shape")));
@@ -101,7 +101,7 @@ class FootprintShapeRemapRepairTest {
                 "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
                 new Dimensions(16, 12, 8), List.of(),
                 Map.of("component_id", "hall", "shape", "rectangle", "plan_type", "none"));
-        LlmPlan plan = LlmPlanTestFixtures.builder().components(List.of(hall)).build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(hall)).build();
         LlmPlan repaired = FootprintShapeRemapRepair.apply(plan);
         assertTrue(repaired == plan || "rectangle".equals(String.valueOf(
                 repaired.components().getFirst().params().get("shape"))));

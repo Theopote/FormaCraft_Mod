@@ -36,7 +36,7 @@ class StyleFeedbackRegressionTest {
             input.add(new BlockPatch(BlockPatch.PLACE,x,0,z,"minecraft:stone_bricks"));
             if(x>=1 && x<12 && z>=1 && z<10) input.add(new BlockPatch(BlockPatch.PLACE,x,6,z,"minecraft:deepslate_tiles"));
         }
-        var context=PostProcessContext.create(LlmPlanTestFixtures.builder().styleProfile("DEFAULT").build(),BlockPos.ORIGIN);
+        var context=PostProcessContext.create(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleProfile("DEFAULT").build(),BlockPos.ORIGIN);
         var before=PatchTestSnapshot.blocks(input);
         var after=PatchTestSnapshot.blocks(new DetailEnhancementPostProcessor().process(input,context));
         assertEquals(before.keySet(),after.keySet(),"Implicit decoration must not add rings at column maxima");

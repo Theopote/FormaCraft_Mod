@@ -27,11 +27,11 @@ class HostedStructuralJoinTest {
         }
     }
     @Test void defaultCompletionIsOptInOnly() {
-        // Production contract: absent key → false. Explicit true remains transitional completion.
-        // (LlmPlanTestFixtures.builder().build() still injects true for legacy tests.)
+        // Production contract: fixture no longer auto-injects; absent key → false.
+        assertFalse(LlmPlanTestFixtures.builder().build().allowCompilerSatellites());
         assertFalse(LlmPlanTestFixtures.builder().planMeta(Map.of()).build().allowCompilerSatellites());
         assertFalse(LlmPlanTestFixtures.builder().planMeta(Map.of("allow_compiler_satellites",false)).build().allowCompilerSatellites());
-        assertTrue(LlmPlanTestFixtures.builder().planMeta(Map.of("allow_compiler_satellites",true)).build().allowCompilerSatellites());
+        assertTrue(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build().allowCompilerSatellites());
     }
     @Test void attachedTowerMayJoinOnlyItsOwnHostInTheSameFrame() {
         var index = new PatchOccupancyIndex();

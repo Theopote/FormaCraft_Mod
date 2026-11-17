@@ -43,7 +43,7 @@ class BuildingHostRoofBindingTest {
                 "MASS_MAIN", "hall", new Vec3i(30, 0, 0),
                 new Dimensions(12, 10, 8), List.of(),
                 Map.of("component_id", "hall_main"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(wing, hall))
                 .planMeta(Map.of("primary_building_id", "hall_main"))
                 .build();
@@ -72,7 +72,7 @@ class BuildingHostRoofBindingTest {
                         "double_eave", true,
                         "host_id", "pavilion_1"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(pavilion, pavilionRoof, hall, hallRoof))
                         .build(),
                 "生成重檐庑殿顶主殿，旁有攒尖亭");
@@ -100,7 +100,7 @@ class BuildingHostRoofBindingTest {
                 new Dimensions(9, 9, 3), List.of("double_eave"),
                 Map.of("roof_type", "double_eave_hip")); // no host_id
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(hall, hallRoof, pavilion, unboundDouble))
                         .build(),
                 "生成重檐庑殿顶大殿");
@@ -131,7 +131,7 @@ class BuildingHostRoofBindingTest {
                 new Dimensions(9, 9, 3), List.of(),
                 Map.of("roof_type", "pyramid", "host_id", "pavilion_1"));
         LlmPlan plan = RequestIntentInjector.ensure(
-                LlmPlanTestFixtures.builder()
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .components(List.of(pavilion, pavilionRoof, hall, hallRoof))
                         .build(),
                 "生成重檐庑殿顶主殿，旁边一座攒尖亭");

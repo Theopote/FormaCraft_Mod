@@ -47,7 +47,7 @@ class GothicBellTowerFidelityRepairTest {
                 "minecraft:andesite", null, List.of(), null,
                 Map.of("glazing", "minecraft:iron_bars", "accent_wall", "minecraft:andesite"),
                 null, null, null, null);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Gothic_Cathedral")
                 .styleAttributes(style)
                 .components(List.of(shaft, windows, roof, entrance))
@@ -90,7 +90,7 @@ class GothicBellTowerFidelityRepairTest {
         meta.put("request_intent", Map.of(
                 "building_class", "tower_like",
                 "original_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼。长条形铁栏杆狭窗"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Gothic_Cathedral")
                 .components(List.of(shaft, windows))
                 .planMeta(meta)
@@ -122,7 +122,7 @@ class GothicBellTowerFidelityRepairTest {
                 "building_class", "tower_like",
                 "confidence", 0.95,
                 "original_text", "生成一座 8x8 格、高 35 格的哥特式四角钟楼"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Gothic_Cathedral")
                 .components(List.of(shaft, buttress))
                 .planMeta(meta)

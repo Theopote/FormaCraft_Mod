@@ -53,7 +53,7 @@ class BaroqueMansionStyleRepairTest {
         meta.put("request_intent_text", "生成一座 15x25 格的双层巴洛克式大宅。顶部为高耸的马萨折线屋顶，带有椭圆山花老虎窗");
         meta.put("request_intent", Map.of(
                 "original_text", "生成一座 15x25 格的双层巴洛克式大宅。顶部为高耸的马萨折线屋顶，带有椭圆山花老虎窗"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("baroque")
                 .components(List.of(mass, plate, roof, decorDormers, chimney1, chimney2, beam, atticSpike))
                 .planMeta(meta)

@@ -18,7 +18,7 @@ class CompilerSatellitePolicyTest {
     @Test
     void omittedDesignRequirementsDoNotTriggerIncompleteGap() {
         Component mass = mass();
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .planMeta(Map.of(
                         "allow_compiler_satellites", false,
@@ -36,7 +36,7 @@ class CompilerSatellitePolicyTest {
     @Test
     void unspecifiedStillRequiresSatellitesWhenInferDisabled() {
         Component mass = mass();
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass))
                 .planMeta(Map.of("allow_compiler_satellites", false))
                 .build();
@@ -77,7 +77,7 @@ class CompilerSatellitePolicyTest {
     }
 
     private static LlmPlan planWithCrownRequired() {
-        return LlmPlanTestFixtures.builder()
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(mass()))
                 .planMeta(Map.of(
                         "allow_compiler_satellites", false,

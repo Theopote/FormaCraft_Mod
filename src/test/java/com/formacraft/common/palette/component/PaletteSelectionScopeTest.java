@@ -8,7 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PaletteSelectionScopeTest {
     private List<String> choices(long seed, String id) {
-        var plan = LlmPlanTestFixtures.builder().styleProfile("MEDIEVAL").proportionHints(Map.of("design_seed", seed)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleProfile("MEDIEVAL").proportionHints(Map.of("design_seed", seed)).build();
         var component = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0), new Dimensions(12, 12, 8),
                 List.of(), Map.of("component_id", id));
         try (var scope = PaletteSelectionScope.open(plan, component)) {

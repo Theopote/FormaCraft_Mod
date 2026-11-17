@@ -17,7 +17,7 @@ class ComponentPlanCompilerDesignIntentTest {
         return new Component("MASS_MAIN", "s", new Vec3i(x, 0, 0), new Dimensions(15, 13, 11), List.of(), params);
     }
     private LlmPlan plan(List<Component> components, String style, Map<String, Object> hints) {
-        return LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile(style).anchor(new Vec3i(0, 0, 0))
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile(style).anchor(new Vec3i(0, 0, 0))
                 .layout(new Layout(null, false, List.of())).components(components).proportionHints(hints).build();
     }
     @Test void bothBodiesSharingSlotGetWindowsAndEntranceRegardlessOfOrder() {
@@ -46,7 +46,7 @@ class ComponentPlanCompilerDesignIntentTest {
     @Test void sharedRealSlotAppliesOffsetOnceForBothFacadesAndEntrances() {
         // SlotPrimaryAnchorRepair zeros primary XZ; Y still shifts both bodies once.
         var slot = new Slot("s", new Vec3i(0, 4, 0), GlobalConstraints.Facing.NORTH, null, null, null);
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("MODERN")
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of(slot)))
                 .components(List.of(body("a", 0, Map.of()), body("b", 30, Map.of()))).build();
         var output = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan));

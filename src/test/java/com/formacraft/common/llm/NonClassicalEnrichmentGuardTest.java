@@ -37,7 +37,7 @@ class NonClassicalEnrichmentGuardTest {
     @Test
     void eastAsianIntentActivatesDespiteClassicalPollution() {
         String prompt = "生成一座重檐歇山顶大雄宝殿，前有月台，左右各一配殿，配殿用悬山顶，主殿必须是重檐歇山。";
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0))
@@ -90,7 +90,7 @@ class NonClassicalEnrichmentGuardTest {
 
     @Test
     void activeFromPlanHeuristicWhenGuardMissing() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0))
@@ -111,7 +111,7 @@ class NonClassicalEnrichmentGuardTest {
 
     @Test
     void inactiveForClassicalPantheonModulePlan() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0))
@@ -141,7 +141,7 @@ class NonClassicalEnrichmentGuardTest {
         hints.put("crown_assembly", true);
         hints.put("roof_specialty", "mansard_dormer");
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Modern_Stadium_Elliptical")
                 .anchor(new Vec3i(0, 64, 0))
@@ -205,7 +205,7 @@ class NonClassicalEnrichmentGuardTest {
         massParams.put("roof_type", "mansard");
         massParams.put("design_sources", Map.of("roof_type", "AI_PLANNED", "facade_profile", "USER_EXPLICIT"));
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Modern_Expressionist")
                 .anchor(new Vec3i(0, 64, 0))
@@ -243,7 +243,7 @@ class NonClassicalEnrichmentGuardTest {
     }
 
     private static LlmPlan planWithGuard(String guard) {
-        return LlmPlanTestFixtures.builder()
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0))

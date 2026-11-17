@@ -16,7 +16,7 @@ class ComponentPlanCompilerDetailVolumeTest {
             Map.of("anchor_mode", "center", "plan_type", "rectangle", "floor_height", 4, "roof_type", "none"));
         var foundation = new Component("FOUNDATION", "main", new Vec3i(0, -2, 0), new Dimensions(13, 11, 1),
             List.of(), Map.of("anchor_mode", "center"));
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).anchor(new Vec3i(100, 64, 200))
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).anchor(new Vec3i(100, 64, 200))
             .styleProfile("DEFAULT").proportionHints(Map.of("floor_cornice", true))
             .layout(new Layout(null, false, List.of(new Slot("main", new Vec3i(0, 6, 0), GlobalConstraints.Facing.SOUTH,
                 "RESIDENTIAL", null, null))))
@@ -38,7 +38,7 @@ class ComponentPlanCompilerDetailVolumeTest {
         var second = new Component("MASS_MAIN", "b", new Vec3i(0, -2, 0), new Dimensions(5, 5, 8), List.of(),
             Map.of("anchor_mode", "min_corner", "plan_type", "rectangle", "floor_height", 4, "roof_type", "flat"));
         // Primary already at XZ origin; secondary keeps relative spacing after SlotPrimary.
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
             .proportionHints(Map.of("floor_cornice", true))
             .layout(new Layout(null, false, List.of(
                 new Slot("a", new Vec3i(0, 3, 0), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null),

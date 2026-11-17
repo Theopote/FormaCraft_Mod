@@ -31,7 +31,7 @@ class DesignParameterRegistryTest {
     void putIfAllowedNormalizesUnlockedAlias() {
         Map<String, Object> params = new HashMap<>();
         params.put("design_sources", Map.of("roofType", "TECHNICAL_DEFAULT"));
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
 
         assertTrue(DesignProvenance.putIfAllowed(plan, params, "roof_type", "gable"));
         assertEquals("gable", params.get("roof_type"));
@@ -42,7 +42,7 @@ class DesignParameterRegistryTest {
         Map<String, Object> params = new HashMap<>();
         params.put("windowStyle", "casement");
         params.put("design_sources", Map.of("windowStyle", "USER_EXPLICIT"));
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
 
         assertFalse(DesignProvenance.putIfAllowed(plan, params, "window_style", "sash"));
         assertEquals("casement", params.get("windowStyle"));
@@ -55,7 +55,7 @@ class DesignParameterRegistryTest {
         params.put("door_width", 2);
         params.put("doorWidth", 2);
         params.put("design_sources", Map.of("doorWidth", "AI_PLANNED"));
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
 
         // Exact-key removal: unlocked door_width may clear while locked doorWidth stays.
         assertTrue(DesignProvenance.removeIfAllowed(plan, params, "door_width"));

@@ -37,7 +37,7 @@ class PavilionGenerationContractTest {
                 "MASS_MAIN", "p", new Vec3i(0, 0, 0),
                 new Dimensions(9, 9, 5), List.of("六角亭", "攒尖"),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("六角攒尖亭"))
                 .components(List.of(mass))
                 .build();
@@ -79,7 +79,7 @@ class PavilionGenerationContractTest {
                         "plan_type", "octagon", "building_role", "pavilion",
                         "anchor_mode", "min_corner", "height", 7));
 
-        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("六角亭", "八角亭"))
                 .components(List.of(hex, oct))
                 .build());
@@ -104,7 +104,7 @@ class PavilionGenerationContractTest {
                 mutable("component_id", "ting_plinth", "host_id", "courtyard_ting",
                         "material", "minecraft:stone_bricks", "foundation_type", "pad"));
 
-        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("庭院六角亭", "石质台基", "不需要架空"))
                 .components(List.of(ting, stonePad))
                 .build());
@@ -136,7 +136,7 @@ class PavilionGenerationContractTest {
                 mutable("component_id", "haiden_steps", "host_id", "haiden_main",
                         "stairs", "minecraft:andesite_stairs", "facing", "SOUTH"));
 
-        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(main, entrance, steps))
                 .build());
         Component out = byId(repaired, "haiden_steps");

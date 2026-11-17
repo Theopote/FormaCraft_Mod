@@ -20,7 +20,7 @@ class SteppedRoofAttachmentTest {
                 "dimensions",Map.of("width",10,"depth",8,"height",8),"setback_ratio",0.9)));
         var base = new Component("MASS_MAIN","house",new Vec3i(0,0,0),new Dimensions(15,13,12),
                 List.of("stepped_facade","hollow"),params);
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(base)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of(base)).build();
         var components = prepared(plan);
         var roof = components.stream().filter(c -> c.params()!=null && "house#mass_1".equals(c.params().get("host_part_id")))
                 .findFirst().orElseThrow();
@@ -55,7 +55,7 @@ class SteppedRoofAttachmentTest {
     }
     @Test void inferredRoofUsesRetreatedTopFrameAndActualRoofBlocks() throws Exception {
         MinecraftRegistryTestBootstrap.initialize();
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(body("rectangle"))).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of(body("rectangle"))).build();
         var roof = prepared(plan).stream().filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();
         var entrance = prepared(plan).stream().filter(c -> "ENTRANCE".equals(c.componentType())).findFirst().orElseThrow();
         assertEquals(3, entrance.dimensions().height(), "Default entrance must stop below the first terrace");
@@ -70,7 +70,7 @@ class SteppedRoofAttachmentTest {
         for (var dims : List.of(new Dimensions(9,8,4),new Dimensions(15,13,4))) {
             var authored = new Component("ROOF","house",new Vec3i(0,0,0),dims,List.of(),
                     Map.of("host_id","house","roof_type","flat","overhang",dims.width()==9 ? 2 : 3));
-            var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(body("rectangle"),authored)).build();
+            var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of(body("rectangle"),authored)).build();
             var roof = prepared(plan).stream().filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();
             assertEquals(new Vec3i(23,11,32),roof.relativePosition());
             assertEquals(4,roof.dimensions().height());
@@ -80,7 +80,7 @@ class SteppedRoofAttachmentTest {
     @Test void conflictingExplicitOverhangIsDiagnosedInsteadOfSilentlyRaised() throws Exception {
         var authored = new Component("ROOF", "house", new Vec3i(0,0,0), new Dimensions(15,13,4), List.of(),
                 Map.of("host_id", "house", "roof_type", "flat", "overhang", 2));
-        prepared(LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(body("rectangle"),authored)).build());
+        prepared(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of(body("rectangle"),authored)).build());
         assertTrue(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap());
         assertEquals("E_ROOF_OVERHANG_CONFLICT", com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
     }
@@ -88,7 +88,7 @@ class SteppedRoofAttachmentTest {
         // geometric fromTemplate is 3 for this body; overhang=4 only overstates eaves → soft-lower.
         var authored = new Component("ROOF", "house", new Vec3i(0,0,0), new Dimensions(15,13,4), List.of(),
                 Map.of("host_id", "house", "roof_type", "flat", "overhang", 4));
-        var components = prepared(LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build)
+        var components = prepared(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build)
                 .components(List.of(body("rectangle"), authored)).build());
         assertFalse(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap(),
                 () -> String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
@@ -99,7 +99,7 @@ class SteppedRoofAttachmentTest {
     @Test void zeroOverhangUsesRetreatedHostTopWithoutTreatingSetbacksAsEaves() throws Exception {
         var authored=new Component("ROOF","house",new Vec3i(0,0,0),new Dimensions(15,13,4),List.of(),
                 Map.of("host_id","house","roof_type","flat","overhang",0));
-        var components=prepared(LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build)
+        var components=prepared(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build)
                 .components(List.of(body("rectangle"),authored)).build());
         assertFalse(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap());
         var roof=components.stream().filter(c->"ROOF".equals(c.componentType())).findFirst().orElseThrow();
@@ -108,7 +108,7 @@ class SteppedRoofAttachmentTest {
         assertEquals(0,roof.params().get("overhang"));
     }
     @Test void curvedFootprintIsNotRebasedIntoSmallerMask() throws Exception {
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(body("circle"))).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of(body("circle"))).build();
         var roof = prepared(plan).stream().filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();
         assertEquals(new Vec3i(20,11,30),roof.relativePosition());
         assertEquals(15,roof.dimensions().width()); assertEquals(13,roof.dimensions().depth());

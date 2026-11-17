@@ -25,7 +25,7 @@ class CrownGrammarResolverTest {
                         Map.of("y_rel", 1.0, "radius", 0.1)
                 )
         );
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of())
                 .proportionHints(hints)
                 .build();

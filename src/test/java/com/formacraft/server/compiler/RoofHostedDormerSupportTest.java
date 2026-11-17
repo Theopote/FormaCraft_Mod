@@ -25,7 +25,7 @@ class RoofHostedDormerSupportTest {
                         "anchor_mode", "min_corner", "wall_block", "minecraft:white_concrete",
                         "suppress_windows", true, "suppress_doors", true)));
         var components = List.of(body, window, roof);
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT").components(components).build();
         var result = new ArrayList<BlockPatch>();
         ComponentEmitPass.compileComponents(plan, null, null, false, components, Set.of(), Map.of(), result,
                 new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new ArrayList<>(), new HashSet<>(),

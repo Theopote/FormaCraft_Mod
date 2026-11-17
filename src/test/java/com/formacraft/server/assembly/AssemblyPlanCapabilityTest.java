@@ -36,7 +36,7 @@ class AssemblyPlanCapabilityTest {
 
     @Test
     void rejectsMixedMassAndAssemblyPlan() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Gothic_Cathedral")
                 .anchor(new Vec3i(0, 64, 0))
@@ -58,7 +58,7 @@ class AssemblyPlanCapabilityTest {
 
     @Test
     void llmPlanHasCapabilityGapWhenStatusSet() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .anchor(new Vec3i(0, 64, 0))
                 .components(List.of())
@@ -86,7 +86,7 @@ class AssemblyPlanCapabilityTest {
     }
 
     private static LlmPlan assemblyOnlyPlan() {
-        return LlmPlanTestFixtures.builder()
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Gothic_Cathedral")
                 .anchor(new Vec3i(0, 64, 0))

@@ -15,7 +15,7 @@ class ComponentPlanCompilerMaterialTest {
             assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(attrs).isEmpty());
             assertEquals("minecraft:stone_bricks",com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(name));
             var p=plan("minecraft:stone_bricks");
-            var withAttributes=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
+            var withAttributes=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("MODERN")
                     .anchor(new Vec3i(0,0,0)).layout(new Layout(null,false,List.of()))
                     .styleAttributes(attrs).components(p.components()).build();
             var output=PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(withAttributes,BlockPos.ORIGIN,null,null,false));
@@ -67,7 +67,7 @@ class ComponentPlanCompilerMaterialTest {
         var roof = new Component("ROOF", "s", new Vec3i(30, 7, 0), new Dimensions(12, 12, 3), List.of(),
                 Map.of("component_id", "b_roof", "host_id", "b", "roof_type", "flat", "roof_block", "minecraft:bricks",
                         "anchor_mode", "min_corner"));
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("MODERN")
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of())).components(List.of(b, roof, a)).build();
         var output = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
         assertFalse(output.isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
@@ -76,7 +76,7 @@ class ComponentPlanCompilerMaterialTest {
         assertEquals("minecraft:bricks", output.get(new Vec3i(35, 7, 5)));
     }
     @Test void wholePlanReplaysAfterOtherPlansUseSharedPalettes() {
-        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MEDIEVAL")
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("MEDIEVAL")
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of()))
                 .proportionHints(Map.of("design_seed", 123L))
                 .components(List.of(body("a", 0, "minecraft:deepslate_tiles"))).build();
@@ -90,14 +90,14 @@ class ComponentPlanCompilerMaterialTest {
         var mass = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0), new Dimensions(12, 12, 8),
                 List.of(), Map.of("anchor_mode", "min_corner", "plan_type", "rectangle", "wall_block", wall,
                 "window_ratio", 0.0, "roof_type", "flat"));
-        return LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("MODERN")
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of())).components(List.of(mass)).build();
     }
     @Test void unknownMaterialsFallBackAndStillCompile() {
         var source = plan("missingmod:unknown_wall").components().getFirst();
         var params = new HashMap<String, Object>(source.params());
         params.put("allow_patch_overwrite", true);
-        var original = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("MODERN")
+        var original = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("MODERN")
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of()))
                 .components(List.of(new Component(source.componentType(), source.slotId(), source.relativePosition(),
                         source.dimensions(), source.features(), params))).build();
@@ -111,7 +111,7 @@ class ComponentPlanCompilerMaterialTest {
     }
     @Test void loggedRoofVocabularyAndUnknownAttributesUseFallbacks() {
         var policy = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
-                LlmPlanTestFixtures.builder().styleAttributes(new StyleAttributes(null, "unknown_wall",
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleAttributes(new StyleAttributes(null, "unknown_wall",
                         null, "gray_clay_tile", "dark_timber", "unknown_floor", null, null)).build());
         assertEquals("minecraft:deepslate_tiles", policy.styleAttributes().roofMaterial());
         assertEquals("minecraft:dark_oak_planks", policy.styleAttributes().accentMaterial());
@@ -123,7 +123,7 @@ class ComponentPlanCompilerMaterialTest {
             var stair = new Component("STRUCTURE", null, new Vec3i(0,0,0), new Dimensions(3,6,5),
                     List.of("stair:straight_single_run"), Map.of("stairs", material));
             var normalized = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
-                    LlmPlanTestFixtures.builder().components(List.of(stair)).build());
+                    LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(stair)).build());
             String replacement = String.valueOf(normalized.components().getFirst().params().get("stairs"));
             var state = com.formacraft.common.patch.BlockPatchTargetResolver.resolve(new com.formacraft.common.patch.BlockPatch(
                     com.formacraft.common.patch.BlockPatch.PLACE, 0,0,0,replacement));
@@ -137,7 +137,7 @@ class ComponentPlanCompilerMaterialTest {
                 Map.of("floor", "missing:coastal_stone", "frame_block", "missing:dark_timber",
                         "door_block", "missing:door", "rail_block", "missing:railing"));
         var normalized = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
-                LlmPlanTestFixtures.builder().components(List.of(source)).build()).components().getFirst().params();
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(source)).build()).components().getFirst().params();
         assertEquals("minecraft:stone_bricks", normalized.get("floor"));
         assertEquals("minecraft:dark_oak_planks", normalized.get("frame_block"));
         assertEquals("minecraft:oak_door", normalized.get("door_block"));

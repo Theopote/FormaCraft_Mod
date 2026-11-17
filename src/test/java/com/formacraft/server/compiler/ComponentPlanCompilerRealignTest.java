@@ -39,7 +39,7 @@ class ComponentPlanCompilerRealignTest {
                 new Dimensions(10, 10, 1), List.of(),
                 Map.of("component_id", "roof", "host_id", "far", "roof_type", "flat", "overhang", 0));
         List<Component> components = new java.util.ArrayList<>(List.of(near, far, roof));
-        LlmPlan plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build)
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build)
                 .components(components).build();
         var method = ComponentPlanCompiler.class.getDeclaredMethod("realignSatellitesToMass",
                 List.class, LlmPlan.class, Map.class, java.util.Set.class);
@@ -53,7 +53,7 @@ class ComponentPlanCompilerRealignTest {
 
     @Test
     void realignsRoofAndFacadeToMassMinCorner() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Chinese_Traditional")
                 .anchor(new Vec3i(0, 64, 0))
@@ -96,7 +96,7 @@ class ComponentPlanCompilerRealignTest {
         massParams.put("corner_cut", 2);
         massParams.put("roof_type", "flat");
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Chinese_Traditional")
                 .anchor(new Vec3i(0, 64, 0))
@@ -139,7 +139,7 @@ class ComponentPlanCompilerRealignTest {
 
     @Test
     void realignsCenterAnchoredFoundationToMassMinCorner() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Chinese_Traditional")
                 .anchor(new Vec3i(0, 64, 0))

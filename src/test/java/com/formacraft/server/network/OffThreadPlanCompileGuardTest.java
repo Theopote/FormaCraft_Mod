@@ -27,7 +27,7 @@ class OffThreadPlanCompileGuardTest {
     }
 
     private static LlmPlan simpleMassPlan() {
-        return LlmPlanTestFixtures.builder()
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .anchor(new Vec3i(0, 64, 0))
                 .styleProfile("DEFAULT")
@@ -47,7 +47,7 @@ class OffThreadPlanCompileGuardTest {
 
     @Test
     void assemblyAuthorityRequiresLiveWorld() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .anchor(new Vec3i(0, 64, 0))
                 .planMeta(Map.of(GenerationAuthority.META_KEY, "ASSEMBLY"))
@@ -62,7 +62,7 @@ class OffThreadPlanCompileGuardTest {
 
     @Test
     void libraryFeatureRequiresLiveWorld() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .anchor(new Vec3i(0, 64, 0))
                 .components(List.of(new Component(
@@ -76,7 +76,7 @@ class OffThreadPlanCompileGuardTest {
 
     @Test
     void typologyFeatureRequiresLiveWorld() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .anchor(new Vec3i(0, 64, 0))
                 .components(List.of(new Component(
@@ -154,13 +154,13 @@ class OffThreadPlanCompileGuardTest {
         LlmPlan mass = simpleMassPlan();
         assertTrue(LlmPlanPreviewBuilder.canOffThreadComponentCompile(mass, buildReq()));
 
-        LlmPlan patch = LlmPlanTestFixtures.builder()
+        LlmPlan patch = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.patch)
                 .components(mass.components())
                 .build();
         assertFalse(LlmPlanPreviewBuilder.canOffThreadComponentCompile(patch, buildReq()));
 
-        LlmPlan assembly = LlmPlanTestFixtures.builder()
+        LlmPlan assembly = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .planMeta(Map.of(GenerationAuthority.META_KEY, "ASSEMBLY"))
                 .components(List.of(new Component(

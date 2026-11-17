@@ -50,7 +50,7 @@ class TempleSideHallMisrouteRepairTest {
                         "crown_template", "CLASSICAL_CUPOLA"));
 
         String prompt = "生成一座重檐歇山顶大雄宝殿，前有月台，左右各一配殿，配殿用悬山顶，主殿必须是重檐歇山。";
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(hall, roof, windows, entrance, cornice, crown))
                 .proportionHints(Map.of("typology", "classical_monument", "crown_assembly", true))
@@ -124,7 +124,7 @@ class TempleSideHallMisrouteRepairTest {
                         "extrude_mode", "plate", "plate_role", "floor",
                         "anchor_mode", "min_corner"));
         String prompt = "生成一座大雄宝殿，前有月台，左右各一配殿。";
-        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(hall, floor))
                 .planMeta(Map.of(
@@ -156,7 +156,7 @@ class TempleSideHallMisrouteRepairTest {
                 Map.of("component_id", "left_peidian_b", "building_role", "side_hall",
                         "anchor_mode", "min_corner"));
         String prompt = "生成一座大雄宝殿，左右各一配殿。";
-        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("chinese_temple_imperial")
                 .components(List.of(hall, leftA, leftB))
                 .planMeta(Map.of(
@@ -192,7 +192,7 @@ class TempleSideHallMisrouteRepairTest {
                 Map.of("component_id", "east_peidian", "building_role", "side_hall",
                         "anchor_mode", "min_corner"));
         String prompt = "生成一座大雄宝殿，左右各一配殿。";
-        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("chinese_temple_imperial")
                 .globalConstraints(new GlobalConstraints(
                         GlobalConstraints.Facing.EAST,
@@ -224,7 +224,7 @@ class TempleSideHallMisrouteRepairTest {
                 new Dimensions(20, 16, 12), List.of("main_hall"),
                 Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
         String prompt = "生成一座大雄宝殿，左右各一配殿。";
-        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("chinese_temple_imperial")
                 .globalConstraints(new GlobalConstraints(
                         GlobalConstraints.Facing.WEST,
@@ -270,7 +270,7 @@ class TempleSideHallMisrouteRepairTest {
         Slot leftSlot = new Slot("left", new Vec3i(-20, 0, 0), null, null, null, null);
         Slot rightSlot = new Slot("right", new Vec3i(20, 0, 0), null, null, null, null);
         String prompt = "生成一座大雄宝殿，左右各一配殿。";
-        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("chinese_temple_imperial")
                 .layout(new Layout(null, false, List.of(hallSlot, leftSlot, rightSlot)))
                 .components(List.of(hall, left, right))
@@ -310,7 +310,7 @@ class TempleSideHallMisrouteRepairTest {
                 new Dimensions(20, 16, 1), List.of("cornice", "classical"),
                 Map.of("component_id", "classical_cornice", "host_id", "temple_hall"));
         String prompt = "生成一座大雄宝殿，左右各一配殿，保留雕梁斗拱。";
-        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(hall, beam, dougong, cornice))
                 .proportionHints(Map.of("typology", "classical_monument"))

@@ -18,7 +18,7 @@ class OpeningDelegationPrepareTest {
         prepare.setAccessible(true);
         var floor=new Component("MASS_MAIN","s",new Vec3i(0,0,0),new Dimensions(5,5,1),List.of(),
                 Map.of("component_id","pavilion_base","wall_type","none","floor_height",1));
-        var plan=LlmPlanTestFixtures.builder().components(List.of(floor)).build();
+        var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(floor)).build();
         Object result=prepare.invoke(null,plan,Map.of(),false);
         @SuppressWarnings("unchecked") var parts=(List<Component>)result.getClass().getRecordComponents()[0].getAccessor().invoke(result);
         var base=parts.stream().filter(c->"MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
@@ -34,7 +34,7 @@ class OpeningDelegationPrepareTest {
                 Map.of("component_id","b1","suppress_windows",true,"window_ratio",.18));
         var window=new Component("FACADE_WINDOWS","s0",new Vec3i(0,1,7),new Dimensions(8,1,4),null,
                 Map.of("component_id","north_window","host_id","b1","faces",List.of("NORTH")));
-        var plan=LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(mass,window))
+        var plan=LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of(mass,window))
                 .layout(new Layout(null,false,List.of(new Slot("s0",new Vec3i(0,64,0),GlobalConstraints.Facing.SOUTH,null,null,null)))).build();
         Object prepared=prepare.invoke(null,plan,Map.of(),false);
         @SuppressWarnings("unchecked") var components=(List<Component>)prepared.getClass().getRecordComponents()[0].getAccessor().invoke(prepared);
@@ -63,7 +63,7 @@ class OpeningDelegationPrepareTest {
                 new Dimensions(8, 1, 4), null,
                 Map.of("component_id", "w_n", "host_id", "b1", "faces", "NORTH"));
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(mass, fullWin, northWin))
                 .layout(new Layout(null, false, List.of(new Slot("s0", new Vec3i(0, 64, 0), null, null, null, null))))
@@ -100,7 +100,7 @@ class OpeningDelegationPrepareTest {
                 new Dimensions(8, 1, 4), null,
                 Map.of("component_id", "w_n", "host_id", "b1", "faces", List.of("NORTH")));
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(mass, entrance, northWin))
                 .layout(new Layout(null, false, List.of(

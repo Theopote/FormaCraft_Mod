@@ -37,7 +37,7 @@ class ComponentPlanCompilerCirculationTest {
     private LlmPlan plan(String mode, boolean separate) {
         // Primary XZ already at plan origin so SlotPrimaryAnchorRepair is a no-op; keep Y and
         // inter-slot spacing (20 on X) so circulation metadata stays plan-local and predictable.
-        return LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).anchor(new Vec3i(100, 64, 200)).styleProfile("DEFAULT")
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).anchor(new Vec3i(100, 64, 200)).styleProfile("DEFAULT")
             .layout(new Layout(null, false, List.of(
                 new Slot("a", new Vec3i(0, 2, 0), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null),
                 new Slot("b", new Vec3i(20, 2, 0), GlobalConstraints.Facing.SOUTH, "RESIDENTIAL", null, null))))
@@ -130,7 +130,7 @@ class ComponentPlanCompilerCirculationTest {
             assertFalse(GenerationCompileContext.current().typologyExclusive());
             throw failure;
         });
-        var inner = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
+        var inner = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 0, 0)).layout(new Layout(null, false, List.of()))
                 .planMeta(Map.of("generation_authority", "COMPONENTS", "context_marker", "inner",
                         "allow_compiler_satellites", false))

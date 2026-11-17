@@ -30,7 +30,7 @@ class HousePromptRegressionTest {
             new com.formacraft.common.llm.dto.Vec3i(0, 3, 0), new com.formacraft.common.llm.dto.Dimensions(10, 8, 1),
             List.of(), Map.of("component_id","upper_plate","host_id","hall",
                 "anchor_mode","min_corner","extrude_mode","plate","material","oak_planks"));
-        var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build)
+        var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build)
             .components(List.of(hall, stair, plate)).build();
         var result = ComponentPlanCompiler.compileWithCirculation(plan, null, null, null, false);
         assertFalse(result.patches().isEmpty(), String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get())); assertEquals(1, result.circulation().size());
@@ -44,7 +44,7 @@ class HousePromptRegressionTest {
         var c = new com.formacraft.common.llm.dto.Component("STRUCTURE", null,
             new com.formacraft.common.llm.dto.Vec3i(0,0,0), new com.formacraft.common.llm.dto.Dimensions(3,9,6),
             List.of("stair:spiral"), Map.of());
-        var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(c)).build();
+        var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of(c)).build();
         assertTrue(ComponentPlanCompiler.compile(plan).isEmpty());
         assertEquals("E_STAIR_COMPONENT_INVALID", com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
     }
@@ -52,7 +52,7 @@ class HousePromptRegressionTest {
         var c = new com.formacraft.common.llm.dto.Component("STRUCTURE", null,
             new com.formacraft.common.llm.dto.Vec3i(0,0,0), new com.formacraft.common.llm.dto.Dimensions(3,9,6),
             List.of("stair:straight_single_run"), Map.of("from", Map.of("x",0,"y",0,"z",0),"to",Map.of("x",1,"y",5,"z",0)));
-        var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(List.of(c)).build();
+        var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true).mode(LlmPlan.Mode.build).components(List.of(c)).build();
         assertTrue(ComponentPlanCompiler.compile(plan).isEmpty());
         assertEquals("E_STAIR_COMPONENT_INVALID", com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
     }

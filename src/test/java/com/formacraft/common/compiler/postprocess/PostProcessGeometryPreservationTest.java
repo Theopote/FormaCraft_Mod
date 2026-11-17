@@ -33,7 +33,7 @@ class PostProcessGeometryPreservationTest {
                 .anyMatch(patch -> !"minecraft:stone_bricks".equals(patch.targetBlock())));
     }
     private PostProcessContext context() {
-        return PostProcessContext.create(LlmPlanTestFixtures.builder().styleProfile("DEFAULT").build(), BlockPos.ORIGIN);
+        return PostProcessContext.create(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleProfile("DEFAULT").build(), BlockPos.ORIGIN);
     }
     private BlockPatch block(int x, int y, int z, String state) { return new BlockPatch(BlockPatch.PLACE, x, y, z, state); }
     @Test void genericEnhancementPreservesStairsSlabsGlassAndDoors() {

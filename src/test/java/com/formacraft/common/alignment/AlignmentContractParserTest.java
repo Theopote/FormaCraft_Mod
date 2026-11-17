@@ -56,7 +56,7 @@ class AlignmentContractParserTest {
 
     @Test
     void infersFromGlobalConstraintsMirrorX() {
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .globalConstraints(new GlobalConstraints(GlobalConstraints.Facing.SOUTH, GlobalConstraints.Symmetry.MIRROR_X, null))

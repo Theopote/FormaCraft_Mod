@@ -163,7 +163,7 @@ class AssemblyPlanPromoterTest {
                 )
         ));
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("Gothic_Cathedral")
                 .anchor(new Vec3i(0, 64, 0))

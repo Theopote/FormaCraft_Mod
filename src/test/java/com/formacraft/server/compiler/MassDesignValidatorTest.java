@@ -21,7 +21,7 @@ class MassDesignValidatorTest {
     void zeroWallThicknessRequiresExplicitOpenPavilion() {
         var mass = new Component("MASS_MAIN", "body", new Vec3i(0,0,0),
                 new Dimensions(5,5,5), List.of(), Map.of("wall_thickness",0,"open",true,"void_ratio",1.0));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).build();
         assertTrue(MassDesignValidator.check(plan,List.of(mass)).isEmpty());
         var closed = new Component("MASS_MAIN", "body", new Vec3i(0,0,0),
                 new Dimensions(5,5,5), List.of(), Map.of("wall_thickness",0));
@@ -52,7 +52,7 @@ class MassDesignValidatorTest {
                 new Dimensions(10, 10, 8),
                 List.of(),
                 Map.of("wall_thickness", 5));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).build();
         var gap = MassDesignValidator.check(plan, List.of(mass));
         assertTrue(gap.isPresent());
         assertEquals("E_WALL_THICKNESS_UNFIT", gap.get().code());
@@ -67,7 +67,7 @@ class MassDesignValidatorTest {
                 new Dimensions(10, 10, 8),
                 List.of(),
                 Map.of("wall_thickness", 5, "void_ratio", 0.0));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).build();
         assertTrue(MassDesignValidator.check(plan, List.of(mass)).isEmpty());
     }
 
@@ -80,7 +80,7 @@ class MassDesignValidatorTest {
                 new Dimensions(8, 8, 6),
                 List.of(),
                 Map.of("plan_type", "l_shape", "l_cut", 10));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).build();
         var gap = MassDesignValidator.check(plan, List.of(mass));
         assertTrue(gap.isPresent());
         assertEquals("E_PLAN_PATTERN_UNFIT", gap.get().code());
@@ -111,7 +111,7 @@ class MassDesignValidatorTest {
                 new Dimensions(16, 16, 8),
                 List.of("courtyard"),
                 Map.of("plan_type", "courtyard", "courtyard_ratio", "wide"));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(mass)).build();
         var gap = MassDesignValidator.check(plan, List.of(mass));
         assertTrue(gap.isPresent());
         assertEquals("E_COURTYARD_RATIO_INVALID", gap.get().code());

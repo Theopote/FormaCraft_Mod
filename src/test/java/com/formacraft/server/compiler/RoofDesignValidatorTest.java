@@ -50,7 +50,7 @@ class RoofDesignValidatorTest {
                 new Dimensions(12, 10, 2),
                 List.of(),
                 Map.of("roof_type", "gable"));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(roof)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(roof)).build();
         assertTrue(RoofDesignValidator.check(plan, List.of(roof)).isEmpty());
     }
 
@@ -63,7 +63,7 @@ class RoofDesignValidatorTest {
                 new Dimensions(12, 10, 2),
                 List.of(),
                 Map.of("roof_type", "irimoya"));
-        var plan = LlmPlanTestFixtures.builder().components(List.of(roof)).build();
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(roof)).build();
         assertTrue(RoofDesignValidator.check(plan, List.of(roof)).isEmpty());
         assertEquals(
                 com.formacraft.common.generation.component.util.RoofTypeKind.XIESHAN,

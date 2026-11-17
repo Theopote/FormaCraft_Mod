@@ -26,7 +26,7 @@ class RoofDelegationSuppressTest {
         Component roof = new Component("ROOF", "s0", new Vec3i(0, 6, 0),
                 new Dimensions(8, 8, 3), null,
                 Map.of("component_id", "roof1", "host_id", "mass1", "roof_type", "gable"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .components(List.of(mass, roof))

@@ -39,7 +39,7 @@ class RoofGrammarResolverTest {
     }
 
     private static LlmPlan planWithHints(Map<String, Object> hints) {
-        return LlmPlanTestFixtures.builder()
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .styleProfile("DEFAULT")
                 .anchor(new Vec3i(0, 64, 0))

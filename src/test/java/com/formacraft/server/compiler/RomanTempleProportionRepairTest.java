@@ -40,7 +40,7 @@ class RomanTempleProportionRepairTest {
                 List.of("quartz_column", "circular_peristyle"),
                 Map.of("component_id", "peristyle_column_01")));
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Classical_GrecoRoman")
                 .components(comps)
                 .planMeta(Map.of(
@@ -61,7 +61,7 @@ class RomanTempleProportionRepairTest {
         mansionParams.put("roof_type", "mansard");
         mansionParams.put("wall_block", "minecraft:cut_sandstone");
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Classical_GrecoRoman")
                 .components(List.of(new Component(
                         "MASS_MAIN", "slot_mansion",

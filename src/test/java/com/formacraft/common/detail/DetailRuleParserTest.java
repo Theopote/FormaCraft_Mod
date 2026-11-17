@@ -78,7 +78,7 @@ class DetailRuleParserTest {
     }
 
     private static LlmPlan planWithHints(Map<String, Object> hints) {
-        return LlmPlanTestFixtures.builder()
+        return LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .layout(new Layout(null, false, List.of()))
                 .components(List.of())
                 .proportionHints(hints)

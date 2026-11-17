@@ -30,7 +30,7 @@ class NarrowTowerStairRepairTest {
                 List.of(),
                 Map.of("window_ratio", 0.4, "window_aspect", "vertical_strip", "rhythm", "regular")
         );
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(facade))
                 .build();
@@ -60,7 +60,7 @@ class NarrowTowerStairRepairTest {
                 List.of(),
                 Map.of("host_id", "tower", "window_ratio", 0.15, "faces", List.of("SOUTH"))
         );
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(tower, facade))
                 .build();
@@ -86,7 +86,7 @@ class NarrowTowerStairRepairTest {
                 List.of(),
                 Map.of("component_id", "lonely_tower", "hollow", true, "wall_thickness", 1)
         );
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(tower))
                 .build();
@@ -107,7 +107,7 @@ class NarrowTowerStairRepairTest {
                 List.of("spire"),
                 Map.of("component_id", "pinnacle_sw", "void_ratio", 0.15)
         );
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(LlmPlan.Mode.build)
                 .components(List.of(pinnacle))
                 .build();

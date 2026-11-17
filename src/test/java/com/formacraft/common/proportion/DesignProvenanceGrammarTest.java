@@ -29,7 +29,7 @@ class DesignProvenanceGrammarTest {
                 new Dimensions(12, 10, 8),
                 List.of(),
                 Map.of("window_ratio", 0.42));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(facade))
                 .proportionHints(Map.of("typology", "cottage"))
                 .designSources(Map.of("window_ratio", "AI_PLANNED"))
@@ -44,7 +44,7 @@ class DesignProvenanceGrammarTest {
         Map<String, Object> params = new java.util.HashMap<>();
         params.put("windowRatio", 0.35);
         params.put("design_sources", Map.of("windowRatio", "USER_EXPLICIT"));
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
 
         assertFalse(DesignProvenance.putIfAllowed(plan, params, "window_ratio", 0.25));
         assertEquals(0.35, params.get("windowRatio"));
@@ -62,7 +62,7 @@ class DesignProvenanceGrammarTest {
                 Map.of(
                         "window_ratio", 0.42,
                         "design_sources", Map.of("window_ratio", "AI_PLANNED")));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(facade))
                 .proportionHints(Map.of("typology", "cottage"))
                 .build();
@@ -78,7 +78,7 @@ class DesignProvenanceGrammarTest {
         params.put("crownTemplate", "spire");
         params.put("design_sources", Map.of("crownTemplate", "USER_EXPLICIT"));
 
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
         DesignProvenance.removeIfAllowed(plan, params, "crown_template", "crownTemplate");
 
         assertFalse(params.containsKey("crown_template"));
@@ -92,7 +92,7 @@ class DesignProvenanceGrammarTest {
         params.put("roof_dormers", true);
         params.put("design_sources", Map.of("roof_dormers", "AI_PLANNED"));
 
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
         DesignProvenance.removeIfAllowed(plan, params, "roof_specialty");
         DesignProvenance.removeIfAllowed(plan, params, "roof_dormers");
 
@@ -109,7 +109,7 @@ class DesignProvenanceGrammarTest {
                 new Dimensions(12, 10, 4),
                 List.of(),
                 Map.of("roof_type", "gable", "roof_pitch_degrees", 58));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(roof))
                 .proportionHints(Map.of("roof_specialty", "mansard_dormer"))
                 .designSources(Map.of(
@@ -132,7 +132,7 @@ class DesignProvenanceGrammarTest {
                 new Dimensions(6, 6, 4),
                 List.of(),
                 Map.of("crown_template", "spire"));
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(crown))
                 .proportionHints(Map.of("typology", "baroque_onion"))
                 .designSources(Map.of("crown_template", "AI_PLANNED"))
@@ -154,7 +154,7 @@ class DesignProvenanceGrammarTest {
                 new Dimensions(24, 16, 10),
                 List.of(),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Chinese_Classical")
                 .components(List.of(mass))
                 .build();
@@ -174,7 +174,7 @@ class DesignProvenanceGrammarTest {
                 new Dimensions(24, 16, 10),
                 List.of(),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Chinese_Classical")
                 .components(List.of(mass))
                 .build();
@@ -189,7 +189,7 @@ class DesignProvenanceGrammarTest {
         Map<String, Object> params = new HashMap<>();
         params.put("roof_type", "xieshan");
         params.put("design_sources", Map.of("roof_type", "USER_EXPLICIT"));
-        LlmPlan plan = LlmPlanTestFixtures.builder().build();
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build();
 
         assertFalse(DesignProvenance.putIfAllowed(plan, params, "roofType", "xuanshan"));
         assertEquals("xieshan", params.get("roof_type"));
@@ -210,7 +210,7 @@ class DesignProvenanceGrammarTest {
                 new Dimensions(28, 22, 8),
                 List.of(),
                 params);
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Chinese_Classical")
                 .components(List.of(mass))
                 .build();

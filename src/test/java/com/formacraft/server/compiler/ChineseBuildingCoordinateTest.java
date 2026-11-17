@@ -123,7 +123,7 @@ class ChineseBuildingCoordinateTest {
                     new com.formacraft.common.llm.dto.Vec3i(0,0,0),
                     new com.formacraft.common.llm.dto.Dimensions(90,90,90),
                     List.of("typology:tailiang_timber_hall"),params);
-            var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+            var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                     .mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build).components(List.of(component)).build();
             var anchor=new BlockPos(80,64,-120);
             var sites=com.formacraft.server.terrain.BuildingLandingPlanner.sites(plan,anchor);
@@ -172,7 +172,7 @@ class ChineseBuildingCoordinateTest {
         var component=new com.formacraft.common.llm.dto.Component("STRUCTURE",null,
                 new com.formacraft.common.llm.dto.Vec3i(0,0,0),new com.formacraft.common.llm.dto.Dimensions(90,90,90),
                 List.of("typology:courtyard_compound"),params);
-        var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+        var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build).components(List.of(component)).build();
         assertEquals(List.of(site),com.formacraft.server.terrain.BuildingLandingPlanner.sites(plan,anchor),
                 "native courtyard enters unified landing instead of legacy blanket padding");

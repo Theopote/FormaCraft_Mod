@@ -36,7 +36,7 @@ class DetailRulePostProcessorTest {
                 Map.of("floor_height", 4, "facade_profile", "vertical_pilasters", "anchor_mode", "min_corner")
         );
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("MEDIEVAL_CLASSIC")
                 .layout(new Layout(null, false, List.of()))
                 .components(List.of(mass))
@@ -81,7 +81,7 @@ class DetailRulePostProcessorTest {
                 )
         );
 
-        LlmPlan plan = LlmPlanTestFixtures.builder()
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("MEDIEVAL_CLASSIC")
                 .layout(new Layout(null, false, List.of()))
                 .components(List.of())

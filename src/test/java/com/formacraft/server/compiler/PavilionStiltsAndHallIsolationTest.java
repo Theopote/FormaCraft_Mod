@@ -30,7 +30,7 @@ class PavilionStiltsAndHallIsolationTest {
                 new Dimensions(9, 9, 5), List.of("六角亭", "木柱", "不需要架空"),
                 mutable("component_id", "garden_hex_ting", "shape", "hexagon",
                         "building_role", "pavilion", "anchor_mode", "min_corner"));
-        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("普通庭院凉亭", "不需要架空", "使用木柱"))
                 .components(List.of(ting))
                 .build());
@@ -56,7 +56,7 @@ class PavilionStiltsAndHallIsolationTest {
                 new Dimensions(8, 8, 12), List.of(),
                 mutable("component_id", "llm_stilts_pad", "host_id", "llm_stilts_ting",
                         "foundation_type", "stilts", "material", "minecraft:oak_log"));
-        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("庭院凉亭", "不要架空"))
                 .components(List.of(ting, stilts))
                 .build());
@@ -82,7 +82,7 @@ class PavilionStiltsAndHallIsolationTest {
                 new Dimensions(10, 10, 1), List.of("石质平台"),
                 mutable("component_id", "stone_deck", "host_id", "stone_deck_ting",
                         "foundation_type", "plinth", "material", "minecraft:stone_bricks"));
-        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("水上亭", "直接落在石质平台上", "不要架空"))
                 .components(List.of(ting, plinth))
                 .build());
@@ -106,7 +106,7 @@ class PavilionStiltsAndHallIsolationTest {
                 new Dimensions(9, 9, 5), List.of("六角亭", "石质台基"),
                 mutable("component_id", "west_hex_pavilion", "shape", "hexagon",
                         "building_role", "pavilion", "anchor_mode", "min_corner"));
-        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .distinguishingFeatures(List.of("园林", "东侧水上亭", "西侧六角亭"))
                 .components(List.of(water, ground))
                 .build());
@@ -129,7 +129,7 @@ class PavilionStiltsAndHallIsolationTest {
                 new Dimensions(9, 9, 5), List.of("六角亭"),
                 mutable("component_id", "main_pavilion", "building_role", "pavilion",
                         "shape", "hexagon", "anchor_mode", "min_corner"));
-        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(ting))
                 .build());
         Component out = repaired.components().getFirst();
@@ -153,7 +153,7 @@ class PavilionStiltsAndHallIsolationTest {
                     new Dimensions(4, 6, 3), List.of(),
                     mutable("component_id", "haiden_steps", "host_id", "haiden_main",
                             "facing", facing));
-            LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder()
+            LlmPlan repaired = StructureAccessoryRemapRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                     .components(List.of(host, steps))
                     .build());
             Component out = byId(repaired, "haiden_steps");
@@ -190,7 +190,7 @@ class PavilionStiltsAndHallIsolationTest {
                         "from", Map.of("x", 1, "y", 0, "z", 0),
                         "to", Map.of("x", 1, "y", 2, "z", 3)));
         var prepared = ComponentSatelliteInference.prepareComponents(
-                LlmPlanTestFixtures.builder().components(List.of(host, door, steps)).build(),
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(host, door, steps)).build(),
                 Map.of(), false);
         Component outDoor = prepared.components().stream()
                 .filter(c -> "ENTRANCE".equalsIgnoreCase(c.componentType()))
@@ -245,7 +245,7 @@ class PavilionStiltsAndHallIsolationTest {
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(8, 8, 5), List.of("无屋顶", "柱廊"),
                 params);
-        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder()
+        LlmPlan repaired = PavilionOpenFrameRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(ting))
                 .build());
         assertEquals("none", String.valueOf(byId(repaired, "open_colonnade").params().get("roof_type")));
