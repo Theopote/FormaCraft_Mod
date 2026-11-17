@@ -38,7 +38,10 @@ class DesignRequirementAccessTest {
     void localRoofOmitBeatsPlanLevelRequired() {
         Component omitted = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
                 new Dimensions(12, 10, 8), List.of(),
-                Map.of("roof_type", "none", "roof_requirement", "OMITTED"));
+                Map.of(
+                        "roof_type", "none",
+                        "roof_requirement", "OMITTED",
+                        "design_sources", Map.of("roof_type", "USER_EXPLICIT", "roof_requirement", "USER_EXPLICIT")));
         Component kept = new Component("MASS_MAIN", "b", new Vec3i(20, 0, 0),
                 new Dimensions(10, 8, 6), List.of(), Map.of("roof_type", "flat"));
         LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false)
@@ -47,6 +50,34 @@ class DesignRequirementAccessTest {
                 .build();
         assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(plan, omitted));
         assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.roof(plan, kept));
+    }
+
+    @Test
+    void aiPlannedRoofNoneDoesNotBeatPlanLevelRequired() {
+        Component aiOmitted = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of(
+                        "roof_type", "none",
+                        "design_sources", Map.of("roof_type", "AI_PLANNED")));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false)
+                .components(List.of(aiOmitted))
+                .planMeta(Map.of("design_requirements", Map.of("roof", "REQUIRED")))
+                .build();
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.roof(plan, aiOmitted));
+    }
+
+    @Test
+    void aiPlannedWindowNoneDoesNotBeatPlanLevelRequired() {
+        Component aiOmitted = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of(
+                        "window_style", "none",
+                        "design_sources", Map.of("window_style", "AI_PLANNED")));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false)
+                .components(List.of(aiOmitted))
+                .planMeta(Map.of("design_requirements", Map.of("facade", "REQUIRED")))
+                .build();
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.facade(plan, aiOmitted));
     }
 
     @Test

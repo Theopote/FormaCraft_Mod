@@ -55,10 +55,13 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `llm_plan_normalization` Chinese roof/courtyard | was DESIGN_OVERRIDE (`xieshan`→`xuanshan`, strip COURTYARD without user keywords) | **Fixed (2026-11-17):** preserve AI-planned values; empty roof only → `xuanshan` TECHNICAL_DEFAULT + `design_sources` |
 | `llm_plan_normalization` design_sources stamp | roof_type / plan_type provenance | **Extended (2026-11-17):** TECHNICAL_DEFAULT / AI_PLANNED; user-stated roof → USER_EXPLICIT. **Fixed (scope):** plan-level USER_EXPLICIT only when constraint covers all masses *and* application succeeded; local roofs/windows/entrances stamp component `design_sources` only |
 | `llm_plan_normalization._stamp_roof_on_targets` | ROOF rewrite without host_id | **Fixed:** requires `host_id` ∈ target mass ids; unbound ROOFs left intact + `plan_meta.scope_diagnostics` |
-| `llm_plan_normalization` allow_overwrite | `all_main_masses` / `plan` | **Fixed (2026-11-17):** explicit whole-compound scopes authorize overwrite of AI roofs (所有建筑都改成歇山顶) |
+| `llm_plan_normalization` allow_overwrite | `all_main_masses` / `plan` | **Fixed (2026-11-17):** only `scope_source=EXPLICIT_QUANTIFIER` (or EXPLICIT) authorizes whole-compound overwrite; INFERRED unresolved names do not |
+| `building_contract._refine_roof_scope` | default `all_main_masses` | **Fixed (2026-11-17):** missing building name → `scope=unresolved` + `scope_source=INFERRED`; explicit quantifiers only → `all_main_masses` |
 | `llm_plan_normalization` / Stage-B | `double_eave_xieshan` | **Fixed:** maps to executable `xieshan` + `double_eave`/`eave_tiers` (not a fake RoofTypeCatalog token) |
-| `_pick_host_remap` last-resort MASS | unknown host_id | **Fixed:** removed first-MASS fallback; only exact/unique fuzzy/unique courtyard-type remaps |
-| `DesignRequirementAccess` priority | plan REQUIRED vs local omit | **Fixed:** mass `roof_type=none` / mass `*_requirement=OMITTED` beat plan_meta REQUIRED |
+| `apply_stage_b_capability_repair` locale roof | unsupported → xieshan | **Removed (2026-11-17):** no 日式/庭院 keyword → xieshan DESIGN_OVERRIDE; unknown roofs stay for capability_gap |
+| `_pick_host_remap` | unknown host_id | **Fixed:** exact / case-insensitive id only; fuzzy substring and courtyard-type guesses removed |
+| `_stamp_roof_on_targets` applied_all | MASS-only check | **Fixed:** also requires hosted ROOF/ROOF_STRUCTURE consistency; unbound roofs block plan-level USER_EXPLICIT lock |
+| `DesignRequirementAccess` priority | plan REQUIRED vs local omit | **Fixed:** only USER_EXPLICIT `none`/`OMITTED` beats plan REQUIRED; AI_PLANNED none does not |
 | `building_contract` specialty roofs | classical 歇山/悬山/硬山/庑殿 | **Extended:** participate in ordinal `building_N` scopes (not only western specialty roofs) |
 | `TransitionalSatellitePlans` / migrate whitelist | historical satellite opt-in | **Fixed:** load-time inject only (test sources); migrate script denied for `complex_build_retest` / `llmplan_examples` / eval plans |
 | `llm_plan_normalization` explicit omissions | roof/windows/entrance none | **Extended (2026-11-17):** USER_EXPLICIT + design_requirements OMITTED; drop conflicting satellites |

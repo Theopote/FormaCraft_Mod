@@ -81,9 +81,15 @@ class StyleFeatureBindingTest(unittest.TestCase):
         for component in plan["components"]:
             component["dimensions"] = {"width": 9, "depth": 7, "height": 4}
             component["relative_position"] = {"x": 0, "y": 0, "z": 0}
+        # "两栋…双坡" without an explicit quantifier (两栋都/所有建筑) stays unresolved —
+        # style defaults must not treat it as a whole-compound user_override.
         contracted = apply_building_contract(plan, "生成两栋住宅，屋顶使用双坡屋顶。")
         result = apply_style_feature_defaults(contracted, self.profile("mass_a", "roof_a"))
-        self.assertEqual(self.report(result)["status"], "user_override")
+        self.assertEqual(self.report(result)["status"], "unresolved_user_scope")
+        # Explicit quantifier still blocks style defaults as user_override.
+        contracted_all = apply_building_contract(plan, "所有建筑都使用双坡屋顶。")
+        result_all = apply_style_feature_defaults(contracted_all, self.profile("mass_a", "roof_a"))
+        self.assertEqual(self.report(result_all)["status"], "user_override")
 
     def test_final_normalizer_emits_parameter_report(self):
         from app.services.llm_plan_normalization import _normalize_llm_plan_output

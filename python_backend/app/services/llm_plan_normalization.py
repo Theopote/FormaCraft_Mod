@@ -195,12 +195,14 @@ def _resolve_scoped_mass_targets(
     masses: list,
     scope: str | None,
     target_ids: list | None,
+    *,
+    scope_source: str | None = None,
 ) -> list:
     """Resolve which MASS components a user constraint may touch.
 
-    Unscoped / all_main_masses / plan only apply when there is a single mass,
-    or when ``target_components`` / ``requirement_scope`` uniquely identify hosts.
-    Ambiguous multi-mass scopes return empty (leave AI plan intact).
+    ``all_main_masses`` / ``plan`` expand to every mass only when ``scope_source`` is an
+    explicit quantifier (or target_components uniquely identify hosts). Inferred defaults
+    and unresolved names return empty so AI authorship is preserved.
     """
     if not masses:
         return []
@@ -209,7 +211,10 @@ def _resolve_scoped_mass_targets(
         hit = [m for m in masses if _comp_id(m) in ids]
         return hit
     scope_key = str(scope or "").strip()
-    if scope_key and scope_key not in ("plan", "all_main_masses", "unresolved", "element_scope"):
+    source = str(scope_source or "").strip().upper()
+    if scope_key in ("unresolved", "element_scope"):
+        return []
+    if scope_key and scope_key not in ("plan", "all_main_masses"):
         scoped = [
             m for m in masses
             if str((m.get("params") or {}).get("requirement_scope") or "").strip() == scope_key
@@ -218,9 +223,20 @@ def _resolve_scoped_mass_targets(
         return scoped
     if len(masses) <= 1:
         return list(masses)
-    if scope_key in ("all_main_masses",):
-        # Explicit "所有建筑/两栋都" — only when contract already used that scope.
-        return list(masses)
+    if scope_key in ("all_main_masses", "plan"):
+        # INFERRED must never upgrade to whole-compound overwrite.
+        if source in ("INFERRED",):
+            return []
+        if source in ("EXPLICIT_QUANTIFIER", "EXPLICIT", ""):
+            # Empty source: legacy crafted requirements without scope_source.
+            # Prefer EXPLICIT_QUANTIFIER from extract_requirements for natural language.
+            if source == "" and scope_key == "all_main_masses":
+                return list(masses)
+            if source in ("EXPLICIT_QUANTIFIER", "EXPLICIT"):
+                return list(masses)
+            if scope_key == "plan" and source == "":
+                return list(masses)
+        return []
     return []
 
 
@@ -240,9 +256,13 @@ def _targets_for_req(masses: list, req: dict) -> list:
         masses,
         str(req.get("scope") or ""),
         list(req.get("target_components") or []),
+        scope_source=str(req.get("scope_source") or ""),
     )
     if not targets and len(masses) <= 1:
-        return list(masses)
+        # Single-mass compounds: unresolved INFERRED roof may still bind locally.
+        scope = str(req.get("scope") or "").strip()
+        if scope in ("", "unresolved", "plan", "all_main_masses"):
+            return list(masses)
     return targets
 
 
@@ -282,9 +302,9 @@ def _record_scope_ambiguity(
 def _user_authorized_roof_overwrite(roof_reqs: list, roof_type: str, masses: list) -> bool:
     """True when a USER_EXPLICIT requirement authorizes overwriting AI roofs for this type.
 
-    ``plan`` / ``all_main_masses`` are explicit whole-compound authorizations (e.g. 所有建筑
-    都改成歇山顶). Building-scoped ids and ``target_components`` are also authorized.
-    Empty / unresolved scopes are not.
+    Whole-compound overwrite requires ``scope_source=EXPLICIT_QUANTIFIER`` (or EXPLICIT).
+    Named / ordinal scopes and ``target_components`` are also authorized.
+    INFERRED / unresolved scopes are not.
     """
     if len(masses) <= 1:
         return True
@@ -294,11 +314,57 @@ def _user_authorized_roof_overwrite(roof_reqs: list, roof_type: str, masses: lis
         if list(req.get("target_components") or []):
             return True
         scope = str(req.get("scope") or "").strip()
+        source = str(req.get("scope_source") or "").strip().upper()
+        if scope in ("unresolved", "element_scope"):
+            continue
         if scope in ("plan", "all_main_masses"):
-            return True
-        if scope and scope not in ("", "unresolved", "element_scope"):
+            if source in ("EXPLICIT_QUANTIFIER", "EXPLICIT"):
+                return True
+            # Legacy crafted req without scope_source still authorizes when scope is explicit.
+            if source == "" and scope in ("plan", "all_main_masses"):
+                return True
+            continue
+        if scope:
             return True
     return False
+
+
+def _hosted_roofs_consistent(
+    components: list,
+    target_ids: set[str],
+    roof_type: str,
+    extras: dict | None = None,
+    *,
+    reject_unbound: bool = False,
+) -> bool:
+    """True when every ROOF/ROOF_STRUCTURE bound to targets matches roof_type (+ extras).
+
+    Unbound roofs only fail when ``reject_unbound`` (whole-compound success claims).
+    """
+    extras = extras or {}
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        ctype = str(comp.get("component_type") or "").upper()
+        if ctype not in ("ROOF", "ROOF_STRUCTURE"):
+            continue
+        params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+        host = str(params.get("host_id") or "").strip()
+        if not host:
+            if reject_unbound and target_ids:
+                return False
+            continue
+        if host not in target_ids:
+            continue
+        current = str(params.get("roof_type") or "").strip().lower()
+        if current != roof_type:
+            return False
+        for ek, ev in extras.items():
+            if ev is None:
+                continue
+            if params.get(ek) != ev:
+                return False
+    return True
 
 
 def _stamp_roof_on_targets(
@@ -313,7 +379,8 @@ def _stamp_roof_on_targets(
 ) -> bool:
     """Apply roof_type only to targeted masses and ROOFs with an explicit host_id bind.
 
-    Returns True when every target mass now holds ``roof_type`` (plan-level lock safe).
+    Returns True when every target mass AND every hosted ROOF/ROOF_STRUCTURE matches
+    ``roof_type`` (plan-level lock safe only then).
     """
     target_ids = {_comp_id(t) for t in targets if _comp_id(t)}
     extras = {k: v for k, v in (roof_extras or {}).items() if v is not None}
@@ -351,11 +418,23 @@ def _stamp_roof_on_targets(
             for ek, ev in extras.items():
                 params[ek] = ev
                 _tag_param_source(params, ek, "USER_EXPLICIT")
-    applied_all = bool(targets) and all(
+    masses_ok = bool(targets) and all(
         str((t.get("params") or {}).get("roof_type") or "").strip().lower() == roof_type
         for t in targets
         if isinstance(t, dict)
     )
+    whole_compound = _covers_all_masses(masses, targets)
+    roofs_ok = _hosted_roofs_consistent(
+        components, target_ids, roof_type, extras, reject_unbound=whole_compound
+    )
+    applied_all = masses_ok and roofs_ok
+    if masses_ok and not roofs_ok:
+        _record_scope_ambiguity(
+            plan,
+            code="E_ROOF_COMPONENT_INCONSISTENT",
+            message=f"roof_type={roof_type} on masses but hosted ROOF/ROOF_STRUCTURE still disagree",
+            detail={"target_ids": sorted(target_ids)},
+        )
     # Plan-level USER_EXPLICIT only after the constraint actually landed on every target.
     if applied_all and _covers_all_masses(masses, targets):
         _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
@@ -625,6 +704,7 @@ def _promote_hard_scope_diagnostics(plan: Dict[str, Any]) -> Dict[str, Any]:
     _BLOCKING = {
         "E_ROOF_APPLY_INCOMPLETE",
         "E_ROOF_HOST_UNRESOLVED",
+        "E_ROOF_COMPONENT_INCONSISTENT",
         "E_HOST_UNRESOLVED",
     }
     hard = [

@@ -32,6 +32,55 @@ NAMED_BUILDINGS = {
 
 ELEMENT_SUBJECTS = ('楼梯', '步道', '走道', '连廊', '木桥', '水渠', '栏杆', '阳台', '回廊', '窗口', '窗户', '入口', '门洞')
 
+# Explicit whole-compound quantifiers only — never inferred from missing building names.
+_EXPLICIT_ALL_MASS_QUANTIFIERS = re.compile(
+    r'所有建筑|全部建筑|两栋均|两栋都|每栋均|每栋都|全部主体|所有主体|所有房子|全部房子'
+)
+
+
+def _clause_window(text: str, match: re.Match) -> str:
+    """Sentence/clause containing the match (stops at 。；;)."""
+    start = max(text.rfind(s, 0, match.start()) for s in ('。', '；', ';')) + 1
+    end_candidates = [text.find(s, match.end()) for s in ('。', '；', ';')]
+    end_candidates = [i for i in end_candidates if i >= 0]
+    end = min(end_candidates) if end_candidates else len(text)
+    return text[start:end]
+
+
+def _explicit_all_mass_quantifier(text: str, match: re.Match | None = None) -> bool:
+    blob = _clause_window(text, match) if match is not None else text
+    return bool(_EXPLICIT_ALL_MASS_QUANTIFIERS.search(blob))
+
+
+def _refine_roof_scope(text: str, requirement: dict, match: re.Match | None) -> None:
+    """Separate EXPLICIT global quantifiers from INFERRED default whole-compound scopes.
+
+    Classification: FORMAT_REPAIR / HARD_CONSTRAINT — does not invent building ownership.
+    """
+    if match is None:
+        requirement['scope'] = 'unresolved'
+        requirement['scope_source'] = 'INFERRED'
+        # Keep status=pending: the roof value is known; only ownership is unresolved.
+        return
+    subject = _numeric_subject(text, match)
+    if subject.startswith('named_') or subject.startswith('building_'):
+        requirement['scope'] = subject
+        requirement['scope_source'] = 'NAMED' if subject.startswith('named_') else 'EXPLICIT_ORDINAL'
+        return
+    if subject == 'element_scope':
+        requirement['scope'] = 'element_scope'
+        requirement['scope_source'] = 'ELEMENT'
+        requirement['status'] = 'unsupported_scope'
+        return
+    if _explicit_all_mass_quantifier(text, match):
+        requirement['scope'] = 'all_main_masses'
+        requirement['scope_source'] = 'EXPLICIT_QUANTIFIER'
+        return
+    # Missing building name must NOT upgrade to all_main_masses for design overwrite.
+    # status stays pending — unresolved ownership is expressed by scope, not status.
+    requirement['scope'] = 'unresolved'
+    requirement['scope_source'] = 'INFERRED'
+
 
 def _numeric_subject(text: str, match: re.Match) -> str:
     # A clause's named building owns its dimensions, not every MASS_MAIN in
@@ -105,10 +154,12 @@ def _extract_global_requirements(text: str) -> list[dict]:
     # Only explicit 双坡/人字顶 should hard-require roof_type=gable.
     if any(_positive_match(text, m) for m in re.finditer(r'(?<!十字)双坡屋\s*顶|人字顶', text)):
         result.append({'id': 'req_roof_gable', 'property': 'roof_type', 'value': 'gable', 'source': 'user_explicit',
-                       'source_text': ['双坡屋顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+                       'source_text': ['双坡屋顶'], 'scope': 'unresolved', 'scope_source': 'INFERRED',
+                       'priority': 'hard', 'status': 'pending'})
     if any(_positive_match(text, m) for m in re.finditer(r'平屋顶|平顶', text)):
         result.append({'id': 'req_roof_type', 'property': 'roof_type', 'value': 'flat', 'source': 'user_explicit',
-                       'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+                       'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'unresolved',
+                       'scope_source': 'INFERRED', 'priority': 'hard', 'status': 'pending'})
     specialty_roofs = {
         # Classical Chinese / East Asian roofs — must participate in ordinal building scopes
         # (第一栋歇山 / 第二栋平顶) the same way as western specialty roofs.
@@ -137,27 +188,30 @@ def _extract_global_requirements(text: str) -> list[dict]:
         if hits:
             result.append({'id':'req_roof_'+roof_type, 'property':'roof_type', 'value':roof_type,
                            'source':'user_explicit', 'source_text':[hits[0][0]],
-                           'scope':'all_main_masses', 'priority':'hard', 'status':'pending'})
+                           'scope':'unresolved', 'scope_source': 'INFERRED',
+                           'priority':'hard', 'status':'pending'})
     for requirement in result:
-        if requirement['property'] == 'roof_type':
-            token = requirement['source_text'][0]
-            hit = re.search(re.escape(token), text)
-            if hit:
-                requirement['scope'] = _numeric_subject(text, hit)
+        if requirement['property'] != 'roof_type':
+            continue
+        token = (requirement.get('source_text') or [''])[0]
+        hit = re.search(re.escape(token), text) if token else None
+        _refine_roof_scope(text, requirement, hit)
     roof_requirements = [requirement for requirement in result if requirement['property']=='roof_type']
     if any(requirement['value'] in specialty_roofs for requirement in roof_requirements):
         for scope in {requirement['scope'] for requirement in roof_requirements}:
             scoped = [requirement for requirement in roof_requirements if requirement['scope']==scope]
-            if len({requirement['value'] for requirement in scoped}) > 1:
+            if len({requirement['value'] for requirement in scoped if requirement.get('value') is not None}) > 1:
                 for requirement in scoped:
-                    requirement.update(value=None, scope='unresolved', status='unresolved')
+                    requirement.update(value=None, scope='unresolved', scope_source='INFERRED', status='unresolved')
     if re.search(r'山墙[^。；\n]{0,15}(?:不要|不需要|不设|不开|无)[^。；\n]{0,6}(?:窗|开口)|(?:不要|不需要|不设|不开)[^。；\n]{0,6}山墙[^。；\n]{0,6}窗|(?:普通)?封闭山墙', text):
         result.append({'id': 'req_gable_windows', 'property': 'gable_windows', 'value': False,
                        'source': 'user_explicit', 'source_text': ['山墙禁窗或封闭山墙'],
-                       'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+                       'scope': 'all_main_masses', 'scope_source': 'INFERRED',
+                       'priority': 'hard', 'status': 'pending'})
     if any(_positive_match(text, m) for m in re.finditer(r'玻璃窗', text)):
         result.append({'id': 'req_glass_windows', 'property': 'glass_block', 'value': 'minecraft:glass',
-                       'source': 'user_explicit', 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+                       'source': 'user_explicit', 'scope': 'all_main_masses', 'scope_source': 'INFERRED',
+                       'priority': 'hard', 'status': 'pending'})
     for prop, pattern in (
         ('roof_type', r'(?:不要|不需要|不需)(?:生成|添加|建造)?屋顶|无屋顶'),
         ('window_style', r'(?:不要|不需要|不需)(?:生成|添加)?(?:窗户|窗洞)|不开窗|无窗(?:户)?'),
@@ -167,9 +221,16 @@ def _extract_global_requirements(text: str) -> list[dict]:
         if prop == 'window_style':
             hits = [m for m in hits if not re.search(r'山墙[^。；\n]*$', text[max(0, m.start()-30):m.start()])]
         if hits:
-            result.append({'id': 'req_disable_' + prop, 'property': prop, 'value': 'none',
-                           'source': 'user_explicit', 'source_text': [m[0] for m in hits],
-                           'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
+            req = {'id': 'req_disable_' + prop, 'property': prop, 'value': 'none',
+                   'source': 'user_explicit', 'source_text': [m[0] for m in hits],
+                   'scope': 'unresolved', 'scope_source': 'INFERRED',
+                   'priority': 'hard', 'status': 'pending'}
+            if prop == 'roof_type':
+                _refine_roof_scope(text, req, hits[0])
+            elif _explicit_all_mass_quantifier(text, hits[0]):
+                req['scope'] = 'all_main_masses'
+                req['scope_source'] = 'EXPLICIT_QUANTIFIER'
+            result.append(req)
     if re.search(r'(?:不(?:要|需)|暂不).{0,18}复杂装饰', text):
         result.append({'id': 'req_no_complex_decor', 'property': 'no_complex_decor', 'value': True,
                        'source': 'user_explicit', 'source_text': [re.search(r'(?:不(?:要|需)|暂不).{0,18}复杂装饰', text)[0]],
@@ -225,10 +286,26 @@ def extract_requirements(text: str) -> list[dict]:
     for index, (_, end, scope) in enumerate(events):
         stop = events[index+1][0] if index+1 < len(events) else len(text)
         for requirement in _extract_global_requirements(text[end:stop]):
-            if requirement['scope'] != 'unresolved' and requirement['scope'] != 'plan':
-                requirement['scope'] = scope
-            elif requirement['scope'] == 'plan' and scope != 'all_main_masses':
-                requirement['scope'] = scope
+            if str(scope).startswith('building_'):
+                # Ordinal clause owns the fragment — bind inferred/unresolved design
+                # requirements to that building (do not leave them as whole-compound).
+                if requirement.get('scope') in (
+                    None, '', 'unresolved', 'all_main_masses', 'plan'
+                ) or requirement.get('scope_source') == 'INFERRED':
+                    requirement['scope'] = scope
+                requirement['scope_source'] = 'EXPLICIT_ORDINAL'
+                if requirement.get('status') in ('unresolved', 'unsupported_scope') and requirement.get('value') is not None:
+                    requirement['status'] = 'pending'
+            elif scope == 'all_main_masses':
+                requirement['scope'] = 'all_main_masses'
+                requirement['scope_source'] = 'EXPLICIT_QUANTIFIER'
+                if requirement.get('status') in ('unresolved', 'unsupported_scope') and requirement.get('value') is not None:
+                    requirement['status'] = 'pending'
+            else:
+                if requirement['scope'] != 'unresolved' and requirement['scope'] != 'plan':
+                    requirement['scope'] = scope
+                elif requirement['scope'] == 'plan' and scope != 'all_main_masses':
+                    requirement['scope'] = scope
             requirement['id'] += '_' + scope
             result.append(requirement)
     return result
@@ -265,11 +342,18 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     hints = out.setdefault('proportion_hints', {})
     if not isinstance(hints, dict): hints = {}; out['proportion_hints'] = hints
     requirements = extract_requirements(text)
-    contract = {'schema': SCHEMA, 'requirements': requirements, 'diagnostics': [], 'validation_stage': 'plan'}
+    # Persist a copy without scope_source so historical golden contracts stay stable.
+    # Live extract_requirements() still exposes scope_source to design stamping.
+    persisted_requirements = []
+    for req in requirements:
+        item = deepcopy(req)
+        item.pop('scope_source', None)
+        persisted_requirements.append(item)
+    contract = {'schema': SCHEMA, 'requirements': persisted_requirements, 'diagnostics': [], 'validation_stage': 'plan'}
     hints['building_contract'] = contract
     from .architecture_intent import describe_architecture
     hints['architecture_intent'] = describe_architecture(text)
-    hints['architecture_intent']['materials'] = [deepcopy(r) for r in requirements
+    hints['architecture_intent']['materials'] = [deepcopy(r) for r in persisted_requirements
                                                if r['property'] in ('wall_block', 'floor_block', 'roof_block')]
     from .request_intent import attach_request_intent
     attach_request_intent(out, text)
@@ -621,18 +705,37 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     contract['scope_bindings'] = {scope: [m['params']['component_id'] for m in targets]
                                   for scope, targets in bindings.items()}
     slots = {slot.get('slot_id'): slot for slot in (out.get('layout') or {}).get('slots', []) if isinstance(slot, dict)}
+    # Validate against persisted requirements (same objects as contract['requirements']).
+    requirements = contract['requirements']
     for requirement in requirements:
         scope = requirement['scope']
-        if scope in ('unresolved', 'element_scope'):
+        if scope == 'element_scope':
             continue
-        targets = masses if scope in ('all_main_masses', 'plan') else bindings.get(scope, [])
-        if not targets or (scope.startswith('building_') and len(targets) != 1):
+        if scope == 'unresolved':
+            # Only roof_type may verify on a lone mass without claiming all_main_masses.
+            # Conflicting floor/dim values (value=None / unsupported_scope) stay unbound.
+            may_bind_single = (
+                len(masses) == 1
+                and requirement.get('property') == 'roof_type'
+                and requirement.get('value') is not None
+                and requirement.get('status') not in ('unsupported_scope', 'unresolved')
+            )
+            if not may_bind_single:
+                if not masses and requirement.get('status') == 'pending':
+                    requirement['status'] = 'unverified'
+                continue
+            targets = masses
+        elif scope in ('all_main_masses', 'plan'):
+            targets = masses
+        else:
+            targets = bindings.get(scope, [])
+        if not targets or (str(scope).startswith('building_') and len(targets) != 1):
             requirement['status'] = 'unverified' if not masses else 'unresolved_binding'
             if masses:
                 contract['diagnostics'].append({'code': 'E_REQUIREMENT_SCOPE', 'scope': scope, 'requirement_id': requirement['id']})
             continue
         target_ids = {m['params']['component_id'] for m in targets}
-        owned = components if scope in ('all_main_masses', 'plan') else [
+        owned = components if scope in ('all_main_masses', 'plan', 'unresolved') else [
             c for c in components if c['params'].get('host_id') in target_ids or c['params']['component_id'] in target_ids]
         key, expected = requirement['property'], requirement['value']
         if key == 'no_complex_decor':

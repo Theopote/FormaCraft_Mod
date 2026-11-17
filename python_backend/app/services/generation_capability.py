@@ -693,42 +693,23 @@ def apply_stage_b_capability_repair(
             id_index[str(cid)] = c
 
     def _pick_host_remap(wanted: str) -> Optional[str]:
-        """Deterministic unique host repair only — never invent membership.
+        """Exact / case-insensitive id repair only — never invent building membership.
 
-        Classification: FORMAT_REPAIR when exact/unique; ambiguous → None so
-        evaluate_capability reports the unknown host (capability_gap / replan).
+        Classification: FORMAT_REPAIR for id casing/format. Partial-string and
+        courtyard-type guesses are DESIGN_OVERRIDE and are refused (capability_gap).
         """
-        key = str(wanted).strip().lower()
+        key = str(wanted).strip()
         if not key:
             return None
-        # Exact / case-insensitive id match.
-        for cid in id_index:
-            if cid.lower() == key:
-                return cid
-        # Fuzzy: host token appears in exactly one hostable component_id.
-        fuzzy = [
-            cid
-            for cid, comp in id_index.items()
-            if key in cid.lower()
-            and str(comp.get("component_type") or "").upper() in hostable
-        ]
-        if len(fuzzy) == 1:
-            return fuzzy[0]
-        if len(fuzzy) > 1:
-            return None
-        # Courtyard-like names: only when a preferred type has a unique hostable id.
-        if any(tok in key for tok in ("court", "yard", "庭", "院")):
-            for prefer in ("COURTYARD", "COURTYARD_SPACE", "PATH", "PLAZA"):
-                matches = [
-                    cid
-                    for cid, comp in id_index.items()
-                    if str(comp.get("component_type") or "").upper() == prefer
-                ]
-                if len(matches) == 1:
-                    return matches[0]
-                if len(matches) > 1:
-                    return None
-        # No "first MASS" last resort — multi-building plans must not re-parent satellites.
+        # Exact match.
+        if key in id_index:
+            return key
+        # Case-insensitive id match (format repair only).
+        lower = key.lower()
+        case_hits = [cid for cid in id_index if cid.lower() == lower]
+        if len(case_hits) == 1:
+            return case_hits[0]
+        # No fuzzy substring, courtyard keyword, or first-MASS fallback.
         return None
 
     for c in comps:
@@ -816,13 +797,8 @@ def apply_stage_b_capability_repair(
                 params[key] = mapped
                 params["roof_type_mapped_from"] = raw
                 repairs.append(f"roof_type {raw}→{mapped}")
-            elif not is_executable_roof_type(raw):
-                # Last-resort Chinese/Japanese hip-gable mapping for garden/temple plans.
-                text = user_text or ""
-                if any(tok in text for tok in ("日式", "入母屋", "irimoya", "和风", "庭院")):
-                    params[key] = "xieshan"
-                    params["roof_type_mapped_from"] = raw
-                    repairs.append(f"roof_type {raw}→xieshan (locale fallback)")
+            # Unsupported / unknown roof types are left intact for evaluate_capability
+            # → capability_gap / model repair. No locale keyword → xieshan DESIGN_OVERRIDE.
 
         # Gate mass without GATE type: ensure passage_axis when proportions are gate-like.
         if ctype.startswith("MASS") and not params.get("passage_axis"):

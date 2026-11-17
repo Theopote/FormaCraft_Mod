@@ -6,6 +6,7 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.style.ExplicitDesignPolicy;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -20,52 +21,37 @@ public final class DesignRequirementAccess {
     public static final String CIRCULATION = "circulation";
 
     /**
-     * Priority: local USER_EXPLICIT omission / mass requirement → plan_meta → UNSPECIFIED.
-     * A plan-level REQUIRED must not override a mass that the player explicitly omitted.
+     * Priority: local USER_EXPLICIT omission → mass requirement → plan_meta → AI none → UNSPECIFIED.
+     * AI-authored {@code none} must not override a player plan-level REQUIRED.
      */
     public static DesignRequirement facade(LlmPlan plan, Component mass) {
-        if (ExplicitDesignPolicy.windowsDisabled(mass)) {
-            return DesignRequirement.OMITTED;
-        }
-        DesignRequirement massReq = fromMassParam(mass, "facade_requirement", "window_requirement", "windows_requirement");
-        if (massReq != null) {
-            return massReq;
-        }
-        DesignRequirement explicit = fromPlanMeta(plan, FACADE);
-        if (explicit != null) {
-            return explicit;
-        }
-        return DesignRequirement.UNSPECIFIED;
+        return resolveOmitAware(
+                plan,
+                mass,
+                FACADE,
+                ExplicitDesignPolicy.windowsDisabled(mass),
+                new String[] {"window_style", "windowStyle", "window_ratio"},
+                "facade_requirement", "window_requirement", "windows_requirement");
     }
 
     public static DesignRequirement entrance(LlmPlan plan, Component mass) {
-        if (ExplicitDesignPolicy.entranceDisabled(mass)) {
-            return DesignRequirement.OMITTED;
-        }
-        DesignRequirement massReq = fromMassParam(mass, "entrance_requirement", "door_requirement");
-        if (massReq != null) {
-            return massReq;
-        }
-        DesignRequirement explicit = fromPlanMeta(plan, ENTRANCE);
-        if (explicit != null) {
-            return explicit;
-        }
-        return DesignRequirement.UNSPECIFIED;
+        return resolveOmitAware(
+                plan,
+                mass,
+                ENTRANCE,
+                ExplicitDesignPolicy.entranceDisabled(mass),
+                new String[] {"entrance_type", "entranceType"},
+                "entrance_requirement", "door_requirement");
     }
 
     public static DesignRequirement roof(LlmPlan plan, Component mass) {
-        if (ExplicitDesignPolicy.roofDisabled(mass)) {
-            return DesignRequirement.OMITTED;
-        }
-        DesignRequirement massReq = fromMassParam(mass, "roof_requirement");
-        if (massReq != null) {
-            return massReq;
-        }
-        DesignRequirement explicit = fromPlanMeta(plan, ROOF);
-        if (explicit != null) {
-            return explicit;
-        }
-        return DesignRequirement.UNSPECIFIED;
+        return resolveOmitAware(
+                plan,
+                mass,
+                ROOF,
+                ExplicitDesignPolicy.roofDisabled(mass),
+                new String[] {"roof_type", "roofType"},
+                "roof_requirement");
     }
 
     public static DesignRequirement crown(LlmPlan plan, Component mass, boolean wouldInferCrown) {
@@ -165,6 +151,93 @@ public final class DesignRequirementAccess {
                 "plan_meta.circulation_host_links",
                 List.of("Use ROOT (default) or DIRECT.",
                         "Omit circulation_host_links to default to ROOT.")));
+    }
+
+    /**
+     * Resolve omit/required with provenance: only USER_EXPLICIT none/OMITTED beats plan REQUIRED.
+     */
+    private static DesignRequirement resolveOmitAware(
+            LlmPlan plan,
+            Component mass,
+            String planKey,
+            boolean disabledByParam,
+            String[] omitParamKeys,
+            String... massRequirementKeys
+    ) {
+        DesignRequirement massReq = fromMassParam(mass, massRequirementKeys);
+        if (massReq == DesignRequirement.OMITTED && isUserExplicitOmit(mass, omitParamKeys, massRequirementKeys)) {
+            return DesignRequirement.OMITTED;
+        }
+        if (massReq != null && massReq != DesignRequirement.OMITTED) {
+            return massReq;
+        }
+        if (disabledByParam && isUserExplicitParam(mass, omitParamKeys)) {
+            return DesignRequirement.OMITTED;
+        }
+        DesignRequirement planReq = fromPlanMeta(plan, planKey);
+        if (planReq != null) {
+            // Player REQUIRED/OPTIONAL/OMITTED at plan level beats AI-authored none.
+            return planReq;
+        }
+        if (massReq == DesignRequirement.OMITTED) {
+            return DesignRequirement.OMITTED;
+        }
+        if (disabledByParam) {
+            // AI planned none with no conflicting plan requirement — treat as local omit.
+            return DesignRequirement.OMITTED;
+        }
+        return DesignRequirement.UNSPECIFIED;
+    }
+
+    private static boolean isUserExplicitOmit(Component mass, String[] omitParamKeys, String... requirementKeys) {
+        if (isUserExplicitParam(mass, omitParamKeys)) {
+            return true;
+        }
+        if (mass == null || mass.params() == null) {
+            return false;
+        }
+        for (String key : requirementKeys) {
+            if (key != null && isUserExplicitParam(mass, key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isUserExplicitParam(Component mass, String... keys) {
+        if (mass == null || mass.params() == null || keys == null) {
+            return false;
+        }
+        Object nested = mass.params().get("design_sources");
+        if (!(nested instanceof Map<?, ?> sources)) {
+            return false;
+        }
+        for (String key : keys) {
+            if (key == null) {
+                continue;
+            }
+            Object raw = sources.get(key);
+            if (raw == null) {
+                // Try canonical / camel aliases commonly used in plans.
+                for (String alias : DesignParameterRegistry.aliases(key)) {
+                    raw = sources.get(alias);
+                    if (raw != null) {
+                        break;
+                    }
+                }
+            }
+            DesignParamSource source = DesignParamSource.parse(raw == null ? null : String.valueOf(raw));
+            if (source == DesignParamSource.USER_EXPLICIT) {
+                return true;
+            }
+            if (raw != null) {
+                String t = String.valueOf(raw).trim().toUpperCase(Locale.ROOT);
+                if ("USER".equals(t) || "PLAYER".equals(t) || "USER_EXPLICIT".equals(t)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static DesignRequirement fromPlanMeta(LlmPlan plan, String key) {

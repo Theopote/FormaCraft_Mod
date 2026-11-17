@@ -36,7 +36,7 @@
           "source_text": [
             "平屋顶"
           ],
-          "scope": "all_main_masses",
+          "scope": "unresolved",
           "priority": "hard",
           "status": "planned",
           "target_components": [
