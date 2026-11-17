@@ -62,6 +62,7 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `_pick_host_remap` | unknown host_id | **Fixed:** exact / case-insensitive id only; fuzzy substring and courtyard-type guesses removed |
 | `_stamp_roof_on_targets` applied_all | MASS-only check | **Fixed:** also requires hosted ROOF/ROOF_STRUCTURE consistency; unbound roofs block plan-level USER_EXPLICIT lock |
 | `DesignRequirementAccess` priority | plan REQUIRED vs local omit | **Fixed:** only USER_EXPLICIT `none`/`OMITTED` beats plan REQUIRED; AI_PLANNED none does not |
+| Strict-mode prepare/compile | AI none vs REQUIRED; multi-mass roofs | **Added (2026-11-17):** `StrictModeDesignScopeIntegrityTest` (+ registry bootstrap) — AI none → `E_DESIGN_INCOMPLETE`; USER_EXPLICIT none allowed; flat+xieshan multi-mass (non-pavilion ids) survives prepare→BlockPatch under authored FACADE/ENTRANCE |
 | `building_contract` specialty roofs | classical 歇山/悬山/硬山/庑殿 | **Extended:** participate in ordinal `building_N` scopes (not only western specialty roofs) |
 | `TransitionalSatellitePlans` / migrate whitelist | historical satellite opt-in | **Fixed:** load-time inject only (test sources); migrate script denied for `complex_build_retest` / `llmplan_examples` / eval plans |
 | `llm_plan_normalization` explicit omissions | roof/windows/entrance none | **Extended (2026-11-17):** USER_EXPLICIT + design_requirements OMITTED; drop conflicting satellites |

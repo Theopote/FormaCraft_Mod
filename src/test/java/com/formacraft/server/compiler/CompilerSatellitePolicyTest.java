@@ -46,6 +46,35 @@ class CompilerSatellitePolicyTest {
     }
 
     @Test
+    void aiPlannedRoofNoneDoesNotSatisfyPlanRequiredRoof() {
+        Component mass = new Component(
+                "MASS_MAIN",
+                "body",
+                new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 4),
+                List.of(),
+                Map.of(
+                        "component_id", "body",
+                        "roof_type", "none",
+                        "design_sources", Map.of("roof_type", "AI_PLANNED")));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false)
+                .components(List.of(mass))
+                .planMeta(Map.of(
+                        "allow_compiler_satellites", false,
+                        "design_requirements", Map.of(
+                                "facade", "OMITTED",
+                                "entrance", "OMITTED",
+                                "roof", "REQUIRED",
+                                "crown", "OMITTED")))
+                .build();
+
+        var gap = CompilerSatellitePolicy.missingSatellitesGap(
+                plan, mass, true, true, false, false, true, false);
+        assertTrue(gap.isPresent());
+        assertTrue(gap.get().message().contains("ROOF"));
+    }
+
+    @Test
     void requiredCrownWithExplicitCrownPasses() {
         Component mass = mass();
         LlmPlan plan = planWithCrownRequired();

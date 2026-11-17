@@ -1241,6 +1241,86 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertEqual("court", roof["params"]["host_id"])
         self.assertTrue(any("host" in e.lower() for e in errors))
 
+    def test_strict_mode_handoff_fields_for_house_and_pavilion(self):
+        """Python→Java handoff: pavilion xieshan must not rewrite house; AI none stays AI_PLANNED."""
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "plan_meta": {
+                "allow_compiler_satellites": False,
+                "design_requirements": {"roof": "REQUIRED", "facade": "OMITTED", "entrance": "OMITTED"},
+            },
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 8},
+                    "features": [],
+                    "params": {
+                        "component_id": "modern_house",
+                        "roof_type": "flat",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 8, "z": 0},
+                    "dimensions": {"width": 16, "depth": 14, "height": 2},
+                    "features": [],
+                    "params": {
+                        "component_id": "roof_house",
+                        "host_id": "modern_house",
+                        "roof_type": "flat",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 22, "y": 0, "z": 0},
+                    "dimensions": {"width": 6, "depth": 6, "height": 4},
+                    "features": ["pavilion"],
+                    "params": {
+                        "component_id": "garden_pavilion",
+                        "roof_type": "xieshan",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "b",
+                    "relative_position": {"x": 22, "y": 4, "z": 0},
+                    "dimensions": {"width": 8, "depth": 8, "height": 3},
+                    "features": [],
+                    "params": {
+                        "component_id": "roof_pavilion",
+                        "host_id": "garden_pavilion",
+                        "roof_type": "xieshan",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(
+            copy.deepcopy(plan), "建一栋现代住宅，旁边有座歇山顶亭子"
+        )
+        house = next(c for c in out["components"] if c["params"]["component_id"] == "modern_house")
+        pavilion = next(c for c in out["components"] if c["params"]["component_id"] == "garden_pavilion")
+        roof_h = next(c for c in out["components"] if c["params"]["component_id"] == "roof_house")
+        roof_p = next(c for c in out["components"] if c["params"]["component_id"] == "roof_pavilion")
+        self.assertEqual("flat", house["params"]["roof_type"])
+        self.assertEqual("xieshan", pavilion["params"]["roof_type"])
+        self.assertEqual("flat", roof_h["params"]["roof_type"])
+        self.assertEqual("xieshan", roof_p["params"]["roof_type"])
+        self.assertEqual("AI_PLANNED", house["params"]["design_sources"]["roof_type"])
+        self.assertEqual("AI_PLANNED", pavilion["params"]["design_sources"]["roof_type"])
+        self.assertFalse(out["plan_meta"].get("allow_compiler_satellites"))
+        self.assertEqual("REQUIRED", out["plan_meta"]["design_requirements"]["roof"])
+        self.assertNotEqual("USER_EXPLICIT", (out.get("design_sources") or {}).get("roof_type"))
+
 
 if __name__ == "__main__":
     unittest.main()
