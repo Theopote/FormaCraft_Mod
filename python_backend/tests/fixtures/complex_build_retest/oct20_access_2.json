@@ -334,7 +334,7 @@
       "dimensions": {
         "width": 16,
         "depth": 12,
-        "height": 8
+        "height": 12
       },
       "features": [],
       "params": {
@@ -359,7 +359,7 @@
       "slot_id": "exhibition",
       "relative_position": {
         "x": -8,
-        "y": 8,
+        "y": 11,
         "z": -6
       },
       "dimensions": {
@@ -389,7 +389,7 @@
       "dimensions": {
         "width": 16,
         "depth": 12,
-        "height": 8
+        "height": 12
       },
       "features": [],
       "params": {
