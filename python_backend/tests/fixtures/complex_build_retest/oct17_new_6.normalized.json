@@ -960,6 +960,7 @@
             "双坡屋顶"
           ],
           "scope": "named_chapel",
+          "scope_source": "NAMED",
           "priority": "hard",
           "status": "planned",
           "target_components": [
@@ -973,6 +974,7 @@
           "value": "minecraft:glass",
           "source": "user_explicit",
           "scope": "all_main_masses",
+          "scope_source": "INFERRED",
           "priority": "hard",
           "status": "planned",
           "target_components": [

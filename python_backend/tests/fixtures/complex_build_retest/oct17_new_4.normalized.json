@@ -266,6 +266,7 @@
             "双坡屋顶"
           ],
           "scope": "named_main_hall",
+          "scope_source": "NAMED",
           "priority": "hard",
           "status": "planned",
           "target_components": [

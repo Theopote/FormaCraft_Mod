@@ -208,6 +208,7 @@
             "双坡屋顶"
           ],
           "scope": "named_mill",
+          "scope_source": "NAMED",
           "priority": "hard",
           "status": "planned",
           "target_components": [

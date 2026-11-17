@@ -234,6 +234,7 @@
             "平屋顶"
           ],
           "scope": "named_main_body",
+          "scope_source": "NAMED",
           "priority": "hard",
           "status": "planned",
           "target_components": [

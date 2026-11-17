@@ -140,6 +140,7 @@
             "平屋顶"
           ],
           "scope": "named_research",
+          "scope_source": "NAMED",
           "priority": "hard",
           "status": "planned",
           "target_components": [
