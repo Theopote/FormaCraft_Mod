@@ -32,5 +32,9 @@
         "anchor_mode": "min_corner"
       }
     }
-  ]
+  ],
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

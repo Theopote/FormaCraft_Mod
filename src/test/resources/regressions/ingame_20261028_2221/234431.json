@@ -1134,5 +1134,9 @@
     "notes": "方形四级台座逐层内收，覆钵与塔刹同轴居中；东侧面开龛门，其余三面减化处理以保持四方对称观感。"
   },
   "player_fidelity_notice_zh": "组合式生成「藏式白色佛塔」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

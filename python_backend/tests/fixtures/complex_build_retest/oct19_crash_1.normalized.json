@@ -948,6 +948,8 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "根据想象生成巴比伦空中花园建筑",
-    "building_class": "generic"
+    "building_class": "generic",
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

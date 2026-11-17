@@ -734,5 +734,9 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「生成一栋徽派风格的一层小住宅\n，宽11格、深9格，\n室内净高4格。\n白色混凝土外墙，\n深板岩瓦屋顶，墙厚1格，\n楼板厚1」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

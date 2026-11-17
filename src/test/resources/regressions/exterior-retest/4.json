@@ -1,7 +1,11 @@
 {
   "mode": "build",
   "style_profile": "Classical_European",
-  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
   "style_attributes": {
     "wall_color": "#8F8B83",
     "roof_color": "#4A4A52",
@@ -706,5 +710,9 @@
     "omit_furniture": false,
     "omit_crown_and_spire": true
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

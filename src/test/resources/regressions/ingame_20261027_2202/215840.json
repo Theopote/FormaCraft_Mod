@@ -682,5 +682,9 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「建一座13×13格的两层沙漠土坯\n住宅，暖黄色土墙、平屋顶、\n小窗、中央入口。\n设置连接上下两层的室内楼梯，\n楼梯上方留」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

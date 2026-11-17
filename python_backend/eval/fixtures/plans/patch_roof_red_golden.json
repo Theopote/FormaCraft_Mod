@@ -11,21 +11,40 @@
     "roof_color": "red",
     "roof_material": "terracotta"
   },
-  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
   "target_slot_id": "roof_main",
   "allowed_area": "selection",
   "components": [
     {
       "component_type": "ROOF",
-      "relative_position": { "x": 0, "y": 5, "z": 0 },
-      "dimensions": { "width": 8, "depth": 8, "height": 3 },
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 3
+      },
       "params": {
         "roof_type": "gable",
         "roof_color": "red",
         "material": "red_terracotta",
         "overhang": 1
       },
-      "features": ["patch_target", "roof_recolor"]
+      "features": [
+        "patch_target",
+        "roof_recolor"
+      ]
     }
-  ]
+  ],
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

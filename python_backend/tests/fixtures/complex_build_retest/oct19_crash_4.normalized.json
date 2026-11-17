@@ -1308,6 +1308,8 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "生成克里姆林宫",
-    "building_class": "generic"
+    "building_class": "generic",
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

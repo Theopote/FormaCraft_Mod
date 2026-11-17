@@ -561,5 +561,9 @@
         "building_id": "mass_main_01"
       }
     }
-  ]
+  ],
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

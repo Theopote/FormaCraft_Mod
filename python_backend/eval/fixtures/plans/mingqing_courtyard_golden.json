@@ -108,5 +108,9 @@
     "reference_landmark": "mingqing_courtyard",
     "structural_typology": "courtyard_compound",
     "skeleton_type": "COMPOUND"
+  },
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

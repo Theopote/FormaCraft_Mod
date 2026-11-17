@@ -520,7 +520,9 @@
       "keyword_hint_confidence": 0.0
     },
     "request_intent_text": "生成一座 12x12 格、高 20 \n格的赛博朋克风高密住宅。\n使用末地石砖与砂岩作为主墙面\n，混入裂纹石砖；\n外墙挂满铁链、铁栏杆管线、\n青色霓虹灯牌以及二层凸出的植物露台",
-    "building_class": "generic"
+    "building_class": "generic",
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   },
   "anchor": {
     "x": 1697,

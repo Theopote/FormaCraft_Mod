@@ -470,7 +470,9 @@
     "capability_repairs": [
       "promoted typology→typology_id"
     ],
-    "capability_catalog_schema": "formacraft.generation_capability.v1"
+    "capability_catalog_schema": "formacraft.generation_capability.v1",
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   },
   "anchor": {
     "x": 1552,

@@ -459,5 +459,9 @@
         "component_request:{\"component_query\": {\"semantic\": {\"role\": \"ornament\", \"tags\": [\"cornice\", \"simple\", \"band\"], \"importance\": [\"role\"]}, \"context\": {\"placement\": \"wall\", \"side\": \"exterior\", \"heightLevel\": \"roof\", \"edgeCondition\": \"flat\"}, \"geometry\": {\"requiresOpening\": false, \"openingWidth\": null, \"openingHeight\": null, \"tolerance\": 0, \"scalable\": true}, \"style\": {\"styleProfile\": \"Modern\", \"materialTone\": \"white\"}, \"constraints\": {\"mustHave\": [\"cornice\"], \"forbiddenTags\": [\"ornate\", \"complex\"]}, \"usageHint\": {\"frequency\": \"decorative\", \"visibility\": \"medium\"}}}"
       ]
     }
-  ]
+  ],
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

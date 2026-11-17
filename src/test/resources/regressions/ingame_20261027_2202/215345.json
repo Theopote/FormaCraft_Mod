@@ -1552,5 +1552,9 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「建三座沿东西方向排列的开敞木\n亭，每座5×5格，\n四角木柱支撑连续完整的双坡屋\n顶。亭内不设围墙，\n可以从四面进入；\n相」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

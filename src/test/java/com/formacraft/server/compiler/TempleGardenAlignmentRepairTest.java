@@ -157,6 +157,10 @@ class TempleGardenAlignmentRepairTest {
                 .distinguishingFeatures(List.of("江南园林", "亭"))
                 .components(List.of(hall, pavilion, stiltsOnHall))
                 .planMeta(Map.of(
+                        // Transitional: this case exercises stilts/open-frame isolation, not
+                        // strict AI satellite ownership (production absent→false).
+                        "allow_compiler_satellites", true,
+                        "compiler_satellites_policy", "transitional_fixture",
                         "request_intent", Map.of(
                                 "building_class", "garden",
                                 "confidence", 0.9,

@@ -1,7 +1,11 @@
 {
   "mode": "build",
   "style_profile": "Medieval_Castle",
-  "anchor": { "x": 0, "y": 64, "z": 0 },
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
   "style_attributes": {
     "wall_color": "#8d8d8d",
     "roof_color": "#7a7a7a",
@@ -126,31 +130,31 @@
         "min": 1.0,
         "ideal": 1.25,
         "max": 2.2,
-        "desc": "\u5854\u9ad8/\u5854\u8eab\u76f4\u5f84"
+        "desc": "塔高/塔身直径"
       },
       "floor_height_to_radius": {
         "min": 0.6,
         "ideal": 0.83,
         "max": 1.2,
-        "desc": "\u5c42\u9ad8/\u5854\u534a\u5f84"
+        "desc": "层高/塔半径"
       },
       "wall_thickness_to_radius": {
         "min": 0.08,
         "ideal": 0.17,
         "max": 0.3,
-        "desc": "\u5916\u5899\u539a/\u5854\u534a\u5f84"
+        "desc": "外墙厚/塔半径"
       },
       "stair_width_to_interior_radius": {
         "min": 0.6,
         "ideal": 0.9,
         "max": 1.0,
-        "desc": "\u697c\u68af\u534a\u5f84/\u5185\u534a\u5f84"
+        "desc": "楼梯半径/内半径"
       },
       "window_wall_ratio": {
         "min": 0.04,
         "ideal": 0.08,
         "max": 0.18,
-        "desc": "\u9632\u5fa1\u5854\uff1a\u7a84\u7f1d\u7a97"
+        "desc": "防御塔：窄缝窗"
       }
     },
     "openingGrammar": {
@@ -750,5 +754,9 @@
       }
     }
   ],
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

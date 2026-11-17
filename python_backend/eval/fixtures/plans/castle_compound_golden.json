@@ -114,5 +114,9 @@
     "reference_landmark": "castle_compound",
     "structural_typology": "radial_fortress",
     "skeleton_type": "COMPOUND"
+  },
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

@@ -1123,5 +1123,9 @@
       "{'code': 'E_FLOOR_ENVELOPE', 'component_id': 'h3_main'}"
     ]
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

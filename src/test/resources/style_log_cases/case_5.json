@@ -839,5 +839,9 @@
     "suggestions": [
       "req_roof_type: expected flat, components ['house_b_roof']"
     ]
+  },
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

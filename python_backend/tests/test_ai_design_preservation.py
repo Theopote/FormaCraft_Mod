@@ -386,7 +386,7 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertFalse(out["plan_meta"]["allow_compiler_satellites"])
         self.assertEqual("ai_owned", out["plan_meta"]["compiler_satellites_policy"])
 
-    def test_incomplete_mass_shell_stamps_transitional_satellites_true(self):
+    def test_incomplete_mass_shell_does_not_auto_authorize_satellites(self):
         from unittest.mock import Mock
         from app.services.llm_plan_normalization import _ensure_compiler_satellite_policy
 
@@ -404,41 +404,23 @@ class AiDesignPreservationTest(unittest.TestCase):
             ],
         }
         out = _ensure_compiler_satellite_policy(copy.deepcopy(plan))
-        self.assertTrue(out["plan_meta"]["allow_compiler_satellites"])
-        self.assertEqual("transitional_completion", out["plan_meta"]["compiler_satellites_policy"])
+        self.assertFalse(out["plan_meta"]["allow_compiler_satellites"])
+        self.assertEqual("ai_owned", out["plan_meta"]["compiler_satellites_policy"])
 
-        # Existing scaffold/opt-out must not be overwritten.
+        # Existing transitional opt-in must not be overwritten.
+        transitional = copy.deepcopy(plan)
+        transitional["plan_meta"] = {
+            "allow_compiler_satellites": True,
+            "compiler_satellites_policy": "transitional_fixture",
+        }
+        left = _ensure_compiler_satellite_policy(transitional)
+        self.assertTrue(left["plan_meta"]["allow_compiler_satellites"])
+
         scaffold = copy.deepcopy(plan)
         scaffold["plan_meta"] = {"allow_compiler_satellites": False, "scaffolded_from_request_intent": True}
-        left = _ensure_compiler_satellite_policy(scaffold)
-        self.assertFalse(left["plan_meta"]["allow_compiler_satellites"])
+        left_scaffold = _ensure_compiler_satellite_policy(scaffold)
+        self.assertFalse(left_scaffold["plan_meta"]["allow_compiler_satellites"])
 
-        complete = {
-            "mode": "build",
-            "components": [
-                {"component_type": "MASS_MAIN", "slot_id": "main",
-                 "relative_position": {"x": 0, "y": 0, "z": 0},
-                 "dimensions": {"width": 12, "depth": 10, "height": 6},
-                 "features": [], "params": {"component_id": "body"}},
-                {"component_type": "ROOF", "slot_id": "main",
-                 "relative_position": {"x": 0, "y": 6, "z": 0},
-                 "dimensions": {"width": 14, "depth": 12, "height": 3},
-                 "features": [], "params": {"component_id": "roof", "host_id": "body"}},
-                {"component_type": "FACADE_WINDOWS", "slot_id": "main",
-                 "relative_position": {"x": 0, "y": 2, "z": 0},
-                 "dimensions": {"width": 12, "depth": 1, "height": 2},
-                 "features": [], "params": {"component_id": "facade", "host_id": "body"}},
-                {"component_type": "ENTRANCE", "slot_id": "main",
-                 "relative_position": {"x": 0, "y": 0, "z": 0},
-                 "dimensions": {"width": 3, "depth": 1, "height": 3},
-                 "features": [], "params": {"component_id": "door", "host_id": "body"}},
-            ],
-        }
-        owned = _ensure_compiler_satellite_policy(complete)
-        self.assertFalse(owned["plan_meta"]["allow_compiler_satellites"])
-        self.assertEqual("ai_owned", owned["plan_meta"]["compiler_satellites_policy"])
-
-        # Via full normalizer path as well.
         req = Mock()
         req.userMessage = "一座简单体块"
         req.requestText = req.userMessage
@@ -446,7 +428,102 @@ class AiDesignPreservationTest(unittest.TestCase):
         req.brushSelection = None
         profile = BuildingProfile(query="简单体块", structure=ProfileStructure())
         normalized = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
-        self.assertTrue(normalized["plan_meta"]["allow_compiler_satellites"])
+        self.assertFalse(normalized["plan_meta"]["allow_compiler_satellites"])
+
+    def test_multi_mass_roof_and_adjacent_courtyard_stay_scoped(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 20, "depth": 14, "height": 9},
+                    "features": [],
+                    "params": {
+                        "component_id": "main_hall",
+                        "roof_type": "xieshan",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 9, "z": 0},
+                    "dimensions": {"width": 22, "depth": 16, "height": 5},
+                    "features": [],
+                    "params": {"component_id": "roof_hall", "host_id": "main_hall", "roof_type": "xieshan"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "wing",
+                    "relative_position": {"x": 24, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 8, "height": 5},
+                    "features": [],
+                    "params": {
+                        "component_id": "side_wing",
+                        "roof_type": "flat",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "wing",
+                    "relative_position": {"x": 24, "y": 5, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 2},
+                    "features": [],
+                    "params": {"component_id": "roof_wing", "host_id": "side_wing", "roof_type": "flat"},
+                },
+            ],
+        }
+        # Unscoped 歇山 must not flatten the wing roof or rewrite the hall.
+        out = _apply_user_explicit_design_sources(copy.deepcopy(plan), "主殿采用歇山屋顶，旁边附属建筑采用平屋顶")
+        hall = next(c for c in out["components"] if c["params"]["component_id"] == "main_hall")
+        wing = next(c for c in out["components"] if c["params"]["component_id"] == "side_wing")
+        self.assertEqual("xieshan", hall["params"]["roof_type"])
+        self.assertEqual("flat", wing["params"]["roof_type"])
+
+        # Adjacent courtyard language must not force residential mass to courtyard plan_type.
+        house_plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "house",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 10},
+                    "features": [],
+                    "params": {
+                        "component_id": "house_main",
+                        "plan_type": "rectangle",
+                        "design_sources": {"plan_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "yard",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 1},
+                    "features": [],
+                    "params": {
+                        "component_id": "courtyard_pad",
+                        "plan_type": "courtyard",
+                        "design_sources": {"plan_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        yard_out = _apply_user_explicit_design_sources(
+            copy.deepcopy(house_plan),
+            "建造一栋现代三层住宅，住宅旁边设置一个传统中式庭院",
+        )
+        house = next(c for c in yard_out["components"] if c["params"]["component_id"] == "house_main")
+        yard = next(c for c in yard_out["components"] if c["params"]["component_id"] == "courtyard_pad")
+        self.assertEqual("rectangle", house["params"]["plan_type"])
+        self.assertEqual("AI_PLANNED", house["params"]["design_sources"]["plan_type"])
+        self.assertEqual("courtyard", yard["params"]["plan_type"])
 
     def test_user_explicit_xieshan_stamps_provenance_and_overrides_ai(self):
         from unittest.mock import Mock

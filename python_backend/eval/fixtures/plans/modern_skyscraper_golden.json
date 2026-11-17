@@ -108,5 +108,9 @@
     "reference_landmark": "modern_skyscraper",
     "structural_typology": "setback_tower",
     "skeleton_type": "VERTICAL_STACK"
+  },
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

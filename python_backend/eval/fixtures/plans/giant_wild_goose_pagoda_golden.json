@@ -114,5 +114,9 @@
     "reference_landmark": "giant_wild_goose_pagoda",
     "structural_typology": "dense_eaves_pagoda",
     "skeleton_type": "VERTICAL_STACK"
+  },
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

@@ -76,10 +76,17 @@ public final class LlmPlanTestFixtures {
         /** Alias for {@link #designSources(Map)}. */
         public Builder designSourcesMap(Map<String, String> value) { return designSources(value); }
 
-        /** Explicit opt-in/out for compiler satellite inference (matches production PlanMetaAccess). */
+        /**
+         * Explicit opt-in/out for compiler satellite inference (matches production PlanMetaAccess).
+         * Prefer this over burying the flag inside {@link #planMeta(Map)} so transitional vs
+         * strict intent stays visible at the call site.
+         */
         public Builder allowCompilerSatellites(boolean value) {
             Map<String, Object> meta = planMeta == null ? new HashMap<>() : new HashMap<>(planMeta);
             meta.put(com.formacraft.common.generation.routing.PlanMetaAccess.ALLOW_COMPILER_SATELLITES, value);
+            if (value) {
+                meta.putIfAbsent("compiler_satellites_policy", "transitional_fixture");
+            }
             planMeta = meta;
             return this;
         }
@@ -88,11 +95,12 @@ public final class LlmPlanTestFixtures {
             Map<String, Object> meta = planMeta;
             // TEST-ONLY convenience: unspecified planMeta still opts into satellite infer so
             // legacy compiler fixtures keep compiling. Production PlanMetaAccess is opt-in
-            // (absent → false); use planMeta(Map.of()) or allowCompilerSatellites(false) for
-            // absent/strict semantics. Gradual fixture migration tracked in DESIGN_DECISION_INVENTORY.
+            // (absent → false). Custom planMeta(...) WITHOUT the key is also absent→false —
+            // call allowCompilerSatellites(true) when the case needs transitional completion.
             if (meta == null) {
                 meta = new HashMap<>();
                 meta.put(com.formacraft.common.generation.routing.PlanMetaAccess.ALLOW_COMPILER_SATELLITES, Boolean.TRUE);
+                meta.put("compiler_satellites_policy", "transitional_fixture");
             }
             return new LlmPlan(
                     mode,

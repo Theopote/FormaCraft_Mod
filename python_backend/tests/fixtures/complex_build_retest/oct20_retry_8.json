@@ -1169,5 +1169,9 @@
   ],
   "description": "中世纪市镇礼堂：23x15 石砖主楼两层，完整双坡深色橡木屋顶，侧接 9x9、高 24 的钟楼，钟楼顶部四面尖顶，底层门洞贯通礼堂与钟楼，内部直跑楼梯分三段上至钟楼上层及钟室。",
   "player_fidelity_notice_zh": "组合式生成「中世纪市镇礼堂」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

@@ -751,5 +751,9 @@
       "req_roof_gable: expected gable, components ['tower_nw', 'tower_ne', 'tower_sw', 'tower_se', 'gate_tower_south']"
     ]
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

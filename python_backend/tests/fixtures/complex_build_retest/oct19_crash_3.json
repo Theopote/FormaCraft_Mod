@@ -1316,5 +1316,9 @@
     }
   ],
   "player_fidelity_notice_zh": "识别为真实建筑「卢浮宫」，无专属模板，已依据研究资料组合式重建（保真度：中等；重点特征：Renaissance palace courtyard wings、glass pyramid entrance pavilion、long axial palace facade）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

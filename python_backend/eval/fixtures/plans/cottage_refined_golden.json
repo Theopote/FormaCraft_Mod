@@ -11,7 +11,10 @@
     "roof_color": "brown",
     "wall_material": "stone",
     "roof_material": "wood",
-    "decorative_elements": ["chimney", "flower_box"]
+    "decorative_elements": [
+      "chimney",
+      "flower_box"
+    ]
   },
   "proportion_hints": {
     "typology": "cottage",
@@ -20,14 +23,34 @@
     "window_aspect": "square",
     "min_enclosure_coverage": 0.85
   },
-  "anchor": { "x": 0, "y": 64, "z": 0 },
-    "global_constraints": { "facing": "SOUTH", "symmetry": "MIRROR_X", "terrain_strategy": "ADAPTIVE" },
-    "layout": { "skeleton_type": "VERTICAL_STACK", "path_based": false, "slots": [] },
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "global_constraints": {
+    "facing": "SOUTH",
+    "symmetry": "MIRROR_X",
+    "terrain_strategy": "ADAPTIVE"
+  },
+  "layout": {
+    "skeleton_type": "VERTICAL_STACK",
+    "path_based": false,
+    "slots": []
+  },
   "components": [
     {
       "component_type": "MASS_MAIN",
-      "relative_position": { "x": 0, "y": 0, "z": 0 },
-      "dimensions": { "width": 7, "depth": 7, "height": 5 },
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 5
+      },
       "params": {
         "shape": "rectangle",
         "facade_profile": "base_plinth",
@@ -37,25 +60,58 @@
     },
     {
       "component_type": "ROOF",
-      "relative_position": { "x": 0, "y": 5, "z": 0 },
-      "dimensions": { "width": 8, "depth": 8, "height": 3 },
-      "params": { "roof_type": "gable", "overhang": 1 }
+      "relative_position": {
+        "x": 0,
+        "y": 5,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 8,
+        "depth": 8,
+        "height": 3
+      },
+      "params": {
+        "roof_type": "gable",
+        "overhang": 1
+      }
     },
     {
       "component_type": "ENTRANCE",
-      "relative_position": { "x": 3, "y": 0, "z": 0 },
-      "dimensions": { "width": 2, "depth": 1, "height": 3 },
-      "params": { "style": "wood_door" }
+      "relative_position": {
+        "x": 3,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 2,
+        "depth": 1,
+        "height": 3
+      },
+      "params": {
+        "style": "wood_door"
+      }
     },
     {
       "component_type": "FACADE_WINDOWS",
-      "relative_position": { "x": 0, "y": 1, "z": 0 },
-      "dimensions": { "width": 7, "depth": 7, "height": 4 },
+      "relative_position": {
+        "x": 0,
+        "y": 1,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 7,
+        "depth": 7,
+        "height": 4
+      },
       "params": {
         "window_ratio": 0.2,
         "window_style": "square",
         "window_aspect": "square"
       }
     }
-  ]
+  ],
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

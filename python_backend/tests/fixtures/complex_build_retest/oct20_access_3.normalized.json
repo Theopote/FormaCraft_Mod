@@ -1008,6 +1008,8 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "建造一座中世纪市镇礼堂，\n主楼约23×15格、两层，\n使用石砖、深色橡木和玻璃窗，\n覆盖完整双坡屋顶。\n侧面连接一座约9×9格、\n高24格的钟楼，\n顶部为四面尖顶。\n钟楼与礼堂之间可以通行，\n内部有楼梯通向钟楼上层。",
-    "building_class": "generic"
+    "building_class": "generic",
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

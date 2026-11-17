@@ -9,22 +9,22 @@
     "roof_material": "dark_gray_tile",
     "floor_material": "dark_oak_planks",
     "decorative_elements": [
-      "\u98de\u6a90\u7fd8\u89d2",
-      "\u6728\u8d28\u5eca\u67f1",
-      "\u82b1\u683c\u7a97",
-      "\u533e\u989d",
-      "\u4e2d\u5f0f\u706f\u7b3c",
-      "\u7f8e\u4eba\u9760\u680f\u6746",
-      "\u9752\u7816\u5899\u88d9"
+      "飞檐翘角",
+      "木质廊柱",
+      "花格窗",
+      "匾额",
+      "中式灯笼",
+      "美人靠栏杆",
+      "青砖墙裙"
     ]
   },
   "distinguishing_features": [
-    "\u4e24\u5ea7\u4e8c\u5c42\u4e2d\u5f0f\u5385\u5802\u6cbf\u4e1c\u897f\u5bf9\u79f0\u5e03\u7f6e",
-    "\u4e8c\u5c42\u4e4b\u95f4\u8bbe\u5bbd3\u683c\u60ac\u7a7a\u8fde\u5eca\uff0c\u4e24\u7aef\u5f00\u95e8\u5e76\u4e0e\u697c\u677f\u9f50\u5e73",
-    "\u6b47\u5c71\uff08xieshan\uff09\u7070\u74e6\u5927\u5c4b\u9876\u5e26\u51fa\u6a90\u4e0e\u7fd8\u89d2",
-    "\u9752\u7816\u5899\u4f53 + \u6728\u6784\u5eca\u67f1 + \u82b1\u683c\u7a97",
-    "\u4e24\u697c\u4e4b\u95f4\u4e2d\u5ead\u9752\u7816\u94fa\u88c5\uff0c\u5f62\u6210\u5185\u9662",
-    "\u95e8\u5eca\u60ac\u6302\u533e\u989d\u4e0e\u706f\u7b3c"
+    "两座二层中式厅堂沿东西对称布置",
+    "二层之间设宽3格悬空连廊，两端开门并与楼板齐平",
+    "歇山（xieshan）灰瓦大屋顶带出檐与翘角",
+    "青砖墙体 + 木构廊柱 + 花格窗",
+    "两楼之间中庭青砖铺装，形成内院",
+    "门廊悬挂匾额与灯笼"
   ],
   "genome": {
     "genomeVersion": "1.0",
@@ -74,12 +74,12 @@
       "region": "east_asia",
       "era": "ming_qing",
       "keywords": [
-        "\u4e2d\u5f0f",
-        "\u9752\u7816\u7070\u74e6",
-        "\u6728\u6784",
-        "\u98de\u6a90",
-        "\u5185\u9662",
-        "\u8fde\u5eca"
+        "中式",
+        "青砖灰瓦",
+        "木构",
+        "飞檐",
+        "内院",
+        "连廊"
       ]
     },
     "constraints": {
@@ -91,16 +91,16 @@
     "aiHints": {
       "reference": null,
       "priority": [
-        "\u4e1c\u897f\u5bf9\u79f0\u7684\u53cc\u5385\u5e03\u5c40",
-        "\u4ece\u4e00\u697c\u6b63\u95e8\u7ecf\u5ba4\u5185\u697c\u68af\u4e0a\u4e8c\u697c\u3001\u7a7f\u8fde\u5eca\u3001\u4e0b\u5230\u53e6\u4e00\u680b\u4e00\u697c\u7684\u8fde\u7eed\u53ef\u901a\u884c\u8def\u5f84",
-        "\u697c\u68af\u8e0f\u9762\u3001\u8f6c\u89d2\u5e73\u53f0\u3001\u697c\u677f\u6d1e\u53e3\u4e0e\u8e0f\u6b65\u4e0a\u65b9\u4e24\u683c\u51c0\u7a7a\u4e0d\u5f97\u88ab\u88c5\u9970\u5360\u7528",
-        "\u8fde\u5eca\u697c\u677f\u4e0e\u4e24\u697c\u4e8c\u5c42\u697c\u677f\u9f50\u5e73"
+        "东西对称的双厅布局",
+        "从一楼正门经室内楼梯上二楼、穿连廊、下到另一栋一楼的连续可通行路径",
+        "楼梯踏面、转角平台、楼板洞口与踏步上方两格净空不得被装饰占用",
+        "连廊楼板与两楼二层楼板齐平"
       ],
       "avoid": [
-        "\u73b0\u4ee3\u73bb\u7483\u5e55\u5899",
-        "\u88c5\u9970\u906e\u6321\u697c\u68af\u51c0\u7a7a",
-        "\u8fde\u5eca\u4e0e\u697c\u677f\u9519\u5c42\u5f62\u6210\u53f0\u9636",
-        "\u5927\u4f53\u91cf\u5730\u5f62\u6574\u5e73"
+        "现代玻璃幕墙",
+        "装饰遮挡楼梯净空",
+        "连廊与楼板错层形成台阶",
+        "大体量地形整平"
       ],
       "extra": null
     }
@@ -845,5 +845,9 @@
     },
     "floor_height": 5
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

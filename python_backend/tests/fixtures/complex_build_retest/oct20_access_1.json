@@ -1529,5 +1529,9 @@
       "req_floor_count: expected 5, components ['tier_1']"
     ]
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

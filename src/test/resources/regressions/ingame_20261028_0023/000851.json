@@ -566,5 +566,9 @@
     "notes": "All components share slot_main; MASS_MAIN, FOUNDATION, ENTRANCE, FACADE_WINDOWS and DECOR_DETAIL use min-corner local coordinates so the 9x7 shell spans x = -4..4 and z = -3..3 relative to the slot anchor."
   },
   "player_fidelity_notice_zh": "组合式生成「建一座9×7格的单层橡木小木屋\n，石砖地基，橡木木板墙，\n深色橡木双坡屋顶。\n正面中央一扇门，\n左右各一扇玻璃窗，\n室内」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

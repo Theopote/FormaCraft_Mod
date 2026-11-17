@@ -909,5 +909,9 @@
   ],
   "description": "两栋并排的一层小住宅：左栋石砖墙+云杉木双坡屋顶，右栋白色混凝土墙+平屋顶，各 11x9、净高 3、墙厚 1、楼板厚 1，外墙净间隔 8 格，入口均朝北且门两侧开窗，各自独立地基并顺应自然地形，两栋之间不设连通平台。",
   "player_fidelity_notice_zh": "组合式生成「两栋并排的一层小住宅」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

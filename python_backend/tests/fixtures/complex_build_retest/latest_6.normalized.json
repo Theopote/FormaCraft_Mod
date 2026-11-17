@@ -1915,6 +1915,8 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "以锚点为南侧入口，\n生成一个占地约55×47格的中式庭院建筑群。北侧为两层正厅，\n东西两侧分别为单层厢房，\n南侧为门楼，\n中央保留露天庭院。\n正厅每层高5格，厢房净高4格，\n四栋建筑各自具有完整屋顶，\n不能用一张大屋顶覆盖整个庭院\n。用有顶回廊连接门楼、\n厢房与正厅，\n回廊净宽至少3格。使用灰砖、\n白墙、深色木柱和青灰瓦；\n正厅使用歇山顶，\n厢房使用双坡顶。\n庭院设置十字石路、\n小水池和花坛，\n入口至正厅的中轴通道保持畅通\n。所有房屋有可进入的门、\n实际窗洞和完整地板，\n正厅二层有楼梯可达。",
-    "building_class": "garden"
+    "building_class": "garden",
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

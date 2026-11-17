@@ -924,5 +924,9 @@
     "mirror_axis": null,
     "notes": "Asymmetric cantilevered terraces and floating pod; main mass centered on slot."
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

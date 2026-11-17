@@ -621,5 +621,9 @@
       "{'code': 'E_HOST_COORDINATE_FRAME', 'component_id': 'detail_band_main', 'host_id': 'mass_main'}"
     ]
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

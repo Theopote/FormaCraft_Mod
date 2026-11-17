@@ -112,5 +112,9 @@
     "reference_landmark": "birds_nest_stadium",
     "structural_typology": "stadium_bowl",
     "skeleton_type": "RADIAL_RING"
+  },
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

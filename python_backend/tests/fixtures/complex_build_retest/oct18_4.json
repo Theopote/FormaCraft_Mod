@@ -1225,5 +1225,9 @@
       "{'code': 'E_REQUIREMENT_SCOPE', 'scope': 'named_wing', 'requirement_id': 'req_floor_count_named_wing'}"
     ]
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

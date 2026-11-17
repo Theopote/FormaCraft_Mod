@@ -1002,6 +1002,8 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "生成海湖庄园",
-    "building_class": "generic"
+    "building_class": "generic",
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

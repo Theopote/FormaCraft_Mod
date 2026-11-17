@@ -1476,5 +1476,9 @@
       "{'code': 'E_HOST_UNKNOWN', 'component_id': 'flower_bed_south', 'host_id': 'plaza_base'}"
     ]
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

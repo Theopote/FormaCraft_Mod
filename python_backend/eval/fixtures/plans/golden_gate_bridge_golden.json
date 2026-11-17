@@ -109,5 +109,9 @@
     "reference_landmark": "golden_gate_bridge",
     "structural_typology": "suspension_bridge",
     "skeleton_type": "SPAN_SUSPENSION"
+  },
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
   }
 }

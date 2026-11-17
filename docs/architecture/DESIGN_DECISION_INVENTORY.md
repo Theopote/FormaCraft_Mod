@@ -56,8 +56,9 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `llm_plan_normalization` design_sources stamp | roof_type / plan_type provenance | **Extended (2026-11-17):** TECHNICAL_DEFAULT / AI_PLANNED; user-stated roof → USER_EXPLICIT (component + plan-level) for Java locks |
 | `llm_plan_normalization` explicit omissions | roof/windows/entrance none | **Extended (2026-11-17):** USER_EXPLICIT + design_requirements OMITTED; drop conflicting satellites |
 | `ComponentSatelliteInference.prepareComponents` | satellite autofill | **Verified (2026-11-17):** roof_type/window/entrance `none` blocks inference even when allow_compiler_satellites=true |
-| `llm_plan_normalization` courtyard literals | plan_type courtyard | **Extended (2026-11-17):** user 庭院/四合院 → USER_EXPLICIT plan_type lock |
-| `llm_plan_normalization._ensure_compiler_satellite_policy` | `allow_compiler_satellites` explicit stamp | **Fixed (2026-11-17):** FORMAT_REPAIR — incomplete MASS → `True`; complete/OMITTED/non-mass → `False`; never overwrites scaffold/existing |
+| `llm_plan_normalization` courtyard literals | plan_type courtyard | **Fixed (2026-11-17):** single-mass or uniquely named courtyard target only; adjacent multi-mass 庭院 no longer forces every MASS |
+| `llm_plan_normalization._ensure_compiler_satellite_policy` | `allow_compiler_satellites` explicit stamp | **Fixed (2026-11-17):** never auto-authorizes (`True`); absent → explicit `False`/`ai_owned`; existing scaffold/fixture keys preserved |
+| `llm_plan_normalization._apply_user_explicit_design_sources` | roof/courtyard/omissions | **Fixed (2026-11-17):** component-scoped; unscoped multi-mass keywords do not overwrite AI roofs or force courtyard on every MASS |
 | `PlanMetaAccess.allowCompilerSatellites` | absent key default | **Fixed (2026-11-17):** opt-in only — absent/null → false (was transitional absent→true) |
 | `ComponentSatelliteInference` empty-components recovery | recovered MASS shell | **Extended (2026-11-17):** `recoveredFromEmpty` enables transitional satellite infer for that prepare pass only; recovered `wall_thickness` stamps `TECHNICAL_DEFAULT` |
 | `LlmPlanTestFixtures.build` unspecified planMeta | test helper injects `allow_compiler_satellites=true` | **Debt (2026-11-17):** TEST-ONLY; production absent→false. Prefer `allowCompilerSatellites(true/false)` / `planMeta(Map.of())`. Full fixture migration deferred (~140 compiler tests) |
@@ -91,6 +92,8 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | Proportion prompt non-binding | `ProportionCardRegistryTest`, `test_plan_architectural_enrichment.py` |
 | Keyword class provenance | `PlanIntentFidelityRepairTest.matchingEchoUserMarkersRepairWrongLlmClassWithProvenance`, `test_intent_baseline_and_negation.py` |
 | Crown OMITTED + gable provenance | `ExplicitOmissionSatelliteTest` |
-| Compiler satellite policy stamp | `test_ai_design_preservation.test_incomplete_mass_shell_stamps_transitional_satellites_true` |
+| Compiler satellite policy stamp | `test_ai_design_preservation.test_incomplete_mass_shell_does_not_auto_authorize_satellites` |
+| Scoped user roof/courtyard | `test_ai_design_preservation.test_multi_mass_roof_and_adjacent_courtyard_stay_scoped` |
+| Transitional fixture migration | `scripts/migrate_transitional_satellite_fixtures.py` |
 | wall_thickness TECHNICAL_DEFAULT | `ExplicitOmissionSatelliteTest.missingWallThicknessFillIsTaggedTechnicalDefault`, `recoveredEmptyComponentsWallThicknessIsTaggedTechnicalDefault` |
 | Opt-in allow_compiler_satellites | `PlanMetaAccessTest`, `HostedStructuralJoinTest.defaultCompletionIsOptInOnly` |

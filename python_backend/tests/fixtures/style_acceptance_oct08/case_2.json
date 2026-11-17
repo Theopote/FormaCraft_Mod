@@ -700,5 +700,9 @@
       "req_disable_window_style: expected none, components ['mass_main_1']"
     ]
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }

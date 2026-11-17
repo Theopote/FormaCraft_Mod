@@ -118,12 +118,14 @@ def _merge_design_requirements(plan: Dict[str, Any], updates: Dict[str, str]) ->
 
 
 def _ensure_compiler_satellite_policy(plan: Dict[str, Any]) -> Dict[str, Any]:
-    """Make ``allow_compiler_satellites`` explicit (migration toward Java opt-in default).
+    """Make ``allow_compiler_satellites`` explicit — opt-in only, never auto-authorize.
 
     Classification: FORMAT_REPAIR / policy stamp — does not invent geometry.
-    - Already set (including scaffolds) → leave unchanged.
-    - MASS shell missing roof/facade/entrance without OMITTED → ``True`` (transitional).
-    - Complete shell or omissions cover gaps → ``False`` (AI-owned; no silent infer).
+    Missing ROOF/FACADE/ENTRANCE is not proof of incompleteness (open frames,
+    intentional bare shells). Java reports ``E_DESIGN_INCOMPLETE`` when strict
+    and UNSPECIFIED requirements demand satellites; AI should replan or mark
+    ``design_requirements`` OMITTED/OPTIONAL. Already-set keys (scaffolds,
+    transitional fixtures) are left unchanged.
     """
     if not isinstance(plan, dict):
         return plan
@@ -135,46 +137,19 @@ def _ensure_compiler_satellite_policy(plan: Dict[str, Any]) -> Dict[str, Any]:
         plan["plan_meta"] = meta
     if "allow_compiler_satellites" in meta:
         return plan
-
-    components = plan.get("components")
-    if not isinstance(components, list) or not components:
-        meta["allow_compiler_satellites"] = False
-        meta["compiler_satellites_policy"] = "empty_or_non_mass"
-        return plan
-
-    reqs = meta.get("design_requirements") if isinstance(meta.get("design_requirements"), dict) else {}
-
-    def _omitted(key: str) -> bool:
-        return str(reqs.get(key) or "").strip().upper() == "OMITTED"
-
-    types = {
-        str(c.get("component_type") or "").strip().upper()
-        for c in components
-        if isinstance(c, dict)
-    }
-    has_mass = any(
-        t.startswith("MASS") or t in {"TOWER", "SIDE_WING", "GATE", "MAIN_MASS"}
-        for t in types
-    )
-    if not has_mass:
-        meta["allow_compiler_satellites"] = False
-        meta["compiler_satellites_policy"] = "empty_or_non_mass"
-        return plan
-
-    needs_roof = not _omitted("roof") and not any(t.startswith("ROOF") for t in types)
-    needs_facade = not _omitted("facade") and "FACADE_WINDOWS" not in types
-    needs_entrance = not _omitted("entrance") and "ENTRANCE" not in types
-    if needs_roof or needs_facade or needs_entrance:
-        meta["allow_compiler_satellites"] = True
-        meta["compiler_satellites_policy"] = "transitional_completion"
-    else:
-        meta["allow_compiler_satellites"] = False
-        meta["compiler_satellites_policy"] = "ai_owned"
+    meta["allow_compiler_satellites"] = False
+    meta["compiler_satellites_policy"] = "ai_owned"
     return plan
 
 
 _COURTYARD_LITERALS = (
     "courtyard", "siheyuan", "中庭", "庭院", "四合院", "院落", "内院",
+)
+_MASS_TYPES_FOR_EXPLICIT = (
+    "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS", "TOWER", "GATE",
+)
+_COURTYARD_NAME_HINTS = (
+    "courtyard", "yard", "庭院", "中庭", "四合院", "院落", "内院", "siheyuan",
 )
 
 
@@ -183,12 +158,123 @@ def _user_explicit_courtyard(text: str) -> bool:
     return _keyword_hit_unnegated((text or "").lower(), _COURTYARD_LITERALS)
 
 
+def _is_mass_like(ctype: str) -> bool:
+    t = (ctype or "").strip().upper()
+    return t.startswith("MASS") or t in _MASS_TYPES_FOR_EXPLICIT
+
+
+def _mass_like_components(components: list) -> list:
+    return [
+        c for c in components
+        if isinstance(c, dict) and _is_mass_like(str(c.get("component_type") or ""))
+    ]
+
+
+def _comp_id(comp: Dict[str, Any]) -> str:
+    params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+    return str(params.get("component_id") or "").strip()
+
+
+def _looks_courtyard_named(comp: Dict[str, Any]) -> bool:
+    params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+    blob = " ".join(
+        str(x or "").lower()
+        for x in (
+            comp.get("component_type"),
+            comp.get("slot_id"),
+            params.get("component_id"),
+            params.get("role"),
+            params.get("label"),
+            params.get("plan_type"),
+        )
+    )
+    return any(hint in blob for hint in _COURTYARD_NAME_HINTS)
+
+
+def _resolve_scoped_mass_targets(
+    masses: list,
+    scope: str | None,
+    target_ids: list | None,
+) -> list:
+    """Resolve which MASS components a user constraint may touch.
+
+    Unscoped / all_main_masses / plan only apply when there is a single mass,
+    or when ``target_components`` / ``requirement_scope`` uniquely identify hosts.
+    Ambiguous multi-mass scopes return empty (leave AI plan intact).
+    """
+    if not masses:
+        return []
+    ids = {str(x).strip() for x in (target_ids or []) if x}
+    if ids:
+        hit = [m for m in masses if _comp_id(m) in ids]
+        return hit
+    scope_key = str(scope or "").strip()
+    if scope_key and scope_key not in ("plan", "all_main_masses", "unresolved", "element_scope"):
+        scoped = [
+            m for m in masses
+            if str((m.get("params") or {}).get("requirement_scope") or "").strip() == scope_key
+            or _comp_id(m) == scope_key
+        ]
+        return scoped
+    if len(masses) <= 1:
+        return list(masses)
+    if scope_key in ("all_main_masses",):
+        # Explicit "所有建筑/两栋都" — only when contract already used that scope.
+        return list(masses)
+    return []
+
+
+def _stamp_roof_on_targets(
+    plan: Dict[str, Any],
+    components: list,
+    targets: list,
+    roof_type: str,
+    *,
+    allow_overwrite: bool,
+) -> None:
+    target_ids = {_comp_id(t) for t in targets if _comp_id(t)}
+    if not target_ids and len(targets) == 1:
+        # Mass without component_id — match by identity.
+        target_ids = set()
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        ctype = str(comp.get("component_type") or "").upper()
+        params = comp.get("params")
+        if not isinstance(params, dict):
+            params = {}
+            comp["params"] = params
+        if _is_mass_like(ctype):
+            cid = _comp_id(comp)
+            matched = (cid and cid in target_ids) or any(comp is t for t in targets)
+            if not matched:
+                continue
+            current = str(params.get("roof_type") or "").strip().lower()
+            if current and current != roof_type and not allow_overwrite:
+                continue
+            params["roof_type"] = roof_type
+            _tag_param_source(params, "roof_type", "USER_EXPLICIT")
+        elif ctype in ("ROOF", "ROOF_STRUCTURE"):
+            host = str(params.get("host_id") or "").strip()
+            if host:
+                if host not in target_ids:
+                    continue
+            elif len(targets) != 1:
+                continue
+            current = str(params.get("roof_type") or "").strip().lower()
+            if current and current != roof_type and not allow_overwrite:
+                continue
+            params["roof_type"] = roof_type
+            _tag_param_source(params, "roof_type", "USER_EXPLICIT")
+    if len(targets) == 1:
+        _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
+
+
 def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) -> Dict[str, Any]:
     """Stamp USER_EXPLICIT provenance for player-stated design constraints and omissions.
 
-    User constraints outrank AI_PLANNED / TECHNICAL_DEFAULT. Explicit omissions
-    (无屋顶 / 不要窗 / 不要门) mark MASS params as ``none`` and drop conflicting satellites.
-    Explicit courtyard language locks ``plan_type=courtyard``.
+    Constraints are component-scoped. Unscoped keywords must not overwrite AI plans
+    across multiple masses (e.g. 主殿歇山 + 附属平屋顶, or 住宅旁庭院).
     """
     if not isinstance(plan, dict):
         return plan
@@ -198,83 +284,183 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
     text = (user_text or "").strip()
     intent = extract_request_intent(text) if text else {}
     forbids = {str(x).strip().lower() for x in (intent.get("forbids") or []) if x}
-    explicit_roof = _resolve_user_explicit_roof(text)
-    explicit_courtyard = _user_explicit_courtyard(text)
-    for requirement in extract_requirements(text) if text else []:
+    requirements = extract_requirements(text) if text else []
+    for requirement in requirements:
         prop = str(requirement.get("property") or "")
         value = requirement.get("value")
         source = str(requirement.get("source") or "").lower()
         if source not in ("user_explicit", "user", "player"):
             continue
         if prop == "roof_type" and value == "none":
-            explicit_roof = "none"
+            forbids.add("roof")
         elif prop == "window_style" and value == "none":
             forbids.add("windows")
         elif prop == "entrance_type" and value == "none":
             forbids.add("entrance")
 
-    if not explicit_roof and not forbids and not explicit_courtyard:
+    explicit_courtyard = _user_explicit_courtyard(text)
+    roof_reqs = [
+        r for r in requirements
+        if str(r.get("property") or "") == "roof_type"
+        and str(r.get("source") or "").lower() in ("user_explicit", "user", "player")
+        and r.get("value") is not None
+        and str(r.get("status") or "").lower() not in ("unresolved", "unsupported_scope")
+        and str(r.get("scope") or "").lower() != "unresolved"
+    ]
+    fallback_roof = _resolve_user_explicit_roof(text)
+    if fallback_roof == "none":
+        forbids.add("roof")
+
+    if not roof_reqs and not fallback_roof and not forbids and not explicit_courtyard:
         return plan
 
     components = plan.get("components")
     if not isinstance(components, list):
         return plan
 
-    omit_roof = explicit_roof == "none"
+    masses = _mass_like_components(components)
+    omit_roof = "roof" in forbids or fallback_roof == "none"
     omit_windows = "windows" in forbids
     omit_entrance = "entrance" in forbids
-    design_req_updates: Dict[str, str] = {}
-    if omit_roof:
-        design_req_updates["roof"] = "OMITTED"
-    if omit_windows:
-        design_req_updates["facade"] = "OMITTED"
-    if omit_entrance:
-        design_req_updates["entrance"] = "OMITTED"
-    _merge_design_requirements(plan, design_req_updates)
+
+    # Plan-level OMITTED only when the omission safely covers the whole plan.
+    if omit_roof or omit_windows or omit_entrance:
+        if len(masses) <= 1:
+            design_req_updates: Dict[str, str] = {}
+            if omit_roof:
+                design_req_updates["roof"] = "OMITTED"
+            if omit_windows:
+                design_req_updates["facade"] = "OMITTED"
+            if omit_entrance:
+                design_req_updates["entrance"] = "OMITTED"
+            _merge_design_requirements(plan, design_req_updates)
+
+    # Resolve roof targets per scoped requirement; never paint every mass from one keyword.
+    roof_targets: dict[str, list] = {}
+    for req in roof_reqs:
+        value = str(req.get("value") or "").strip().lower()
+        if not value:
+            continue
+        targets = _resolve_scoped_mass_targets(
+            masses,
+            str(req.get("scope") or ""),
+            list(req.get("target_components") or []),
+        )
+        if not targets and len(masses) <= 1 and value:
+            targets = list(masses)
+        if targets:
+            roof_targets.setdefault(value, [])
+            for t in targets:
+                if t not in roof_targets[value]:
+                    roof_targets[value].append(t)
+
+    if not roof_targets and fallback_roof and fallback_roof != "none":
+        if len(masses) <= 1:
+            roof_targets[fallback_roof] = list(masses)
+        else:
+            # Multi-mass + unscoped roof literal: only fill blank roofs; never overwrite AI conflicts.
+            fillable = [
+                m for m in masses
+                if not str((m.get("params") or {}).get("roof_type") or "").strip()
+            ]
+            if fillable:
+                roof_targets[fallback_roof] = fillable
+
+    omit_masses = list(masses) if len(masses) <= 1 else []
+    if omit_roof and not omit_masses and roof_targets.get("none"):
+        omit_masses = list(roof_targets["none"])
+    elif omit_roof and not omit_masses and len(masses) <= 1:
+        omit_masses = list(masses)
+
+    # Courtyard: never force every MASS when an adjacent courtyard is mentioned.
+    courtyard_targets: list = []
+    if explicit_courtyard:
+        courtyard_comps = [
+            c for c in components
+            if isinstance(c, dict) and str(c.get("component_type") or "").upper() == "COURTYARD"
+        ]
+        if courtyard_comps:
+            for c in courtyard_comps:
+                params = c.get("params") if isinstance(c.get("params"), dict) else {}
+                if not isinstance(c.get("params"), dict):
+                    c["params"] = params
+                _tag_param_source(params, "plan_type", "USER_EXPLICIT")
+        elif len(masses) <= 1:
+            courtyard_targets = list(masses)
+        else:
+            named = [m for m in masses if _looks_courtyard_named(m)]
+            if len(named) == 1:
+                courtyard_targets = named
+            # else: adjacent/ambiguous — leave AI plan_type alone
+
+    omit_mass_ids = {_comp_id(m) for m in omit_masses if _comp_id(m)}
+    if omit_roof and len(masses) <= 1:
+        omit_mass_ids = {_comp_id(m) for m in masses if _comp_id(m)} or {""}
 
     kept: list = []
     for comp in components:
         if not isinstance(comp, dict):
             continue
         ctype = str(comp.get("component_type") or "").upper()
-        if omit_roof and ctype in ("ROOF", "ROOF_STRUCTURE"):
-            continue
-        if omit_windows and ctype in ("FACADE_WINDOWS", "FACADE"):
-            continue
-        if omit_entrance and ctype == "ENTRANCE":
-            continue
-
         params = comp.get("params")
         if not isinstance(params, dict):
             params = {}
             comp["params"] = params
+        host = str(params.get("host_id") or "").strip()
+        cid = _comp_id(comp)
 
-        if ctype in (
-            "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS", "ROOF",
-        ):
-            if explicit_roof:
-                if str(params.get("roof_type") or "").strip().lower() != explicit_roof:
-                    params["roof_type"] = explicit_roof
-                _tag_param_source(params, "roof_type", "USER_EXPLICIT")
-                _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
-            if omit_windows and ctype != "ROOF":
+        drop = False
+        if omit_roof and ctype in ("ROOF", "ROOF_STRUCTURE"):
+            if len(masses) <= 1 or (host and host in omit_mass_ids) or (not host and omit_mass_ids):
+                drop = True
+        if omit_windows and ctype in ("FACADE_WINDOWS", "FACADE"):
+            if len(masses) <= 1 or (host and host in omit_mass_ids) or (not host and omit_mass_ids):
+                drop = True
+        if omit_entrance and ctype == "ENTRANCE":
+            if len(masses) <= 1 or (host and host in omit_mass_ids) or (not host and omit_mass_ids):
+                drop = True
+        if drop:
+            continue
+
+        if _is_mass_like(ctype):
+            if omit_windows and (len(masses) <= 1 or cid in omit_mass_ids):
                 params["window_style"] = "none"
                 params["window_ratio"] = 0
                 _tag_param_source(params, "window_style", "USER_EXPLICIT")
                 _tag_param_source(params, "window_ratio", "USER_EXPLICIT")
-                _tag_plan_level_source(plan, "window_style", "USER_EXPLICIT")
-            if omit_entrance and ctype != "ROOF":
+                if len(masses) <= 1:
+                    _tag_plan_level_source(plan, "window_style", "USER_EXPLICIT")
+            if omit_entrance and (len(masses) <= 1 or cid in omit_mass_ids):
                 params["entrance_type"] = "none"
                 _tag_param_source(params, "entrance_type", "USER_EXPLICIT")
-                _tag_plan_level_source(plan, "entrance_type", "USER_EXPLICIT")
-            if explicit_courtyard and ctype != "ROOF":
-                if str(params.get("plan_type") or "").strip().lower() != "courtyard":
-                    params["plan_type"] = "courtyard"
+                if len(masses) <= 1:
+                    _tag_plan_level_source(plan, "entrance_type", "USER_EXPLICIT")
+            if omit_roof and (len(masses) <= 1 or cid in omit_mass_ids):
+                params["roof_type"] = "none"
+                _tag_param_source(params, "roof_type", "USER_EXPLICIT")
+                if len(masses) <= 1:
+                    _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
+            if any(comp is t or cid == _comp_id(t) for t in courtyard_targets):
+                params["plan_type"] = "courtyard"
                 _tag_param_source(params, "plan_type", "USER_EXPLICIT")
-                _tag_plan_level_source(plan, "plan_type", "USER_EXPLICIT")
-        elif ctype == "COURTYARD" and explicit_courtyard:
-            _tag_param_source(params, "plan_type", "USER_EXPLICIT")
+                if len(courtyard_targets) == 1 and len(masses) <= 1:
+                    _tag_plan_level_source(plan, "plan_type", "USER_EXPLICIT")
         kept.append(comp)
+
+    for roof_type, targets in roof_targets.items():
+        if roof_type == "none":
+            continue
+        # Scoped contract requirements may overwrite; unscoped multi-mass fill only blanks.
+        allow_overwrite = any(
+            str(r.get("value") or "").lower() == roof_type
+            and (
+                list(r.get("target_components") or [])
+                or str(r.get("scope") or "") not in ("", "plan", "all_main_masses", "unresolved")
+            )
+            for r in roof_reqs
+        ) or len(masses) <= 1
+        _stamp_roof_on_targets(plan, kept, targets, roof_type, allow_overwrite=allow_overwrite)
+
     plan["components"] = kept
     return plan
 

@@ -375,5 +375,9 @@
       "{'code': 'E_HOST_UNKNOWN', 'component_id': 'ncp_rib_band', 'host_id': 'ncp_shell'}"
     ]
   },
-  "kind": "llmplan"
+  "kind": "llmplan",
+  "plan_meta": {
+    "allow_compiler_satellites": true,
+    "compiler_satellites_policy": "transitional_fixture"
+  }
 }
