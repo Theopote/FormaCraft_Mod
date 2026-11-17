@@ -328,9 +328,5 @@
         "host_id": "prairie_earth"
       }
     }
-  ],
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  ]
 }

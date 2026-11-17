@@ -116,9 +116,5 @@
     "reference_landmark": "foguang_temple_hall",
     "structural_typology": "tailiang_timber_hall",
     "skeleton_type": "GRID_BAY"
-  },
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
   }
 }

@@ -1797,9 +1797,5 @@
   ],
   "description": "以锚点为南侧入口的中式庭院建筑群（约54×47格）：南侧门楼，北侧两层歇山顶正厅（层高5格），东西单层双坡顶厢房（净高4格），中央露天庭院设十字石路、小水池与花坛，三面有顶回廊（净宽3格）将门楼、厢房与正厅连为一体；灰砖白墙、深色木柱、青灰瓦，各建筑独立完整屋顶。",
   "player_fidelity_notice_zh": "组合式生成「筑群」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

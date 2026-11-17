@@ -34,7 +34,7 @@ class GambrelContinuityDiagTest {
         var document = mapper.readTree(fixture.toFile());
         var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
         roofParams.put("gambrel_break_run_fraction", 0.5).put("gambrel_break_rise_fraction", 0.75);
-        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var plan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         AssemblyCompileDiagnostics.clear();
         var patches = ComponentPlanCompiler.compile(plan, new BlockPos(0, 64, 0), null, null, false);
         assertFalse(AssemblyCompileDiagnostics.hasGap(),

@@ -575,6 +575,269 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertEqual("USER_EXPLICIT", roof["params"]["design_sources"]["roof_type"])
         self.assertEqual("USER_EXPLICIT", out["design_sources"]["roof_type"])
 
+    def test_blank_multi_mass_roofs_bind_independently_by_building_scope(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 8},
+                    "features": [],
+                    "params": {"component_id": "mass_a", "requirement_scope": "building_1"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 8, "height": 6},
+                    "features": [],
+                    "params": {"component_id": "mass_b", "requirement_scope": "building_2"},
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(
+            copy.deepcopy(plan),
+            "第一栋使用歇山顶；第二栋使用平屋顶。",
+        )
+        a = next(c for c in out["components"] if c["params"]["component_id"] == "mass_a")
+        b = next(c for c in out["components"] if c["params"]["component_id"] == "mass_b")
+        self.assertEqual("xieshan", a["params"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", a["params"]["design_sources"]["roof_type"])
+        self.assertEqual("flat", b["params"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", b["params"]["design_sources"]["roof_type"])
+        # Local constraints must not lock the whole plan.
+        self.assertNotEqual("USER_EXPLICIT", (out.get("design_sources") or {}).get("roof_type"))
+
+    def test_local_main_hall_roof_does_not_plan_lock_wing(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 20, "depth": 14, "height": 9},
+                    "features": [],
+                    "params": {
+                        "component_id": "main_hall",
+                        "requirement_scope": "building_1",
+                        "roof_type": "gable",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "wing",
+                    "relative_position": {"x": 24, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 8, "height": 5},
+                    "features": [],
+                    "params": {
+                        "component_id": "side_wing",
+                        "requirement_scope": "building_2",
+                        "roof_type": "flat",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(
+            copy.deepcopy(plan), "第一栋采用歇山顶；第二栋保持原样。"
+        )
+        hall = next(c for c in out["components"] if c["params"]["component_id"] == "main_hall")
+        wing = next(c for c in out["components"] if c["params"]["component_id"] == "side_wing")
+        self.assertEqual("xieshan", hall["params"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", hall["params"]["design_sources"]["roof_type"])
+        self.assertEqual("flat", wing["params"]["roof_type"])
+        self.assertEqual("AI_PLANNED", wing["params"]["design_sources"]["roof_type"])
+        self.assertNotEqual("USER_EXPLICIT", (out.get("design_sources") or {}).get("roof_type"))
+
+    def test_scoped_window_and_entrance_omissions_are_independent(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        def dual(omit_text: str):
+            plan = {
+                "mode": "build",
+                "components": [
+                    {
+                        "component_type": "MASS_MAIN",
+                        "slot_id": "a",
+                        "relative_position": {"x": 0, "y": 0, "z": 0},
+                        "dimensions": {"width": 12, "depth": 10, "height": 8},
+                        "features": [],
+                        "params": {
+                            "component_id": "mass_a",
+                            "requirement_scope": "building_1",
+                            "window_style": "regular",
+                            "entrance_type": "door",
+                        },
+                    },
+                    {
+                        "component_type": "FACADE_WINDOWS",
+                        "slot_id": "a",
+                        "relative_position": {"x": 0, "y": 1, "z": 0},
+                        "dimensions": {"width": 1, "depth": 8, "height": 4},
+                        "features": [],
+                        "params": {"component_id": "win_a", "host_id": "mass_a", "window_style": "regular"},
+                    },
+                    {
+                        "component_type": "ENTRANCE",
+                        "slot_id": "a",
+                        "relative_position": {"x": 5, "y": 0, "z": 9},
+                        "dimensions": {"width": 2, "depth": 1, "height": 3},
+                        "features": [],
+                        "params": {"component_id": "door_a", "host_id": "mass_a", "entrance_type": "door"},
+                    },
+                    {
+                        "component_type": "MASS_MAIN",
+                        "slot_id": "b",
+                        "relative_position": {"x": 20, "y": 0, "z": 0},
+                        "dimensions": {"width": 10, "depth": 8, "height": 6},
+                        "features": [],
+                        "params": {
+                            "component_id": "mass_b",
+                            "requirement_scope": "building_2",
+                            "window_style": "regular",
+                            "entrance_type": "door",
+                        },
+                    },
+                    {
+                        "component_type": "FACADE_WINDOWS",
+                        "slot_id": "b",
+                        "relative_position": {"x": 20, "y": 1, "z": 0},
+                        "dimensions": {"width": 1, "depth": 6, "height": 3},
+                        "features": [],
+                        "params": {"component_id": "win_b", "host_id": "mass_b", "window_style": "regular"},
+                    },
+                    {
+                        "component_type": "ENTRANCE",
+                        "slot_id": "b",
+                        "relative_position": {"x": 24, "y": 0, "z": 7},
+                        "dimensions": {"width": 2, "depth": 1, "height": 3},
+                        "features": [],
+                        "params": {"component_id": "door_b", "host_id": "mass_b", "entrance_type": "door"},
+                    },
+                ],
+            }
+            return _apply_user_explicit_design_sources(copy.deepcopy(plan), omit_text)
+
+        win_out = dual("第一栋不开窗；第二栋保留窗户。")
+        self.assertEqual("none", next(c for c in win_out["components"] if c["params"]["component_id"] == "mass_a")["params"]["window_style"])
+        self.assertEqual("regular", next(c for c in win_out["components"] if c["params"]["component_id"] == "mass_b")["params"]["window_style"])
+        self.assertFalse(any(c.get("params", {}).get("component_id") == "win_a" for c in win_out["components"]))
+        self.assertTrue(any(c.get("params", {}).get("component_id") == "win_b" for c in win_out["components"]))
+        self.assertNotEqual("USER_EXPLICIT", (win_out.get("design_sources") or {}).get("window_style"))
+
+        door_out = dual("第一栋不需要入口；第二栋保留入口。")
+        self.assertEqual("none", next(c for c in door_out["components"] if c["params"]["component_id"] == "mass_a")["params"]["entrance_type"])
+        self.assertEqual("door", next(c for c in door_out["components"] if c["params"]["component_id"] == "mass_b")["params"]["entrance_type"])
+        self.assertFalse(any(c.get("params", {}).get("component_id") == "door_a" for c in door_out["components"]))
+        self.assertTrue(any(c.get("params", {}).get("component_id") == "door_b" for c in door_out["components"]))
+
+    def test_scoped_roof_none_leaves_other_mass_roof(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 8},
+                    "features": [],
+                    "params": {"component_id": "mass_a", "requirement_scope": "building_1", "roof_type": "gable"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 8, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "roof_a", "host_id": "mass_a", "roof_type": "gable"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 8, "height": 6},
+                    "features": [],
+                    "params": {"component_id": "mass_b", "requirement_scope": "building_2", "roof_type": "flat"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 6, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 2},
+                    "features": [],
+                    "params": {"component_id": "roof_b", "host_id": "mass_b", "roof_type": "flat"},
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(
+            copy.deepcopy(plan), "第一栋不要屋顶；第二栋使用平屋顶。"
+        )
+        self.assertEqual("none", next(c for c in out["components"] if c["params"]["component_id"] == "mass_a")["params"]["roof_type"])
+        self.assertFalse(any(c.get("params", {}).get("component_id") == "roof_a" for c in out["components"]))
+        self.assertEqual("flat", next(c for c in out["components"] if c["params"]["component_id"] == "mass_b")["params"]["roof_type"])
+        self.assertTrue(any(c.get("params", {}).get("component_id") == "roof_b" for c in out["components"]))
+        self.assertNotEqual("OMITTED", ((out.get("plan_meta") or {}).get("design_requirements") or {}).get("roof"))
+
+    def test_unbound_roofs_are_not_rewritten_from_local_mass_constraint(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 8},
+                    "features": [],
+                    "params": {"component_id": "mass_a", "requirement_scope": "building_1"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 8, "height": 6},
+                    "features": [],
+                    "params": {"component_id": "mass_b", "requirement_scope": "building_2"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 8, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "roof_orphan_1", "roof_type": "gable"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 6, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 2},
+                    "features": [],
+                    "params": {"component_id": "roof_orphan_2", "roof_type": "hip"},
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(
+            copy.deepcopy(plan), "第一栋使用歇山顶；第二栋使用平屋顶。"
+        )
+        r1 = next(c for c in out["components"] if c["params"]["component_id"] == "roof_orphan_1")
+        r2 = next(c for c in out["components"] if c["params"]["component_id"] == "roof_orphan_2")
+        self.assertEqual("gable", r1["params"]["roof_type"])
+        self.assertEqual("hip", r2["params"]["roof_type"])
+        self.assertNotIn("design_sources", r1["params"])
+        self.assertNotIn("design_sources", r2["params"])
+
 
 if __name__ == "__main__":
     unittest.main()

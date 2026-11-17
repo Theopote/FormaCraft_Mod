@@ -21,12 +21,17 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Region parity is separate from symmetry expansion and Build-only brush/path inputs. */
 class ConstraintParityTest {
+    /** Eval plans stay unstamped on disk; inject transitional satellites only at load. */
+    private static LlmPlan transitional(LlmPlan plan) {
+        return TransitionalSatellitePlans.ensureAllowIfAbsent(plan);
+    }
+
     @ParameterizedTest
     @CsvSource({"desert_adobe,13", "desert_adobe,21", "prairie_earth,13", "prairie_earth,21"})
     void earthHousesHaveClearEntrySmallWindowsAndLocalWindowEdits(String style,int size) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
         var tree=mapper.readTree(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_"+style+"_"+size+".json").toFile());
-        var plan=mapper.treeToValue(tree,LlmPlan.class);
+        var plan=transitional(mapper.treeToValue(tree,LlmPlan.class));
         var raw=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
         assertFalse(raw.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
@@ -51,7 +56,7 @@ class ConstraintParityTest {
         }
         var noStairMeta=((com.fasterxml.jackson.databind.node.ObjectNode)noStairTree).putObject("plan_meta");
         noStairMeta.put("allow_compiler_satellites",false);
-        var noStair=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(noStairTree,LlmPlan.class),ORIGIN,null,null,false));
+        var noStair=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(transitional(mapper.treeToValue(noStairTree,LlmPlan.class)),ORIGIN,null,null,false));
         assertFalse(noStair.isEmpty());
         for(int x=size/2-1;x<=size/2+1;x++)
             assertEquals("minecraft:stone_bricks",noStair.get(new Vec3i(x,4,4)),"stair removal restores the upper floor opening");
@@ -71,7 +76,7 @@ class ConstraintParityTest {
         for(int i=components.size()-1;i>=0;i--)
             if("FACADE_WINDOWS".equals(components.get(i).path("component_type").asText()))components.remove(i);
         ((com.fasterxml.jackson.databind.node.ObjectNode)components.get(0).get("params")).put("window_ratio",0);
-        var closed=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(edited,LlmPlan.class),ORIGIN,null,null,false));
+        var closed=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(transitional(mapper.treeToValue(edited,LlmPlan.class)),ORIGIN,null,null,false));
         assertFalse(closed.isEmpty());
         var cells=new HashSet<>(blocks.keySet());cells.addAll(closed.keySet());
         String wall=String.valueOf(plan.components().getFirst().params().get("wall_block"));
@@ -85,7 +90,7 @@ class ConstraintParityTest {
     @org.junit.jupiter.params.provider.ValueSource(ints={13,21})
     void darkFortressCompilesTwoHollowDefensiveTowerShells(int size) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
-        var plan=mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_dark_fortress_"+size+".json").toFile(),LlmPlan.class);
+        var plan=transitional(mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_dark_fortress_"+size+".json").toFile(),LlmPlan.class));
         var raw=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
         assertFalse(raw.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
@@ -121,7 +126,7 @@ class ConstraintParityTest {
         var brokenComponents=(com.fasterxml.jackson.databind.node.ArrayNode)brokenTree.get("components");
         for(int i=brokenComponents.size()-1;i>=0;i--)
             if("guard_tower_stair_0_2".equals(brokenComponents.get(i).path("params").path("component_id").asText()))brokenComponents.remove(i);
-        var broken=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(brokenTree,LlmPlan.class),ORIGIN,null,null,false));
+        var broken=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(transitional(mapper.treeToValue(brokenTree,LlmPlan.class)),ORIGIN,null,null,false));
         assertFalse(broken.isEmpty());
         var brokenReach=fortressStepReach(broken,new Vec3i(size/2,0,-2),size);
         assertFalse(brokenReach.contains(new Vec3i(-5,12,z)),"omitted middle flight must break left upper access");
@@ -130,7 +135,7 @@ class ConstraintParityTest {
         var components=(com.fasterxml.jackson.databind.node.ArrayNode)tree.get("components");
         for(int i=components.size()-1;i>=0;i--)
             if("guard_tower_portal_0".equals(components.get(i).path("params").path("component_id").asText()))components.remove(i);
-        var closed=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(tree,LlmPlan.class),ORIGIN,null,null,false));
+        var closed=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(transitional(mapper.treeToValue(tree,LlmPlan.class)),ORIGIN,null,null,false));
         assertFalse(closed.isEmpty());
         var closedReach=fortressGroundReach(closed,start,size,size+8);
         assertFalse(closedReach.contains(new Vec3i(-5,1,z)),"closed left portal must break left tower access");
@@ -172,7 +177,7 @@ class ConstraintParityTest {
     void huizhouTianjingHasOpenSkyAndReachableFourWings(int size) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
         var tree=mapper.readTree(java.nio.file.Path.of("python_backend/eval/fixtures/plans/huizhou_tianjing_"+size+".json").toFile());
-        var plan=mapper.treeToValue(tree,LlmPlan.class);
+        var plan=transitional(mapper.treeToValue(tree,LlmPlan.class));
         var raw=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
         assertFalse(raw.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
@@ -193,7 +198,7 @@ class ConstraintParityTest {
         for(var c:editedComponents) if("MASS_MAIN".equals(c.path("component_type").asText()))
             ((com.fasterxml.jackson.databind.node.ObjectNode)c.get("params")).put("window_ratio",0);
         var withoutWindows=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(
-                mapper.treeToValue(editedTree,LlmPlan.class),ORIGIN,null,null,false));
+                transitional(mapper.treeToValue(editedTree,LlmPlan.class)),ORIGIN,null,null,false));
         assertEquals(blocks.keySet(),withoutWindows.keySet(),"window removal preserves the wall envelope");
         for(var cell:blocks.keySet()) {
             if(windowCells.contains(cell))assertEquals("minecraft:white_concrete",withoutWindows.get(cell));
@@ -249,7 +254,7 @@ class ConstraintParityTest {
     @org.junit.jupiter.params.provider.MethodSource("stylePackPlans")
     void authoredStylePackPlansCompileAndPreserveMaterialsAcrossClippers(String fixture) throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        var plan = mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans", fixture).toFile(), LlmPlan.class);
+        var plan = transitional(mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans", fixture).toFile(), LlmPlan.class));
         List<BlockPatch> raw;
         var first = plan.components().getFirst();
         var typology = com.formacraft.common.typology.TypologyComponentRouter.extractTypologyId(first);
@@ -325,7 +330,7 @@ class ConstraintParityTest {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
         var file=java.nio.file.Path.of("python_backend/eval/fixtures/plans",style+"_"+size+".json").toFile();
         var tree=mapper.readTree(file);
-        var plan=mapper.treeToValue(tree,LlmPlan.class);
+        var plan=transitional(mapper.treeToValue(tree,LlmPlan.class));
         var raw=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
         assertFalse(raw.isEmpty());
         var blocks=com.formacraft.test.PatchTestSnapshot.blocks(raw);
@@ -346,14 +351,14 @@ class ConstraintParityTest {
             for(int i=components.size()-1;i>=0;i--)
                 if(components.get(i).path("params").path("component_id").asText().startsWith("arc_")
                         && !components.get(i).path("params").path("component_id").asText().equals("arc_walk")) components.remove(i);
-            var edited=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(tree,LlmPlan.class),ORIGIN,null,null,false));
+            var edited=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(transitional(mapper.treeToValue(tree,LlmPlan.class)),ORIGIN,null,null,false));
             assertNull(edited.get(new Vec3i(center,10,-4)));
             assertTrue(edited.size()<blocks.size());
             for(var block:edited.entrySet()) assertEquals(blocks.get(block.getKey()),block.getValue(),"arcade removal preserves all remaining blocks");
         } else {
             assertTrue(blocks.values().stream().anyMatch(v->v.startsWith("minecraft:dark_oak_log")),"exposed frame");
             ((com.fasterxml.jackson.databind.node.ObjectNode)tree.get("components").get(0).get("params")).put("wall_pattern","smooth");
-            var edited=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(mapper.treeToValue(tree,LlmPlan.class),ORIGIN,null,null,false));
+            var edited=com.formacraft.test.PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(transitional(mapper.treeToValue(tree,LlmPlan.class)),ORIGIN,null,null,false));
             assertEquals(blocks.keySet(),edited.keySet(),"frame toggle preserves occupied shape");
             int changes=0;
             for(var block:blocks.entrySet()) {
@@ -372,7 +377,7 @@ class ConstraintParityTest {
     @CsvSource({"10,2", "14,3"})
     void nativeTulouBlueprintRetainsEarthenRingFloorsAndOpenCourtyard(int radius,int floors) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
-        var plan=mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/tulou_ring_"+radius+".json").toFile(),LlmPlan.class);
+        var plan=transitional(mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/tulou_ring_"+radius+".json").toFile(),LlmPlan.class));
         var component=plan.components().getFirst();
         var parent=new com.formacraft.common.model.build.BuildingSpec();
         parent.setStyle(com.formacraft.common.model.build.BuildingStyle.ASIAN);
@@ -408,7 +413,7 @@ class ConstraintParityTest {
     void undergroundDwarvenHallExcavatesSeededRockWithinItsBounds(int width) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
         var file=java.nio.file.Path.of("python_backend/eval/fixtures/plans/dwarven_underground_"+width+".json");
-        var plan=mapper.readValue(file.toFile(),LlmPlan.class);
+        var plan=transitional(mapper.readValue(file.toFile(),LlmPlan.class));
         assertEquals(GlobalConstraints.TerrainStrategy.PRESERVE,plan.globalConstraints().terrainStrategy());
         var patches=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
         assertFalse(patches.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
@@ -442,7 +447,7 @@ class ConstraintParityTest {
         // the final shell state rather than every intermediate write in the list.
         for(var block:com.formacraft.test.PatchTestSnapshot.blocks(shell).entrySet())
             assertEquals(block.getValue(),world.get(block.getKey()),"vault shell punctured at "+block.getKey());
-        var without=mapper.readValue(file.toFile(),LlmPlan.class);
+        var without=transitional(mapper.readValue(file.toFile(),LlmPlan.class));
         without.components().removeIf(c->String.valueOf(c.params().get("component_id")).startsWith("vault_excavation_"));
         var unexcavated=replayOn(stone,ComponentPlanCompiler.compile(without,ORIGIN,null,null,false));
         assertEquals("minecraft:stone",unexcavated.get(new Vec3i(center,-7,depth/2)),"control must detect omitted excavation");
@@ -467,7 +472,7 @@ class ConstraintParityTest {
     void treehouseTrunkAccessAndAccessRemovalRemainConnectedAndLocal(int width) throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
         var file=java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_elven_treehouse_"+width+".json");
-        var plan=mapper.readValue(file.toFile(),LlmPlan.class);
+        var plan=transitional(mapper.readValue(file.toFile(),LlmPlan.class));
         assertEquals(GlobalConstraints.TerrainStrategy.PRESERVE,plan.globalConstraints().terrainStrategy());
         var patches=ComponentPlanCompiler.compile(plan,ORIGIN,null,null,false);
         assertFalse(patches.isEmpty(),()->String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
@@ -486,7 +491,7 @@ class ConstraintParityTest {
         assertTreehouseGuards(blocks,center);
         var missingGuard=new HashMap<>(blocks);missingGuard.remove(new Vec3i(center-2,7,-10));
         assertThrows(AssertionError.class,()->assertTreehouseGuards(missingGuard,center));
-        var noGuards=mapper.readValue(file.toFile(),LlmPlan.class);
+        var noGuards=transitional(mapper.readValue(file.toFile(),LlmPlan.class));
         noGuards.components().removeIf(c->String.valueOf(c.params().get("component_id")).startsWith("tree_access_guard_"));
         var barePatches=ComponentPlanCompiler.compile(noGuards,ORIGIN,null,null,false);
         assertFalse(barePatches.isEmpty());
@@ -503,7 +508,7 @@ class ConstraintParityTest {
         assertThrows(AssertionError.class,()->assertWalkCell(blocked,center,6,-10));
         var missing=new HashMap<>(blocks);missing.remove(new Vec3i(center,6,-10));
         assertThrows(AssertionError.class,()->assertWalkCell(missing,center,6,-10));
-        var noAccess=mapper.readValue(file.toFile(),LlmPlan.class);
+        var noAccess=transitional(mapper.readValue(file.toFile(),LlmPlan.class));
         noAccess.components().removeIf(c->String.valueOf(c.params().get("component_id")).startsWith("tree_access_"));
         var withoutPatches=ComponentPlanCompiler.compile(noAccess,ORIGIN,null,null,false);
         assertFalse(withoutPatches.isEmpty());
@@ -525,7 +530,7 @@ class ConstraintParityTest {
     @CsvSource({"stilt_timber,13", "stilt_timber,17", "stilt_timber,21", "water_platform,13", "water_platform,21"})
     void raisedTimberExamplesKeepSupportsClearanceAndAuthoredAccess(String style, int width) throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        var plan = mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_" + style + "_" + width + ".json").toFile(), LlmPlan.class);
+        var plan = transitional(mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_" + style + "_" + width + ".json").toFile(), LlmPlan.class));
         assertEquals(GlobalConstraints.TerrainStrategy.PRESERVE, plan.globalConstraints().terrainStrategy());
         var patches = ComponentPlanCompiler.compile(plan, ORIGIN, null, null, false);
         assertFalse(patches.isEmpty(), () -> String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
@@ -595,11 +600,11 @@ class ConstraintParityTest {
     void huizhouGablesCompileAsSteppedWallsAndEditsStayOnEndPlanes(int width, int depth) throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         var file = java.nio.file.Path.of("python_backend/eval/fixtures/plans/huizhou_vernacular_" + width + ".json");
-        var enabledPlan = mapper.readValue(file.toFile(), LlmPlan.class);
+        var enabledPlan = transitional(mapper.readValue(file.toFile(), LlmPlan.class));
         var enabled = ComponentPlanCompiler.compile(enabledPlan, ORIGIN, null, null, false);
         assertFalse(enabled.isEmpty(), () -> String.valueOf(com.formacraft.server.assembly.AssemblyCompileDiagnostics.get()));
         var on = com.formacraft.test.PatchTestSnapshot.blocks(enabled);
-        var disabledPlan = mapper.readValue(file.toFile(), LlmPlan.class);
+        var disabledPlan = transitional(mapper.readValue(file.toFile(), LlmPlan.class));
         disabledPlan.components().get(1).params().put("horse_head_walls", false);
         var disabled = ComponentPlanCompiler.compile(disabledPlan, ORIGIN, null, null, false);
         assertFalse(disabled.isEmpty());
@@ -672,7 +677,7 @@ class ConstraintParityTest {
     @Test void mixedGardenAndChapelGoldenCompilesWithSeparateRoofBindings() throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         var file = java.nio.file.Path.of("python_backend/eval/fixtures/plans/mixed_garden_chapel.json").toFile();
-        var plan = mapper.readValue(file, LlmPlan.class);
+        var plan = transitional(mapper.readValue(file, LlmPlan.class));
         var expectedTypes = Map.of("garden", "hip", "chapel", "gable");
         for (var roof : plan.components()) {
             if (!"ROOF".equals(roof.componentType())) continue;

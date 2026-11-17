@@ -269,9 +269,5 @@
     }
   ],
   "player_fidelity_notice_zh": "识别为预置地标「tulou」，使用固定模板生成（保真度：取决于模块与真实建筑吻合度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

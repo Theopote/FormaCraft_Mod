@@ -1423,8 +1423,6 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "以锚点为主入口，\n生成一栋顺应现有地形的山地旅馆，不要把整片山坡削平。\n建筑由三个错层长方体组成，\n整体占地不超过35×27格，\n总高度不超过22格。\n最低体块两层，中间体块三层，\n最高体块两层，\n通过内部楼梯和短连廊连接。\n底层使用粗石墙，\n上层使用木材和大窗户，\n屋顶采用深灰色石板。\n临坡侧设置支撑柱、\n观景露台和连续栏杆。\n入口连接接待大厅，\n楼上设置客房走廊，\n所有楼层与露台都能步行到达。\n避免悬空墙体、\n被封死的入口和没有出口的楼梯\n。",
-    "building_class": "generic",
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
+    "building_class": "generic"
   }
 }

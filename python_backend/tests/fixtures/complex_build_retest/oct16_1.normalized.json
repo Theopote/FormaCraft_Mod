@@ -1396,8 +1396,6 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "在锚点生成一栋细节完整的中式别墅，\n由一个长方体主楼和一个圆柱形塔楼组成。主楼长17格、\n宽13格，共两层，\n每层净高4格；塔楼直径11格，\n共三层，每层净高4格，\n位于主楼右后侧，\n两者通过一条有顶连廊连接。\n主楼使用白色灰泥墙、\n深色木梁和灰色陶瓦屋顶，\n塔楼使用相同材料，\n但采用圆锥形屋顶。\n主楼设置正门、门前台阶、\n二层阳台和木栏杆；\n两栋建筑每层都有窗户与楼板，\n内部楼梯能够到达所有楼层。\n补充檐口、屋脊、\n柱子和基础细节。\n门窗必须实际开洞，\n内部保持可通行。",
-    "building_class": "generic",
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
+    "building_class": "generic"
   }
 }

@@ -917,9 +917,5 @@
   "description": "Imaginative Hanging Gardens of Babylon: a five-tier diminishing ziggurat of sandstone bearing walls and arched vaults, every tier ringed by a planted terrace with irrigation channels, hanging vines, glazed-brick relief bands flanking the north gate, and a flat-roofed summit shrine.",
   "enrichment_guard": "non_classical_marker:stadium",
   "player_fidelity_notice_zh": "组合式生成「根据想象生成巴比伦空中花园建\n筑」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

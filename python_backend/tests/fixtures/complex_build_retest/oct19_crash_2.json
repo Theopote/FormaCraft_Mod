@@ -894,9 +894,5 @@
   ],
   "description": "三座埃及金字塔：胡夫、哈夫拉、门卡乌拉，按对角线排布于同一沙漠台地，四棱锥纯实体量、北面狭窄通道入口、镀金压顶石。",
   "player_fidelity_notice_zh": "组合式生成「三座埃及金字塔」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

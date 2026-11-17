@@ -110,6 +110,13 @@ def _extract_global_requirements(text: str) -> list[dict]:
         result.append({'id': 'req_roof_type', 'property': 'roof_type', 'value': 'flat', 'source': 'user_explicit',
                        'source_text': ['平屋顶' if '平屋顶' in text else '平顶'], 'scope': 'all_main_masses', 'priority': 'hard', 'status': 'pending'})
     specialty_roofs = {
+        # Classical Chinese / East Asian roofs — must participate in ordinal building scopes
+        # (第一栋歇山 / 第二栋平顶) the same way as western specialty roofs.
+        'double_eave_xieshan': r'重檐歇山(?:屋\s*)?顶|\bdouble[ _-]?eave[ _-]?xieshan\b',
+        'xieshan': r'(?<!重檐)歇山(?:屋\s*)?顶|\bxieshan\b|\bhip[ _-]?and[ _-]?gable\b',
+        'xuanshan': r'悬山(?:屋\s*)?顶|\bxuanshan\b',
+        'yingshan': r'硬山(?:屋\s*)?顶|\byingshan\b',
+        'wudian': r'庑殿(?:屋\s*)?顶|\bwudian\b',
         'gambrel': r'折线双坡顶|\bgambrel(?:[ _]roof)?\b',
         'barrel_vault': r'筒拱(?:屋)?顶|\bbarrel[ _]vault\b',
         'onion_dome': r'洋葱穹顶|\bonion[ _]dome\b',

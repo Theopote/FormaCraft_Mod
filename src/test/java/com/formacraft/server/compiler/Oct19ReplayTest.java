@@ -9,21 +9,21 @@ class Oct19ReplayTest {
     @BeforeAll static void setup() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     @TestFactory Stream<DynamicTest> newPlans() {
         return IntStream.rangeClosed(1,5).mapToObj(i -> DynamicTest.dynamicTest("oct19 plan "+i,()-> {
-            var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct19_crash_"+i+".normalized.json")));
+            var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct19_crash_"+i+".normalized.json"))));
             var patches=ComponentPlanCompiler.compile(plan);
             assertFalse(patches.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
             assertFalse(AssemblyCompileDiagnostics.hasGap(),String.valueOf(AssemblyCompileDiagnostics.get()));
         }));
     }
     @Test void grottoParsedDimensionsRemainAuthored() throws Exception {
-        var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct18_landmark_7.normalized.json")));
+        var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct18_landmark_7.normalized.json"))));
         assertEquals(30,plan.components().getFirst().dimensions().width());
         assertEquals(30,plan.components().getFirst().dimensions().depth());
         assertFalse(ComponentPlanCompiler.compile(plan).isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
     }
 
     @Test void explicitTulouModuleHasAnExecutableRouteAndNativeGeometry() throws Exception {
-        var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct19_crash_7.normalized.json")));
+        var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct19_crash_7.normalized.json"))));
         assertEquals(3,plan.components().size());
         var component=plan.components().getFirst();
         assertTrue(com.formacraft.common.generation.routing.GenerationFallbackMatrix.effectiveStructureEmpty(
@@ -70,7 +70,7 @@ class Oct19ReplayTest {
 
     @Test void stackedBodiesKeepHostGeometryAndDoNotDeclareMissingWalls() throws Exception {
         for(int i:java.util.List.of(1,5)) {
-            var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct19_crash_"+i+".normalized.json")));
+            var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct19_crash_"+i+".normalized.json"))));
             var body=plan.components().stream().filter(c->"MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
             var cells=new java.util.ArrayList<com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell>();
             try (var geometry=com.formacraft.common.generation.component.util.BuildingGeometryContext.open();

@@ -762,8 +762,6 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "建造一栋约21×15格的三层山地旅馆，使用石砖底座、\n白色墙面和深色木屋顶。\n正面设置主入口，\n侧面设置从地面通向二层平台的室外楼梯。\n平台与二层室内之间必须开门，\n门前保留落脚空间。\n楼梯全程连贯，平台有栏杆，\n屋顶不能与楼梯冲突。",
-    "building_class": "generic",
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
+    "building_class": "generic"
   }
 }

@@ -88,7 +88,7 @@ class FacetedDomeRoofTest {
         params.put("roof_type", "半球穹顶").put("roof_block", "minecraft:black_concrete")
                 .put("roof_height", 9).put("dome_drum_height", 3).put("wall_block", "minecraft:stone_bricks")
                 .put("dome_rib_count", 4).put("dome_rib_block", "minecraft:quartz_block");
-        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var plan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         var patches = ComponentPlanCompiler.compile(plan, new BlockPos(0, 64, 0), null, null, false);
         // Hosted roof attaches at authored y=9 (no silent +1); drum springs there.
         assertTrue(patches.stream().anyMatch(p -> p.dx() == 0 && p.dz() == 8 && p.dy() == 9
@@ -101,14 +101,14 @@ class FacetedDomeRoofTest {
                 && "minecraft:stone_bricks".equals(p.targetBlock())));
 
         params.put("dome_oculus_radius", 2);
-        var openPlan = mapper.treeToValue(document, LlmPlan.class);
+        var openPlan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         var openPatches = ComponentPlanCompiler.compile(openPlan, new BlockPos(0, 64, 0), null, null, false);
         assertFalse(openPatches.stream().anyMatch(p -> p.dy() > 9
                 && Math.pow(p.dx() - 6, 2) + Math.pow(p.dz() - 8, 2) <= 4));
         assertTrue(openPatches.stream().anyMatch(p -> p.dx() == 9 && p.dz() == 8 && p.dy() > 12
                 && "minecraft:quartz_block".equals(p.targetBlock())));
         params.put("dome_oculus_glass_block", "blue_stained_glass");
-        var glazedPlan = mapper.treeToValue(document, LlmPlan.class);
+        var glazedPlan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         var glazed = ComponentPlanCompiler.compile(glazedPlan, new BlockPos(0, 64, 0), null, null, false);
         assertTrue(glazed.stream().anyMatch(p -> p.dx() == 6 && p.dz() == 8 && p.dy() == 17
                 && "minecraft:blue_stained_glass".equals(p.targetBlock())));

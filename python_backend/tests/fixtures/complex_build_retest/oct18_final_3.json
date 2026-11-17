@@ -1160,9 +1160,5 @@
   ],
   "description": "山坡天文观测站：三个错层体块（接待楼 15×13×6 @y0、研究楼 13×11×6 @y4、观测塔 9×9×12 @y8）沿同一方向逐级升高并保持约 4 格间隔，白色混凝土 + 石砖 + 深色玻璃；宽 3 格室外楼梯与落脚平台分别接到研究楼与观测塔入口，研究楼平屋顶，观测塔顶部深色多面体穹顶与装饰观测缝，接待楼入口小雨棚。",
   "player_fidelity_notice_zh": "组合式生成「建造一座由三个错层体块组成的\n山坡天文观测站，\n使用白色混凝土、\n石砖和深色玻璃。\n下层接待楼约15×13格，\n高6格，」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

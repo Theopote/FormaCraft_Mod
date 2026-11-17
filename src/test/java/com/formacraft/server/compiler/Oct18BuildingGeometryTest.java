@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class Oct18BuildingGeometryTest {
     @BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     private Map<BlockPos,BlockPatch> compile(int index) throws Exception {
-        var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct18_"+index+".normalized.json")));
+        var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct18_"+index+".normalized.json"))));
         var output=ComponentPlanCompiler.compile(plan,BlockPos.ORIGIN,null,null);
         assertFalse(output.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
         var blocks=new HashMap<BlockPos,BlockPatch>();

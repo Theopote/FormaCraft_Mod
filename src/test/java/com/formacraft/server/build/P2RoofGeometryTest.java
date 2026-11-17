@@ -79,7 +79,7 @@ class P2RoofGeometryTest {
         roofParams.put("roof_type", "mansard").put("roof_block", "minecraft:stone_bricks")
                 .put("roof_height", 11).put("mansard_break_run", 3).put("mansard_break_rise", 7)
                 .put("mansard_dormer_count", 2);
-        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var plan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
         var roof = patches.stream().filter(p -> p.targetBlock() != null
@@ -98,7 +98,7 @@ class P2RoofGeometryTest {
         var document = mapper.readTree(fixture.toFile());
         var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
         roofParams.put("gambrel_break_run_fraction", 0.5).put("gambrel_break_rise_fraction", 0.75);
-        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var plan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
         var roof = patches.stream().filter(p -> "minecraft:hay_block".equals(p.targetBlock())).toList();
@@ -366,7 +366,7 @@ class P2RoofGeometryTest {
             int height = type.equals("saltbox") ? 5 : 6;
             var dimensions = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/dimensions");
             dimensions.put("height", height);
-            var plan = mapper.treeToValue(document, LlmPlan.class);
+            var plan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
             var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                     new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
             var roof = patches.stream()
@@ -390,7 +390,7 @@ class P2RoofGeometryTest {
         roofParams.put("roof_type", "十字双坡顶").put("roof_block", "minecraft:stone_bricks")
                 .put("wall_block", "minecraft:spruce_planks").put("roof_height", 9)
                 .put("roof_slope_profile", "linear");
-        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var plan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
         int[][] tops = new int[13][17];
@@ -483,7 +483,7 @@ class P2RoofGeometryTest {
         var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
         roofParams.put("roof_type", "butterfly").put("roof_block", "minecraft:stone_bricks")
                 .put("roof_height", 7).put("ridge_axis", "z");
-        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var plan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
         var roof = patches.stream().filter(p -> p.targetBlock() != null
@@ -500,7 +500,7 @@ class P2RoofGeometryTest {
         var roofParams = (com.fasterxml.jackson.databind.node.ObjectNode) document.at("/components/1/params");
         roofParams.put("roof_type", "hip").put("roof_block", "minecraft:stone_bricks")
                 .put("roof_height", 6).put("roof_slope_profile", "linear");
-        var plan = mapper.treeToValue(document, LlmPlan.class);
+        var plan = TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         var patches = com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                 new net.minecraft.util.math.BlockPos(0, 64, 0), null, null, false);
         var roof = patches.stream().filter(p -> p.dy() >= 9 && p.targetBlock() != null
@@ -518,7 +518,7 @@ class P2RoofGeometryTest {
         var manifest=mapper.readTree(java.nio.file.Path.of("python_backend/eval/fixtures/p2_roofs.json").toFile());
         int count=0;
         for(var entry:manifest) for(var fixture:entry.path("plans")) {
-            var plan=mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans",fixture.asText()).toFile(),LlmPlan.class);
+            var plan=TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans",fixture.asText()).toFile(), LlmPlan.class));
             var patches=com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                     new net.minecraft.util.math.BlockPos(0,64,0),null,null,false);
             assertFalse(patches.isEmpty(),fixture.asText());

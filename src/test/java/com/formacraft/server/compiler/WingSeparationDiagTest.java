@@ -25,7 +25,7 @@ class WingSeparationDiagTest {
     void late4WingSouthSeparatesFromHall() throws Exception {
         var json = Files.readString(Path.of(
                 "python_backend/tests/fixtures/complex_build_retest/oct18_late_4.normalized.json"));
-        var plan = LlmPlanParser.parse(json);
+        var plan = com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(json));
         var repaired = MassFootprintSeparationRepair.apply(plan);
         var hall = repaired.components().stream()
                 .filter(c -> "townhall_central_hall".equals(String.valueOf(c.params().get("component_id"))))

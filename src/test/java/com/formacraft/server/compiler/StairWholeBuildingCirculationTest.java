@@ -28,7 +28,7 @@ class StairWholeBuildingCirculationTest {
     void oct18RaisedTowerLandingStaysStandableAfterCompile() throws Exception {
         var json = Files.readString(Path.of(
                 "python_backend/tests/fixtures/complex_build_retest/oct18_3.normalized.json"));
-        var plan = LlmPlanParser.parse(json);
+        var plan = com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(json));
         var compilation = ComponentPlanCompiler.compileWithCirculation(
                 plan, BlockPos.ORIGIN, null, null, false);
         assertFalse(compilation.patches().isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
@@ -42,7 +42,7 @@ class StairWholeBuildingCirculationTest {
     @Test
     void fidelityInteriorStairStillOpensUpperFloorBand() throws Exception {
         var json = Files.readString(Path.of("src/test/resources/plans/fidelity/stair_upper_landing_walkable.json"));
-        var plan = LlmPlanParser.parse(json);
+        var plan = com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(json));
         var compilation = ComponentPlanCompiler.compileWithCirculation(
                 plan, BlockPos.ORIGIN, null, null, false);
         assertFalse(compilation.patches().isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));

@@ -1223,9 +1223,5 @@
   ],
   "description": "中世纪水岸磨坊建筑群：17×13、两层各5格高的石基木框磨坊（深色双坡顶）与相隔5格、以石板路相连的独立小仓库；北侧水渠、直径7格的装饰水车与宽3格的入口木桥保持原有空间关系。",
   "player_fidelity_notice_zh": "组合式生成「筑群」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

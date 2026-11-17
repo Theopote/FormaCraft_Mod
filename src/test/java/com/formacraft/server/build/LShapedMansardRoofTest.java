@@ -87,7 +87,7 @@ class LShapedMansardRoofTest {
         host.put("plan_type","l_shape").put("l_cut",5).put("l_corner","NW");
         var params=(com.fasterxml.jackson.databind.node.ObjectNode)document.at("/components/1/params");
         params.put("roof_type","mansard").put("roof_height",11).put("mansard_break_run",2).put("mansard_break_rise",7);
-        var patches=com.formacraft.server.compiler.ComponentPlanCompiler.compile(mapper.treeToValue(document,LlmPlan.class),
+        var patches=com.formacraft.server.compiler.ComponentPlanCompiler.compile(TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class)),
                 new net.minecraft.util.math.BlockPos(0,64,0),null,null,false);
         var roof=patches.stream().filter(p -> p.targetBlock().startsWith("minecraft:hay_block")).toList();
         assertFalse(roof.stream().anyMatch(p -> p.dx()<5 && p.dz()<5));

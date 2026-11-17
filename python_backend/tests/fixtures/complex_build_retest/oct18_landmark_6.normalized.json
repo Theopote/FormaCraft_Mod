@@ -647,8 +647,6 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "生成上海东方明珠电视塔",
-    "building_class": "generic",
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
+    "building_class": "generic"
   }
 }

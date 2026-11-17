@@ -584,9 +584,5 @@
   ],
   "description": "Small museum composed of a two-storey quartz exhibition hall with a flat roof, linked by a short glazed corridor (openings at both ends) to a hollow 17x17x12 glass pyramid whose intact slopes and apex are preserved, with a passable entrance on its front (west) face.",
   "player_fidelity_notice_zh": "组合式生成「小型博物馆」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

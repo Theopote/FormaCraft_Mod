@@ -49,14 +49,14 @@ class StyleWallPatternTest {
 
     @Test void fullCompilerPreservesNeonToggleAndSideGear() throws Exception {
         var mapper=new com.fasterxml.jackson.databind.ObjectMapper();
-        var plan=mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_cyberpunk_block_13.json").toFile(),LlmPlan.class);
+        var plan=TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_cyberpunk_block_13.json").toFile(), LlmPlan.class));
         var enabled=com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,net.minecraft.util.math.BlockPos.ORIGIN,null,null,false);
         assertTrue(enabled.stream().anyMatch(p->p.targetBlock().equals("minecraft:sea_lantern")));
         plan.components().getFirst().params().put("emissive_enabled",false);
         var disabled=com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,net.minecraft.util.math.BlockPos.ORIGIN,null,null,false);
         assertFalse(disabled.isEmpty());
         assertFalse(disabled.stream().anyMatch(p->p.targetBlock().equals("minecraft:sea_lantern")));
-        var steam=mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_steampunk_hall_13.json").toFile(),LlmPlan.class);
+        var steam=TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.readValue(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_steampunk_hall_13.json").toFile(), LlmPlan.class));
         var patches=com.formacraft.server.compiler.ComponentPlanCompiler.compile(steam,net.minecraft.util.math.BlockPos.ORIGIN,null,null,false);
         assertTrue(patches.stream().anyMatch(p->p.dx()>=18 && p.targetBlock().equals("minecraft:waxed_cut_copper")));
     }

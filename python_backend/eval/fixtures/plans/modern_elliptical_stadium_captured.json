@@ -13,23 +13,12 @@
     "wall_material": "concrete",
     "roof_material": "metal",
     "floor_material": "stone",
-    "decorative_elements": [
-      "curved_glass",
-      "steel_ribs",
-      "floodlights"
-    ]
+    "decorative_elements": ["curved_glass", "steel_ribs", "floodlights"]
   },
-  "anchor": {
-    "x": -130,
-    "y": 72,
-    "z": 22
-  },
+  "anchor": { "x": -130, "y": 72, "z": 22 },
   "genome": {
     "genomeVersion": "1.0",
-    "archetype": {
-      "id": "generic",
-      "confidence": 0.0
-    },
+    "archetype": { "id": "generic", "confidence": 0.0 },
     "topology": {
       "layout": "circular",
       "composition": "single",
@@ -48,16 +37,8 @@
       "curvature": "curved",
       "rhythm": "regular"
     },
-    "symmetry": {
-      "type": "radial",
-      "order": 4,
-      "mirror": true
-    },
-    "modules": [
-      "roof",
-      "windows",
-      "entrance"
-    ],
+    "symmetry": { "type": "radial", "order": 4, "mirror": true },
+    "modules": ["roof", "windows", "entrance"],
     "materials": {
       "primary": "concrete",
       "secondary": "glass",
@@ -67,23 +48,14 @@
     "culturalStyle": {
       "region": "modern",
       "era": "contemporary",
-      "keywords": [
-        "stadium",
-        "elliptical"
-      ]
+      "keywords": ["stadium", "elliptical"]
     },
     "constraints": {
       "maxHeight": 20,
       "respectTerrain": true,
       "insideSelectionOnly": false
     },
-    "aiHints": {
-      "priority": [
-        "curved",
-        "symmetry"
-      ],
-      "avoid": []
-    }
+    "aiHints": { "priority": ["curved", "symmetry"], "avoid": [] }
   },
   "global_constraints": {
     "facing": "EAST",
@@ -99,20 +71,9 @@
     {
       "component_type": "MASS_MAIN",
       "slot_id": "",
-      "relative_position": {
-        "x": 0,
-        "y": 0,
-        "z": 0
-      },
-      "dimensions": {
-        "width": 40,
-        "depth": 28,
-        "height": 14
-      },
-      "features": [
-        "elliptical_footprint",
-        "stepped_seating"
-      ],
+      "relative_position": { "x": 0, "y": 0, "z": 0 },
+      "dimensions": { "width": 40, "depth": 28, "height": 14 },
+      "features": ["elliptical_footprint", "stepped_seating"],
       "params": {
         "anchor_mode": "center",
         "shape": "rounded_rect",
@@ -130,28 +91,12 @@
         "detail_level": "medium",
         "masses": [
           {
-            "offset": {
-              "x": 0,
-              "y": 0,
-              "z": 0
-            },
-            "dimensions": {
-              "width": 40,
-              "depth": 28,
-              "height": 8
-            }
+            "offset": { "x": 0, "y": 0, "z": 0 },
+            "dimensions": { "width": 40, "depth": 28, "height": 8 }
           },
           {
-            "offset": {
-              "x": 0,
-              "y": 8,
-              "z": 0
-            },
-            "dimensions": {
-              "width": 36,
-              "depth": 24,
-              "height": 6
-            }
+            "offset": { "x": 0, "y": 8, "z": 0 },
+            "dimensions": { "width": 36, "depth": 24, "height": 6 }
           }
         ]
       }
@@ -159,20 +104,9 @@
     {
       "component_type": "ROOF",
       "slot_id": "",
-      "relative_position": {
-        "x": -20,
-        "y": 14,
-        "z": -14
-      },
-      "dimensions": {
-        "width": 40,
-        "depth": 28,
-        "height": 2
-      },
-      "features": [
-        "curved_metal_roof",
-        "overhang"
-      ],
+      "relative_position": { "x": -20, "y": 14, "z": -14 },
+      "dimensions": { "width": 40, "depth": 28, "height": 2 },
+      "features": ["curved_metal_roof", "overhang"],
       "params": {
         "anchor_mode": "min_corner",
         "shape": "rounded_rect",
@@ -184,20 +118,9 @@
     {
       "component_type": "ENTRANCE",
       "slot_id": "",
-      "relative_position": {
-        "x": 18,
-        "y": 0,
-        "z": -3
-      },
-      "dimensions": {
-        "width": 6,
-        "depth": 4,
-        "height": 4
-      },
-      "features": [
-        "glass_doors",
-        "canopy"
-      ],
+      "relative_position": { "x": 18, "y": 0, "z": -3 },
+      "dimensions": { "width": 6, "depth": 4, "height": 4 },
+      "features": ["glass_doors", "canopy"],
       "params": {
         "anchor_mode": "min_corner",
         "detail_level": "medium",
@@ -208,20 +131,9 @@
     {
       "component_type": "ENTRANCE",
       "slot_id": "",
-      "relative_position": {
-        "x": -18,
-        "y": 0,
-        "z": -3
-      },
-      "dimensions": {
-        "width": 6,
-        "depth": 4,
-        "height": 4
-      },
-      "features": [
-        "glass_doors",
-        "canopy"
-      ],
+      "relative_position": { "x": -18, "y": 0, "z": -3 },
+      "dimensions": { "width": 6, "depth": 4, "height": 4 },
+      "features": ["glass_doors", "canopy"],
       "params": {
         "anchor_mode": "min_corner",
         "detail_level": "medium",
@@ -232,19 +144,9 @@
     {
       "component_type": "FACADE_WINDOWS",
       "slot_id": "",
-      "relative_position": {
-        "x": -20,
-        "y": 0,
-        "z": -14
-      },
-      "dimensions": {
-        "width": 40,
-        "depth": 28,
-        "height": 12
-      },
-      "features": [
-        "ribbed_glass_curtain_wall"
-      ],
+      "relative_position": { "x": -20, "y": 0, "z": -14 },
+      "dimensions": { "width": 40, "depth": 28, "height": 12 },
+      "features": ["ribbed_glass_curtain_wall"],
       "params": {
         "anchor_mode": "min_corner",
         "window_ratio": 0.5,
@@ -253,9 +155,5 @@
       }
     }
   ],
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

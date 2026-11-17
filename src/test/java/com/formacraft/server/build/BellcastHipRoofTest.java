@@ -131,7 +131,7 @@ class BellcastHipRoofTest {
         hostParams.put("plan_type","l_shape").put("l_cut",5).put("l_corner","NW");
         var roofParams=(com.fasterxml.jackson.databind.node.ObjectNode)document.at("/components/1/params");
         roofParams.put("roof_type","bellcast_hip").put("roof_height",13);
-        var patches=com.formacraft.server.compiler.ComponentPlanCompiler.compile(mapper.treeToValue(document,LlmPlan.class),
+        var patches=com.formacraft.server.compiler.ComponentPlanCompiler.compile(TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class)),
                 new net.minecraft.util.math.BlockPos(0,64,0),null,null,false);
         var roof=patches.stream().filter(p -> "minecraft:hay_block".equals(p.targetBlock())).toList();
         assertFalse(roof.stream().anyMatch(p -> p.dx()<5 && p.dz()<5));
@@ -145,7 +145,7 @@ class BellcastHipRoofTest {
         var document=mapper.readTree(java.nio.file.Path.of("python_backend/eval/fixtures/plans/p2_gambrel_13.json").toFile());
         var params=(com.fasterxml.jackson.databind.node.ObjectNode)document.at("/components/1/params");
         params.put("roof_type","钟形四坡顶").put("roof_height",13);
-        var plan=mapper.treeToValue(document,LlmPlan.class);
+        var plan=TransitionalSatellitePlans.ensureAllowIfAbsent(mapper.treeToValue(document, LlmPlan.class));
         var patches=com.formacraft.server.compiler.ComponentPlanCompiler.compile(plan,
                 new net.minecraft.util.math.BlockPos(0,64,0),null,null,false);
         var roof=patches.stream().filter(p -> "minecraft:hay_block".equals(p.targetBlock())).toList();

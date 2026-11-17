@@ -224,18 +224,72 @@ def _resolve_scoped_mass_targets(
     return []
 
 
+def _user_reqs(requirements: list, prop: str) -> list:
+    return [
+        r for r in requirements
+        if str(r.get("property") or "") == prop
+        and str(r.get("source") or "").lower() in ("user_explicit", "user", "player")
+        and r.get("value") is not None
+        and str(r.get("status") or "").lower() not in ("unresolved", "unsupported_scope")
+        and str(r.get("scope") or "").lower() != "unresolved"
+    ]
+
+
+def _targets_for_req(masses: list, req: dict) -> list:
+    targets = _resolve_scoped_mass_targets(
+        masses,
+        str(req.get("scope") or ""),
+        list(req.get("target_components") or []),
+    )
+    if not targets and len(masses) <= 1:
+        return list(masses)
+    return targets
+
+
+def _covers_all_masses(masses: list, targets: list) -> bool:
+    if not masses or not targets:
+        return False
+    if len(masses) == 1 and len(targets) == 1:
+        return True
+    ids = {_comp_id(m) for m in masses if _comp_id(m)}
+    hit = {_comp_id(t) for t in targets if _comp_id(t)}
+    return bool(ids) and ids <= hit
+
+
+def _record_scope_ambiguity(
+    plan: Dict[str, Any],
+    *,
+    code: str,
+    message: str,
+    detail: dict | None = None,
+) -> None:
+    """Surface unresolved local design binding without guessing mass ownership."""
+    meta = plan.get("plan_meta")
+    if not isinstance(meta, dict):
+        meta = {}
+        plan["plan_meta"] = meta
+    diags = meta.get("scope_diagnostics")
+    if not isinstance(diags, list):
+        diags = []
+        meta["scope_diagnostics"] = diags
+    entry: Dict[str, Any] = {"code": code, "message": message}
+    if detail:
+        entry["detail"] = detail
+    if entry not in diags:
+        diags.append(entry)
+
+
 def _stamp_roof_on_targets(
     plan: Dict[str, Any],
     components: list,
+    masses: list,
     targets: list,
     roof_type: str,
     *,
     allow_overwrite: bool,
 ) -> None:
+    """Apply roof_type only to targeted masses and ROOFs with an explicit host_id bind."""
     target_ids = {_comp_id(t) for t in targets if _comp_id(t)}
-    if not target_ids and len(targets) == 1:
-        # Mass without component_id — match by identity.
-        target_ids = set()
     for comp in components:
         if not isinstance(comp, dict):
             continue
@@ -256,17 +310,16 @@ def _stamp_roof_on_targets(
             _tag_param_source(params, "roof_type", "USER_EXPLICIT")
         elif ctype in ("ROOF", "ROOF_STRUCTURE"):
             host = str(params.get("host_id") or "").strip()
-            if host:
-                if host not in target_ids:
-                    continue
-            elif len(targets) != 1:
+            # Ambiguous unbound roofs must not be rewritten from a local mass constraint.
+            if not host or host not in target_ids:
                 continue
             current = str(params.get("roof_type") or "").strip().lower()
             if current and current != roof_type and not allow_overwrite:
                 continue
             params["roof_type"] = roof_type
             _tag_param_source(params, "roof_type", "USER_EXPLICIT")
-    if len(targets) == 1:
+    # Plan-level USER_EXPLICIT locks every mass in Java DesignProvenance — only when whole-plan.
+    if _covers_all_masses(masses, targets):
         _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
 
 
@@ -283,35 +336,40 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
 
     text = (user_text or "").strip()
     intent = extract_request_intent(text) if text else {}
-    forbids = {str(x).strip().lower() for x in (intent.get("forbids") or []) if x}
+    intent_forbids = {str(x).strip().lower() for x in (intent.get("forbids") or []) if x}
     requirements = extract_requirements(text) if text else []
-    for requirement in requirements:
-        prop = str(requirement.get("property") or "")
-        value = requirement.get("value")
-        source = str(requirement.get("source") or "").lower()
-        if source not in ("user_explicit", "user", "player"):
-            continue
-        if prop == "roof_type" and value == "none":
-            forbids.add("roof")
-        elif prop == "window_style" and value == "none":
-            forbids.add("windows")
-        elif prop == "entrance_type" and value == "none":
-            forbids.add("entrance")
-
     explicit_courtyard = _user_explicit_courtyard(text)
-    roof_reqs = [
-        r for r in requirements
-        if str(r.get("property") or "") == "roof_type"
-        and str(r.get("source") or "").lower() in ("user_explicit", "user", "player")
-        and r.get("value") is not None
-        and str(r.get("status") or "").lower() not in ("unresolved", "unsupported_scope")
-        and str(r.get("scope") or "").lower() != "unresolved"
+    roof_reqs = _user_reqs(requirements, "roof_type")
+    window_omit_reqs = [
+        r for r in _user_reqs(requirements, "window_style")
+        if str(r.get("value") or "").strip().lower() == "none"
+    ]
+    entrance_omit_reqs = [
+        r for r in _user_reqs(requirements, "entrance_type")
+        if str(r.get("value") or "").strip().lower() == "none"
+    ]
+    roof_omit_reqs = [
+        r for r in roof_reqs
+        if str(r.get("value") or "").strip().lower() == "none"
     ]
     fallback_roof = _resolve_user_explicit_roof(text)
     if fallback_roof == "none":
-        forbids.add("roof")
+        roof_omit_reqs = roof_omit_reqs or [
+            {"scope": "plan", "value": "none", "source": "user_explicit"}
+        ]
 
-    if not roof_reqs and not fallback_roof and not forbids and not explicit_courtyard:
+    # Intent-level forbids only apply when a single mass (or whole-plan) is unambiguous.
+    if "windows" in intent_forbids and not window_omit_reqs:
+        window_omit_reqs = [{"scope": "plan", "value": "none", "source": "user_explicit"}]
+    if "entrance" in intent_forbids and not entrance_omit_reqs:
+        entrance_omit_reqs = [{"scope": "plan", "value": "none", "source": "user_explicit"}]
+    if "roof" in intent_forbids and not roof_omit_reqs:
+        roof_omit_reqs = [{"scope": "plan", "value": "none", "source": "user_explicit"}]
+
+    if (
+        not roof_reqs and not fallback_roof and not roof_omit_reqs
+        and not window_omit_reqs and not entrance_omit_reqs and not explicit_courtyard
+    ):
         return plan
 
     components = plan.get("components")
@@ -319,35 +377,40 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         return plan
 
     masses = _mass_like_components(components)
-    omit_roof = "roof" in forbids or fallback_roof == "none"
-    omit_windows = "windows" in forbids
-    omit_entrance = "entrance" in forbids
 
-    # Plan-level OMITTED only when the omission safely covers the whole plan.
-    if omit_roof or omit_windows or omit_entrance:
-        if len(masses) <= 1:
-            design_req_updates: Dict[str, str] = {}
-            if omit_roof:
-                design_req_updates["roof"] = "OMITTED"
-            if omit_windows:
-                design_req_updates["facade"] = "OMITTED"
-            if omit_entrance:
-                design_req_updates["entrance"] = "OMITTED"
-            _merge_design_requirements(plan, design_req_updates)
+    roof_omit_targets: list = []
+    for req in roof_omit_reqs:
+        for t in _targets_for_req(masses, req):
+            if t not in roof_omit_targets:
+                roof_omit_targets.append(t)
+    window_omit_targets: list = []
+    for req in window_omit_reqs:
+        for t in _targets_for_req(masses, req):
+            if t not in window_omit_targets:
+                window_omit_targets.append(t)
+    entrance_omit_targets: list = []
+    for req in entrance_omit_reqs:
+        for t in _targets_for_req(masses, req):
+            if t not in entrance_omit_targets:
+                entrance_omit_targets.append(t)
 
-    # Resolve roof targets per scoped requirement; never paint every mass from one keyword.
+    # Plan-level OMITTED only when omission covers every mass.
+    design_req_updates: Dict[str, str] = {}
+    if roof_omit_targets and _covers_all_masses(masses, roof_omit_targets):
+        design_req_updates["roof"] = "OMITTED"
+    if window_omit_targets and _covers_all_masses(masses, window_omit_targets):
+        design_req_updates["facade"] = "OMITTED"
+    if entrance_omit_targets and _covers_all_masses(masses, entrance_omit_targets):
+        design_req_updates["entrance"] = "OMITTED"
+    _merge_design_requirements(plan, design_req_updates)
+
+    # Resolve roof type targets per scoped requirement; never paint every mass from one keyword.
     roof_targets: dict[str, list] = {}
     for req in roof_reqs:
         value = str(req.get("value") or "").strip().lower()
-        if not value:
+        if not value or value == "none":
             continue
-        targets = _resolve_scoped_mass_targets(
-            masses,
-            str(req.get("scope") or ""),
-            list(req.get("target_components") or []),
-        )
-        if not targets and len(masses) <= 1 and value:
-            targets = list(masses)
+        targets = _targets_for_req(masses, req)
         if targets:
             roof_targets.setdefault(value, [])
             for t in targets:
@@ -358,21 +421,28 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         if len(masses) <= 1:
             roof_targets[fallback_roof] = list(masses)
         else:
-            # Multi-mass + unscoped roof literal: only fill blank roofs; never overwrite AI conflicts.
-            fillable = [
-                m for m in masses
-                if not str((m.get("params") or {}).get("roof_type") or "").strip()
-            ]
-            if fillable:
-                roof_targets[fallback_roof] = fillable
+            # Multi-mass + unscoped single roof literal: do not paint every mass.
+            _record_scope_ambiguity(
+                plan,
+                code="E_ROOF_SCOPE_AMBIGUOUS",
+                message="unscoped roof constraint with multiple masses; left AI plan intact",
+            )
 
-    omit_masses = list(masses) if len(masses) <= 1 else []
-    if omit_roof and not omit_masses and roof_targets.get("none"):
-        omit_masses = list(roof_targets["none"])
-    elif omit_roof and not omit_masses and len(masses) <= 1:
-        omit_masses = list(masses)
+    # Scoped roof requirements that failed to resolve any host.
+    for req in roof_reqs:
+        value = str(req.get("value") or "").strip().lower()
+        if not value or value == "none":
+            continue
+        if _targets_for_req(masses, req):
+            continue
+        if len(masses) > 1:
+            _record_scope_ambiguity(
+                plan,
+                code="E_ROOF_HOST_UNRESOLVED",
+                message=f"roof_type={value} could not bind to a unique mass",
+                detail={"scope": req.get("scope"), "target_components": req.get("target_components")},
+            )
 
-    # Courtyard: never force every MASS when an adjacent courtyard is mentioned.
     courtyard_targets: list = []
     if explicit_courtyard:
         courtyard_comps = [
@@ -391,11 +461,13 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
             named = [m for m in masses if _looks_courtyard_named(m)]
             if len(named) == 1:
                 courtyard_targets = named
-            # else: adjacent/ambiguous — leave AI plan_type alone
 
-    omit_mass_ids = {_comp_id(m) for m in omit_masses if _comp_id(m)}
-    if omit_roof and len(masses) <= 1:
-        omit_mass_ids = {_comp_id(m) for m in masses if _comp_id(m)} or {""}
+    roof_omit_ids = {_comp_id(m) for m in roof_omit_targets if _comp_id(m)}
+    window_omit_ids = {_comp_id(m) for m in window_omit_targets if _comp_id(m)}
+    entrance_omit_ids = {_comp_id(m) for m in entrance_omit_targets if _comp_id(m)}
+    # Masses without component_id: match by identity via target list membership.
+    def _mass_in(targets: list, comp: dict) -> bool:
+        return any(comp is t or (_comp_id(comp) and _comp_id(comp) == _comp_id(t)) for t in targets)
 
     kept: list = []
     for comp in components:
@@ -410,47 +482,50 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         cid = _comp_id(comp)
 
         drop = False
-        if omit_roof and ctype in ("ROOF", "ROOF_STRUCTURE"):
-            if len(masses) <= 1 or (host and host in omit_mass_ids) or (not host and omit_mass_ids):
+        if ctype in ("ROOF", "ROOF_STRUCTURE") and roof_omit_targets:
+            if host and host in roof_omit_ids:
                 drop = True
-        if omit_windows and ctype in ("FACADE_WINDOWS", "FACADE"):
-            if len(masses) <= 1 or (host and host in omit_mass_ids) or (not host and omit_mass_ids):
+            elif not host and len(masses) <= 1 and roof_omit_targets:
                 drop = True
-        if omit_entrance and ctype == "ENTRANCE":
-            if len(masses) <= 1 or (host and host in omit_mass_ids) or (not host and omit_mass_ids):
+        if ctype in ("FACADE_WINDOWS", "FACADE") and window_omit_targets:
+            if host and host in window_omit_ids:
+                drop = True
+            elif not host and len(masses) <= 1 and window_omit_targets:
+                drop = True
+        if ctype == "ENTRANCE" and entrance_omit_targets:
+            if host and host in entrance_omit_ids:
+                drop = True
+            elif not host and len(masses) <= 1 and entrance_omit_targets:
                 drop = True
         if drop:
             continue
 
         if _is_mass_like(ctype):
-            if omit_windows and (len(masses) <= 1 or cid in omit_mass_ids):
+            if _mass_in(window_omit_targets, comp):
                 params["window_style"] = "none"
                 params["window_ratio"] = 0
                 _tag_param_source(params, "window_style", "USER_EXPLICIT")
                 _tag_param_source(params, "window_ratio", "USER_EXPLICIT")
-                if len(masses) <= 1:
+                if _covers_all_masses(masses, window_omit_targets):
                     _tag_plan_level_source(plan, "window_style", "USER_EXPLICIT")
-            if omit_entrance and (len(masses) <= 1 or cid in omit_mass_ids):
+            if _mass_in(entrance_omit_targets, comp):
                 params["entrance_type"] = "none"
                 _tag_param_source(params, "entrance_type", "USER_EXPLICIT")
-                if len(masses) <= 1:
+                if _covers_all_masses(masses, entrance_omit_targets):
                     _tag_plan_level_source(plan, "entrance_type", "USER_EXPLICIT")
-            if omit_roof and (len(masses) <= 1 or cid in omit_mass_ids):
+            if _mass_in(roof_omit_targets, comp):
                 params["roof_type"] = "none"
                 _tag_param_source(params, "roof_type", "USER_EXPLICIT")
-                if len(masses) <= 1:
+                if _covers_all_masses(masses, roof_omit_targets):
                     _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
-            if any(comp is t or cid == _comp_id(t) for t in courtyard_targets):
+            if _mass_in(courtyard_targets, comp):
                 params["plan_type"] = "courtyard"
                 _tag_param_source(params, "plan_type", "USER_EXPLICIT")
-                if len(courtyard_targets) == 1 and len(masses) <= 1:
+                if _covers_all_masses(masses, courtyard_targets):
                     _tag_plan_level_source(plan, "plan_type", "USER_EXPLICIT")
         kept.append(comp)
 
     for roof_type, targets in roof_targets.items():
-        if roof_type == "none":
-            continue
-        # Scoped contract requirements may overwrite; unscoped multi-mass fill only blanks.
         allow_overwrite = any(
             str(r.get("value") or "").lower() == roof_type
             and (
@@ -459,7 +534,9 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
             )
             for r in roof_reqs
         ) or len(masses) <= 1
-        _stamp_roof_on_targets(plan, kept, targets, roof_type, allow_overwrite=allow_overwrite)
+        _stamp_roof_on_targets(
+            plan, kept, masses, targets, roof_type, allow_overwrite=allow_overwrite
+        )
 
     plan["components"] = kept
     return plan

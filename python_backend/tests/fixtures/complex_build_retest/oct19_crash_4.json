@@ -1266,9 +1266,5 @@
   ],
   "description": "组合式克里姆林宫：红砖城墙+吞尾垛口围合，四角方塔与正面钟楼门塔，内部为白石大教堂（金洋葱顶）、高耸钟塔与带壁柱的宫殿体量，中央铺装广场与门至广场轴线路面。",
   "player_fidelity_notice_zh": "组合式生成「克里姆林宫」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

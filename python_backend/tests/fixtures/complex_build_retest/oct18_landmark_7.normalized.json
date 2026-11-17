@@ -714,8 +714,6 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "1.中式\n2.佛教石窟建筑；\n3.30米高度",
-    "building_class": "generic",
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
+    "building_class": "generic"
   }
 }

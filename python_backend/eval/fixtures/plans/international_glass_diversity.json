@@ -139,9 +139,5 @@
         "window_per_wall": 6
       }
     }
-  ],
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  ]
 }

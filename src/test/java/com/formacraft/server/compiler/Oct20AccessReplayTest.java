@@ -11,7 +11,7 @@ class Oct20AccessReplayTest {
     @BeforeAll static void setup() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     @TestFactory Stream<DynamicTest> loggedPlans() {
         return IntStream.of(1,2,3,5,6,7,8).mapToObj(i -> DynamicTest.dynamicTest("oct20 plan "+i, () -> {
-            var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct20_access_"+i+".normalized.json")));
+            var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct20_access_"+i+".normalized.json"))));
             var patches=ComponentPlanCompiler.compile(plan);
             assertFalse(patches.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
             assertFalse(AssemblyCompileDiagnostics.hasGap(),String.valueOf(AssemblyCompileDiagnostics.get()));
@@ -35,7 +35,7 @@ class Oct20AccessReplayTest {
     }
 
     @Test void descendingDescriptionKeepsLandingAtRaisedEnd() throws Exception {
-        var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct20_access_5.json")));
+        var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct20_access_5.json"))));
         var stair=plan.components().stream().filter(c->Boolean.TRUE.equals(c.params().get("exterior"))).findFirst().orElseThrow();
         var params=new java.util.HashMap<>(stair.params());
         params.put("from",stair.params().get("to"));

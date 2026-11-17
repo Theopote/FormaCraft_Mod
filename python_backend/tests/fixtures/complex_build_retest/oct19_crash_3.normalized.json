@@ -1376,8 +1376,6 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "生成卢浮宫",
-    "building_class": "generic",
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
+    "building_class": "generic"
   }
 }

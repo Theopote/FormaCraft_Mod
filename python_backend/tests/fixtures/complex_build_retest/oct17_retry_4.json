@@ -1179,9 +1179,5 @@
   ],
   "description": "四层现代阶梯住宅：25×19底层、每层5格层高，二三层各后退3格，四层为三层面积一半；形成三个带香槟金属栏杆的可使用屋顶露台，二层正面悬挑3格阳台，通透玻璃立面与平楼板衔接，室内直跑楼梯贯通全部楼层。",
   "player_fidelity_notice_zh": "组合式生成「筑应呈现明显的体块退台」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

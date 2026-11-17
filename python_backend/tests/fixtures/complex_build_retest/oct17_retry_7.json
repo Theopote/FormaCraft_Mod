@@ -996,9 +996,5 @@
       "req_width: expected 15, components ['inn_main']"
     ]
   },
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

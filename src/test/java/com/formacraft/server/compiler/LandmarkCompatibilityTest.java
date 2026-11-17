@@ -16,7 +16,7 @@ class LandmarkCompatibilityTest {
     @BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
 
     @Test void loggedTempleComposesInternalTrimBeforeComponentConflictValidation() throws Exception {
-        var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct18_landmark_4.normalized.json")));
+        var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct18_landmark_4.normalized.json"))));
         var owner=plan.components().getFirst();
         var structure=RadialTerraceHallBuilder.generate(owner.params(),BlockPos.ORIGIN,null,null);
         var patches=TypologyPatchBridge.toBlockPatches(structure,BlockPos.ORIGIN);
@@ -43,7 +43,7 @@ class LandmarkCompatibilityTest {
     }
 
     @Test void sphereIsVolumetricAndHollowRatherThanCircularExtrusion() throws Exception {
-        var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct18_landmark_6.normalized.json")));
+        var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct18_landmark_6.normalized.json"))));
         var c=plan.components().stream().filter(v->"op_sphere_lower".equals(v.params().get("component_id"))).findFirst().orElseThrow();
         var patches=new com.formacraft.common.generation.component.impl.MassMainGenerator().generate(
                 new com.formacraft.common.compiler.semantic.SemanticComponent(c.componentType(),null,c));

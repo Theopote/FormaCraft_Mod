@@ -826,9 +826,5 @@
     }
   ],
   "player_fidelity_notice_zh": "组合式生成「建造一栋约21×15格的三层山地\n旅馆，使用石砖底座、\n白色墙面和深色木屋顶。\n正面设置主入口，\n侧面设置从地面通向二层」（保真度：风格化，非精确复刻；建议补充参考资料以提高保真度）",
-  "kind": "llmplan",
-  "plan_meta": {
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
-  }
+  "kind": "llmplan"
 }

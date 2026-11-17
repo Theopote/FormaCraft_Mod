@@ -63,7 +63,9 @@ class ComplexBuildRetest {
                 "oct18_landmark_5.normalized", "oct18_landmark_6.normalized", "oct18_landmark_7.normalized",
                 "oct19_crash_1.normalized", "oct19_crash_2.normalized", "oct19_crash_3.normalized", "oct19_crash_4.normalized", "oct19_crash_5.normalized").map(n -> DynamicTest.dynamicTest("logged plan " + n, () -> {
             var json = Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/" + n + ".json"));
-            var plan = LlmPlanParser.parse(json);
+            // Load-time transitional stamp — do not mutate immutable raw LLM captures on disk.
+            var plan = com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(
+                    LlmPlanParser.parse(json));
             for (boolean postProcess : new boolean[]{false, true}) {
                 var output = postProcess ? ComponentPlanCompiler.compile(plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null)
                         : ComponentPlanCompiler.compile(plan);

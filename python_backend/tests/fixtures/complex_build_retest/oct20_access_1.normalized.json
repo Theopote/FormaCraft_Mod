@@ -1559,8 +1559,6 @@
       "scaffold_eligible": false
     },
     "request_intent_text": "建造一座五层退台式空中花园，\n底层约35×29格，\n总高约25格。每层逐渐缩小，\n四周保留可行走露台，\n设置花坛、树木和栏杆。\n主体使用砂岩与石砖，\n底层设置柱廊，\n各层通过内部楼梯连接。\n露台通向室内的位置需要开门，\n不能被墙封住。",
-    "building_class": "generic",
-    "allow_compiler_satellites": true,
-    "compiler_satellites_policy": "transitional_fixture"
+    "building_class": "generic"
   }
 }

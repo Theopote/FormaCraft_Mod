@@ -12,7 +12,7 @@ class Oct20RetryReplayTest {
     @BeforeAll static void setup() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     @TestFactory Stream<DynamicTest> actualPlans() {
         return IntStream.rangeClosed(2,8).mapToObj(i -> DynamicTest.dynamicTest("retry plan "+i, () -> {
-            var plan=LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct20_retry_"+i+".normalized.json")));
+            var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct20_retry_"+i+".normalized.json"))));
             var patches=ComponentPlanCompiler.compile(plan);
             assertFalse(patches.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
             assertFalse(AssemblyCompileDiagnostics.hasGap(),String.valueOf(AssemblyCompileDiagnostics.get()));
