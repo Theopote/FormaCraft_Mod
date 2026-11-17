@@ -693,6 +693,11 @@ def apply_stage_b_capability_repair(
             id_index[str(cid)] = c
 
     def _pick_host_remap(wanted: str) -> Optional[str]:
+        """Deterministic unique host repair only — never invent membership.
+
+        Classification: FORMAT_REPAIR when exact/unique; ambiguous → None so
+        evaluate_capability reports the unknown host (capability_gap / replan).
+        """
         key = str(wanted).strip().lower()
         if not key:
             return None
@@ -700,26 +705,30 @@ def apply_stage_b_capability_repair(
         for cid in id_index:
             if cid.lower() == key:
                 return cid
-        # Fuzzy: host name appears in component_id (courtyard → garden_courtyard).
+        # Fuzzy: host token appears in exactly one hostable component_id.
         fuzzy = [
             cid
             for cid, comp in id_index.items()
             if key in cid.lower()
             and str(comp.get("component_type") or "").upper() in hostable
         ]
-        if fuzzy:
-            return sorted(fuzzy, key=len)[0]
-        # Role fallback: courtyard-like hosts → first COURTYARD / PATH / MASS.
+        if len(fuzzy) == 1:
+            return fuzzy[0]
+        if len(fuzzy) > 1:
+            return None
+        # Courtyard-like names: only when a preferred type has a unique hostable id.
         if any(tok in key for tok in ("court", "yard", "庭", "院")):
-            for prefer in ("COURTYARD", "COURTYARD_SPACE", "PATH", "PLAZA", "MASS_MAIN", "MASS_ANCILLARY"):
-                for cid, comp in id_index.items():
-                    if str(comp.get("component_type") or "").upper() == prefer:
-                        return cid
-        # Last resort: any hostable mass.
-        for prefer in ("MASS_MAIN", "MASS_ANCILLARY", "GATE", "STRUCTURE"):
-            for cid, comp in id_index.items():
-                if str(comp.get("component_type") or "").upper() == prefer:
-                    return cid
+            for prefer in ("COURTYARD", "COURTYARD_SPACE", "PATH", "PLAZA"):
+                matches = [
+                    cid
+                    for cid, comp in id_index.items()
+                    if str(comp.get("component_type") or "").upper() == prefer
+                ]
+                if len(matches) == 1:
+                    return matches[0]
+                if len(matches) > 1:
+                    return None
+        # No "first MASS" last resort — multi-building plans must not re-parent satellites.
         return None
 
     for c in comps:
@@ -780,14 +789,29 @@ def apply_stage_b_capability_repair(
                         f"STRUCTURE {params.get('component_id') or ''}→MASS_SECONDARY (buttress/pier)"
                     )
 
-        # Roof alias normalization on mass and roof components.
+        # Roof alias / composite-form normalization on mass and roof components.
+        # double_eave_* → executable shape + double_eave/eave_tiers (Java RoofGenerator).
+        _COMPOSITE = {
+            "double_eave_xieshan": ("xieshan", True, 2),
+            "double_eave_hip": ("hip", True, 2),
+            "double_eave_xuanshan": ("xuanshan", True, 2),
+        }
         for key in ("roof_type", "roofType"):
             if key not in params or params[key] is None:
                 continue
             raw = str(params[key]).strip()
             if not raw:
                 continue
-            mapped = aliases.get(raw) or aliases.get(raw.lower())
+            lower = raw.lower()
+            if lower in _COMPOSITE:
+                shape, double_eave, tiers = _COMPOSITE[lower]
+                params[key] = shape
+                params["roof_type_mapped_from"] = raw
+                params["double_eave"] = double_eave
+                params["eave_tiers"] = tiers
+                repairs.append(f"roof_type {raw}→{shape}+double_eave")
+                continue
+            mapped = aliases.get(raw) or aliases.get(lower)
             if mapped and mapped != raw:
                 params[key] = mapped
                 params["roof_type_mapped_from"] = raw

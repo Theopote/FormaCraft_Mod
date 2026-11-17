@@ -35,6 +35,21 @@ class DesignRequirementAccessTest {
     }
 
     @Test
+    void localRoofOmitBeatsPlanLevelRequired() {
+        Component omitted = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("roof_type", "none", "roof_requirement", "OMITTED"));
+        Component kept = new Component("MASS_MAIN", "b", new Vec3i(20, 0, 0),
+                new Dimensions(10, 8, 6), List.of(), Map.of("roof_type", "flat"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false)
+                .components(List.of(omitted, kept))
+                .planMeta(Map.of("design_requirements", Map.of("roof", "REQUIRED")))
+                .build();
+        assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(plan, omitted));
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.roof(plan, kept));
+    }
+
+    @Test
     void circulationDefaultsToUnspecified() {
         LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of()).build();
         assertEquals(DesignRequirement.UNSPECIFIED, DesignRequirementAccess.circulation(plan));

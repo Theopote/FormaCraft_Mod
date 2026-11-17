@@ -19,47 +19,51 @@ public final class DesignRequirementAccess {
     public static final String CROWN = "crown";
     public static final String CIRCULATION = "circulation";
 
+    /**
+     * Priority: local USER_EXPLICIT omission / mass requirement → plan_meta → UNSPECIFIED.
+     * A plan-level REQUIRED must not override a mass that the player explicitly omitted.
+     */
     public static DesignRequirement facade(LlmPlan plan, Component mass) {
+        if (ExplicitDesignPolicy.windowsDisabled(mass)) {
+            return DesignRequirement.OMITTED;
+        }
+        DesignRequirement massReq = fromMassParam(mass, "facade_requirement", "window_requirement", "windows_requirement");
+        if (massReq != null) {
+            return massReq;
+        }
         DesignRequirement explicit = fromPlanMeta(plan, FACADE);
         if (explicit != null) {
             return explicit;
-        }
-        explicit = fromMassParam(mass, "facade_requirement", "window_requirement", "windows_requirement");
-        if (explicit != null) {
-            return explicit;
-        }
-        if (ExplicitDesignPolicy.windowsDisabled(mass)) {
-            return DesignRequirement.OMITTED;
         }
         return DesignRequirement.UNSPECIFIED;
     }
 
     public static DesignRequirement entrance(LlmPlan plan, Component mass) {
+        if (ExplicitDesignPolicy.entranceDisabled(mass)) {
+            return DesignRequirement.OMITTED;
+        }
+        DesignRequirement massReq = fromMassParam(mass, "entrance_requirement", "door_requirement");
+        if (massReq != null) {
+            return massReq;
+        }
         DesignRequirement explicit = fromPlanMeta(plan, ENTRANCE);
         if (explicit != null) {
             return explicit;
-        }
-        explicit = fromMassParam(mass, "entrance_requirement", "door_requirement");
-        if (explicit != null) {
-            return explicit;
-        }
-        if (ExplicitDesignPolicy.entranceDisabled(mass)) {
-            return DesignRequirement.OMITTED;
         }
         return DesignRequirement.UNSPECIFIED;
     }
 
     public static DesignRequirement roof(LlmPlan plan, Component mass) {
+        if (ExplicitDesignPolicy.roofDisabled(mass)) {
+            return DesignRequirement.OMITTED;
+        }
+        DesignRequirement massReq = fromMassParam(mass, "roof_requirement");
+        if (massReq != null) {
+            return massReq;
+        }
         DesignRequirement explicit = fromPlanMeta(plan, ROOF);
         if (explicit != null) {
             return explicit;
-        }
-        explicit = fromMassParam(mass, "roof_requirement");
-        if (explicit != null) {
-            return explicit;
-        }
-        if (ExplicitDesignPolicy.roofDisabled(mass)) {
-            return DesignRequirement.OMITTED;
         }
         return DesignRequirement.UNSPECIFIED;
     }

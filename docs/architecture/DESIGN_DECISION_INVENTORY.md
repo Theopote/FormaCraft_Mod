@@ -53,10 +53,14 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `llm_plan_system_prompt` category bullets | composition exemplars | **Fixed (2026-11-17 P1):** framed as NON-BINDING EXAMPLES, not routes |
 | `_infer_mass_height` | mass height | Protocol repair only |
 | `llm_plan_normalization` Chinese roof/courtyard | was DESIGN_OVERRIDE (`xieshan`→`xuanshan`, strip COURTYARD without user keywords) | **Fixed (2026-11-17):** preserve AI-planned values; empty roof only → `xuanshan` TECHNICAL_DEFAULT + `design_sources` |
-| `llm_plan_normalization` design_sources stamp | roof_type / plan_type provenance | **Extended (2026-11-17):** TECHNICAL_DEFAULT / AI_PLANNED; user-stated roof → USER_EXPLICIT. **Fixed (scope):** plan-level USER_EXPLICIT only when constraint covers all masses; local roofs/windows/entrances stamp component `design_sources` only |
+| `llm_plan_normalization` design_sources stamp | roof_type / plan_type provenance | **Extended (2026-11-17):** TECHNICAL_DEFAULT / AI_PLANNED; user-stated roof → USER_EXPLICIT. **Fixed (scope):** plan-level USER_EXPLICIT only when constraint covers all masses *and* application succeeded; local roofs/windows/entrances stamp component `design_sources` only |
 | `llm_plan_normalization._stamp_roof_on_targets` | ROOF rewrite without host_id | **Fixed:** requires `host_id` ∈ target mass ids; unbound ROOFs left intact + `plan_meta.scope_diagnostics` |
+| `llm_plan_normalization` allow_overwrite | `all_main_masses` / `plan` | **Fixed (2026-11-17):** explicit whole-compound scopes authorize overwrite of AI roofs (所有建筑都改成歇山顶) |
+| `llm_plan_normalization` / Stage-B | `double_eave_xieshan` | **Fixed:** maps to executable `xieshan` + `double_eave`/`eave_tiers` (not a fake RoofTypeCatalog token) |
+| `_pick_host_remap` last-resort MASS | unknown host_id | **Fixed:** removed first-MASS fallback; only exact/unique fuzzy/unique courtyard-type remaps |
+| `DesignRequirementAccess` priority | plan REQUIRED vs local omit | **Fixed:** mass `roof_type=none` / mass `*_requirement=OMITTED` beat plan_meta REQUIRED |
 | `building_contract` specialty roofs | classical 歇山/悬山/硬山/庑殿 | **Extended:** participate in ordinal `building_N` scopes (not only western specialty roofs) |
-| `TransitionalSatellitePlans` / migrate whitelist | historical satellite opt-in | **Fixed:** load-time inject only; migrate script denied for `complex_build_retest` / `llmplan_examples` / eval plans |
+| `TransitionalSatellitePlans` / migrate whitelist | historical satellite opt-in | **Fixed:** load-time inject only (test sources); migrate script denied for `complex_build_retest` / `llmplan_examples` / eval plans |
 | `llm_plan_normalization` explicit omissions | roof/windows/entrance none | **Extended (2026-11-17):** USER_EXPLICIT + design_requirements OMITTED; drop conflicting satellites |
 | `ComponentSatelliteInference.prepareComponents` | satellite autofill | **Verified (2026-11-17):** roof_type/window/entrance `none` blocks inference even when allow_compiler_satellites=true |
 | `llm_plan_normalization` courtyard literals | plan_type courtyard | **Fixed (2026-11-17):** single-mass or uniquely named courtyard target only; adjacent multi-mass 庭院 no longer forces every MASS |

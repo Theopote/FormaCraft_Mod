@@ -838,6 +838,200 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertNotIn("design_sources", r1["params"])
         self.assertNotIn("design_sources", r2["params"])
 
+    def test_all_main_masses_xieshan_overwrites_existing_ai_roofs(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 8},
+                    "features": [],
+                    "params": {
+                        "component_id": "main_house",
+                        "roof_type": "gable",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 8, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "roof_a", "host_id": "main_house", "roof_type": "gable"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 8, "height": 6},
+                    "features": [],
+                    "params": {
+                        "component_id": "annex",
+                        "roof_type": "flat",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 6, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 2},
+                    "features": [],
+                    "params": {"component_id": "roof_b", "host_id": "annex", "roof_type": "flat"},
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(copy.deepcopy(plan), "所有建筑都改成歇山顶。")
+        main = next(c for c in out["components"] if c["params"]["component_id"] == "main_house")
+        annex = next(c for c in out["components"] if c["params"]["component_id"] == "annex")
+        roof_a = next(c for c in out["components"] if c["params"]["component_id"] == "roof_a")
+        roof_b = next(c for c in out["components"] if c["params"]["component_id"] == "roof_b")
+        self.assertEqual("xieshan", main["params"]["roof_type"])
+        self.assertEqual("xieshan", annex["params"]["roof_type"])
+        self.assertEqual("xieshan", roof_a["params"]["roof_type"])
+        self.assertEqual("xieshan", roof_b["params"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", out["design_sources"]["roof_type"])
+        self.assertNotEqual("capability_gap", out.get("plan_status"))
+
+    def test_double_eave_xieshan_maps_to_executable_shape_and_eave_params(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+        from app.services.generation_capability import apply_stage_b_capability_repair
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 20, "depth": 14, "height": 10},
+                    "features": [],
+                    "params": {"component_id": "hall", "roof_type": "gable"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 10, "z": 0},
+                    "dimensions": {"width": 22, "depth": 16, "height": 5},
+                    "features": [],
+                    "params": {"component_id": "roof_hall", "host_id": "hall", "roof_type": "gable"},
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(copy.deepcopy(plan), "生成重檐歇山顶大殿")
+        hall = next(c for c in out["components"] if c["params"]["component_id"] == "hall")
+        roof = next(c for c in out["components"] if c["params"]["component_id"] == "roof_hall")
+        self.assertEqual("xieshan", hall["params"]["roof_type"])
+        self.assertTrue(hall["params"].get("double_eave"))
+        self.assertEqual(2, hall["params"].get("eave_tiers"))
+        self.assertEqual("xieshan", roof["params"]["roof_type"])
+        self.assertTrue(roof["params"].get("double_eave"))
+
+        composite = copy.deepcopy(plan)
+        composite["components"][0]["params"]["roof_type"] = "double_eave_xieshan"
+        composite["components"][1]["params"]["roof_type"] = "double_eave_xieshan"
+        repaired, errors = apply_stage_b_capability_repair(composite, "生成重檐歇山顶大殿")
+        self.assertFalse(any("unsupported roof_type" in e for e in errors))
+        self.assertEqual("xieshan", repaired["components"][0]["params"]["roof_type"])
+        self.assertTrue(repaired["components"][0]["params"].get("double_eave"))
+
+    def test_local_roof_omit_stamps_mass_requirement_against_plan_required(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "plan_meta": {"design_requirements": {"roof": "REQUIRED"}},
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 8},
+                    "features": [],
+                    "params": {"component_id": "mass_a", "requirement_scope": "building_1", "roof_type": "gable"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 8, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "roof_a", "host_id": "mass_a", "roof_type": "gable"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 8, "height": 6},
+                    "features": [],
+                    "params": {"component_id": "mass_b", "requirement_scope": "building_2", "roof_type": "flat"},
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(
+            copy.deepcopy(plan), "第一栋不要屋顶；第二栋使用平屋顶。"
+        )
+        a = next(c for c in out["components"] if c["params"]["component_id"] == "mass_a")
+        b = next(c for c in out["components"] if c["params"]["component_id"] == "mass_b")
+        self.assertEqual("none", a["params"]["roof_type"])
+        self.assertEqual("OMITTED", a["params"]["roof_requirement"])
+        self.assertEqual("REQUIRED", out["plan_meta"]["design_requirements"]["roof"])
+        self.assertEqual("flat", b["params"]["roof_type"])
+        self.assertFalse(any(c.get("params", {}).get("component_id") == "roof_a" for c in out["components"]))
+
+    def test_unknown_host_is_not_rewired_to_first_mass(self):
+        from app.services.generation_capability import apply_stage_b_capability_repair
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 8},
+                    "features": [],
+                    "params": {"component_id": "main_house"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 8, "height": 6},
+                    "features": [],
+                    "params": {"component_id": "annex"},
+                },
+                {
+                    "component_type": "ENTRANCE",
+                    "slot_id": "b",
+                    "relative_position": {"x": 24, "y": 0, "z": 7},
+                    "dimensions": {"width": 2, "depth": 1, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "door_annex", "host_id": "missing_annex_host"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 6, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 2},
+                    "features": [],
+                    "params": {"component_id": "roof_annex", "host_id": "ghost_wing", "roof_type": "flat"},
+                },
+            ],
+        }
+        repaired, errors = apply_stage_b_capability_repair(copy.deepcopy(plan), "两栋住宅")
+        door = next(c for c in repaired["components"] if c["params"]["component_id"] == "door_annex")
+        roof = next(c for c in repaired["components"] if c["params"]["component_id"] == "roof_annex")
+        self.assertEqual("missing_annex_host", door["params"]["host_id"])
+        self.assertEqual("ghost_wing", roof["params"]["host_id"])
+        self.assertNotEqual("main_house", door["params"]["host_id"])
+        self.assertTrue(any("host" in e.lower() for e in errors))
+
 
 if __name__ == "__main__":
     unittest.main()

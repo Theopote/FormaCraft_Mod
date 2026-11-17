@@ -279,6 +279,28 @@ def _record_scope_ambiguity(
         diags.append(entry)
 
 
+def _user_authorized_roof_overwrite(roof_reqs: list, roof_type: str, masses: list) -> bool:
+    """True when a USER_EXPLICIT requirement authorizes overwriting AI roofs for this type.
+
+    ``plan`` / ``all_main_masses`` are explicit whole-compound authorizations (e.g. 所有建筑
+    都改成歇山顶). Building-scoped ids and ``target_components`` are also authorized.
+    Empty / unresolved scopes are not.
+    """
+    if len(masses) <= 1:
+        return True
+    for req in roof_reqs:
+        if str(req.get("value") or "").strip().lower() != roof_type:
+            continue
+        if list(req.get("target_components") or []):
+            return True
+        scope = str(req.get("scope") or "").strip()
+        if scope in ("plan", "all_main_masses"):
+            return True
+        if scope and scope not in ("", "unresolved", "element_scope"):
+            return True
+    return False
+
+
 def _stamp_roof_on_targets(
     plan: Dict[str, Any],
     components: list,
@@ -287,9 +309,14 @@ def _stamp_roof_on_targets(
     roof_type: str,
     *,
     allow_overwrite: bool,
-) -> None:
-    """Apply roof_type only to targeted masses and ROOFs with an explicit host_id bind."""
+    roof_extras: dict | None = None,
+) -> bool:
+    """Apply roof_type only to targeted masses and ROOFs with an explicit host_id bind.
+
+    Returns True when every target mass now holds ``roof_type`` (plan-level lock safe).
+    """
     target_ids = {_comp_id(t) for t in targets if _comp_id(t)}
+    extras = {k: v for k, v in (roof_extras or {}).items() if v is not None}
     for comp in components:
         if not isinstance(comp, dict):
             continue
@@ -308,6 +335,9 @@ def _stamp_roof_on_targets(
                 continue
             params["roof_type"] = roof_type
             _tag_param_source(params, "roof_type", "USER_EXPLICIT")
+            for ek, ev in extras.items():
+                params[ek] = ev
+                _tag_param_source(params, ek, "USER_EXPLICIT")
         elif ctype in ("ROOF", "ROOF_STRUCTURE"):
             host = str(params.get("host_id") or "").strip()
             # Ambiguous unbound roofs must not be rewritten from a local mass constraint.
@@ -318,10 +348,24 @@ def _stamp_roof_on_targets(
                 continue
             params["roof_type"] = roof_type
             _tag_param_source(params, "roof_type", "USER_EXPLICIT")
-    # Plan-level USER_EXPLICIT locks every mass in Java DesignProvenance — only when whole-plan.
-    if _covers_all_masses(masses, targets):
+            for ek, ev in extras.items():
+                params[ek] = ev
+                _tag_param_source(params, ek, "USER_EXPLICIT")
+    applied_all = bool(targets) and all(
+        str((t.get("params") or {}).get("roof_type") or "").strip().lower() == roof_type
+        for t in targets
+        if isinstance(t, dict)
+    )
+    # Plan-level USER_EXPLICIT only after the constraint actually landed on every target.
+    if applied_all and _covers_all_masses(masses, targets):
         _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
-
+    elif _covers_all_masses(masses, targets) and not applied_all:
+        _record_scope_ambiguity(
+            plan,
+            code="E_ROOF_APPLY_INCOMPLETE",
+            message=f"roof_type={roof_type} authorized for all masses but could not overwrite existing AI roofs",
+        )
+    return applied_all
 
 def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) -> Dict[str, Any]:
     """Stamp USER_EXPLICIT provenance for player-stated design constraints and omissions.
@@ -504,17 +548,21 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
             if _mass_in(window_omit_targets, comp):
                 params["window_style"] = "none"
                 params["window_ratio"] = 0
+                params["facade_requirement"] = "OMITTED"
+                params["window_requirement"] = "OMITTED"
                 _tag_param_source(params, "window_style", "USER_EXPLICIT")
                 _tag_param_source(params, "window_ratio", "USER_EXPLICIT")
                 if _covers_all_masses(masses, window_omit_targets):
                     _tag_plan_level_source(plan, "window_style", "USER_EXPLICIT")
             if _mass_in(entrance_omit_targets, comp):
                 params["entrance_type"] = "none"
+                params["entrance_requirement"] = "OMITTED"
                 _tag_param_source(params, "entrance_type", "USER_EXPLICIT")
                 if _covers_all_masses(masses, entrance_omit_targets):
                     _tag_plan_level_source(plan, "entrance_type", "USER_EXPLICIT")
             if _mass_in(roof_omit_targets, comp):
                 params["roof_type"] = "none"
+                params["roof_requirement"] = "OMITTED"
                 _tag_param_source(params, "roof_type", "USER_EXPLICIT")
                 if _covers_all_masses(masses, roof_omit_targets):
                     _tag_plan_level_source(plan, "roof_type", "USER_EXPLICIT")
@@ -526,21 +574,74 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         kept.append(comp)
 
     for roof_type, targets in roof_targets.items():
-        allow_overwrite = any(
-            str(r.get("value") or "").lower() == roof_type
-            and (
-                list(r.get("target_components") or [])
-                or str(r.get("scope") or "") not in ("", "plan", "all_main_masses", "unresolved")
-            )
-            for r in roof_reqs
-        ) or len(masses) <= 1
+        executable, extras = _executable_roof_and_extras(roof_type)
+        allow_overwrite = _user_authorized_roof_overwrite(roof_reqs, roof_type, masses) or (
+            _user_authorized_roof_overwrite(roof_reqs, executable, masses)
+        )
         _stamp_roof_on_targets(
-            plan, kept, masses, targets, roof_type, allow_overwrite=allow_overwrite
+            plan,
+            kept,
+            masses,
+            targets,
+            executable,
+            allow_overwrite=allow_overwrite,
+            roof_extras=extras,
         )
 
     plan["components"] = kept
+    _promote_hard_scope_diagnostics(plan)
     return plan
 
+
+# Composite planner tokens → executable RoofTypeCatalog token + eave construction params.
+# Java executes double eaves via ``double_eave`` / ``eave_tiers``, not a fake roof_type.
+_COMPOSITE_ROOF_FORMS: Dict[str, tuple[str, Dict[str, Any]]] = {
+    "double_eave_xieshan": ("xieshan", {"double_eave": True, "eave_tiers": 2}),
+    "double_eave_hip": ("hip", {"double_eave": True, "eave_tiers": 2}),
+    "double_eave_xuanshan": ("xuanshan", {"double_eave": True, "eave_tiers": 2}),
+}
+
+
+def _executable_roof_and_extras(roof_type: str) -> tuple[str, Dict[str, Any]]:
+    key = str(roof_type or "").strip().lower()
+    if key in _COMPOSITE_ROOF_FORMS:
+        return _COMPOSITE_ROOF_FORMS[key]
+    return key, {}
+
+
+def _promote_hard_scope_diagnostics(plan: Dict[str, Any]) -> Dict[str, Any]:
+    """Unresolved hard scope diagnostics must block build — not only annotate plan_meta."""
+    if not isinstance(plan, dict):
+        return plan
+    if str(plan.get("plan_status") or "").lower() == "capability_gap" or plan.get("capability_gap"):
+        return plan
+    meta = plan.get("plan_meta")
+    if not isinstance(meta, dict):
+        return plan
+    diags = meta.get("scope_diagnostics")
+    if not isinstance(diags, list) or not diags:
+        return plan
+    # Annotate-only codes (e.g. unscoped multi-mass leave-AI-intact) must not block build.
+    _BLOCKING = {
+        "E_ROOF_APPLY_INCOMPLETE",
+        "E_ROOF_HOST_UNRESOLVED",
+        "E_HOST_UNRESOLVED",
+    }
+    hard = [
+        d for d in diags
+        if isinstance(d, dict) and str(d.get("code") or "") in _BLOCKING
+    ]
+    if not hard:
+        return plan
+    first = hard[0]
+    plan["plan_status"] = "capability_gap"
+    plan["capability_gap"] = {
+        "code": str(first.get("code") or "E_SCOPE_UNRESOLVED"),
+        "message": str(first.get("message") or "unresolved design scope constraint"),
+        "path": "plan_meta.scope_diagnostics",
+        "suggestions": [str(d.get("message") or d.get("code") or "") for d in hard[:8]],
+    }
+    return plan
 
 def _looks_like_min_corner_anchor(rp: Dict[str, int], dims: Dict[str, int]) -> bool:
     hx = max(1, dims.get("width", 1)) // 2
