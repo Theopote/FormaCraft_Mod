@@ -342,13 +342,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     hints = out.setdefault('proportion_hints', {})
     if not isinstance(hints, dict): hints = {}; out['proportion_hints'] = hints
     requirements = extract_requirements(text)
-    # Persist a copy without scope_source so historical golden contracts stay stable.
-    # Live extract_requirements() still exposes scope_source to design stamping.
-    persisted_requirements = []
-    for req in requirements:
-        item = deepcopy(req)
-        item.pop('scope_source', None)
-        persisted_requirements.append(item)
+    # Persist scope_source so downstream trust / scope audits can prove authorization.
+    persisted_requirements = [deepcopy(r) for r in requirements]
     contract = {'schema': SCHEMA, 'requirements': persisted_requirements, 'diagnostics': [], 'validation_stage': 'plan'}
     hints['building_contract'] = contract
     from .architecture_intent import describe_architecture

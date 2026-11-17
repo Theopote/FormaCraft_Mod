@@ -201,8 +201,9 @@ def _resolve_scoped_mass_targets(
     """Resolve which MASS components a user constraint may touch.
 
     ``all_main_masses`` / ``plan`` expand to every mass only when ``scope_source`` is an
-    explicit quantifier (or target_components uniquely identify hosts). Inferred defaults
-    and unresolved names return empty so AI authorship is preserved.
+    explicit quantifier (or target_components uniquely identify hosts). Inferred defaults,
+    unresolved names, and bare ``scope=plan`` without authorization return empty so
+    AI authorship on sibling masses is preserved.
     """
     if not masses:
         return []
@@ -224,30 +225,57 @@ def _resolve_scoped_mass_targets(
     if len(masses) <= 1:
         return list(masses)
     if scope_key in ("all_main_masses", "plan"):
-        # INFERRED must never upgrade to whole-compound overwrite.
-        if source in ("INFERRED",):
-            return []
-        if source in ("EXPLICIT_QUANTIFIER", "EXPLICIT", ""):
-            # Empty source: legacy crafted requirements without scope_source.
-            # Prefer EXPLICIT_QUANTIFIER from extract_requirements for natural language.
-            if source == "" and scope_key == "all_main_masses":
-                return list(masses)
-            if source in ("EXPLICIT_QUANTIFIER", "EXPLICIT"):
-                return list(masses)
-            if scope_key == "plan" and source == "":
-                return list(masses)
+        # Whole-compound overwrite requires an explicit quantifier / EXPLICIT stamp.
+        # Empty scope_source must NOT escalate intent-keyword forbids to every mass.
+        if source in ("EXPLICIT_QUANTIFIER", "EXPLICIT"):
+            return list(masses)
         return []
     return []
 
 
+def _strip_forged_user_explicit(plan: Dict[str, Any]) -> None:
+    """Demote LLM-declared USER_EXPLICIT before server re-stamps from player text.
+
+    Classification: FORMAT_REPAIR / trust boundary — does not invent geometry.
+    """
+    if not isinstance(plan, dict):
+        return
+    plan_sources = plan.get("design_sources")
+    if isinstance(plan_sources, dict):
+        for key, raw in list(plan_sources.items()):
+            if str(raw or "").strip().upper() in ("USER_EXPLICIT", "USER", "PLAYER"):
+                plan_sources[key] = "AI_PLANNED"
+    components = plan.get("components")
+    if not isinstance(components, list):
+        return
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        params = comp.get("params")
+        if not isinstance(params, dict):
+            continue
+        # Never trust client/LLM copies of Java verification markers.
+        params.pop("_server_verified_sources", None)
+        params.pop("_fc_constraint_seal", None)
+        sources = params.get("design_sources")
+        if not isinstance(sources, dict):
+            continue
+        for key, raw in list(sources.items()):
+            if str(raw or "").strip().upper() in ("USER_EXPLICIT", "USER", "PLAYER"):
+                sources[key] = "AI_PLANNED"
+
+
 def _user_reqs(requirements: list, prop: str) -> list:
+    """Keep unresolved *scopes* — binding/diagnostics happen in ``_targets_for_req``.
+
+    Drop only requirements whose *status* is unsupported/unresolved (no usable value).
+    """
     return [
         r for r in requirements
         if str(r.get("property") or "") == prop
         and str(r.get("source") or "").lower() in ("user_explicit", "user", "player")
         and r.get("value") is not None
         and str(r.get("status") or "").lower() not in ("unresolved", "unsupported_scope")
-        and str(r.get("scope") or "").lower() != "unresolved"
     ]
 
 
@@ -264,6 +292,58 @@ def _targets_for_req(masses: list, req: dict) -> list:
         if scope in ("", "unresolved", "plan", "all_main_masses"):
             return list(masses)
     return targets
+
+
+_PAVILION_HOST_HINTS = (
+    "pavilion", "gazebo", "ting", "kiosk", "凉亭", "亭子", "水上亭", "水榭", "八角亭", "六角亭", "方亭", "亭",
+)
+_HALL_HOST_HINTS = (
+    "hall", "house", "main", "殿", "堂", "住宅", "主殿", "正殿", "main_hall",
+)
+
+
+def _mass_name_blob(comp: dict) -> str:
+    params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+    parts = [
+        comp.get("component_type"),
+        comp.get("slot_id"),
+        params.get("component_id"),
+        params.get("building_role"),
+        params.get("buildingRole"),
+        params.get("label"),
+    ]
+    if isinstance(comp.get("features"), list):
+        parts.extend(comp.get("features") or [])
+    return " ".join(str(x or "").lower() for x in parts)
+
+
+def _infer_unique_named_roof_host(masses: list, req: dict, user_text: str = "") -> list:
+    """When scope is unresolved, bind to a unique mass whose id/features match nearby cues."""
+    if not masses or len(masses) <= 1:
+        return []
+    source_bits = req.get("source_text") or []
+    cue = " ".join(str(x or "") for x in source_bits).lower()
+    cue += " " + str(req.get("scope") or "").lower()
+    cue += " " + (user_text or "").lower()
+    want_pavilion = any(h in cue for h in _PAVILION_HOST_HINTS)
+    want_hall = any(h in cue for h in _HALL_HOST_HINTS)
+    if not want_pavilion and not want_hall:
+        return []
+    hits = []
+    for mass in masses:
+        blob = _mass_name_blob(mass)
+        if want_pavilion and any(h in blob for h in _PAVILION_HOST_HINTS):
+            hits.append(mass)
+        elif want_hall and any(h in blob for h in _HALL_HOST_HINTS):
+            hits.append(mass)
+    # Prefer pavilion hits when both cues appear (house + pavilion compounds).
+    if want_pavilion:
+        pavilion_hits = [
+            m for m in hits if any(h in _mass_name_blob(m) for h in _PAVILION_HOST_HINTS)
+        ]
+        if len(pavilion_hits) == 1:
+            return pavilion_hits
+    return hits if len(hits) == 1 else []
 
 
 def _covers_all_masses(masses: list, targets: list) -> bool:
@@ -457,6 +537,9 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
     from .request_intent import extract_request_intent
     from .building_contract import extract_requirements
 
+    # LLM may forge USER_EXPLICIT in JSON — demote before server re-stamps from player text.
+    _strip_forged_user_explicit(plan)
+
     text = (user_text or "").strip()
     intent = extract_request_intent(text) if text else {}
     intent_forbids = {str(x).strip().lower() for x in (intent.get("forbids") or []) if x}
@@ -476,24 +559,6 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         if str(r.get("value") or "").strip().lower() == "none"
     ]
     fallback_roof = _resolve_user_explicit_roof(text)
-    if fallback_roof == "none":
-        roof_omit_reqs = roof_omit_reqs or [
-            {"scope": "plan", "value": "none", "source": "user_explicit"}
-        ]
-
-    # Intent-level forbids only apply when a single mass (or whole-plan) is unambiguous.
-    if "windows" in intent_forbids and not window_omit_reqs:
-        window_omit_reqs = [{"scope": "plan", "value": "none", "source": "user_explicit"}]
-    if "entrance" in intent_forbids and not entrance_omit_reqs:
-        entrance_omit_reqs = [{"scope": "plan", "value": "none", "source": "user_explicit"}]
-    if "roof" in intent_forbids and not roof_omit_reqs:
-        roof_omit_reqs = [{"scope": "plan", "value": "none", "source": "user_explicit"}]
-
-    if (
-        not roof_reqs and not fallback_roof and not roof_omit_reqs
-        and not window_omit_reqs and not entrance_omit_reqs and not explicit_courtyard
-    ):
-        return plan
 
     components = plan.get("components")
     if not isinstance(components, list):
@@ -501,19 +566,77 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
 
     masses = _mass_like_components(components)
 
+    def _single_mass_plan_omit() -> dict:
+        return {
+            "scope": "plan",
+            "value": "none",
+            "source": "user_explicit",
+            "scope_source": "EXPLICIT_QUANTIFIER",
+        }
+
+    def _note_omit_ambiguous(kind: str) -> None:
+        _record_scope_ambiguity(
+            plan,
+            code="E_OMIT_SCOPE_AMBIGUOUS",
+            message=(
+                f"local {kind} omission could not bind to a unique mass; "
+                "refusing to delete that element on every building"
+            ),
+            detail={"mass_count": len(masses)},
+        )
+
+    # Intent-keyword / fallback "none" may apply only when a single mass is unambiguous.
+    # Multi-mass compounds must not escalate an unresolved local forbid into scope=plan.
+    if fallback_roof == "none" and not roof_omit_reqs:
+        if len(masses) <= 1:
+            roof_omit_reqs = [_single_mass_plan_omit()]
+        else:
+            _note_omit_ambiguous("roof")
+    if "windows" in intent_forbids and not window_omit_reqs:
+        if len(masses) <= 1:
+            window_omit_reqs = [_single_mass_plan_omit()]
+        else:
+            _note_omit_ambiguous("windows")
+    if "entrance" in intent_forbids and not entrance_omit_reqs:
+        if len(masses) <= 1:
+            entrance_omit_reqs = [_single_mass_plan_omit()]
+        else:
+            _note_omit_ambiguous("entrance")
+    if "roof" in intent_forbids and not roof_omit_reqs:
+        if len(masses) <= 1:
+            roof_omit_reqs = [_single_mass_plan_omit()]
+        else:
+            _note_omit_ambiguous("roof")
+
+    if (
+        not roof_reqs and not fallback_roof and not roof_omit_reqs
+        and not window_omit_reqs and not entrance_omit_reqs and not explicit_courtyard
+    ):
+        _promote_hard_scope_diagnostics(plan)
+        return plan
+
     roof_omit_targets: list = []
     for req in roof_omit_reqs:
-        for t in _targets_for_req(masses, req):
+        hits = _targets_for_req(masses, req)
+        if not hits and len(masses) > 1:
+            _note_omit_ambiguous("roof")
+        for t in hits:
             if t not in roof_omit_targets:
                 roof_omit_targets.append(t)
     window_omit_targets: list = []
     for req in window_omit_reqs:
-        for t in _targets_for_req(masses, req):
+        hits = _targets_for_req(masses, req)
+        if not hits and len(masses) > 1:
+            _note_omit_ambiguous("windows")
+        for t in hits:
             if t not in window_omit_targets:
                 window_omit_targets.append(t)
     entrance_omit_targets: list = []
     for req in entrance_omit_reqs:
-        for t in _targets_for_req(masses, req):
+        hits = _targets_for_req(masses, req)
+        if not hits and len(masses) > 1:
+            _note_omit_ambiguous("entrance")
+        for t in hits:
             if t not in entrance_omit_targets:
                 entrance_omit_targets.append(t)
 
@@ -534,6 +657,9 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         if not value or value == "none":
             continue
         targets = _targets_for_req(masses, req)
+        if not targets:
+            # Soft name bind: unique pavilion/hall cue from player text may identify one host.
+            targets = _infer_unique_named_roof_host(masses, req, user_text=text)
         if targets:
             roof_targets.setdefault(value, [])
             for t in targets:
@@ -544,19 +670,32 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         if len(masses) <= 1:
             roof_targets[fallback_roof] = list(masses)
         else:
-            # Multi-mass + unscoped single roof literal: do not paint every mass.
-            _record_scope_ambiguity(
-                plan,
-                code="E_ROOF_SCOPE_AMBIGUOUS",
-                message="unscoped roof constraint with multiple masses; left AI plan intact",
+            inferred = _infer_unique_named_roof_host(
+                masses, {"source_text": [fallback_roof], "scope": "unresolved"}, user_text=text
             )
+            if inferred:
+                roof_targets[fallback_roof] = inferred
+            else:
+                # Multi-mass + unscoped single roof literal: do not paint every mass.
+                _record_scope_ambiguity(
+                    plan,
+                    code="E_ROOF_SCOPE_AMBIGUOUS",
+                    message="unscoped roof constraint with multiple masses; left AI plan intact",
+                )
 
     # Scoped roof requirements that failed to resolve any host.
+    # Skip when AI already satisfies the value on exactly one mass (leave-intact is correct).
     for req in roof_reqs:
         value = str(req.get("value") or "").strip().lower()
         if not value or value == "none":
             continue
-        if _targets_for_req(masses, req):
+        if _targets_for_req(masses, req) or _infer_unique_named_roof_host(masses, req, user_text=text):
+            continue
+        already = [
+            m for m in masses
+            if str((m.get("params") or {}).get("roof_type") or "").strip().lower() == value
+        ]
+        if len(already) == 1:
             continue
         if len(masses) > 1:
             _record_scope_ambiguity(
@@ -657,6 +796,17 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         allow_overwrite = _user_authorized_roof_overwrite(roof_reqs, roof_type, masses) or (
             _user_authorized_roof_overwrite(roof_reqs, executable, masses)
         )
+        if (
+            not allow_overwrite
+            and targets
+            and not _covers_all_masses(masses, targets)
+        ):
+            # Unique named-host bind from an unresolved player roof req may overwrite that host only.
+            allow_overwrite = any(
+                str(r.get("value") or "").strip().lower() in (roof_type, executable)
+                and str(r.get("source") or "").lower() in ("user_explicit", "user", "player")
+                for r in roof_reqs
+            )
         _stamp_roof_on_targets(
             plan,
             kept,
@@ -700,11 +850,14 @@ def _promote_hard_scope_diagnostics(plan: Dict[str, Any]) -> Dict[str, Any]:
     diags = meta.get("scope_diagnostics")
     if not isinstance(diags, list) or not diags:
         return plan
-    # Annotate-only codes (e.g. unscoped multi-mass leave-AI-intact) must not block build.
+    # Player hard constraints that could not bind safely must block build.
+    # E_ROOF_SCOPE_AMBIGUOUS (unscoped multi-mass leave-AI-intact) stays annotate-only;
+    # named-host failures use E_ROOF_HOST_UNRESOLVED instead.
     _BLOCKING = {
         "E_ROOF_APPLY_INCOMPLETE",
         "E_ROOF_HOST_UNRESOLVED",
         "E_ROOF_COMPONENT_INCONSISTENT",
+        "E_OMIT_SCOPE_AMBIGUOUS",
         "E_HOST_UNRESOLVED",
     }
     hard = [

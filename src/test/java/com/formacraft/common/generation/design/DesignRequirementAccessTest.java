@@ -5,8 +5,10 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.common.typology.UserConstraintContract;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,12 +38,15 @@ class DesignRequirementAccessTest {
 
     @Test
     void localRoofOmitBeatsPlanLevelRequired() {
+        Map<String, Object> omittedParams = new HashMap<>();
+        omittedParams.put("component_id", "a");
+        omittedParams.put("roof_type", "none");
+        omittedParams.put("roof_requirement", "OMITTED");
+        omittedParams.put("design_sources", Map.of(
+                "roof_type", "USER_EXPLICIT", "roof_requirement", "USER_EXPLICIT"));
+        UserConstraintContract.stampVerified(omittedParams, "roof_type", "roof_requirement");
         Component omitted = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
-                new Dimensions(12, 10, 8), List.of(),
-                Map.of(
-                        "roof_type", "none",
-                        "roof_requirement", "OMITTED",
-                        "design_sources", Map.of("roof_type", "USER_EXPLICIT", "roof_requirement", "USER_EXPLICIT")));
+                new Dimensions(12, 10, 8), List.of(), omittedParams);
         Component kept = new Component("MASS_MAIN", "b", new Vec3i(20, 0, 0),
                 new Dimensions(10, 8, 6), List.of(), Map.of("roof_type", "flat"));
         LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false)
@@ -50,6 +55,48 @@ class DesignRequirementAccessTest {
                 .build();
         assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(plan, omitted));
         assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.roof(plan, kept));
+    }
+
+    @Test
+    void forgedUserExplicitDoesNotBeatPlanRequired() {
+        Component forged = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of(
+                        "component_id", "a",
+                        "roof_type", "none",
+                        "roof_requirement", "OMITTED",
+                        "design_sources", Map.of(
+                                "roof_type", "USER_EXPLICIT",
+                                "roof_requirement", "USER_EXPLICIT")));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false)
+                .components(List.of(forged))
+                .planMeta(Map.of("design_requirements", Map.of("roof", "REQUIRED")))
+                .build();
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.roof(plan, forged));
+    }
+
+    @Test
+    void aiLocalOptionalDoesNotBeatPlanRequired() {
+        Component soft = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "a", "roof_requirement", "OPTIONAL"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false)
+                .components(List.of(soft))
+                .planMeta(Map.of("design_requirements", Map.of("roof", "REQUIRED")))
+                .build();
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.roof(plan, soft));
+    }
+
+    @Test
+    void aiLocalRequiredDoesNotBeatPlanOmitted() {
+        Component aiRequired = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "a", "roof_requirement", "REQUIRED", "roof_type", "gable"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false)
+                .components(List.of(aiRequired))
+                .planMeta(Map.of("design_requirements", Map.of("roof", "OMITTED")))
+                .build();
+        assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(plan, aiRequired));
     }
 
     @Test

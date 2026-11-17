@@ -4,6 +4,7 @@ import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.style.ExplicitDesignPolicy;
+import com.formacraft.common.typology.UserConstraintContract;
 
 import java.util.List;
 import java.util.Locale;
@@ -21,8 +22,15 @@ public final class DesignRequirementAccess {
     public static final String CIRCULATION = "circulation";
 
     /**
-     * Priority: local USER_EXPLICIT omission → mass requirement → plan_meta → AI none → UNSPECIFIED.
-     * AI-authored {@code none} must not override a player plan-level REQUIRED.
+     * Priority (trusted provenance only elevates hard constraints):
+     * <ol>
+     *   <li>Server-verified local mass requirement (REQUIRED / OPTIONAL / OMITTED)</li>
+     *   <li>Plan-level {@code design_requirements}</li>
+     *   <li>Untrusted AI mass requirement (no plan conflict)</li>
+     *   <li>AI {@code none} / disabled param when no plan requirement → local OMITTED</li>
+     * </ol>
+     * Bare {@code design_sources=USER_EXPLICIT} from LLM JSON is ignored until
+     * {@link UserConstraintContract#stampVerified} seals the key.
      */
     public static DesignRequirement facade(LlmPlan plan, Component mass) {
         return resolveOmitAware(
@@ -154,7 +162,8 @@ public final class DesignRequirementAccess {
     }
 
     /**
-     * Resolve omit/required with provenance: only USER_EXPLICIT none/OMITTED beats plan REQUIRED.
+     * Resolve omit/required with unified provenance × value priority.
+     * Only {@link UserConstraintContract}-sealed keys beat plan-level requirements.
      */
     private static DesignRequirement resolveOmitAware(
             LlmPlan plan,
@@ -165,74 +174,50 @@ public final class DesignRequirementAccess {
             String... massRequirementKeys
     ) {
         DesignRequirement massReq = fromMassParam(mass, massRequirementKeys);
-        if (massReq == DesignRequirement.OMITTED && isUserExplicitOmit(mass, omitParamKeys, massRequirementKeys)) {
-            return DesignRequirement.OMITTED;
-        }
-        if (massReq != null && massReq != DesignRequirement.OMITTED) {
+        DesignRequirement planReq = fromPlanMeta(plan, planKey);
+        boolean trustedMassRequirement = isTrustedUserExplicit(mass, massRequirementKeys);
+        boolean trustedOmitParam = isTrustedUserExplicit(mass, omitParamKeys);
+
+        // 1. Server-verified local mass requirement (any of REQUIRED / OPTIONAL / OMITTED).
+        if (massReq != null && trustedMassRequirement) {
             return massReq;
         }
-        if (disabledByParam && isUserExplicitParam(mass, omitParamKeys)) {
+        // Trusted roof_type=none (etc.) without a separate requirement key.
+        if (disabledByParam && trustedOmitParam) {
             return DesignRequirement.OMITTED;
         }
-        DesignRequirement planReq = fromPlanMeta(plan, planKey);
+
+        // 2. Plan-level player / server design_requirements beat untrusted AI mass values.
         if (planReq != null) {
-            // Player REQUIRED/OPTIONAL/OMITTED at plan level beats AI-authored none.
             return planReq;
         }
-        if (massReq == DesignRequirement.OMITTED) {
-            return DesignRequirement.OMITTED;
+
+        // 3. Untrusted AI mass requirement when no plan conflict.
+        if (massReq != null) {
+            return massReq;
         }
+
+        // 4. AI-authored none / disabled with no plan requirement → local omit.
         if (disabledByParam) {
-            // AI planned none with no conflicting plan requirement — treat as local omit.
             return DesignRequirement.OMITTED;
         }
         return DesignRequirement.UNSPECIFIED;
     }
 
-    private static boolean isUserExplicitOmit(Component mass, String[] omitParamKeys, String... requirementKeys) {
-        if (isUserExplicitParam(mass, omitParamKeys)) {
-            return true;
-        }
-        if (mass == null || mass.params() == null) {
-            return false;
-        }
-        for (String key : requirementKeys) {
-            if (key != null && isUserExplicitParam(mass, key)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean isUserExplicitParam(Component mass, String... keys) {
+    /** True when at least one key carries a server-minted USER_EXPLICIT seal. */
+    static boolean isTrustedUserExplicit(Component mass, String... keys) {
         if (mass == null || mass.params() == null || keys == null) {
             return false;
         }
-        Object nested = mass.params().get("design_sources");
-        if (!(nested instanceof Map<?, ?> sources)) {
-            return false;
-        }
         for (String key : keys) {
-            if (key == null) {
+            if (key == null || key.isBlank()) {
                 continue;
             }
-            Object raw = sources.get(key);
-            if (raw == null) {
-                // Try canonical / camel aliases commonly used in plans.
-                for (String alias : DesignParameterRegistry.aliases(key)) {
-                    raw = sources.get(alias);
-                    if (raw != null) {
-                        break;
-                    }
-                }
-            }
-            DesignParamSource source = DesignParamSource.parse(raw == null ? null : String.valueOf(raw));
-            if (source == DesignParamSource.USER_EXPLICIT) {
+            if (UserConstraintContract.isServerVerified(mass.params(), key)) {
                 return true;
             }
-            if (raw != null) {
-                String t = String.valueOf(raw).trim().toUpperCase(Locale.ROOT);
-                if ("USER".equals(t) || "PLAYER".equals(t) || "USER_EXPLICIT".equals(t)) {
+            for (String alias : DesignParameterRegistry.aliases(key)) {
+                if (alias != null && UserConstraintContract.isServerVerified(mass.params(), alias)) {
                     return true;
                 }
             }

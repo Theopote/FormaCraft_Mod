@@ -262,8 +262,9 @@ final class PavilionOpenFrameRepair {
             return mass;
         }
         boolean onStilts = stiltHosts.contains(String.valueOf(mass.params().get("component_id")));
+        boolean authoredEnclosed = looksAuthoredEnclosed(mass);
         // English "pavilion" on a windowed flat-roof shell (midcentury etc.) is not 凉亭.
-        if (pavilionNamed && !hexagon && !looksOctagon(mass) && !onStilts
+        if (!authoredEnclosed && pavilionNamed && !hexagon && !looksOctagon(mass) && !onStilts
                 && looksEnclosedModernPavilion(mass)) {
             return mass;
         }
@@ -278,8 +279,12 @@ final class PavilionOpenFrameRepair {
 
         Map<String, Object> params = new HashMap<>(mass.params());
         boolean changed = false;
-        // Open-frame is for 亭/gazebo stilts only — never force open walls on a glass greenhouse.
-        boolean applyOpenFrame = pavilionNamed || onStilts;
+        // Open-frame requires explicit open design or traditional open-pavilion features —
+        // never component_id / bare building_role alone (DESIGN_OVERRIDE guard).
+        boolean openAuthorized = OpenFramePolicy.isOpen(params)
+                || looksPavilion(mass.features())
+                || galleryNamed;
+        boolean applyOpenFrame = openAuthorized && !looksAuthoredEnclosed(mass);
         if (applyOpenFrame) {
             params.put("open", true);
             params.put("wall_type", "none");
@@ -816,6 +821,45 @@ final class PavilionOpenFrameRepair {
         String slot = mass.slotId() == null ? "" : mass.slotId().toLowerCase(Locale.ROOT);
         // slotId=main only means primary carrier — not hall typology.
         return slot.contains("hall") || slot.contains("殿") || slot.contains("堂");
+    }
+
+    /**
+     * AI/player already planned an enclosed body (walls, windows, or entrance).
+     * Name tokens must not override that design into open-frame.
+     */
+    private static boolean looksAuthoredEnclosed(Component mass) {
+        if (mass == null || mass.params() == null) return false;
+        Map<String, Object> params = mass.params();
+        if (OpenFramePolicy.isOpen(params)) return false;
+        if (Boolean.FALSE.equals(params.get("open")) || Boolean.FALSE.equals(params.get("open_pavilion"))) {
+            return true;
+        }
+        Object wall = params.get("wall_style");
+        if (wall == null) wall = params.get("wall_type");
+        if (wall == null) wall = params.get("wallStyle");
+        if (wall == null) wall = params.get("wallType");
+        if (wall != null) {
+            String w = String.valueOf(wall).trim().toLowerCase(Locale.ROOT);
+            if (!w.isEmpty() && !"none".equals(w) && !"open".equals(w)) {
+                return true;
+            }
+        }
+        Object windowStyle = params.get("window_style");
+        if (windowStyle == null) windowStyle = params.get("windowStyle");
+        if (windowStyle != null && !"none".equalsIgnoreCase(String.valueOf(windowStyle).trim())) {
+            return true;
+        }
+        Object wr = params.get("window_ratio");
+        if (wr == null) wr = params.get("windowRatio");
+        if (wr instanceof Number n && n.doubleValue() > 0.0) {
+            return true;
+        }
+        Object entrance = params.get("entrance_type");
+        if (entrance == null) entrance = params.get("entranceType");
+        if (entrance != null && !"none".equalsIgnoreCase(String.valueOf(entrance).trim())) {
+            return true;
+        }
+        return looksEnclosedModernPavilion(mass);
     }
 
     /**

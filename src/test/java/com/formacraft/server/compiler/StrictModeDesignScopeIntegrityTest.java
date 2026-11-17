@@ -8,6 +8,7 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.typology.UserConstraintContract;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import org.junit.jupiter.api.AfterEach;
@@ -60,8 +61,30 @@ class StrictModeDesignScopeIntegrityTest {
 
     @Test
     void userExplicitRoofNoneBeatsPlanRequiredInStrictMode() {
-        Component mass = mass("open_court", Map.of(
-                "component_id", "open_court",
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "open_court");
+        params.put("roof_type", "none");
+        params.put("roof_requirement", "OMITTED");
+        params.put("design_sources", Map.of(
+                "roof_type", "USER_EXPLICIT",
+                "roof_requirement", "USER_EXPLICIT"));
+        UserConstraintContract.stampVerified(params, "roof_type", "roof_requirement");
+        Component mass = mass("open_court", params);
+        LlmPlan plan = strictPlan(List.of(mass), Map.of(
+                "roof", "REQUIRED",
+                "facade", "OMITTED",
+                "entrance", "OMITTED",
+                "crown", "OMITTED"));
+
+        assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(plan, mass));
+        assertTrue(CompilerSatellitePolicy.missingSatellitesGap(
+                plan, mass, true, true, false, false, true, false).isEmpty());
+    }
+
+    @Test
+    void forgedUserExplicitRoofNoneStillRequiresRoofUnderPlanRequired() {
+        Component mass = mass("forged", Map.of(
+                "component_id", "forged",
                 "roof_type", "none",
                 "roof_requirement", "OMITTED",
                 "design_sources", Map.of(
@@ -72,10 +95,61 @@ class StrictModeDesignScopeIntegrityTest {
                 "facade", "OMITTED",
                 "entrance", "OMITTED",
                 "crown", "OMITTED"));
-
-        assertEquals(DesignRequirement.OMITTED, DesignRequirementAccess.roof(plan, mass));
+        assertEquals(DesignRequirement.REQUIRED, DesignRequirementAccess.roof(plan, mass));
         assertTrue(CompilerSatellitePolicy.missingSatellitesGap(
-                plan, mass, true, true, false, false, true, false).isEmpty());
+                plan, mass, true, true, false, false, true, false).isPresent());
+    }
+
+    @Test
+    void enclosedGardenPavilionKeepsAuthoredOpeningsThroughOpenFrameRepair() {
+        // Real pavilion id + enclosed AI design: must not force open-frame / strip openings.
+        Component pavilion = mass("garden_pavilion", Map.of(
+                "component_id", "garden_pavilion",
+                "roof_type", "xieshan",
+                "wall_style", "solid",
+                "window_style", "regular",
+                "window_ratio", 0.25,
+                "entrance_type", "door",
+                "design_sources", Map.of(
+                        "roof_type", "AI_PLANNED",
+                        "window_style", "AI_PLANNED",
+                        "entrance_type", "AI_PLANNED",
+                        "wall_style", "AI_PLANNED")));
+        Component roof = roof("roof_pavilion", "garden_pavilion", "xieshan",
+                new Vec3i(0, 6, 0), new Dimensions(14, 12, 3));
+        Component facade = satellite("FACADE_WINDOWS", "facade_pavilion", "garden_pavilion",
+                new Vec3i(0, 1, 0), new Dimensions(12, 1, 4));
+        Component entrance = satellite("ENTRANCE", "door_pavilion", "garden_pavilion",
+                new Vec3i(5, 0, 10), new Dimensions(2, 1, 3));
+        LlmPlan plan = strictPlan(
+                List.of(pavilion, roof, facade, entrance),
+                Map.of(
+                        "roof", "REQUIRED",
+                        "facade", "REQUIRED",
+                        "entrance", "REQUIRED",
+                        "crown", "OMITTED"));
+
+        LlmPlan afterOpen = PavilionOpenFrameRepair.apply(plan);
+        Component body = afterOpen.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && "garden_pavilion".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertFalse(Boolean.TRUE.equals(body.params().get("open")),
+                "enclosed AI pavilion must not be forced open by id alone");
+        assertEquals("regular", String.valueOf(body.params().get("window_style")));
+        assertEquals("door", String.valueOf(body.params().get("entrance_type")));
+
+        LlmPlan afterConflict = ExplicitDesignConflictRepair.apply(afterOpen);
+        assertTrue(afterConflict.components().stream().anyMatch(c ->
+                c != null && "FACADE_WINDOWS".equalsIgnoreCase(c.componentType())));
+        assertTrue(afterConflict.components().stream().anyMatch(c ->
+                c != null && "ENTRANCE".equalsIgnoreCase(c.componentType())));
+
+        AssemblyCompileDiagnostics.clear();
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(afterConflict);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
     }
 
     @Test

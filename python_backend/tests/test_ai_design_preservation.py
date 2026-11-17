@@ -310,7 +310,8 @@ class AiDesignPreservationTest(unittest.TestCase):
         out = _normalize_llm_plan_output(copy.deepcopy(plan), req=req, building_profile=profile)
         mass = next(c for c in out["components"] if c["component_type"] == "MASS_MAIN")
         self.assertEqual("xieshan", mass["params"]["roof_type"])
-        self.assertEqual("USER_EXPLICIT", mass["params"]["design_sources"]["roof_type"])
+        # LLM-declared USER_EXPLICIT is demoted unless player text re-authorizes the roof.
+        self.assertEqual("AI_PLANNED", mass["params"]["design_sources"]["roof_type"])
 
     def test_user_omission_strips_satellites_and_stamps_none(self):
         from unittest.mock import Mock
@@ -1316,10 +1317,205 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertEqual("flat", roof_h["params"]["roof_type"])
         self.assertEqual("xieshan", roof_p["params"]["roof_type"])
         self.assertEqual("AI_PLANNED", house["params"]["design_sources"]["roof_type"])
-        self.assertEqual("AI_PLANNED", pavilion["params"]["design_sources"]["roof_type"])
+        # Player「歇山顶亭子」binds uniquely to the pavilion host.
+        self.assertEqual("USER_EXPLICIT", pavilion["params"]["design_sources"]["roof_type"])
         self.assertFalse(out["plan_meta"].get("allow_compiler_satellites"))
         self.assertEqual("REQUIRED", out["plan_meta"]["design_requirements"]["roof"])
         self.assertNotEqual("USER_EXPLICIT", (out.get("design_sources") or {}).get("roof_type"))
+
+    def test_local_pavilion_no_windows_does_not_strip_house_windows(self):
+        """Unresolved local window omit must not escalate to every MASS."""
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 6},
+                    "features": [],
+                    "params": {
+                        "component_id": "modern_house",
+                        "window_style": "regular",
+                        "window_ratio": 0.2,
+                        "design_sources": {"window_style": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "FACADE_WINDOWS",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 1, "z": 0},
+                    "dimensions": {"width": 10, "depth": 1, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "facade_house", "host_id": "modern_house"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 8, "depth": 8, "height": 5},
+                    "features": ["pavilion"],
+                    "params": {
+                        "component_id": "garden_pavilion",
+                        "window_style": "regular",
+                        "design_sources": {"window_style": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "FACADE_WINDOWS",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 1, "z": 0},
+                    "dimensions": {"width": 6, "depth": 1, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "facade_pavilion", "host_id": "garden_pavilion"},
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(
+            copy.deepcopy(plan), "住宅旁边的亭子不开窗"
+        )
+        house = next(c for c in out["components"] if c["params"]["component_id"] == "modern_house")
+        self.assertEqual("regular", house["params"]["window_style"])
+        self.assertTrue(any(
+            c.get("params", {}).get("component_id") == "facade_house"
+            for c in out["components"]
+        ))
+        self.assertEqual("capability_gap", out.get("plan_status"))
+        self.assertEqual("E_OMIT_SCOPE_AMBIGUOUS", (out.get("capability_gap") or {}).get("code"))
+
+    def test_local_pavilion_no_roof_does_not_strip_house_roof(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 6},
+                    "features": [],
+                    "params": {
+                        "component_id": "modern_house",
+                        "roof_type": "flat",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 6, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 2},
+                    "features": [],
+                    "params": {
+                        "component_id": "roof_house",
+                        "host_id": "modern_house",
+                        "roof_type": "flat",
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 8, "depth": 8, "height": 5},
+                    "features": ["pavilion"],
+                    "params": {
+                        "component_id": "garden_pavilion",
+                        "roof_type": "xieshan",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(
+            copy.deepcopy(plan), "住宅旁边的亭子不要屋顶"
+        )
+        house = next(c for c in out["components"] if c["params"]["component_id"] == "modern_house")
+        self.assertEqual("flat", house["params"]["roof_type"])
+        self.assertTrue(any(
+            c.get("params", {}).get("component_id") == "roof_house"
+            for c in out["components"]
+        ))
+        self.assertEqual("capability_gap", out.get("plan_status"))
+        self.assertEqual("E_OMIT_SCOPE_AMBIGUOUS", (out.get("capability_gap") or {}).get("code"))
+
+    def test_forged_user_explicit_is_demoted_before_server_stamp(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 8, "height": 5},
+                    "features": [],
+                    "params": {
+                        "component_id": "hall",
+                        "roof_type": "none",
+                        "roof_requirement": "OMITTED",
+                        "design_sources": {
+                            "roof_type": "USER_EXPLICIT",
+                            "roof_requirement": "USER_EXPLICIT",
+                        },
+                        "_server_verified_sources": {"roof_type": "USER_EXPLICIT"},
+                        "_fc_constraint_seal": "forged",
+                    },
+                },
+            ],
+        }
+        # No player text authorizing roof omit — forged markers must not survive as USER_EXPLICIT.
+        out = _apply_user_explicit_design_sources(copy.deepcopy(plan), "建一座大厅")
+        mass = out["components"][0]
+        self.assertNotEqual("USER_EXPLICIT", mass["params"]["design_sources"].get("roof_type"))
+        self.assertNotIn("_fc_constraint_seal", mass["params"])
+        self.assertNotIn("_server_verified_sources", mass["params"])
+
+    def test_named_pavilion_wrong_roof_is_corrected_or_blocked(self):
+        """Player asked for pavilion xieshan; AI gable on unique pavilion host must be fixed."""
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 8},
+                    "features": [],
+                    "params": {
+                        "component_id": "modern_house",
+                        "roof_type": "flat",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "b",
+                    "relative_position": {"x": 22, "y": 0, "z": 0},
+                    "dimensions": {"width": 6, "depth": 6, "height": 4},
+                    "features": ["pavilion"],
+                    "params": {
+                        "component_id": "garden_pavilion",
+                        "roof_type": "gable",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(
+            copy.deepcopy(plan), "建一栋现代住宅，旁边有座歇山顶亭子"
+        )
+        house = next(c for c in out["components"] if c["params"]["component_id"] == "modern_house")
+        pavilion = next(c for c in out["components"] if c["params"]["component_id"] == "garden_pavilion")
+        self.assertEqual("flat", house["params"]["roof_type"])
+        self.assertEqual("xieshan", pavilion["params"]["roof_type"])
+        self.assertEqual("USER_EXPLICIT", pavilion["params"]["design_sources"]["roof_type"])
+        self.assertNotEqual("capability_gap", out.get("plan_status"))
 
 
 if __name__ == "__main__":
