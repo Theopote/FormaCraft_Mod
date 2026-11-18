@@ -154,7 +154,8 @@ public final class RequestIntentInjector {
         String primary = BuildingHostResolver.primaryMassId(plan, plan.components());
         List<Component> hosts = new ArrayList<>();
         for (Component c : plan.components()) {
-            if (BuildingHostResolver.isHostMass(c)) hosts.add(c);
+            // Design seals only on building-level masses — never STRUCTURE stairs / GATE_STRUCTURE.
+            if (BuildingHostResolver.isDesignConstraintHost(c)) hosts.add(c);
         }
         boolean multi = hosts.size() > 1;
         HeightBindResult heightResult = resolveHeightBindings(hosts, primary, multi, bindings);
@@ -282,9 +283,21 @@ public final class RequestIntentInjector {
             String hint = b.roleHint();
             Set<String> javaTargets = new LinkedHashSet<>();
             boolean ambiguous = false;
-            if (!multi || hosts.size() == 1) {
-                String one = primary != null ? primary : BuildingHostResolver.massId(hosts.getFirst());
-                if (one != null) javaTargets.add(one);
+            boolean scopedIdentity = hint != null && !hint.isBlank();
+            // Unscoped omit may bind the sole building body; named/ordinal/multi always verify identity.
+            if (!scopedIdentity) {
+                if (!multi || hosts.size() == 1) {
+                    String one = primary != null ? primary : BuildingHostResolver.massId(hosts.getFirst());
+                    if (one != null) javaTargets.add(one);
+                } else {
+                    ambiguous = true;
+                    gap = true;
+                    diagnostics.add(Map.of(
+                            "code", "E_OMIT_HOST_UNSCOPED",
+                            "domain", b.domain(),
+                            "sourceText", b.sourceText() == null ? "" : b.sourceText(),
+                            "message", "multi-mass omit without role/ordinal/quantifier scope"));
+                }
             } else if ("all_main_masses".equals(hint)) {
                 for (Component host : hosts) {
                     String mid = BuildingHostResolver.massId(host);
@@ -315,13 +328,14 @@ public final class RequestIntentInjector {
                         if (id == null) {
                             ambiguous = true;
                             gap = true;
-                            diagnostics.add(Map.of(
-                                    "code", "E_OMIT_HOST_TIE",
-                                    "domain", b.domain(),
-                                    "roleHint", "multi_named",
-                                    "namedKey", key,
-                                    "sourceText", b.sourceText() == null ? "" : b.sourceText(),
-                                    "message", "multi_named omit subject is not unique"));
+                            Map<String, Object> detail = new HashMap<>();
+                            detail.put("code", "E_OMIT_HOST_TIE");
+                            detail.put("domain", b.domain());
+                            detail.put("roleHint", "multi_named");
+                            detail.put("namedKey", key);
+                            detail.put("sourceText", b.sourceText() == null ? "" : b.sourceText());
+                            detail.put("message", "multi_named omit subject missing or not unique");
+                            diagnostics.add(detail);
                             javaTargets.clear();
                             break;
                         }
@@ -333,7 +347,7 @@ public final class RequestIntentInjector {
                         javaTargets.clear();
                     }
                 }
-            } else if (hint != null && hint.startsWith("building_")) {
+            } else if (hint.startsWith("building_")) {
                 String javaTarget = resolveOrdinalOmitHost(hosts, primary, hint);
                 if (javaTarget == null) {
                     ambiguous = true;
@@ -346,8 +360,15 @@ public final class RequestIntentInjector {
                 } else {
                     javaTargets.add(javaTarget);
                 }
-            } else if (hint != null && !hint.isBlank()) {
-                String javaTarget = uniqueRoleHostId(hosts, hint);
+            } else {
+                // Prefer exact named-key identity (office/workshop/boiler); fall back to role score.
+                String javaTarget = uniqueNamedKeyHostId(hosts, hint);
+                if (javaTarget == null) {
+                    javaTarget = uniqueRoleHostId(hosts, hint);
+                }
+                if (javaTarget == null && b.namedKeys() != null && b.namedKeys().size() == 1) {
+                    javaTarget = uniqueNamedKeyHostId(hosts, b.namedKeys().getFirst());
+                }
                 if (javaTarget == null) {
                     ambiguous = true;
                     gap = true;
@@ -356,27 +377,28 @@ public final class RequestIntentInjector {
                             "domain", b.domain(),
                             "roleHint", hint,
                             "sourceText", b.sourceText() == null ? "" : b.sourceText(),
-                            "message", "omit host role score is not unique"));
+                            "message", "omit host role score is not unique or missing"));
                 } else {
                     javaTargets.add(javaTarget);
                 }
-            } else {
-                ambiguous = true;
-                gap = true;
-                diagnostics.add(Map.of(
-                        "code", "E_OMIT_HOST_UNSCOPED",
-                        "domain", b.domain(),
-                        "sourceText", b.sourceText() == null ? "" : b.sourceText(),
-                        "message", "multi-mass omit without role/ordinal/quantifier scope"));
             }
             // Text ambiguity: never stamp and never accept plan-supplied target_components.
             if (ambiguous) {
                 continue;
             }
-            Set<String> pythonTargets = pythonOmitTargetsForDeclaration(plan, b);
+            PythonOmitLookup pyLookup = pythonOmitTargetsForDeclaration(plan, b);
             Set<String> targets = javaTargets;
-            if (!pythonTargets.isEmpty()) {
-                if (pythonTargets.equals(javaTargets)) {
+            if (pyLookup.contractPresent() && pyLookup.unresolvedDeclaration()) {
+                targets = Set.of();
+                gap = true;
+                Map<String, Object> detail = new HashMap<>();
+                detail.put("code", "E_OMIT_PYTHON_TARGET_UNVERIFIED");
+                detail.put("domain", b.domain());
+                detail.put("sourceText", b.sourceText() == null ? "" : b.sourceText());
+                detail.put("message", "building_contract present but omit declaration could not be matched");
+                diagnostics.add(detail);
+            } else if (!pyLookup.targets().isEmpty()) {
+                if (pyLookup.targets().equals(javaTargets)) {
                     targets = javaTargets;
                 } else {
                     targets = Set.of();
@@ -385,7 +407,7 @@ public final class RequestIntentInjector {
                     detail.put("code", "E_OMIT_HOST_MISMATCH");
                     detail.put("domain", b.domain());
                     detail.put("sourceText", b.sourceText() == null ? "" : b.sourceText());
-                    detail.put("pythonTargets", List.copyOf(pythonTargets));
+                    detail.put("pythonTargets", List.copyOf(pyLookup.targets()));
                     detail.put("javaTargets", List.copyOf(javaTargets));
                     detail.put("message", "python and java omit hosts disagree for this declaration");
                     diagnostics.add(detail);
@@ -399,37 +421,51 @@ public final class RequestIntentInjector {
         return new OmitBindResult(out, diagnostics, gap);
     }
 
-    /** Resolve a Python/Java named building key to a unique host id. */
+    /**
+     * Resolve a named building key to a unique host via identity aliases — never hall-fallback for office/keep.
+     */
     private static String uniqueNamedKeyHostId(List<Component> hosts, String namedKey) {
         if (namedKey == null || namedKey.isBlank()) return null;
-        String role = switch (namedKey.trim().toLowerCase(Locale.ROOT)) {
-            case "main_hall", "main_body", "keep", "residence", "office" -> "hall";
-            case "pavilion", "wing" -> "pavilion";
-            case "tower" -> "tower";
-            default -> null;
-        };
-        if (role != null) {
-            String byRole = uniqueRoleHostId(hosts, role);
-            if (byRole != null) return byRole;
-        }
         String key = namedKey.trim().toLowerCase(Locale.ROOT);
+        List<String> aliases = com.formacraft.common.typology.UserConstraintContract.aliasesForNamedKey(key);
         List<String> hits = new ArrayList<>();
         for (Component host : hosts) {
             String mid = BuildingHostResolver.massId(host);
             if (mid == null) continue;
-            String blob = (mid + " " + (host.slotId() == null ? "" : host.slotId())).toLowerCase(Locale.ROOT);
-            if (host.params() != null) {
-                for (String k : List.of("component_id", "building_id", "building_role", "buildingRole")) {
-                    Object v = host.params().get(k);
-                    if (v != null) blob += " " + v;
+            String blob = hostIdentityBlob(host);
+            boolean matched = mid.equalsIgnoreCase(key);
+            if (!matched) {
+                for (String alias : aliases) {
+                    if (alias != null && !alias.isBlank() && blob.contains(alias.toLowerCase(Locale.ROOT))) {
+                        matched = true;
+                        break;
+                    }
                 }
             }
-            blob = blob.toLowerCase(Locale.ROOT);
-            if (mid.equalsIgnoreCase(namedKey) || blob.contains(key)) {
-                hits.add(mid);
-            }
+            if (matched) hits.add(mid);
         }
         return hits.size() == 1 ? hits.getFirst() : null;
+    }
+
+    private static String hostIdentityBlob(Component host) {
+        StringBuilder sb = new StringBuilder();
+        String mid = BuildingHostResolver.massId(host);
+        if (mid != null) sb.append(mid).append(' ');
+        if (host.slotId() != null) sb.append(host.slotId()).append(' ');
+        if (host.params() != null) {
+            for (String k : List.of(
+                    "component_id", "building_id", "requirement_scope",
+                    "building_role", "buildingRole", "role", "part", "label")) {
+                Object v = host.params().get(k);
+                if (v != null) sb.append(v).append(' ');
+            }
+        }
+        if (host.features() != null) {
+            for (String f : host.features()) {
+                if (f != null) sb.append(f).append(' ');
+            }
+        }
+        return sb.toString().toLowerCase(Locale.ROOT);
     }
 
     /** Unique role-score winner; ties return null (order must not decide). */
@@ -451,39 +487,53 @@ public final class RequestIntentInjector {
         return BuildingHostResolver.massId(best);
     }
 
+    private record PythonOmitLookup(
+            boolean contractPresent,
+            boolean unresolvedDeclaration,
+            Set<String> targets
+    ) {
+        static PythonOmitLookup absent() {
+            return new PythonOmitLookup(false, false, Set.of());
+        }
+    }
+
     /**
      * Targets for the same player omit declaration as {@code binding} (by source span / scope / role).
-     * Never aggregates every roof/window omit in the plan — that false-conflicts multi-declaration texts.
-     * Classification: HARD_CONSTRAINT cross-check only; cannot authorize seals by itself.
+     * Distinguishes "no building_contract" from "contract present but declaration match failed".
      */
     @SuppressWarnings("unchecked")
-    private static Set<String> pythonOmitTargetsForDeclaration(
+    private static PythonOmitLookup pythonOmitTargetsForDeclaration(
             LlmPlan plan,
             com.formacraft.common.typology.UserConstraintContract.DesignOmitBinding binding
     ) {
         Set<String> out = new HashSet<>();
-        if (plan == null || binding == null || binding.domain() == null) return out;
+        if (plan == null || binding == null || binding.domain() == null) return PythonOmitLookup.absent();
         String prop = switch (binding.domain()) {
             case "roof" -> "roof_type";
             case "window" -> "window_style";
             case "entrance" -> "entrance_type";
             default -> "";
         };
-        if (prop.isEmpty()) return out;
+        if (prop.isEmpty()) return PythonOmitLookup.absent();
         String sourceText = binding.sourceText() == null ? "" : binding.sourceText().trim();
         String hint = binding.roleHint();
         Object hints = plan.proportionHints();
-        if (!(hints instanceof Map<?, ?> hintMap)) return out;
+        if (!(hints instanceof Map<?, ?> hintMap)) return PythonOmitLookup.absent();
         Object contract = hintMap.get("building_contract");
-        if (!(contract instanceof Map<?, ?> cMap)) return out;
+        if (!(contract instanceof Map<?, ?> cMap)) return PythonOmitLookup.absent();
         Object reqs = cMap.get("requirements");
-        if (!(reqs instanceof List<?> list)) return out;
+        if (!(reqs instanceof List<?> list)) {
+            return new PythonOmitLookup(true, true, Set.of());
+        }
+        boolean sawOmitReq = false;
         Map<?, ?> best = null;
         int bestScore = 0;
+        boolean tie = false;
         for (Object raw : list) {
             if (!(raw instanceof Map<?, ?> req)) continue;
             if (!prop.equals(String.valueOf(req.get("property")))) continue;
             if (!"none".equalsIgnoreCase(String.valueOf(req.get("value")))) continue;
+            sawOmitReq = true;
             int score = 0;
             Object st = req.get("source_text");
             if (st instanceof List<?> texts && !sourceText.isEmpty()) {
@@ -512,11 +562,19 @@ public final class RequestIntentInjector {
             if (score > bestScore) {
                 bestScore = score;
                 best = req;
+                tie = false;
             } else if (score > 0 && score == bestScore) {
-                best = null; // ambiguous declaration match — do not guess
+                best = null;
+                tie = true;
             }
         }
-        if (best == null || bestScore <= 0) return out;
+        if (!sawOmitReq) {
+            // Contract exists but has no omit rows for this domain — treat as absent cross-check.
+            return new PythonOmitLookup(true, false, Set.of());
+        }
+        if (best == null || bestScore <= 0 || tie) {
+            return new PythonOmitLookup(true, true, Set.of());
+        }
         Object targets = best.get("target_components");
         if (targets instanceof List<?> ids) {
             for (Object id : ids) {
@@ -525,7 +583,11 @@ public final class RequestIntentInjector {
                 }
             }
         }
-        return out;
+        // Matched declaration but empty targets still counts as unresolved when contract had the omit.
+        if (out.isEmpty()) {
+            return new PythonOmitLookup(true, true, Set.of());
+        }
+        return new PythonOmitLookup(true, false, out);
     }
 
     /** Map Java omit role hints onto Python named_/building_ scopes for per-declaration match. */
@@ -543,7 +605,7 @@ public final class RequestIntentInjector {
             case "tower" -> s.contains("tower") || s.contains("pagoda") || s.contains("塔");
             case "all_main_masses" -> s.equals("all_main_masses") || s.equals("plan");
             case "multi_named" -> s.equals("multi_named");
-            default -> false;
+            default -> s.equals("named_" + r) || s.equals(r) || s.endsWith("_" + r);
         };
     }
 
@@ -609,40 +671,42 @@ public final class RequestIntentInjector {
         if (bindings == null || bindings.isEmpty() || hosts == null || hosts.isEmpty()) {
             return new HeightBindResult(out, diagnostics, false);
         }
-        if (!multi || hosts.size() == 1) {
-            String target = primary;
-            if (target == null || target.isBlank()) {
-                target = BuildingHostResolver.massId(hosts.getFirst());
-            }
-            if (target != null) {
-                out.put(target, bindings.getFirst().blocks());
-            }
-            return new HeightBindResult(out, diagnostics, false);
-        }
         for (var b : bindings) {
             if (b == null || b.blocks() <= 0) continue;
             String hint = b.roleHint();
             String target = null;
             if (hint == null || hint.isBlank()) {
-                gap = true;
-                diagnostics.add(Map.of(
-                        "code", "E_HEIGHT_HOST_UNSCOPED",
-                        "blocks", b.blocks(),
-                        "message", "multi-mass height cue without role/ordinal scope"));
-                continue;
-            }
-            if (hint.startsWith("building_")) {
+                // Unscoped height: sole building body only — never invent ownership across masses.
+                if (!multi || hosts.size() == 1) {
+                    target = primary;
+                    if (target == null || target.isBlank()) {
+                        target = BuildingHostResolver.massId(hosts.getFirst());
+                    }
+                } else {
+                    gap = true;
+                    diagnostics.add(Map.of(
+                            "code", "E_HEIGHT_HOST_UNSCOPED",
+                            "blocks", b.blocks(),
+                            "message", "multi-mass height cue without role/ordinal scope"));
+                    continue;
+                }
+            } else if (hint.startsWith("building_")) {
                 target = resolveOrdinalOmitHost(hosts, primary, hint);
             } else {
-                target = uniqueRoleHostId(hosts, hint);
+                // Named identity / role must verify even when only one host is present.
+                target = uniqueNamedKeyHostId(hosts, hint);
+                if (target == null) {
+                    target = uniqueRoleHostId(hosts, hint);
+                }
             }
             if (target == null) {
                 gap = true;
-                diagnostics.add(Map.of(
-                        "code", "E_HEIGHT_HOST_TIE",
-                        "blocks", b.blocks(),
-                        "roleHint", hint,
-                        "message", "height host role score is not unique"));
+                Map<String, Object> detail = new HashMap<>();
+                detail.put("code", "E_HEIGHT_HOST_TIE");
+                detail.put("blocks", b.blocks());
+                detail.put("roleHint", hint == null ? "" : hint);
+                detail.put("message", "height host role score is not unique or missing");
+                diagnostics.add(detail);
                 continue;
             }
             Integer prior = out.get(target);

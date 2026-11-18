@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.component.util.MassComponentKinds;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 
@@ -59,11 +60,55 @@ final class BuildingHostResolver {
         return null;
     }
 
+    /**
+     * Broad host probe used by primary resolution / audits.
+     * Includes STRUCTURE/GATE for circulation and legacy compound graphs.
+     * Design-constraint seals must use {@link #isDesignConstraintHost} instead.
+     */
     static boolean isHostMass(Component c) {
         if (c == null || c.componentType() == null) return false;
         String t = c.componentType().trim().toUpperCase(Locale.ROOT);
         return t.startsWith("MASS") || "STRUCTURE".equals(t) || "HALL".equals(t)
                 || "GATE".equals(t) || "GATE_STRUCTURE".equals(t) || "TOWER".equals(t);
+    }
+
+    /**
+     * Building-level design-constraint hosts (height / roof / window / entrance omit).
+     * Aligns with {@link MassComponentKinds} + Python mass-like bodies:
+     * MASS* / TOWER / GATE / HALL, plus independent STRUCTURE building shells (pagoda).
+     * Never GATE_STRUCTURE frames or STRUCTURE stairs/bridges.
+     * Classification: HARD_CONSTRAINT host inventory — not a design template.
+     */
+    static boolean isDesignConstraintHost(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        if (MassComponentKinds.isHostMass(c)) return true;
+        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        if ("GATE".equals(t) || "HALL".equals(t) || t.startsWith("MASS")) return true;
+        if ("STRUCTURE".equals(t)) {
+            return looksIndependentBuildingStructure(c);
+        }
+        return false;
+    }
+
+    /** STRUCTURE that is a building shell (e.g. typology pagoda), not a stair/bridge accessory. */
+    private static boolean looksIndependentBuildingStructure(Component c) {
+        if (c.params() != null) {
+            Object host = first(c.params(), "host_id", "hostId");
+            if (host != null && !String.valueOf(host).isBlank()) return false;
+            if (Boolean.TRUE.equals(c.params().get("exterior"))) return false;
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String fl = f.toLowerCase(Locale.ROOT);
+                if (fl.startsWith("stair") || fl.contains("stair:")
+                        || fl.contains("bridge") || fl.contains("fence")
+                        || fl.contains("railing") || fl.contains("path")) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     static String massId(Component c) {

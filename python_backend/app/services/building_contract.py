@@ -203,7 +203,68 @@ def _positive_match(text: str, match: re.Match) -> bool:
 
 
 def _normalize_request_text(text: str) -> str:
-    return re.sub(r'(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])', '', text)
+    """Collapse intra-line CJK spaces for keyword recognition.
+
+    Newlines/carriage returns are preserved as clause boundaries (Java parity).
+    Prefer :func:`_normalize_request_text_with_span_map` when recording match_span.
+    """
+    normalized, _ = _normalize_request_text_with_span_map(text or '')
+    return normalized
+
+
+def _normalize_request_text_with_span_map(text: str) -> tuple[str, list[int]]:
+    """Normalize CJK intra-line spaces while mapping each normalized index to the original.
+
+    Classification: FORMAT_REPAIR — original player text remains the span coordinate system.
+    """
+    raw = text or ''
+    out: list[str] = []
+    orig_map: list[int] = []
+    i = 0
+    n = len(raw)
+    while i < n:
+        ch = raw[i]
+        # Skip non-newline whitespace between two CJK characters.
+        if (
+            '\u4e00' <= ch <= '\u9fff'
+            and i + 1 < n
+            and raw[i + 1] not in '\n\r'
+            and raw[i + 1].isspace()
+        ):
+            j = i + 1
+            while j < n and raw[j] not in '\n\r' and raw[j].isspace():
+                j += 1
+            if j < n and '\u4e00' <= raw[j] <= '\u9fff':
+                out.append(ch)
+                orig_map.append(i)
+                i = j
+                continue
+        out.append(ch)
+        orig_map.append(i)
+        i += 1
+    return ''.join(out), orig_map
+
+
+def _remap_match_span_to_original(span: list, orig_map: list[int]) -> list[int] | None:
+    if not isinstance(span, list) or len(span) < 2 or not orig_map:
+        return None
+    try:
+        start = int(span[0])
+        end = int(span[1])
+    except (TypeError, ValueError):
+        return None
+    if start < 0 or end < start:
+        return None
+    if start >= len(orig_map):
+        return None
+    orig_start = orig_map[start]
+    if end == 0:
+        orig_end = orig_start
+    elif end - 1 < len(orig_map):
+        orig_end = orig_map[end - 1] + 1
+    else:
+        orig_end = orig_map[-1] + 1
+    return [orig_start, orig_end]
 
 
 def _extract_global_requirements(text: str) -> list[dict]:
@@ -364,14 +425,21 @@ def _extract_global_requirements(text: str) -> list[dict]:
 
 
 def extract_requirements(text: str) -> list[dict]:
-    """Recognize explicit ordinal declarations; never infer ownership from component order."""
-    text = _normalize_request_text(text)
+    """Recognize explicit ordinal declarations; never infer ownership from component order.
+
+    Keyword matching uses newline-preserving normalization; match_span is remapped onto the
+    original player-text coordinate system before return.
+    """
+    original = text or ''
+    text, orig_map = _normalize_request_text_with_span_map(original)
     declarations = list(re.finditer(
         r'第([一二两三四五六七八九十]|\d+)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?:是)?', text))
     directional = list(re.finditer(r'(左|右)栋(?:建筑|住宅|房屋)?[：:，,\s]*(?:使用|采用|是)?', text))
     cardinal = list(re.finditer(r'(东|西|南|北)侧(?:的)?(?:住宅|建筑|房屋|民居|别墅)', text))
     if not declarations and not directional and not cardinal:
-        return _extract_global_requirements(text)
+        result = _extract_global_requirements(text)
+        _remap_requirement_spans(result, orig_map)
+        return result
     events = [(m.start(), m.end(), 'building_' + str(NUMBERS[m[1]] if m[1] in NUMBERS else int(m[1])))
               for m in declarations]
     events += [(m.start(), m.end(), 'building_1' if m[1] == '左' else 'building_2') for m in directional]
@@ -383,7 +451,7 @@ def extract_requirements(text: str) -> list[dict]:
     for index, (_, end, scope) in enumerate(events):
         stop = events[index+1][0] if index+1 < len(events) else len(text)
         for requirement in _extract_global_requirements(text[end:stop]):
-            # Fragments are sliced from the full player text — shift match_span back to absolute coords.
+            # Fragments are sliced from the normalized full text — shift then remap to original.
             _shift_match_span(requirement, end)
             if str(scope).startswith('building_'):
                 # Ordinal clause owns the fragment — bind inferred/unresolved design
@@ -407,11 +475,12 @@ def extract_requirements(text: str) -> list[dict]:
                     requirement['scope'] = scope
             requirement['id'] += '_' + scope
             result.append(requirement)
+    _remap_requirement_spans(result, orig_map)
     return result
 
 
 def _shift_match_span(requirement: dict, offset: int) -> None:
-    """Convert fragment-relative match_span to full player-text coordinates."""
+    """Convert fragment-relative match_span to full normalized-text coordinates."""
     if not offset:
         return
     span = requirement.get('match_span')
@@ -421,6 +490,15 @@ def _shift_match_span(requirement: dict, offset: int) -> None:
         requirement['match_span'] = [int(span[0]) + offset, int(span[1]) + offset]
     except (TypeError, ValueError):
         return
+
+
+def _remap_requirement_spans(requirements: list[dict], orig_map: list[int]) -> None:
+    """Rewrite match_span from normalized coordinates onto the original player text."""
+    for requirement in requirements:
+        span = requirement.get('match_span')
+        remapped = _remap_match_span_to_original(span, orig_map) if span is not None else None
+        if remapped is not None:
+            requirement['match_span'] = remapped
 
 
 def request_text(req: Any) -> str:

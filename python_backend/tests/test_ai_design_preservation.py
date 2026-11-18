@@ -1376,6 +1376,36 @@ class AiDesignPreservationTest(unittest.TestCase):
             spans.append((start, end))
         self.assertEqual(len(spans), len(set(spans)), "duplicate omit spans must stay distinct")
 
+    def test_newline_and_cjk_space_preserve_original_match_span(self):
+        from app.services.building_contract import extract_requirements
+
+        text = "主殿不要屋顶\n亭子 也不要屋顶"
+        omits = [
+            r for r in extract_requirements(text)
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertGreaterEqual(len(omits), 2, omits)
+        for req in omits:
+            start, end = req["match_span"]
+            self.assertEqual(text[start:end], (req.get("source_text") or [""])[0])
+        scopes = {str(r.get("scope") or "") for r in omits}
+        self.assertTrue(any("main_hall" in s or "hall" in s for s in scopes), scopes)
+        self.assertTrue(any("pavilion" in s for s in scopes), scopes)
+
+    def test_workshop_boiler_multi_named_omit_extracted(self):
+        from app.services.building_contract import extract_requirements
+
+        text = "主车间和锅炉房都不要屋顶。"
+        omits = [
+            r for r in extract_requirements(text)
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        self.assertEqual("multi_named", omits[0].get("scope"))
+        keys = set(omits[0].get("named_keys") or [])
+        self.assertIn("workshop", keys)
+        self.assertIn("boiler", keys)
+
     def test_all_buildings_omit_roof_is_explicit_quantifier(self):
         from app.services.building_contract import extract_requirements
 

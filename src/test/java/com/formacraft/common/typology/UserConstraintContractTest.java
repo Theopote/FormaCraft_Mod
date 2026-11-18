@@ -115,6 +115,23 @@ class UserConstraintContractTest {
     }
 
     @Test
+    void workshopAndBoilerMultiNamedUsesSharedIdentityTable() {
+        var omits = UserConstraintContract.parseDesignOmitBindings("主车间和锅炉房都不要屋顶");
+        assertFalse(omits.isEmpty());
+        assertEquals("multi_named", omits.get(0).roleHint());
+        assertTrue(omits.get(0).namedKeys().contains("workshop"));
+        assertTrue(omits.get(0).namedKeys().contains("boiler"));
+    }
+
+    @Test
+    void newlineKeepsSeparateOmitClauses() {
+        var omits = UserConstraintContract.parseDesignOmitBindings("主殿不要屋顶\n亭子也不要屋顶");
+        assertEquals(2, omits.size());
+        assertEquals("hall", omits.get(0).roleHint());
+        assertEquals("pavilion", omits.get(1).roleHint());
+    }
+
+    @Test
     void sealInvalidatesWhenSealedValueChanges() {
         Map<String, Object> params = new HashMap<>();
         params.put("height", 24);

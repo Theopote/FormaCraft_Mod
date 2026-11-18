@@ -527,6 +527,127 @@ class StrictModeDesignScopeIntegrityTest {
     }
 
     @Test
+    void allBuildingsOmitIgnoresStructureStairHost() {
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "main_hall");
+        hallParams.put("roof_type", "xieshan");
+        hallParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> pavilionParams = new HashMap<>();
+        pavilionParams.put("component_id", "garden_pavilion");
+        pavilionParams.put("roof_type", "flat");
+        pavilionParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> stairParams = new HashMap<>();
+        stairParams.put("component_id", "entrance_stair");
+        stairParams.put("roof_type", "flat");
+        stairParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component stair = new Component(
+                "STRUCTURE", "stair", new Vec3i(8, 0, 0), new Dimensions(3, 6, 4),
+                List.of("stair:straight_single_run"), stairParams);
+        LlmPlan raw = strictPlan(List.of(
+                mass("main_hall", hallParams),
+                mass("garden_pavilion", new Vec3i(20, 0, 0), new Dimensions(8, 8, 5), pavilionParams),
+                stair),
+                Map.of("roof", "REQUIRED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "所有建筑都不要屋顶");
+        assertFalse(ensured.hasCapabilityGap(), () -> String.valueOf(ensured.capabilityGap()));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "main_hall").params(), "roof_type"));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "garden_pavilion").params(), "roof_type"));
+        assertFalse(UserConstraintContract.isServerVerified(byId(ensured, "entrance_stair").params(), "roof_type"),
+                "STRUCTURE stair must not receive building-level omit seals");
+        assertEquals("flat", String.valueOf(byId(ensured, "entrance_stair").params().get("roof_type")));
+    }
+
+    @Test
+    void missingPavilionNamedHeightDoesNotSealHall() {
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "main_hall");
+        hallParams.put("height", 14);
+        hallParams.put("roof_type", "xieshan");
+        hallParams.put("design_sources", Map.of("height", "AI_PLANNED", "roof_type", "AI_PLANNED"));
+        LlmPlan raw = strictPlan(List.of(
+                mass("main_hall", new Vec3i(0, 0, 0), new Dimensions(14, 12, 14), hallParams)),
+                Map.of("roof", "REQUIRED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "建造主殿和亭子，亭子高度6格，亭子不要屋顶");
+        assertEquals(14, byId(ensured, "main_hall").dimensions().height());
+        assertFalse(UserConstraintContract.isServerVerified(byId(ensured, "main_hall").params(), "height"));
+        assertFalse(UserConstraintContract.isServerVerified(byId(ensured, "main_hall").params(), "roof_type"));
+        assertEquals("xieshan", String.valueOf(byId(ensured, "main_hall").params().get("roof_type")));
+        assertTrue(ensured.hasCapabilityGap());
+    }
+
+    @Test
+    void newlineSeparatedDualOmitBindsBothHosts() {
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "main_hall");
+        hallParams.put("roof_type", "xieshan");
+        hallParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> pavilionParams = new HashMap<>();
+        pavilionParams.put("component_id", "garden_pavilion");
+        pavilionParams.put("roof_type", "flat");
+        pavilionParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        LlmPlan raw = strictPlan(List.of(
+                mass("main_hall", hallParams),
+                mass("garden_pavilion", new Vec3i(20, 0, 0), new Dimensions(8, 8, 5), pavilionParams)),
+                Map.of("roof", "REQUIRED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "主殿不要屋顶\n亭子也不要屋顶");
+        assertFalse(ensured.hasCapabilityGap(), () -> String.valueOf(ensured.capabilityGap()));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "main_hall").params(), "roof_type"));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "garden_pavilion").params(), "roof_type"));
+    }
+
+    @Test
+    void workshopAndBoilerMultiNamedOmitBindsExactIdentities() {
+        Map<String, Object> workshopParams = new HashMap<>();
+        workshopParams.put("component_id", "main_workshop");
+        workshopParams.put("building_role", "workshop");
+        workshopParams.put("roof_type", "gable");
+        workshopParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> boilerParams = new HashMap<>();
+        boilerParams.put("component_id", "boiler_house");
+        boilerParams.put("building_role", "boiler");
+        boilerParams.put("roof_type", "flat");
+        boilerParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "office_hall");
+        hallParams.put("building_role", "hall");
+        hallParams.put("roof_type", "xieshan");
+        hallParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        LlmPlan raw = strictPlan(List.of(
+                mass("workshop", new Vec3i(0, 0, 0), new Dimensions(16, 12, 8), workshopParams),
+                mass("boiler", new Vec3i(20, 0, 0), new Dimensions(10, 8, 6), boilerParams),
+                mass("hall", new Vec3i(40, 0, 0), new Dimensions(12, 10, 10), hallParams)),
+                Map.of("roof", "REQUIRED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "主车间和锅炉房都不要屋顶");
+        assertFalse(ensured.hasCapabilityGap(), () -> String.valueOf(ensured.capabilityGap()));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "main_workshop").params(), "roof_type"));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "boiler_house").params(), "roof_type"));
+        assertFalse(UserConstraintContract.isServerVerified(byId(ensured, "office_hall").params(), "roof_type"));
+        assertEquals("xieshan", String.valueOf(byId(ensured, "office_hall").params().get("roof_type")));
+    }
+
+    @Test
+    void officeOmitDoesNotBindUnrelatedHall() {
+        Map<String, Object> officeParams = new HashMap<>();
+        officeParams.put("component_id", "office_tower");
+        officeParams.put("building_role", "office");
+        officeParams.put("roof_type", "flat");
+        officeParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "grand_hall");
+        hallParams.put("building_role", "hall");
+        hallParams.put("roof_type", "xieshan");
+        hallParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        LlmPlan raw = strictPlan(List.of(
+                mass("hall", hallParams),
+                mass("office", new Vec3i(24, 0, 0), new Dimensions(10, 10, 12), officeParams)),
+                Map.of("roof", "REQUIRED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "办公楼不要屋顶");
+        assertFalse(ensured.hasCapabilityGap(), () -> String.valueOf(ensured.capabilityGap()));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "office_tower").params(), "roof_type"));
+        assertFalse(UserConstraintContract.isServerVerified(byId(ensured, "grand_hall").params(), "roof_type"));
+    }
+
+    @Test
     void forgedPythonTargetCannotRescueOmitHostTie() {
         Map<String, Object> a = new HashMap<>();
         a.put("component_id", "garden_pavilion_east");

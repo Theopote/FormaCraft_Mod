@@ -145,8 +145,11 @@ def _ensure_compiler_satellite_policy(plan: Dict[str, Any]) -> Dict[str, Any]:
 _COURTYARD_LITERALS = (
     "courtyard", "siheyuan", "中庭", "庭院", "四合院", "院落", "内院",
 )
+# Building-level design-constraint hosts — parity with Java MassComponentKinds + GATE.
+# Never treat bare STRUCTURE / GATE_STRUCTURE stairs or frames as building hosts.
 _MASS_TYPES_FOR_EXPLICIT = (
-    "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS", "TOWER", "GATE",
+    "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS",
+    "MASS_ANCILLARY", "TOWER", "GATE", "HALL",
 )
 _COURTYARD_NAME_HINTS = (
     "courtyard", "yard", "庭院", "中庭", "四合院", "院落", "内院", "siheyuan",

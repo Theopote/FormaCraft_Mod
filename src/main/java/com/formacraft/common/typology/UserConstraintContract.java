@@ -342,22 +342,51 @@ public final class UserConstraintContract {
         if (namedKeys.size() > 1 && JOINT_MULTI_SUBJECT.matcher(window).find()) {
             return new OmitScopeInference("multi_named", namedKeys);
         }
+        if (namedKeys.size() == 1) {
+            String key = namedKeys.getFirst();
+            // Keep classic role hints for hall/pavilion/tower; other identities stay as named keys.
+            String role = switch (key) {
+                case "main_hall", "main_body" -> "hall";
+                case "pavilion", "wing" -> "pavilion";
+                case "tower" -> "tower";
+                default -> key;
+            };
+            return new OmitScopeInference(role, List.of(key));
+        }
         return new OmitScopeInference(nearestRoleHint(window, matchStart - from), List.of());
     }
 
-    /** Named building keys present in window (Python NAMED_BUILDINGS subset used for omit hosts). */
+    /**
+     * Shared named-building identity table — mirrors Python {@code NAMED_BUILDINGS}.
+     * Each key is an independent identity; do not collapse office/keep/residence into hall.
+     */
+    private static final String[][] NAMED_BUILDING_ALIASES = {
+            {"main_body", "主楼", "main_body", "main_building"},
+            {"keep", "主堡", "keep"},
+            {"tower", "塔楼", "钟楼", "pagoda", "tower"},
+            {"office", "办公楼", "office"},
+            {"workshop", "主车间", "维修车间", "workshop"},
+            {"boiler", "锅炉房", "boiler"},
+            {"main_hall", "正厅", "中央大厅", "主殿", "正殿", "大殿", "main_hall", "townhall_main"},
+            {"pavilion", "凉亭", "亭子", "小亭", "水上亭", "水榭", "八角亭", "六角亭", "方亭",
+                    "garden_pavilion", "pavilion"},
+            {"wing", "厢房", "侧翼", "east_wing", "west_wing"},
+            {"gatehouse", "门楼", "gatehouse"},
+            {"mill", "磨坊", "mill"},
+            {"warehouse", "仓库", "warehouse"},
+            {"reception", "接待楼", "reception"},
+            {"research", "研究楼", "research"},
+            {"dispatch", "调度楼", "dispatch"},
+            {"residence", "居住楼", "residence"},
+            {"chapel", "礼拜堂", "chapel"},
+    };
+
+    /** Named building keys present in window (full shared identity table). */
     static List<String> namedKeysInWindow(String window) {
         if (window == null || window.isBlank()) return List.of();
         String lower = window.toLowerCase(Locale.ROOT);
         List<String> found = new ArrayList<>();
-        String[][] groups = {
-                {"main_hall", "主殿", "正殿", "大殿", "正厅", "中央大厅", "main_hall", "townhall_main"},
-                {"pavilion", "凉亭", "亭子", "小亭", "水上亭", "水榭", "八角亭", "六角亭", "方亭",
-                        "garden_pavilion", "pavilion"},
-                {"tower", "塔楼", "钟楼", "pagoda", "tower"},
-                {"main_body", "主楼", "main_body", "main_building"},
-        };
-        for (String[] group : groups) {
+        for (String[] group : NAMED_BUILDING_ALIASES) {
             String key = group[0];
             for (int i = 1; i < group.length; i++) {
                 if (lower.contains(group[i].toLowerCase(Locale.ROOT))) {
@@ -367,6 +396,22 @@ public final class UserConstraintContract {
             }
         }
         return found;
+    }
+
+    /** Aliases for one named key (includes the key itself). Unknown keys return just the key. */
+    public static List<String> aliasesForNamedKey(String namedKey) {
+        if (namedKey == null || namedKey.isBlank()) return List.of();
+        String key = namedKey.trim().toLowerCase(Locale.ROOT);
+        for (String[] group : NAMED_BUILDING_ALIASES) {
+            if (key.equals(group[0])) {
+                List<String> out = new ArrayList<>(group.length);
+                for (String alias : group) {
+                    if (alias != null && !alias.isBlank()) out.add(alias);
+                }
+                return List.copyOf(out);
+            }
+        }
+        return List.of(key);
     }
 
     /**
@@ -501,6 +546,16 @@ public final class UserConstraintContract {
                 }
             }
             if (n > 0) return "building_" + n;
+        }
+        List<String> namedKeys = namedKeysInWindow(window);
+        if (namedKeys.size() == 1) {
+            String key = namedKeys.getFirst();
+            return switch (key) {
+                case "main_hall", "main_body" -> "hall";
+                case "pavilion", "wing" -> "pavilion";
+                case "tower" -> "tower";
+                default -> key;
+            };
         }
         return nearestRoleHint(window, matchStart - from);
     }

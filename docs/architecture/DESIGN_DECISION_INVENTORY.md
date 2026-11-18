@@ -74,6 +74,10 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `UserConstraintContract.inferHeightRoleHint` | hall-before-pavilion in same clause | **Fixed (2026-11-18):** shared nearest-role rule with omit (`主殿旁边的亭子高度6格` → pavilion) |
 | `UserConstraintContract.DesignOmitBinding` / `inferOmitScope` | single roleHint only | **Extended (2026-11-18):** `all_main_masses` + `multi_named`(+namedKeys); Java seals verified target **sets** |
 | `building_contract.extract_requirements` ordinal fragments | fragment-relative `match_span` | **Fixed (2026-11-18):** `_shift_match_span` restores absolute player-text coordinates |
+| `BuildingHostResolver.isHostMass` vs design seals | STRUCTURE/GATE_STRUCTURE counted as omit/height hosts | **Fixed (2026-11-18):** `isDesignConstraintHost` aligns with MassComponentKinds + GATE; STRUCTURE stairs excluded from all_main_masses seals |
+| `resolveHeightBindings` / `resolveDesignOmitBindings` sole-host shortcut | named pavilion cue applied to lone hall | **Fixed (2026-11-18):** unscoped-only sole-host bind; named/ordinal/multi always verify identity (missing pavilion → gap) |
+| `_normalize_request_text` | deleted newlines between CJK → span/clause drift vs Java | **Fixed (2026-11-18):** preserve newlines; remap match_span onto original text via span map |
+| `UserConstraintContract.namedKeysInWindow` / `uniqueNamedKeyHostId` | only hall/pavilion/tower; office→hall | **Fixed (2026-11-18):** shared NAMED_BUILDINGS identity table; named-key unique bind without hall fallback |
 | `UserConstraintContract.inferDesignOmitRoleHint` / `omitCueAuthorized` | reused hall-first height hint; bare 无窗 | **Fixed (2026-11-18):** nearest clause role for omit (主殿旁的亭子→pavilion); reject 不是无窗 / 并非无屋顶 double negation |
 | `UserConstraintContract.DesignOmitBinding` | domain+role only | **Extended (2026-11-18):** `sourceText` + `matchStart`/`matchEnd` for per-declaration Py↔Java identity |
 | `building_contract._extract_global_requirements` specialty roofs | collapsed to `hits[0]` | **Fixed (2026-11-18):** one requirement per declaration span; `multi_named` + `EXPLICIT_MULTI` for 都/均 joint subjects |
