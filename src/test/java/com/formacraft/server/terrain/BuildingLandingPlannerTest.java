@@ -414,6 +414,69 @@ class BuildingLandingPlannerTest {
                 .components(List.of(component)).build();
         assertTrue(BuildingLandingPlanner.sites(plan,BlockPos.ORIGIN).isEmpty());
     }
+
+    @Test void independentTowerAndHallGetSeparateLandingSites() {
+        // Acceptance 7/8: MASS_MAIN + distant TOWER → two pads; attached tower excluded.
+        var hall=new com.formacraft.common.llm.dto.Component("MASS_MAIN","hall",
+                new com.formacraft.common.llm.dto.Vec3i(0,0,0),
+                new com.formacraft.common.llm.dto.Dimensions(14,12,8),List.of(),
+                Map.of("component_id","main_hall","anchor_mode","min_corner"));
+        var tower=new com.formacraft.common.llm.dto.Component("TOWER","tower",
+                new com.formacraft.common.llm.dto.Vec3i(40,0,0),
+                new com.formacraft.common.llm.dto.Dimensions(6,6,16),List.of(),
+                Map.of("component_id","clock_tower","anchor_mode","min_corner"));
+        var attached=new com.formacraft.common.llm.dto.Component("TOWER","wing_tower",
+                new com.formacraft.common.llm.dto.Vec3i(12,0,0),
+                new com.formacraft.common.llm.dto.Dimensions(4,4,10),List.of(),
+                Map.of("component_id","hall_turret","host_id","main_hall","anchor_mode","min_corner"));
+        var plate=new com.formacraft.common.llm.dto.Component("MASS_SECONDARY","deck",
+                new com.formacraft.common.llm.dto.Vec3i(0,0,14),
+                new com.formacraft.common.llm.dto.Dimensions(6,4,1),List.of(),
+                Map.of("component_id","front_deck","host_id","main_hall","extrude_mode","plate","anchor_mode","min_corner"));
+        var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true).mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
+                .components(List.of(hall,tower,attached,plate)).build();
+        var sites=BuildingLandingPlanner.sites(plan,BlockPos.ORIGIN);
+        assertEquals(2,sites.size(),"hall + independent tower only");
+        assertTrue(BuildingLandingPlanner.isIndependentLandingHost(hall));
+        assertTrue(BuildingLandingPlanner.isIndependentLandingHost(tower));
+        assertFalse(BuildingLandingPlanner.isIndependentLandingHost(attached));
+        assertFalse(BuildingLandingPlanner.isIndependentLandingHost(plate));
+        int hallMinX=sites.stream().mapToInt(s->s.body().minX()).min().orElseThrow();
+        int towerMinX=sites.stream().mapToInt(s->s.body().minX()).max().orElseThrow();
+        assertTrue(towerMinX-hallMinX>=30,"separated buildings keep distinct footprints");
+        // Different terrain heights under each pad → independent dy, not one rigid shift.
+        var hallSite=sites.stream().filter(s->s.body().minX()<20).findFirst().orElseThrow();
+        var towerSite=sites.stream().filter(s->s.body().minX()>=20).findFirst().orElseThrow();
+        List<PlannedBlock> input=new ArrayList<>();
+        input.addAll(house(hallSite,false));
+        input.addAll(house(towerSite,false));
+        var terrain=ground((x,z)->x<20?60:70);
+        var result=prepare(input,sites,terrain);
+        assertNull(result.problem(),result.problem());
+        assertNotEquals(result.displacement(new BlockPos(hallSite.body().minX()+1,hallSite.body().minY(),hallSite.body().minZ()+1)),
+                result.displacement(new BlockPos(towerSite.body().minX()+1,towerSite.body().minY(),towerSite.body().minZ()+1)),
+                "distant buildings must not share one rigid Y translation");
+    }
+
+    @Test void independentLandingHostOrderDoesNotChangeSiteCount() {
+        var hall=new com.formacraft.common.llm.dto.Component("MASS_MAIN","hall",
+                new com.formacraft.common.llm.dto.Vec3i(0,0,0),
+                new com.formacraft.common.llm.dto.Dimensions(10,8,6),List.of(),
+                Map.of("component_id","main_hall","anchor_mode","min_corner"));
+        var tower=new com.formacraft.common.llm.dto.Component("TOWER","tower",
+                new com.formacraft.common.llm.dto.Vec3i(24,0,0),
+                new com.formacraft.common.llm.dto.Dimensions(5,5,12),List.of(),
+                Map.of("component_id","bell_tower","anchor_mode","min_corner"));
+        var forward=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true).mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
+                .components(List.of(hall,tower)).build();
+        var backward=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true).mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
+                .components(List.of(tower,hall)).build();
+        assertEquals(BuildingLandingPlanner.sites(forward,BlockPos.ORIGIN).size(),
+                BuildingLandingPlanner.sites(backward,BlockPos.ORIGIN).size());
+    }
     @ParameterizedTest @ValueSource(ints={1,2,3,4,5,6})
     void latestTerrainLogsCanLandOnSlopeCliffAndRiver(int id) throws Exception {
         try(var in=getClass().getResourceAsStream("/terrain_log_cases/case_"+id+".json")) {

@@ -2,6 +2,7 @@ package com.formacraft.server.terrain;
 
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+import com.formacraft.common.generation.component.util.MassComponentKinds;
 import com.formacraft.common.llm.dto.*;
 import com.formacraft.common.network.LlmPlanTerrainBounds;
 import com.formacraft.server.build.BuildConstraintContext;
@@ -228,12 +229,14 @@ public final class BuildingLandingPlanner {
                         base.getX()+maxX,base.getY()+height-1,base.getZ()+maxZ),facing));
                 continue;
             }
-            if (!("MASS_MAIN".equalsIgnoreCase(c.componentType()) || "MAIN_MASS".equalsIgnoreCase(c.componentType()))
-                    || c.dimensions() == null) continue; // Upper-floor plates are attachments, not independent sites.
+            // Independent building shells (MASS*/TOWER/GATE/HALL + typology STRUCTURE).
+            // Attached host_id satellites and plates are never separate landing sites.
+            if (!isIndependentLandingHost(c) || c.dimensions() == null) continue;
             var b = ComponentFootprintUtil.bounds(c);
             if (b == null) continue;
             Slot slot = slots.get(c.slotId());
             Vec3i a = slot != null && slot.anchor() != null ? slot.anchor() : new Vec3i(0, 0, 0);
+            // ComponentFootprintUtil.bounds already includes relative_position — only add slot anchor.
             BlockPos offset = origin.add(a.x(), a.y(), a.z());
             var bounds = new LlmPlanTerrainBounds.Bounds(offset.getX() + b.minX(), offset.getY() + b.minY(),
                     offset.getZ() + b.minZ(), offset.getX() + b.maxX() - 1,
@@ -251,6 +254,47 @@ public final class BuildingLandingPlanner {
             out.add(new Site(bounds, facing));
         }
         return out;
+    }
+
+    /**
+     * Whole-building terrain pad hosts. Classification: GEOMETRY host inventory —
+     * plates / attached satellites excluded; independent TOWER/GATE/HALL/MASS* included.
+     */
+    static boolean isIndependentLandingHost(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        if (MassComponentKinds.isPlate(c)) return false;
+        if (MassComponentKinds.hostId(c) != null) return false;
+        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        if (MassComponentKinds.isHostMass(t) || "GATE".equals(t) || "HALL".equals(t)) {
+            return true;
+        }
+        if (!"STRUCTURE".equals(t)) return false;
+        // Accessory STRUCTURE (stairs/bridges) must not create pads; typology shells may.
+        if (c.params() != null && Boolean.TRUE.equals(c.params().get("exterior"))) {
+            return false;
+        }
+        boolean hasTypology = false;
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String fl = f.toLowerCase(Locale.ROOT);
+                if (fl.startsWith("stair") || fl.contains("stair:")
+                        || fl.contains("bridge") || fl.contains("fence")
+                        || fl.contains("railing") || fl.contains("path")
+                        || fl.contains("column") || fl.contains("pillar")
+                        || fl.contains("porch")) {
+                    return false;
+                }
+                if (fl.startsWith("typology:")) hasTypology = true;
+            }
+        }
+        if (!hasTypology && c.params() != null) {
+            Object tid = c.params().get("typology_id");
+            if (tid == null) tid = c.params().get("typologyId");
+            if (tid == null) tid = c.params().get("structural_typology");
+            hasTypology = tid != null && !String.valueOf(tid).isBlank();
+        }
+        return hasTypology;
     }
 
     public static Result prepare(List<PlannedBlock> input, List<Site> sites, Ground ground,

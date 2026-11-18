@@ -2118,6 +2118,224 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertEqual("USER_EXPLICIT", pavilion["params"]["design_sources"]["roof_type"])
         self.assertNotEqual("capability_gap", out.get("plan_status"))
 
+    def test_independent_mass_secondary_pavilion_named_omit_binds(self):
+        """Acceptance 1/2: independent MASS_SECONDARY pavilion receives named roof omit."""
+        from app.services.building_contract import apply_building_contract, design_constraint_hosts
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        text = "亭子不要屋顶。"
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 8},
+                    "features": [],
+                    "params": {
+                        "component_id": "main_hall",
+                        "roof_type": "xieshan",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "MASS_SECONDARY",
+                    "slot_id": "ting",
+                    "relative_position": {"x": 24, "y": 0, "z": 0},
+                    "dimensions": {"width": 8, "depth": 8, "height": 5},
+                    "features": [],
+                    "params": {
+                        "component_id": "garden_pavilion",
+                        "roof_type": "flat",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        hosts = {c["params"]["component_id"] for c in design_constraint_hosts(plan["components"])}
+        self.assertEqual({"main_hall", "garden_pavilion"}, hosts)
+        contracted = apply_building_contract(copy.deepcopy(plan), text, finalize=True)
+        bindings = (contracted.get("proportion_hints") or {}).get("building_contract", {}).get("scope_bindings") or {}
+        self.assertIn("garden_pavilion", bindings.get("named_pavilion") or [])
+        omits = [
+            r for r in (contracted.get("proportion_hints") or {}).get("building_contract", {}).get("requirements", [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        self.assertEqual({"garden_pavilion"}, set(omits[0].get("target_components") or []))
+        stamped = _apply_user_explicit_design_sources(copy.deepcopy(plan), text)
+        pavilion = next(c for c in stamped["components"] if c["params"]["component_id"] == "garden_pavilion")
+        hall = next(c for c in stamped["components"] if c["params"]["component_id"] == "main_hall")
+        self.assertEqual("none", pavilion["params"]["roof_type"])
+        self.assertEqual("xieshan", hall["params"]["roof_type"])
+
+    def test_all_buildings_omit_excludes_attached_plate(self):
+        """Acceptance 3: all-building omit covers hosts; plate stays non-host."""
+        from app.services.building_contract import apply_building_contract, is_design_constraint_host
+
+        text = "所有建筑都不要屋顶。"
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 8},
+                    "features": [],
+                    "params": {"component_id": "main_hall", "roof_type": "xieshan"},
+                },
+                {
+                    "component_type": "MASS_SECONDARY",
+                    "slot_id": "ting",
+                    "relative_position": {"x": 24, "y": 0, "z": 0},
+                    "dimensions": {"width": 8, "depth": 8, "height": 5},
+                    "features": [],
+                    "params": {"component_id": "garden_pavilion", "roof_type": "flat"},
+                },
+                {
+                    "component_type": "MASS_SECONDARY",
+                    "slot_id": "deck",
+                    "relative_position": {"x": 0, "y": 0, "z": 14},
+                    "dimensions": {"width": 6, "depth": 4, "height": 1},
+                    "features": [],
+                    "params": {
+                        "component_id": "front_deck",
+                        "host_id": "main_hall",
+                        "extrude_mode": "plate",
+                        "plate_role": "terrace",
+                    },
+                },
+            ],
+        }
+        self.assertFalse(is_design_constraint_host(plan["components"][2]))
+        out = apply_building_contract(plan, text, finalize=True)
+        omits = [
+            r for r in (out.get("proportion_hints") or {}).get("building_contract", {}).get("requirements", [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        self.assertEqual({"main_hall", "garden_pavilion"}, set(omits[0].get("target_components") or []))
+        self.assertNotIn("front_deck", omits[0].get("target_components") or [])
+
+    def test_building_role_office_binds_named_office_without_id_token(self):
+        """Acceptance 4: building_role=office binds named_office when id lacks office."""
+        from app.services.building_contract import apply_building_contract
+
+        text = "办公楼不要屋顶。"
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "a",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 10, "height": 10},
+                    "features": [],
+                    "params": {
+                        "component_id": "building_a",
+                        "building_role": "office",
+                        "roof_type": "flat",
+                    },
+                },
+            ],
+        }
+        out = apply_building_contract(plan, text, finalize=True)
+        bindings = (out.get("proportion_hints") or {}).get("building_contract", {}).get("scope_bindings") or {}
+        self.assertEqual(["building_a"], bindings.get("named_office"))
+        omits = [
+            r for r in (out.get("proportion_hints") or {}).get("building_contract", {}).get("requirements", [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        self.assertEqual(["building_a"], omits[0].get("target_components"))
+
+    def test_pagoda_typology_named_tower_and_positive_roof_not_silent(self):
+        """Acceptance 5/6: pagoda binds as tower; positive xieshan is not silently skipped."""
+        from app.services.building_contract import apply_building_contract
+
+        text = "建造主殿和密檐塔，所有建筑都使用歇山顶。"
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 8},
+                    "features": [],
+                    "params": {"component_id": "main_hall", "roof_type": "xieshan"},
+                },
+                {
+                    "component_type": "STRUCTURE",
+                    "slot_id": "pagoda",
+                    "relative_position": {"x": 30, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 10, "height": 24},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {
+                        "component_id": "dense_pagoda",
+                        "typology_id": "dense_eaves_pagoda",
+                        "building_role": "pagoda",
+                    },
+                },
+            ],
+        }
+        out = apply_building_contract(plan, text, finalize=True)
+        bindings = (out.get("proportion_hints") or {}).get("building_contract", {}).get("scope_bindings") or {}
+        self.assertIn("dense_pagoda", bindings.get("named_tower") or [])
+        roofs = [
+            r for r in (out.get("proportion_hints") or {}).get("building_contract", {}).get("requirements", [])
+            if r.get("property") == "roof_type" and r.get("value") == "xieshan"
+        ]
+        self.assertTrue(roofs, roofs)
+        targets = set(roofs[0].get("target_components") or [])
+        self.assertIn("main_hall", targets)
+        self.assertIn("dense_pagoda", targets)
+        diagnostics = (out.get("proportion_hints") or {}).get("building_contract", {}).get("diagnostics") or []
+        self.assertTrue(
+            any(d.get("code") == "E_TYPOLOGY_ROOF_UNSUPPORTED" and d.get("component_id") == "dense_pagoda"
+                for d in diagnostics),
+            diagnostics,
+        )
+        self.assertEqual("capability_gap", out.get("plan_status"))
+
+    def test_named_binding_order_independent_for_mass_secondary_pavilion(self):
+        """Acceptance 10: component order must not change named pavilion binding."""
+        from app.services.building_contract import apply_building_contract
+
+        text = "亭子不要屋顶。"
+        pavilion = {
+            "component_type": "MASS_SECONDARY",
+            "slot_id": "ting",
+            "relative_position": {"x": 24, "y": 0, "z": 0},
+            "dimensions": {"width": 8, "depth": 8, "height": 5},
+            "features": [],
+            "params": {"component_id": "garden_pavilion", "roof_type": "flat"},
+        }
+        hall = {
+            "component_type": "MASS_MAIN",
+            "slot_id": "hall",
+            "relative_position": {"x": 0, "y": 0, "z": 0},
+            "dimensions": {"width": 14, "depth": 12, "height": 8},
+            "features": [],
+            "params": {"component_id": "main_hall", "roof_type": "xieshan"},
+        }
+        forward = apply_building_contract({"mode": "build", "components": [hall, pavilion]}, text, finalize=True)
+        backward = apply_building_contract({"mode": "build", "components": [pavilion, hall]}, text, finalize=True)
+        fb = (forward.get("proportion_hints") or {}).get("building_contract", {}).get("scope_bindings") or {}
+        bb = (backward.get("proportion_hints") or {}).get("building_contract", {}).get("scope_bindings") or {}
+        self.assertEqual(fb.get("named_pavilion"), bb.get("named_pavilion"))
+        fo = next(
+            r for r in (forward.get("proportion_hints") or {}).get("building_contract", {}).get("requirements", [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        )
+        bo = next(
+            r for r in (backward.get("proportion_hints") or {}).get("building_contract", {}).get("requirements", [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        )
+        self.assertEqual(set(fo.get("target_components") or []), set(bo.get("target_components") or []))
+
 
 if __name__ == "__main__":
     unittest.main()

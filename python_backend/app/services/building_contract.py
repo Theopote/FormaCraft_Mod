@@ -14,7 +14,8 @@ HOSTED = {'ROOF', 'ROOF_STRUCTURE', 'FOUNDATION', 'FACADE_WINDOWS', 'FACADE', 'E
 NAMED_BUILDINGS = {
     'main_body': ('主楼', 'main_body', 'main_building'),
     'keep': ('主堡', 'keep'),
-    'tower': ('塔楼', '钟楼', 'tower'),
+    # Parity with Java UserConstraintContract.NAMED_BUILDING_ALIASES (incl. pagoda).
+    'tower': ('塔楼', '钟楼', 'pagoda', 'tower'),
     'office': ('办公楼', 'office'),
     'workshop': ('主车间', '维修车间', 'workshop'),
     'boiler': ('锅炉房', 'boiler'),
@@ -91,16 +92,57 @@ _DESIGN_HOST_PROPERTIES = frozenset({
 
 def _is_typology_structure(comp: dict[str, Any] | None) -> bool:
     """STRUCTURE shell with explicit typology identity (native roof params path)."""
+    return bool(_typology_id(comp))
+
+
+def _typology_id(comp: dict[str, Any] | None) -> str:
+    """Normalized typology id for STRUCTURE shells; empty when not a typology host."""
     if not isinstance(comp, dict):
-        return False
+        return ''
     if str(comp.get('component_type') or '').strip().upper() != 'STRUCTURE':
-        return False
+        return ''
     features = comp.get('features') if isinstance(comp.get('features'), list) else []
-    if any(str(f or '').lower().startswith('typology:') for f in features):
-        return True
+    for feat in features:
+        text = str(feat or '').strip()
+        if text.lower().startswith('typology:'):
+            return text.split(':', 1)[1].strip().lower()
     params = comp.get('params') if isinstance(comp.get('params'), dict) else {}
     tid = params.get('typology_id') or params.get('typologyId') or params.get('structural_typology')
-    return bool(tid and str(tid).strip())
+    return str(tid).strip().lower() if tid and str(tid).strip() else ''
+
+
+# Typologies whose positive roof forms are owned by chinese_roof_contract (not snake_case).
+_CHINESE_ROOF_CONTRACT_TYPOLOGIES = frozenset({'tailiang_timber_hall'})
+
+
+def _defers_positive_roof_to_chinese_contract(comp: dict[str, Any] | None) -> bool:
+    return _typology_id(comp) in _CHINESE_ROOF_CONTRACT_TYPOLOGIES
+
+
+def _host_identity_blob(comp: dict[str, Any] | None) -> str:
+    """Stable building-identity text for named scope_bindings.
+
+    Fields (HARD_CONSTRAINT identity for bindings):
+    - ``component_id`` (historical)
+    - ``building_role`` / ``buildingRole`` / ``label`` / ``part``
+      (explicit use identity; covers ``building_a`` + ``building_role=office``)
+
+    Excludes (Python bindings append every hit; loose fields cause false joins):
+    - bare ``role`` (often geometry descriptors: ``reception_hall_block``)
+    - ``slot_id`` layout frames (``mill_slot`` ↛ ``named_mill``)
+    - ``building_id`` / ``requirement_scope`` / free-form ``features``
+
+    Java ``hostIdentityBlob`` still scans a wider set but fails closed on multi-hit.
+    """
+    if not isinstance(comp, dict):
+        return ''
+    parts: list[str] = []
+    params = comp.get('params') if isinstance(comp.get('params'), dict) else {}
+    for key in ('component_id', 'building_role', 'buildingRole', 'part', 'label'):
+        value = params.get(key)
+        if value is not None and str(value).strip():
+            parts.append(str(value).strip())
+    return ' '.join(parts).lower()
 
 
 def _all_mass_design_targets(
@@ -113,10 +155,10 @@ def _all_mass_design_targets(
     if prop not in _DESIGN_HOST_PROPERTIES:
         return list(masses)
     targets = list(design_hosts)
-    # Positive roof styles on typology STRUCTURE are applied by chinese_roof_contract /
-    # typology native params — do not fail building_contract snake_case roof_type checks.
+    # Positive roofs: only defer hosts owned by chinese_roof_contract. Other typology
+    # STRUCTURE stay in scope so unsupported forms surface as gaps — never silent skip.
     if prop == 'roof_type' and requirement.get('value') not in (None, 'none'):
-        targets = [t for t in targets if not _is_typology_structure(t)]
+        targets = [t for t in targets if not _defers_positive_roof_to_chinese_contract(t)]
         if not targets:
             return list(masses)
     return targets
@@ -832,19 +874,25 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if isinstance(value, str) and '/' in value and 'building_' in value and masses and all(
                 isinstance(m['params'].get(role + '_block'), str) and m['params'][role + '_block'] for m in masses):
             attrs.pop(role + '_material', None)
-    # Historical wing/ancillary named bindings, plus independent TOWER/GATE/HALL /
-    # typology STRUCTURE hosts for named design scopes — not every MASS_ANCILLARY.
+    # Historical dimensional / material named bindings (MASS_MAIN/WING/named ANCILLARY).
+    # Building-level design named scopes bind from design_hosts — do not keep appending
+    # component types into this list (independent MASS_SECONDARY must participate).
     requirement_masses = [c for c in owners if c.get('component_type') in
                           ('MASS_MAIN', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY')
                           and (c.get('component_type') != 'MASS_ANCILLARY'
                                or str((c.get('params') or {}).get('requirement_scope', '')).startswith('named_'))
                           and (c.get('params') or {}).get('extrude_mode') != 'plate'
                           and c.get('dimensions', {}).get('height', 0) > 1]
+    # Named design bindings: design_hosts minus MASS_ANCILLARY (corridors / quays).
+    # Independent MASS_SECONDARY / TOWER / GATE / HALL / typology STRUCTURE join here.
+    # MASS_ANCILLARY still reaches bindings only via historical named_ requirement_scope.
+    binding_hosts: list[dict[str, Any]] = list(requirement_masses)
     for host in design_hosts:
         ctype = str(host.get('component_type') or '').strip().upper()
-        if ctype in ('TOWER', 'GATE', 'HALL') or _is_typology_structure(host):
-            if host not in requirement_masses:
-                requirement_masses.append(host)
+        if ctype == 'MASS_ANCILLARY':
+            continue
+        if host not in binding_hosts:
+            binding_hosts.append(host)
     for mass in masses:
         params = mass['params']
         own = [r for r in requirements if r['scope'] in ('all_main_masses', 'plan', params.get('requirement_scope'))]
@@ -981,19 +1029,20 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             mass['params']['floor_height'] = clear + 1
             mass['dimensions']['height'] = max(mass['dimensions'].get('height', 0), floors * (clear + 1) + 1)
     bindings = {}
-    for mass in requirement_masses:
+    for mass in binding_hosts:
         scope = mass['params'].get('requirement_scope')
         if isinstance(scope, str):
             targets = bindings.setdefault(scope, [])
             if mass not in targets:
                 targets.append(mass)
-        identity = str(mass['params']['component_id']).lower()
+        # Identity parity with Java hostIdentityBlob: component_id, roles, labels, features.
+        identity = _host_identity_blob(mass)
         for key, names in NAMED_BUILDINGS.items():
-            if any(name in identity for name in names):
+            if any(name and name.lower() in identity for name in names):
                 targets = bindings.setdefault('named_' + key, [])
                 if mass not in targets:
                     targets.append(mass)
-            elif key == 'wing' and re.search(r'(?:^|[_\s-])wing(?:$|[_\s-])',identity):
+            elif key == 'wing' and re.search(r'(?:^|[_\s-])wing(?:$|[_\s-])', identity):
                 targets = bindings.setdefault('named_wing', [])
                 if mass not in targets:
                     targets.append(mass)
@@ -1015,7 +1064,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             continue
         if scope == 'unresolved':
             # Only roof_type may verify on a lone host without claiming all_main_masses.
-            # Positive roofs on typology STRUCTURE stay for chinese_roof_contract.
+            # Positive roofs deferred only for chinese_roof_contract typologies.
             # Conflicting floor/dim values (value=None / unsupported_scope) stay unbound.
             sole = design_hosts if len(design_hosts) == 1 else (masses if len(masses) == 1 else [])
             may_bind_single = (
@@ -1024,7 +1073,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 and requirement.get('value') is not None
                 and requirement.get('status') not in ('unsupported_scope', 'unresolved')
             )
-            if may_bind_single and requirement.get('value') != 'none' and _is_typology_structure(sole[0]):
+            if (may_bind_single and requirement.get('value') != 'none'
+                    and _defers_positive_roof_to_chinese_contract(sole[0])):
                 continue
             if not may_bind_single:
                 if (not design_hosts and not masses
@@ -1222,6 +1272,23 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
             for mass in targets:
                 roofs = [c for c in owned if c.get('component_type') in ('ROOF', 'ROOF_STRUCTURE')
                          and c['params'].get('host_id') == mass['params']['component_id']]
+                # Typology shells outside chinese_roof_contract do not honor snake_case
+                # roof_type — report an explicit capability diagnostic instead of skipping.
+                if (key == 'roof_type' and expected not in (None, 'none')
+                        and _is_typology_structure(mass)
+                        and not _defers_positive_roof_to_chinese_contract(mass)
+                        and not roofs
+                        and mass['params'].get(key) != expected):
+                    cid = mass['params']['component_id']
+                    invalid.append(cid)
+                    contract['diagnostics'].append({
+                        'code': 'E_TYPOLOGY_ROOF_UNSUPPORTED',
+                        'component_id': cid,
+                        'typology_id': _typology_id(mass),
+                        'requested': expected,
+                        'message': 'typology STRUCTURE cannot execute plan roof_type; capability_gap',
+                    })
+                    continue
                 invalid += [c['params']['component_id'] for c in (roofs or [mass])
                             if c['params'].get(key, mass['params'].get(key) if key == 'roof_block' else None) != expected]
         else:

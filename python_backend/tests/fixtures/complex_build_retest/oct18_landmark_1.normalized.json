@@ -124,7 +124,15 @@
       "requirements": [],
       "diagnostics": [],
       "validation_stage": "plan",
-      "scope_bindings": {},
+      "scope_bindings": {
+        "named_tower": [
+          "pagoda_tier_1",
+          "pagoda_tier_2",
+          "pagoda_tier_3",
+          "pagoda_tier_4",
+          "pagoda_tier_5"
+        ]
+      },
       "resolved_buildings": [
         {
           "component_id": "pagoda_tier_1",

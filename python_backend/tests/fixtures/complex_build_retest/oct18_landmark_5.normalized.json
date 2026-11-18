@@ -119,6 +119,10 @@
         "named_main_hall": [
           "forbidden_city_main_hall"
         ],
+        "named_wing": [
+          "east_wing_mass",
+          "west_wing_mass"
+        ],
         "named_main_body": [
           "forbidden_city_main_hall"
         ]

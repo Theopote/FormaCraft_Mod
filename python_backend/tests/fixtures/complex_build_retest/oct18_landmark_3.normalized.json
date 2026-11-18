@@ -115,11 +115,15 @@
       "diagnostics": [],
       "validation_stage": "plan",
       "scope_bindings": {
-        "named_main_body": [
-          "estate_main"
-        ],
         "named_tower": [
           "estate_tower"
+        ],
+        "named_wing": [
+          "estate_west_wing",
+          "estate_east_wing"
+        ],
+        "named_main_body": [
+          "estate_main"
         ]
       },
       "resolved_buildings": [
