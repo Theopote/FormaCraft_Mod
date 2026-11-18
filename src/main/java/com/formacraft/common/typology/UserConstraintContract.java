@@ -40,6 +40,7 @@ public final class UserConstraintContract {
     /**
      * One player-authored design omission (roof / windows / entrance), optionally role/ordinal-scoped.
      * Each text match is an independent declaration (span + sourceText) — never merge by domain.
+     * {@code roleHint} may be {@code all_main_masses} / {@code multi_named} for verified multi-target seals.
      * Classification: HARD_CONSTRAINT — server re-verifies from real player text before sealing.
      */
     public record DesignOmitBinding(
@@ -48,19 +49,29 @@ public final class UserConstraintContract {
             String ordinalScope,
             String sourceText,
             int matchStart,
-            int matchEnd
+            int matchEnd,
+            List<String> namedKeys
     ) {
+        public DesignOmitBinding {
+            namedKeys = namedKeys == null ? List.of() : List.copyOf(namedKeys);
+        }
+
         public DesignOmitBinding(String domain, String roleHint) {
-            this(domain, roleHint, null, null, -1, -1);
+            this(domain, roleHint, null, null, -1, -1, List.of());
         }
 
         public DesignOmitBinding(String domain, String roleHint, String ordinalScope) {
-            this(domain, roleHint, ordinalScope, null, -1, -1);
+            this(domain, roleHint, ordinalScope, null, -1, -1, List.of());
         }
     }
 
     private static final Pattern ORDINAL_BUILDING = Pattern.compile(
             "第([一二两三四五六七八九十]|\\d+)栋");
+    /** Explicit whole-compound omit/height quantifiers — mirrors Python _EXPLICIT_ALL_MASS_QUANTIFIERS. */
+    private static final Pattern ALL_MASS_QUANTIFIER = Pattern.compile(
+            "所有建筑|全部建筑|两栋均|两栋都|每栋均|每栋都|全部主体|所有主体|所有房子|全部房子");
+    private static final Pattern JOINT_MULTI_SUBJECT = Pattern.compile(
+            "(?:都|均|全部|一起|皆)(?:要|采用|使用|改成|改用|设置|不要|不需要|不需)?");
     private static final Map<String, Integer> CN_ORDINAL = Map.ofEntries(
             Map.entry("一", 1), Map.entry("二", 2), Map.entry("两", 2), Map.entry("三", 3),
             Map.entry("四", 4), Map.entry("五", 5), Map.entry("六", 6), Map.entry("七", 7),
@@ -253,9 +264,17 @@ public final class UserConstraintContract {
                 String prefix = text.substring(from, m.start());
                 if (prefix.matches("(?s).*山墙[^。；\\n]*")) continue;
             }
-            String hint = inferDesignOmitRoleHint(text, m.start(), m.end());
+            OmitScopeInference scope = inferOmitScope(text, m.start(), m.end());
+            String ordinal = scope.roleHint() != null && scope.roleHint().startsWith("building_")
+                    ? scope.roleHint() : null;
             out.add(new DesignOmitBinding(
-                    domain, hint, null, m.group(), m.start(), m.end()));
+                    domain, scope.roleHint(), ordinal, m.group(), m.start(), m.end(), scope.namedKeys()));
+        }
+    }
+
+    private record OmitScopeInference(String roleHint, List<String> namedKeys) {
+        private OmitScopeInference {
+            namedKeys = namedKeys == null ? List.of() : List.copyOf(namedKeys);
         }
     }
 
@@ -276,11 +295,19 @@ public final class UserConstraintContract {
     }
 
     /**
-     * Prefer ordinal {@code building_N}; else nearest hall/pavilion/tower marker in the clause.
-     * Does not reuse height's hall-before-pavilion priority — 「主殿旁的亭子不要屋顶」binds pavilion.
+     * Prefer ordinal {@code building_N}; else all-mass quantifier / multi_named; else nearest role.
+     * 「主殿旁的亭子不要屋顶」binds pavilion; 「所有建筑都不要屋顶」→ all_main_masses.
      */
     static String inferDesignOmitRoleHint(String text, int matchStart, int matchEnd) {
-        if (text == null) return null;
+        return inferOmitScope(text, matchStart, matchEnd).roleHint();
+    }
+
+    /**
+     * Shared omit-scope inference for collectOmit and tests.
+     * Classification: HARD_CONSTRAINT host identity — no DESIGN_OVERRIDE from component order.
+     */
+    static OmitScopeInference inferOmitScope(String text, int matchStart, int matchEnd) {
+        if (text == null) return new OmitScopeInference(null, List.of());
         int from = matchStart;
         while (from > 0) {
             char c = text.charAt(from - 1);
@@ -306,16 +333,47 @@ public final class UserConstraintContract {
                     n = -1;
                 }
             }
-            if (n > 0) return "building_" + n;
+            if (n > 0) return new OmitScopeInference("building_" + n, List.of());
         }
-        return nearestOmitRoleHint(window, matchStart - from);
+        if (ALL_MASS_QUANTIFIER.matcher(window).find()) {
+            return new OmitScopeInference("all_main_masses", List.of());
+        }
+        List<String> namedKeys = namedKeysInWindow(window);
+        if (namedKeys.size() > 1 && JOINT_MULTI_SUBJECT.matcher(window).find()) {
+            return new OmitScopeInference("multi_named", namedKeys);
+        }
+        return new OmitScopeInference(nearestRoleHint(window, matchStart - from), List.of());
+    }
+
+    /** Named building keys present in window (Python NAMED_BUILDINGS subset used for omit hosts). */
+    static List<String> namedKeysInWindow(String window) {
+        if (window == null || window.isBlank()) return List.of();
+        String lower = window.toLowerCase(Locale.ROOT);
+        List<String> found = new ArrayList<>();
+        String[][] groups = {
+                {"main_hall", "主殿", "正殿", "大殿", "正厅", "中央大厅", "main_hall", "townhall_main"},
+                {"pavilion", "凉亭", "亭子", "小亭", "水上亭", "水榭", "八角亭", "六角亭", "方亭",
+                        "garden_pavilion", "pavilion"},
+                {"tower", "塔楼", "钟楼", "pagoda", "tower"},
+                {"main_body", "主楼", "main_body", "main_building"},
+        };
+        for (String[] group : groups) {
+            String key = group[0];
+            for (int i = 1; i < group.length; i++) {
+                if (lower.contains(group[i].toLowerCase(Locale.ROOT))) {
+                    if (!found.contains(key)) found.add(key);
+                    break;
+                }
+            }
+        }
+        return found;
     }
 
     /**
-     * Role nearest the omit token wins. Dual markers at equal distance → null (no guess).
+     * Role nearest the constraint token wins. Dual markers at equal distance → null (no guess).
      * Never uses bare {@code main} — that false-matches {@code MASS_MAIN}.
      */
-    private static String nearestOmitRoleHint(String window, int relToken) {
+    private static String nearestRoleHint(String window, int relToken) {
         if (window == null || window.isBlank()) return null;
         String lower = window.toLowerCase(Locale.ROOT);
         record Marker(String role, int dist) {}
@@ -411,10 +469,12 @@ public final class UserConstraintContract {
         return cls.trim().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Same nearest-role rule as omit bindings — 「主殿旁边的亭子高度6格」→ pavilion, not hall.
+     * Classification: HARD_CONSTRAINT host identity.
+     */
     static String inferHeightRoleHint(String text, int matchStart, int matchEnd) {
         if (text == null) return null;
-        // Restrict to the local clause so "高24格的主殿，…高10格的木亭" does not bleed roles.
-        // Chinese顿号 、, newlines, and parentheses are also clause boundaries.
         int from = matchStart;
         while (from > 0) {
             char c = text.charAt(from - 1);
@@ -427,20 +487,22 @@ public final class UserConstraintContract {
             if (isHeightClauseBoundary(c)) break;
             to++;
         }
-        String window = text.substring(from, to).toLowerCase(Locale.ROOT);
-        // Hall before pavilion for height cues — never bare "main" (MASS_MAIN false positive).
-        if (window.contains("主殿") || window.contains("正殿") || window.contains("正房")
-                || window.contains("大殿") || window.contains("主楼") || window.contains("主厅")
-                || window.contains("main_hall") || window.contains("hall")) {
-            return "hall";
+        String window = text.substring(from, to);
+        Matcher ordinal = ORDINAL_BUILDING.matcher(window);
+        if (ordinal.find()) {
+            String raw = ordinal.group(1);
+            Integer mapped = CN_ORDINAL.get(raw);
+            int n = mapped != null ? mapped : -1;
+            if (n < 0) {
+                try {
+                    n = Integer.parseInt(raw);
+                } catch (NumberFormatException ex) {
+                    n = -1;
+                }
+            }
+            if (n > 0) return "building_" + n;
         }
-        if (window.contains("亭") || window.contains("pavilion") || window.contains("廊")) {
-            return "pavilion";
-        }
-        if (window.contains("塔") || window.contains("pagoda") || window.contains("tower")) {
-            return "tower";
-        }
-        return null;
+        return nearestRoleHint(window, matchStart - from);
     }
 
     /** Sentence / list separators that bound a height cue's local role window. */

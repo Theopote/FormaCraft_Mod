@@ -89,6 +89,32 @@ class UserConstraintContractTest {
     }
 
     @Test
+    void heightRoleUsesNearestSubjectNotHallFirst() {
+        var bindings = UserConstraintContract.parseExplicitHeightBindings(
+                "主殿旁边的亭子高度6格");
+        assertEquals(1, bindings.size());
+        assertEquals(6, bindings.get(0).blocks());
+        assertEquals("pavilion", bindings.get(0).roleHint(),
+                "nearest role must win over hall-first priority");
+    }
+
+    @Test
+    void allMassOmitQuantifierIsDetected() {
+        var omits = UserConstraintContract.parseDesignOmitBindings("建造两栋建筑，所有建筑都不要屋顶");
+        assertFalse(omits.isEmpty());
+        assertEquals("all_main_masses", omits.get(0).roleHint());
+    }
+
+    @Test
+    void multiNamedRoofOmitIsDetected() {
+        var omits = UserConstraintContract.parseDesignOmitBindings("主殿和亭子都不要屋顶");
+        assertFalse(omits.isEmpty());
+        assertEquals("multi_named", omits.get(0).roleHint());
+        assertTrue(omits.get(0).namedKeys().contains("main_hall"));
+        assertTrue(omits.get(0).namedKeys().contains("pavilion"));
+    }
+
+    @Test
     void sealInvalidatesWhenSealedValueChanges() {
         Map<String, Object> params = new HashMap<>();
         params.put("height", 24);

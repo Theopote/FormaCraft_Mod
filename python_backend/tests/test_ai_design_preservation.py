@@ -1355,6 +1355,39 @@ class AiDesignPreservationTest(unittest.TestCase):
             )
         )
 
+    def test_ordinal_omit_match_span_uses_full_text_coords(self):
+        from app.services.building_contract import extract_requirements
+
+        text = "第一栋不要屋顶；第二栋不要屋顶。"
+        omits = [
+            r for r in extract_requirements(text)
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertGreaterEqual(len(omits), 2, omits)
+        spans = []
+        for req in omits:
+            span = req.get("match_span")
+            self.assertIsInstance(span, list)
+            self.assertEqual(2, len(span))
+            start, end = int(span[0]), int(span[1])
+            self.assertGreaterEqual(start, 0)
+            self.assertLessEqual(end, len(text))
+            self.assertEqual(text[start:end], (req.get("source_text") or [""])[0])
+            spans.append((start, end))
+        self.assertEqual(len(spans), len(set(spans)), "duplicate omit spans must stay distinct")
+
+    def test_all_buildings_omit_roof_is_explicit_quantifier(self):
+        from app.services.building_contract import extract_requirements
+
+        text = "建造两栋建筑，所有建筑都不要屋顶。"
+        omits = [
+            r for r in extract_requirements(text)
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        self.assertEqual("all_main_masses", omits[0].get("scope"))
+        self.assertEqual("EXPLICIT_QUANTIFIER", omits[0].get("scope_source"))
+
     def test_dual_roof_omit_declarations_bind_independently(self):
         from app.services.building_contract import extract_requirements, apply_building_contract
         from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
@@ -1673,7 +1706,7 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertNotEqual("USER_EXPLICIT", (out.get("design_sources") or {}).get("roof_type"))
 
     def test_local_pavilion_no_windows_does_not_strip_house_windows(self):
-        """Unresolved local window omit must not escalate to every MASS."""
+        """Named pavilion window omit binds locally — must not escalate to every MASS."""
         from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
 
         plan = {
@@ -1726,13 +1759,14 @@ class AiDesignPreservationTest(unittest.TestCase):
             copy.deepcopy(plan), "住宅旁边的亭子不开窗"
         )
         house = next(c for c in out["components"] if c["params"]["component_id"] == "modern_house")
+        pavilion = next(c for c in out["components"] if c["params"]["component_id"] == "garden_pavilion")
         self.assertEqual("regular", house["params"]["window_style"])
         self.assertTrue(any(
             c.get("params", {}).get("component_id") == "facade_house"
             for c in out["components"]
         ))
-        self.assertEqual("capability_gap", out.get("plan_status"))
-        self.assertEqual("E_OMIT_SCOPE_AMBIGUOUS", (out.get("capability_gap") or {}).get("code"))
+        self.assertEqual("none", pavilion["params"].get("window_style"))
+        self.assertNotEqual("capability_gap", out.get("plan_status"))
 
     def test_local_pavilion_no_roof_does_not_strip_house_roof(self):
         from app.services.llm_plan_normalization import _apply_user_explicit_design_sources

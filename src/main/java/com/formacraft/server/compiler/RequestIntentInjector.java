@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -156,10 +157,12 @@ public final class RequestIntentInjector {
             if (BuildingHostResolver.isHostMass(c)) hosts.add(c);
         }
         boolean multi = hosts.size() > 1;
-        Map<String, Integer> heightByMassId = resolveHeightBindings(hosts, primary, multi, bindings);
+        HeightBindResult heightResult = resolveHeightBindings(hosts, primary, multi, bindings);
+        Map<String, Integer> heightByMassId = heightResult.byMassId();
         OmitBindResult omitResult = resolveDesignOmitBindings(plan, hosts, primary, multi, omits);
         Map<String, Set<String>> omitByMassId = omitResult.byMassId();
-        if (authorizeFromText && (!omitResult.diagnostics().isEmpty() || omitResult.capabilityGap())) {
+        if (authorizeFromText && (heightResult.capabilityGap() || omitResult.capabilityGap()
+                || !heightResult.diagnostics().isEmpty() || !omitResult.diagnostics().isEmpty())) {
             Map<String, Object> meta = plan.planMeta() == null
                     ? new HashMap<>()
                     : new HashMap<>(plan.planMeta());
@@ -167,17 +170,26 @@ public final class RequestIntentInjector {
             List<Object> diags = meta.get("scope_diagnostics") instanceof List<?> raw
                     ? new ArrayList<>((List<Object>) raw)
                     : new ArrayList<>();
+            diags.addAll(heightResult.diagnostics());
             diags.addAll(omitResult.diagnostics());
             meta.put("scope_diagnostics", diags);
             plan = withMeta(plan, meta);
-            if (omitResult.capabilityGap()) {
+            if (heightResult.capabilityGap() || omitResult.capabilityGap()) {
+                String code = heightResult.capabilityGap() && omitResult.capabilityGap()
+                        ? "E_DESIGN_CONSTRAINT_HOST_SCOPE"
+                        : (heightResult.capabilityGap()
+                        ? "E_DESIGN_HEIGHT_HOST_SCOPE"
+                        : "E_DESIGN_OMIT_HOST_SCOPE");
+                List<Map<String, Object>> allDiags = new ArrayList<>();
+                allDiags.addAll(heightResult.diagnostics());
+                allDiags.addAll(omitResult.diagnostics());
                 plan = withCapabilityGap(plan,
                         new com.formacraft.common.llm.dto.CapabilityGap(
-                                "E_DESIGN_OMIT_HOST_SCOPE",
-                                "局部设计省略无法唯一绑定宿主，或与计划目标不一致",
-                                "RequestIntentInjector.resolveDesignOmitBindings",
+                                code,
+                                "局部高度或设计省略无法唯一绑定宿主，或与计划目标不一致",
+                                "RequestIntentInjector.applyServerConstraintsToComponents",
                                 List.of("clarify building host", "use ordinal building_N or unique name"),
-                                Map.of("diagnostics", omitResult.diagnostics())));
+                                Map.of("diagnostics", allDiags)));
             }
         }
         List<Component> out = new ArrayList<>(plan.components().size());
@@ -249,7 +261,8 @@ public final class RequestIntentInjector {
     /**
      * Map mass ids to local design-omit domains using clause role hints.
      * Per-declaration: unique max role score required; ties/unscoped are blocking gaps.
-     * Python targets are matched per declaration (never domain-aggregated); cannot rescue ties.
+     * Explicit all-mass / multi_named declarations may seal a verified Set of hosts.
+     * Python targets are matched per declaration as sets; cannot rescue ties.
      */
     static OmitBindResult resolveDesignOmitBindings(
             LlmPlan plan,
@@ -267,12 +280,61 @@ public final class RequestIntentInjector {
         for (var b : bindings) {
             if (b == null || b.domain() == null || b.domain().isBlank()) continue;
             String hint = b.roleHint();
-            String javaTarget = null;
+            Set<String> javaTargets = new LinkedHashSet<>();
             boolean ambiguous = false;
             if (!multi || hosts.size() == 1) {
-                javaTarget = primary != null ? primary : BuildingHostResolver.massId(hosts.getFirst());
+                String one = primary != null ? primary : BuildingHostResolver.massId(hosts.getFirst());
+                if (one != null) javaTargets.add(one);
+            } else if ("all_main_masses".equals(hint)) {
+                for (Component host : hosts) {
+                    String mid = BuildingHostResolver.massId(host);
+                    if (mid != null && !mid.isBlank()) javaTargets.add(mid);
+                }
+                if (javaTargets.isEmpty()) {
+                    ambiguous = true;
+                    gap = true;
+                    diagnostics.add(Map.of(
+                            "code", "E_OMIT_HOST_UNSCOPED",
+                            "domain", b.domain(),
+                            "roleHint", "all_main_masses",
+                            "message", "all-mass omit found no host masses"));
+                }
+            } else if ("multi_named".equals(hint)) {
+                List<String> keys = b.namedKeys() == null ? List.of() : b.namedKeys();
+                if (keys.isEmpty()) {
+                    ambiguous = true;
+                    gap = true;
+                    diagnostics.add(Map.of(
+                            "code", "E_OMIT_HOST_UNSCOPED",
+                            "domain", b.domain(),
+                            "roleHint", "multi_named",
+                            "message", "multi_named omit missing named_keys"));
+                } else {
+                    for (String key : keys) {
+                        String id = uniqueNamedKeyHostId(hosts, key);
+                        if (id == null) {
+                            ambiguous = true;
+                            gap = true;
+                            diagnostics.add(Map.of(
+                                    "code", "E_OMIT_HOST_TIE",
+                                    "domain", b.domain(),
+                                    "roleHint", "multi_named",
+                                    "namedKey", key,
+                                    "sourceText", b.sourceText() == null ? "" : b.sourceText(),
+                                    "message", "multi_named omit subject is not unique"));
+                            javaTargets.clear();
+                            break;
+                        }
+                        javaTargets.add(id);
+                    }
+                    if (!ambiguous && javaTargets.size() != keys.size()) {
+                        ambiguous = true;
+                        gap = true;
+                        javaTargets.clear();
+                    }
+                }
             } else if (hint != null && hint.startsWith("building_")) {
-                javaTarget = resolveOrdinalOmitHost(hosts, primary, hint);
+                String javaTarget = resolveOrdinalOmitHost(hosts, primary, hint);
                 if (javaTarget == null) {
                     ambiguous = true;
                     gap = true;
@@ -281,9 +343,11 @@ public final class RequestIntentInjector {
                             "domain", b.domain(),
                             "roleHint", hint,
                             "message", "ordinal omit host is not unique"));
+                } else {
+                    javaTargets.add(javaTarget);
                 }
             } else if (hint != null && !hint.isBlank()) {
-                javaTarget = uniqueRoleHostId(hosts, hint);
+                String javaTarget = uniqueRoleHostId(hosts, hint);
                 if (javaTarget == null) {
                     ambiguous = true;
                     gap = true;
@@ -293,6 +357,8 @@ public final class RequestIntentInjector {
                             "roleHint", hint,
                             "sourceText", b.sourceText() == null ? "" : b.sourceText(),
                             "message", "omit host role score is not unique"));
+                } else {
+                    javaTargets.add(javaTarget);
                 }
             } else {
                 ambiguous = true;
@@ -301,37 +367,69 @@ public final class RequestIntentInjector {
                         "code", "E_OMIT_HOST_UNSCOPED",
                         "domain", b.domain(),
                         "sourceText", b.sourceText() == null ? "" : b.sourceText(),
-                        "message", "multi-mass omit without role/ordinal scope"));
+                        "message", "multi-mass omit without role/ordinal/quantifier scope"));
             }
             // Text ambiguity: never stamp and never accept plan-supplied target_components.
             if (ambiguous) {
                 continue;
             }
             Set<String> pythonTargets = pythonOmitTargetsForDeclaration(plan, b);
-            String target = javaTarget;
+            Set<String> targets = javaTargets;
             if (!pythonTargets.isEmpty()) {
-                if (javaTarget != null && pythonTargets.equals(Set.of(javaTarget))) {
-                    target = javaTarget;
-                } else if (javaTarget != null && pythonTargets.contains(javaTarget)
-                        && pythonTargets.size() == 1) {
-                    target = javaTarget;
+                if (pythonTargets.equals(javaTargets)) {
+                    targets = javaTargets;
                 } else {
-                    target = null;
+                    targets = Set.of();
                     gap = true;
                     Map<String, Object> detail = new HashMap<>();
                     detail.put("code", "E_OMIT_HOST_MISMATCH");
                     detail.put("domain", b.domain());
                     detail.put("sourceText", b.sourceText() == null ? "" : b.sourceText());
                     detail.put("pythonTargets", List.copyOf(pythonTargets));
-                    detail.put("javaTarget", javaTarget == null ? "" : javaTarget);
+                    detail.put("javaTargets", List.copyOf(javaTargets));
                     detail.put("message", "python and java omit hosts disagree for this declaration");
                     diagnostics.add(detail);
                 }
             }
-            if (target == null || target.isBlank()) continue;
-            out.computeIfAbsent(target, k -> new HashSet<>()).add(b.domain());
+            for (String target : targets) {
+                if (target == null || target.isBlank()) continue;
+                out.computeIfAbsent(target, k -> new HashSet<>()).add(b.domain());
+            }
         }
         return new OmitBindResult(out, diagnostics, gap);
+    }
+
+    /** Resolve a Python/Java named building key to a unique host id. */
+    private static String uniqueNamedKeyHostId(List<Component> hosts, String namedKey) {
+        if (namedKey == null || namedKey.isBlank()) return null;
+        String role = switch (namedKey.trim().toLowerCase(Locale.ROOT)) {
+            case "main_hall", "main_body", "keep", "residence", "office" -> "hall";
+            case "pavilion", "wing" -> "pavilion";
+            case "tower" -> "tower";
+            default -> null;
+        };
+        if (role != null) {
+            String byRole = uniqueRoleHostId(hosts, role);
+            if (byRole != null) return byRole;
+        }
+        String key = namedKey.trim().toLowerCase(Locale.ROOT);
+        List<String> hits = new ArrayList<>();
+        for (Component host : hosts) {
+            String mid = BuildingHostResolver.massId(host);
+            if (mid == null) continue;
+            String blob = (mid + " " + (host.slotId() == null ? "" : host.slotId())).toLowerCase(Locale.ROOT);
+            if (host.params() != null) {
+                for (String k : List.of("component_id", "building_id", "building_role", "buildingRole")) {
+                    Object v = host.params().get(k);
+                    if (v != null) blob += " " + v;
+                }
+            }
+            blob = blob.toLowerCase(Locale.ROOT);
+            if (mid.equalsIgnoreCase(namedKey) || blob.contains(key)) {
+                hits.add(mid);
+            }
+        }
+        return hits.size() == 1 ? hits.getFirst() : null;
     }
 
     /** Unique role-score winner; ties return null (order must not decide). */
@@ -443,6 +541,8 @@ public final class RequestIntentInjector {
                     || s.contains("正殿") || s.contains("主殿") || s.equals("named_main_hall");
             case "pavilion" -> s.contains("pavilion") || s.contains("亭") || s.equals("named_pavilion");
             case "tower" -> s.contains("tower") || s.contains("pagoda") || s.contains("塔");
+            case "all_main_masses" -> s.equals("all_main_masses") || s.equals("plan");
+            case "multi_named" -> s.equals("multi_named");
             default -> false;
         };
     }
@@ -486,74 +586,79 @@ public final class RequestIntentInjector {
             boolean capabilityGap
     ) {}
 
+    private record HeightBindResult(
+            Map<String, Integer> byMassId,
+            List<Map<String, Object>> diagnostics,
+            boolean capabilityGap
+    ) {}
+
     /**
-     * Map mass ids to player height values. Multi-cue texts bind by role hint; single cue → primary.
+     * Map mass ids to player height values by unique role/ordinal host.
+     * Multi-mass: never default a single height cue onto primary; ties/unscoped → gap.
+     * Classification: HARD_CONSTRAINT — no area/order guess for unmatched pavilion cues.
      */
-    static Map<String, Integer> resolveHeightBindings(
+    static HeightBindResult resolveHeightBindings(
             List<Component> hosts,
             String primary,
             boolean multi,
             List<com.formacraft.common.typology.UserConstraintContract.HeightBinding> bindings
     ) {
         Map<String, Integer> out = new HashMap<>();
-        if (bindings == null || bindings.isEmpty() || hosts == null || hosts.isEmpty()) return out;
-        if (bindings.size() == 1 || !multi) {
-            int h = bindings.getFirst().blocks();
-            if (h < 8) h = bindings.getFirst().blocks(); // allow small single cue
+        List<Map<String, Object>> diagnostics = new ArrayList<>();
+        boolean gap = false;
+        if (bindings == null || bindings.isEmpty() || hosts == null || hosts.isEmpty()) {
+            return new HeightBindResult(out, diagnostics, false);
+        }
+        if (!multi || hosts.size() == 1) {
             String target = primary;
             if (target == null || target.isBlank()) {
                 target = BuildingHostResolver.massId(hosts.getFirst());
             }
-            if (target != null) out.put(target, bindings.getFirst().blocks());
-            return out;
-        }
-        boolean[] used = new boolean[bindings.size()];
-        for (Component host : hosts) {
-            String mid = BuildingHostResolver.massId(host);
-            if (mid == null) continue;
-            int bestIdx = -1;
-            int bestScore = 0;
-            for (int i = 0; i < bindings.size(); i++) {
-                if (used[i]) continue;
-                int score = heightRoleScore(host, bindings.get(i).roleHint());
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestIdx = i;
-                }
+            if (target != null) {
+                out.put(target, bindings.getFirst().blocks());
             }
-            if (bestIdx >= 0 && bestScore > 0) {
-                used[bestIdx] = true;
-                out.put(mid, bindings.get(bestIdx).blocks());
-            }
+            return new HeightBindResult(out, diagnostics, false);
         }
-        // Unmatched hall/null cues → primary; unmatched pavilion cues → largest unbound secondary.
-        for (int i = 0; i < bindings.size(); i++) {
-            if (used[i]) continue;
-            var b = bindings.get(i);
-            if ("pavilion".equals(b.roleHint())) {
-                Component secondary = null;
-                long bestVol = -1;
-                for (Component host : hosts) {
-                    String mid = BuildingHostResolver.massId(host);
-                    if (mid == null || out.containsKey(mid)) continue;
-                    if (primary != null && primary.equals(mid)) continue;
-                    long vol = host.dimensions() == null ? 0L
-                            : (long) host.dimensions().width() * host.dimensions().depth();
-                    if (vol > bestVol) {
-                        bestVol = vol;
-                        secondary = host;
-                    }
-                }
-                if (secondary != null) {
-                    used[i] = true;
-                    out.put(BuildingHostResolver.massId(secondary), b.blocks());
-                }
-            } else if (primary != null && !out.containsKey(primary)) {
-                used[i] = true;
-                out.put(primary, b.blocks());
+        for (var b : bindings) {
+            if (b == null || b.blocks() <= 0) continue;
+            String hint = b.roleHint();
+            String target = null;
+            if (hint == null || hint.isBlank()) {
+                gap = true;
+                diagnostics.add(Map.of(
+                        "code", "E_HEIGHT_HOST_UNSCOPED",
+                        "blocks", b.blocks(),
+                        "message", "multi-mass height cue without role/ordinal scope"));
+                continue;
             }
+            if (hint.startsWith("building_")) {
+                target = resolveOrdinalOmitHost(hosts, primary, hint);
+            } else {
+                target = uniqueRoleHostId(hosts, hint);
+            }
+            if (target == null) {
+                gap = true;
+                diagnostics.add(Map.of(
+                        "code", "E_HEIGHT_HOST_TIE",
+                        "blocks", b.blocks(),
+                        "roleHint", hint,
+                        "message", "height host role score is not unique"));
+                continue;
+            }
+            Integer prior = out.get(target);
+            if (prior != null && prior != b.blocks()) {
+                gap = true;
+                diagnostics.add(Map.of(
+                        "code", "E_HEIGHT_HOST_CONFLICT",
+                        "target", target,
+                        "blocks", b.blocks(),
+                        "priorBlocks", prior,
+                        "message", "conflicting height cues for the same host"));
+                continue;
+            }
+            out.put(target, b.blocks());
         }
-        return out;
+        return new HeightBindResult(out, diagnostics, gap);
     }
 
     /**
@@ -579,16 +684,28 @@ public final class RequestIntentInjector {
             }
         }
         String lower = sb.toString().toLowerCase(Locale.ROOT);
+        boolean pavilionLike = lower.contains("pavilion") || lower.contains("亭")
+                || lower.contains("廊") || lower.contains("wing");
+        boolean towerLike = lower.contains("tower") || lower.contains("塔")
+                || lower.contains("pagoda");
         return switch (roleHint) {
-            case "pavilion" -> (lower.contains("pavilion") || lower.contains("亭")
-                    || lower.contains("廊") || lower.contains("wing")) ? 3 : 0;
-            case "hall" -> (lower.contains("main_hall") || lower.contains("townhall")
-                    || lower.contains("hall") || lower.contains("殿")
-                    || lower.contains("正房") || lower.contains("主殿")
-                    || lower.contains("正殿") || lower.contains("大殿")
-                    || lower.contains("主楼") || lower.contains("主厅")) ? 3 : 0;
-            case "tower" -> (lower.contains("tower") || lower.contains("塔")
-                    || lower.contains("pagoda")) ? 3 : 0;
+            case "pavilion" -> pavilionLike ? 3 : 0;
+            case "hall" -> {
+                if (lower.contains("main_hall") || lower.contains("townhall")
+                        || lower.contains("hall") || lower.contains("殿")
+                        || lower.contains("正房") || lower.contains("主殿")
+                        || lower.contains("正殿") || lower.contains("大殿")
+                        || lower.contains("主楼") || lower.contains("主厅")) {
+                    yield 3;
+                }
+                // Weak identity only (never componentType): house_main / *_main without pavilion/tower cues.
+                if (!pavilionLike && !towerLike
+                        && (lower.contains("_main") || lower.contains("house"))) {
+                    yield 2;
+                }
+                yield 0;
+            }
+            case "tower" -> towerLike ? 3 : 0;
             default -> 0;
         };
     }

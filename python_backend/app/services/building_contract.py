@@ -325,11 +325,8 @@ def _extract_global_requirements(text: str) -> list[dict]:
                    'match_span': [match.start(), match.end()],
                    'scope': 'unresolved', 'scope_source': 'INFERRED',
                    'priority': 'hard', 'status': 'pending'}
-            if prop == 'roof_type':
-                _refine_roof_scope(text, req, match)
-            elif _explicit_all_mass_quantifier(text, match):
-                req['scope'] = 'all_main_masses'
-                req['scope_source'] = 'EXPLICIT_QUANTIFIER'
+            # Roof/window/entrance share named / quantifier / multi_named host refinement.
+            _refine_roof_scope(text, req, match)
             result.append(req)
     if re.search(r'(?:不(?:要|需)|暂不).{0,18}复杂装饰', text):
         result.append({'id': 'req_no_complex_decor', 'property': 'no_complex_decor', 'value': True,
@@ -386,6 +383,8 @@ def extract_requirements(text: str) -> list[dict]:
     for index, (_, end, scope) in enumerate(events):
         stop = events[index+1][0] if index+1 < len(events) else len(text)
         for requirement in _extract_global_requirements(text[end:stop]):
+            # Fragments are sliced from the full player text — shift match_span back to absolute coords.
+            _shift_match_span(requirement, end)
             if str(scope).startswith('building_'):
                 # Ordinal clause owns the fragment — bind inferred/unresolved design
                 # requirements to that building (do not leave them as whole-compound).
@@ -409,6 +408,19 @@ def extract_requirements(text: str) -> list[dict]:
             requirement['id'] += '_' + scope
             result.append(requirement)
     return result
+
+
+def _shift_match_span(requirement: dict, offset: int) -> None:
+    """Convert fragment-relative match_span to full player-text coordinates."""
+    if not offset:
+        return
+    span = requirement.get('match_span')
+    if not isinstance(span, list) or len(span) < 2:
+        return
+    try:
+        requirement['match_span'] = [int(span[0]) + offset, int(span[1]) + offset]
+    except (TypeError, ValueError):
+        return
 
 
 def request_text(req: Any) -> str:
