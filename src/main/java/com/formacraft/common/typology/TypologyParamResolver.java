@@ -457,6 +457,18 @@ public final class TypologyParamResolver {
         promote(merged, null, canonical, alts);
     }
 
+    /**
+     * Authority rank for alias promotion: USER_EXPLICIT &gt; plan/LLM &gt; landmark &gt; soft default.
+     * Classification: HARD_CONSTRAINT provenance — never let LLM_INFERRED overwrite USER_EXPLICIT.
+     */
+    static int sourceAuthorityRank(String src) {
+        if (src == null || src.isBlank()) return 0;
+        if (SOURCE_USER_EXPLICIT.equals(src)) return 3;
+        if (isPlanLikeSource(src)) return 2;
+        if (SOURCE_LANDMARK_PRIOR.equals(src)) return 1;
+        return 0;
+    }
+
     private static void promote(
             Map<String, Object> merged, Map<String, String> sources, String canonical, String... alts
     ) {
@@ -464,25 +476,42 @@ public final class TypologyParamResolver {
             if (!merged.containsKey(alt)) continue;
             Object v = merged.get(alt);
             if (v != null && !String.valueOf(v).isBlank()) {
-                boolean altPlan = sources != null && isPlanLikeSource(sources.get(alt));
-                boolean canonPlan = sources != null && isPlanLikeSource(sources.get(canonical));
+                String altSrc = sources == null ? null : sources.get(alt);
+                String canonSrc = sources == null ? null : sources.get(canonical);
+                int altRank = sourceAuthorityRank(altSrc);
+                int canonRank = merged.containsKey(canonical) ? sourceAuthorityRank(canonSrc) : -1;
+                Object canonVal = merged.get(canonical);
+                // Higher-authority canonical wins (USER_EXPLICIT roofType vs LLM roof_type).
+                if (canonVal != null && !String.valueOf(canonVal).isBlank() && canonRank > altRank) {
+                    return;
+                }
+                // Dual USER_EXPLICIT with different values — do not silently overwrite.
+                if (canonVal != null && !String.valueOf(canonVal).isBlank()
+                        && canonRank >= 3 && altRank >= 3
+                        && !Objects.equals(String.valueOf(canonVal), String.valueOf(v))) {
+                    if (sources != null) {
+                        sources.put(canonical + "_alias_conflict", alt);
+                    }
+                    return;
+                }
+                boolean altPlan = isPlanLikeSource(altSrc);
+                boolean canonPlan = isPlanLikeSource(canonSrc);
                 // Soft default on canonical must yield to plan-authored alias.
                 if (merged.containsKey(canonical) && !altPlan && canonPlan) {
                     return;
                 }
                 if (merged.containsKey(canonical) && !altPlan
-                        && sources != null && SOURCE_TYPOLOGY_DEFAULT.equals(sources.get(canonical))
-                        && !isPlanLikeSource(sources.get(alt))
-                        && !SOURCE_LANDMARK_PRIOR.equals(sources.get(alt))) {
+                        && sources != null && SOURCE_TYPOLOGY_DEFAULT.equals(canonSrc)
+                        && !isPlanLikeSource(altSrc)
+                        && !SOURCE_LANDMARK_PRIOR.equals(altSrc)) {
                     // Both soft — keep first canonical.
                     return;
                 }
-                if (altPlan || !merged.containsKey(canonical)
-                        || (sources != null && !isPlanLikeSource(sources.get(canonical)))) {
+                if (altRank > canonRank || altPlan || !merged.containsKey(canonical)
+                        || (sources != null && !isPlanLikeSource(canonSrc))) {
                     merged.put(canonical, v);
                     if (sources != null) {
-                        String src = sources.get(alt);
-                        if (src != null) sources.put(canonical, src);
+                        if (altSrc != null) sources.put(canonical, altSrc);
                     }
                 }
                 return;

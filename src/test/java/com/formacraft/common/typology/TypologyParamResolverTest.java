@@ -306,4 +306,61 @@ class TypologyParamResolverTest {
         var merged = TypologyParamResolver.merge("dense_eaves_pagoda", component);
         assertEquals(2, ((Number) merged.get("eaves_per_level")).intValue());
     }
+
+    @Test
+    void userExplicitRoofTypeBeatsLlmInferredRoofSnakeCase() {
+        java.util.Map<String, Object> params = new java.util.HashMap<>();
+        params.put("roofType", "xie_shan");
+        params.put("roof_type", "wu_dian");
+        params.put("width", 21);
+        params.put("depth", 13);
+        UserConstraintContract.stampVerified(params, "roofType");
+        // LLM-inferred snake alias must not overwrite sealed USER_EXPLICIT camel form.
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(21, 13, 20),
+                java.util.List.of("typology:tailiang_timber_hall"),
+                params
+        );
+        var merged = TypologyParamResolver.merge("tailiang_timber_hall", component);
+        String roof = String.valueOf(merged.get("roofType"));
+        assertTrue(roof.contains("xie"), "USER_EXPLICIT roofType must win, got " + roof);
+        assertFalse(roof.contains("wu"), "LLM_INFERRED roof_type must not overwrite USER_EXPLICIT");
+        assertEquals(3, TypologyParamResolver.sourceAuthorityRank(
+                TypologyParamResolver.SOURCE_USER_EXPLICIT));
+        assertTrue(TypologyParamResolver.sourceAuthorityRank(
+                TypologyParamResolver.SOURCE_USER_EXPLICIT)
+                > TypologyParamResolver.sourceAuthorityRank(
+                TypologyParamResolver.SOURCE_LLM_INFERRED));
+    }
+
+    @Test
+    void dualUserExplicitRoofAliasConflictKeepsCanonical() {
+        java.util.Map<String, Object> params = new java.util.HashMap<>();
+        params.put("roofType", "xie_shan");
+        params.put("roof_type", "wu_dian");
+        params.put("width", 21);
+        params.put("depth", 13);
+        UserConstraintContract.stampVerified(params, "roofType", "roof_type");
+        var component = new com.formacraft.common.llm.dto.Component(
+                "STRUCTURE",
+                null,
+                new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                new com.formacraft.common.llm.dto.Dimensions(21, 13, 20),
+                java.util.List.of("typology:tailiang_timber_hall"),
+                params
+        );
+        var merged = TypologyParamResolver.merge("tailiang_timber_hall", component);
+        @SuppressWarnings("unchecked")
+        var sources = (java.util.Map<String, String>) merged.get(TypologyParamResolver.PARAM_SOURCES_KEY);
+        assertNotNull(sources);
+        assertTrue(sources.containsKey("roofType_alias_conflict")
+                        || "xie_shan".equals(String.valueOf(merged.get("roofType")))
+                        || String.valueOf(merged.get("roofType")).contains("xie"),
+                "conflicting dual USER_EXPLICIT must not silently adopt roof_type=wu_dian");
+        assertFalse(String.valueOf(merged.get("roofType")).contains("wu"),
+                "must keep canonical roofType under dual USER_EXPLICIT conflict");
+    }
 }

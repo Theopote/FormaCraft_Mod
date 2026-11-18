@@ -203,30 +203,49 @@ _WING_SIDE_HOST_TOKENS: dict[str, tuple[str, ...]] = {
 }
 
 
-def _wing_side_from_text(text: str | None) -> str | None:
-    """Return west/east/south/north when the clause locally qualifies a wing; else None."""
+def _wing_sides_from_text(text: str | None) -> list[str]:
+    """Return every west/east/south/north cue in the local clause (joint subjects keep both)."""
     raw = str(text or '').strip()
     if not raw:
-        return None
+        return []
+    sides: list[str] = []
     for side, patterns in _WING_SIDE_PATTERNS:
         for pat in patterns:
             if re.search(pat, raw, flags=re.IGNORECASE):
-                return side
-    return None
+                if side not in sides:
+                    sides.append(side)
+                break
+    return sides
+
+
+def _wing_side_from_text(text: str | None) -> str | None:
+    """Return the sole wing side when exactly one is present; else None."""
+    sides = _wing_sides_from_text(text)
+    return sides[0] if len(sides) == 1 else None
+
+
+def _wing_sides_from_texts(texts: Any) -> list[str]:
+    if isinstance(texts, (list, tuple)):
+        found: list[str] = []
+        for item in texts:
+            for side in _wing_sides_from_text(str(item) if item is not None else ''):
+                if side not in found:
+                    found.append(side)
+        return found
+    return _wing_sides_from_text(str(texts) if texts is not None else '')
 
 
 def _wing_side_from_texts(texts: Any) -> str | None:
-    if isinstance(texts, (list, tuple)):
-        for item in texts:
-            side = _wing_side_from_text(str(item) if item is not None else '')
-            if side:
-                return side
-        return None
-    return _wing_side_from_text(str(texts) if texts is not None else '')
+    sides = _wing_sides_from_texts(texts)
+    return sides[0] if len(sides) == 1 else None
 
 
 def _span_clause_window(text: str | None, start: int | None, end: int | None) -> str:
-    """Expand a match span to the surrounding clause so 西厢房 is visible beside 不要屋顶."""
+    """Expand a match span to the surrounding clause so 西厢房 is visible beside 不要屋顶.
+
+    Commas/顿号 bound sibling clauses (parity with Java omitClauseWindow / _roof_clause_window)
+    so 「西厢房不要屋顶，东厢房不要屋顶」keeps independent side cues.
+    """
     raw = str(text or '')
     if not raw:
         return ''
@@ -237,11 +256,12 @@ def _span_clause_window(text: str | None, start: int | None, end: int | None) ->
         return raw
     s = max(0, min(len(raw), s))
     e = max(s, min(len(raw), e))
+    bounds = '。；！？\n\r.!?;，,、'
     left = s
-    while left > 0 and raw[left - 1] not in '。；！？\n\r.!?;':
+    while left > 0 and raw[left - 1] not in bounds:
         left -= 1
     right = e
-    while right < len(raw) and raw[right] not in '。；！？\n\r.!?;':
+    while right < len(raw) and raw[right] not in bounds:
         right += 1
     return raw[left:right]
 
@@ -270,12 +290,25 @@ def _filter_hosts_by_wing_side(
         hosts: list[dict[str, Any]],
         source_text: Any,
 ) -> list[dict[str, Any]] | None:
-    """None → side cue present but no unique matching wing (ambiguity)."""
-    side = _wing_side_from_texts(source_text)
-    if not side:
+    """None → side cue present but no unique matching wing (ambiguity).
+
+    Multiple declared sides (西厢房和东厢房都…) must each resolve to exactly one host.
+    """
+    sides = _wing_sides_from_texts(source_text)
+    if not sides:
         return list(hosts)
-    filtered = [h for h in hosts if _host_matches_wing_side(h, side)]
-    return filtered if filtered else None
+    resolved: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for side in sides:
+        filtered = [h for h in hosts if _host_matches_wing_side(h, side)]
+        if len(filtered) != 1:
+            return None
+        cid = str((filtered[0].get('params') or {}).get('component_id') or id(filtered[0]))
+        if cid in seen:
+            continue
+        seen.add(cid)
+        resolved.append(filtered[0])
+    return resolved if resolved else None
 
 
 def _unique_named_hosts(

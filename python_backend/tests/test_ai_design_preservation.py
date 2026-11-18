@@ -2540,6 +2540,39 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertTrue(roof_reqs)
         self.assertEqual(["townhall_west_wing"], roof_reqs[0].get("target_components"))
 
+        from app.services.building_contract import (
+            _filter_hosts_by_wing_side,
+            _span_clause_window,
+            _wing_sides_from_text,
+        )
+
+        joint = "\u897f\u53a2\u623f\u548c\u4e1c\u53a2\u623f\u90fd\u4e0d\u8981\u5c4b\u9876"  # 西厢房和东厢房都不要屋顶
+        self.assertEqual(["west", "east"], _wing_sides_from_text(joint))
+        joint_out = _apply_user_explicit_design_sources(
+            {"mode": "build", "components": deepcopy(wings())},
+            joint,
+        )
+        self.assertEqual(
+            "none",
+            next(c for c in joint_out["components"] if c["params"]["component_id"] == "townhall_west_wing")
+            ["params"]["roof_type"],
+        )
+        self.assertEqual(
+            "none",
+            next(c for c in joint_out["components"] if c["params"]["component_id"] == "townhall_east_wing")
+            ["params"]["roof_type"],
+        )
+
+        comma = "\u897f\u53a2\u623f\u4e0d\u8981\u5c4b\u9876\uff0c\u4e1c\u53a2\u623f\u4e0d\u8981\u5c4b\u9876"  # 西厢房不要屋顶，东厢房不要屋顶
+        west_span = (0, len("\u897f\u53a2\u623f\u4e0d\u8981\u5c4b\u9876"))
+        west_clause = _span_clause_window(comma, west_span[0], west_span[1])
+        self.assertIn("\u897f", west_clause)
+        self.assertNotIn("\u4e1c", west_clause)
+        sided = _filter_hosts_by_wing_side(deepcopy(wings()), west_clause)
+        self.assertIsNotNone(sided)
+        self.assertEqual(1, len(sided))
+        self.assertEqual("townhall_west_wing", sided[0]["params"]["component_id"])
+
 
 if __name__ == "__main__":
     unittest.main()

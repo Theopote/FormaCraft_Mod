@@ -34,8 +34,20 @@ public final class UserConstraintContract {
     /** Process-local secret; never serialized into plans that LLM can see ahead of stamping. */
     private static final String SEAL_SECRET = UUID.randomUUID() + ":" + System.nanoTime();
 
-    /** One player-authored height cue, optionally scoped to a building role hint. */
-    public record HeightBinding(int blocks, String roleHint) {}
+    /**
+     * One player-authored height cue, optionally scoped to a building role hint.
+     * {@code sourceText} is the local clause window (side cues like 西厢房); {@code namedKeys}
+     * preserves shared identity keys (wing) that roleHint may collapse (wing→pavilion).
+     */
+    public record HeightBinding(int blocks, String roleHint, String sourceText, List<String> namedKeys) {
+        public HeightBinding {
+            namedKeys = namedKeys == null ? List.of() : List.copyOf(namedKeys);
+        }
+
+        public HeightBinding(int blocks, String roleHint) {
+            this(blocks, roleHint, null, List.of());
+        }
+    }
 
     /**
      * One player-authored design omission (roof / windows / entrance), optionally role/ordinal-scoped.
@@ -162,7 +174,10 @@ public final class UserConstraintContract {
                 // Secondary pavilions often sit at 6–12 blocks; allow from 4.
                 if (n < 4 || n > 120) continue;
                 String hint = inferHeightRoleHint(userText, m.start(), m.end());
-                out.add(new HeightBinding(n, hint));
+                // Same clause window as omit — keeps 西厢房 beside 高度12格 for side-local binds.
+                String clause = omitClauseWindow(userText, m.start(), m.end());
+                List<String> keys = namedKeysForConstraintWindow(userText, m.start(), m.end());
+                out.add(new HeightBinding(n, hint, clause, keys));
             } catch (NumberFormatException ignored) {
                 // continue
             }
@@ -274,28 +289,65 @@ public final class UserConstraintContract {
         }
     }
 
-    /** Expand omit match to the surrounding clause (parity with Python _span_clause_window). */
+    /**
+     * Expand omit/height match to the surrounding clause (parity with Python _span_clause_window
+     * and _roof_clause_window). Commas and顿号 bound independent sibling clauses so
+     * 「西厢房不要屋顶，东厢房不要屋顶」does not merge side cues.
+     */
     static String omitClauseWindow(String text, int matchStart, int matchEnd) {
         if (text == null || text.isEmpty()) return "";
         int from = Math.max(0, Math.min(text.length(), matchStart));
         int to = Math.max(from, Math.min(text.length(), matchEnd));
         while (from > 0) {
             char c = text.charAt(from - 1);
-            if (c == '。' || c == '；' || c == '！' || c == '？' || c == '\n' || c == '\r'
-                    || c == '.' || c == '!' || c == '?' || c == ';') {
+            if (isOmitClauseBoundary(c)) {
                 break;
             }
             from--;
         }
         while (to < text.length()) {
             char c = text.charAt(to);
-            if (c == '。' || c == '；' || c == '！' || c == '？' || c == '\n' || c == '\r'
-                    || c == '.' || c == '!' || c == '?' || c == ';') {
+            if (isOmitClauseBoundary(c)) {
                 break;
             }
             to++;
         }
         return text.substring(from, to);
+    }
+
+    /** Clause separators shared with height windows and Python roof/omit span bounds. */
+    private static boolean isOmitClauseBoundary(char c) {
+        return c == '。' || c == '；' || c == '！' || c == '？' || c == '\n' || c == '\r'
+                || c == '.' || c == '!' || c == '?' || c == ';'
+                || c == '，' || c == ',' || c == '、';
+    }
+
+    /** Named keys visible in the same local window used for omit/height host identity. */
+    static List<String> namedKeysForConstraintWindow(String text, int matchStart, int matchEnd) {
+        if (text == null) return List.of();
+        int from = matchStart;
+        while (from > 0) {
+            char c = text.charAt(from - 1);
+            if (isHeightClauseBoundary(c)) break;
+            from--;
+        }
+        int to = matchEnd;
+        while (to < text.length()) {
+            char c = text.charAt(to);
+            if (isHeightClauseBoundary(c)) break;
+            to++;
+        }
+        String window = text.substring(from, to);
+        List<String> namedKeys = namedKeysInWindow(window);
+        if (namedKeys.size() > 1 && JOINT_MULTI_SUBJECT.matcher(window).find()) {
+            return namedKeys;
+        }
+        if (namedKeys.size() == 1) return namedKeys;
+        if (namedKeys.size() > 1) {
+            String nearest = nearestNamedKey(window, matchStart - from);
+            return nearest == null ? List.of() : List.of(nearest);
+        }
+        return List.of();
     }
 
     private record OmitScopeInference(String roleHint, List<String> namedKeys) {

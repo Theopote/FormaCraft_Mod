@@ -6,6 +6,7 @@ import com.formacraft.common.generation.component.util.InteriorSpaceDefaults;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.typology.UserConstraintContract;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,6 +17,7 @@ import java.util.Map;
  * Keep floor_count × floor_height inside the mass envelope without dropping storey bands
  * below {@link InteriorSpaceDefaults#minStoreyBand()} (which would leave &lt;3 air clear).
  * Prefer growing the envelope for host masses; clamp only thin satellite facades.
+ * Never grow a server-sealed whole-building / storey height (stacked envelope authority).
  */
 final class FloorLayoutOverflowRepair {
     private FloorLayoutOverflowRepair() {}
@@ -59,7 +61,9 @@ final class FloorLayoutOverflowRepair {
         }
         Map<String, Object> next = new HashMap<>(params);
         Dimensions dims = component.dimensions();
-        if (hostMass && need > envelope) {
+        boolean heightSealed = UserConstraintContract.isServerVerified(params, "height")
+                || UserConstraintContract.isServerVerified(params, "towerHeight");
+        if (hostMass && need > envelope && !heightSealed) {
             // Grow envelope so the authored (or inferred) bands still fit.
             dims = new Dimensions(dims.width(), dims.depth(), (int) Math.min(Integer.MAX_VALUE, need));
             if (authoredFh <= 0) {
@@ -71,6 +75,7 @@ final class FloorLayoutOverflowRepair {
             return new Component(component.componentType(), component.slotId(),
                     component.relativePosition(), dims, component.features(), next);
         }
+        // Sealed stacked/player height must not be re-grown — clamp bands into the envelope.
         int clampedHeight = Math.max(hostMass ? minBand : 1, (int) Math.min(floorHeight, envelope / floorCount));
         int clampedCount = floorCount;
         if ((long) clampedHeight * clampedCount > envelope) {
@@ -81,9 +86,9 @@ final class FloorLayoutOverflowRepair {
             next.put("floor_count", clampedCount);
         }
         FormacraftMod.LOGGER.info(
-                "FloorLayoutOverflowRepair: floors {}×{} → {}×{} (envelope={})",
+                "FloorLayoutOverflowRepair: floors {}×{} → {}×{} (envelope={} sealed={})",
                 floorCount, authoredFh > 0 ? authoredFh : floorHeight,
-                clampedCount, clampedHeight, envelope);
+                clampedCount, clampedHeight, envelope, heightSealed);
         return new Component(component.componentType(), component.slotId(), component.relativePosition(),
                 dims, component.features(), next);
     }

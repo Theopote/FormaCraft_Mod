@@ -164,7 +164,8 @@ public final class RequestIntentInjector {
         // Stacked pagoda_tier_* count as one building entity — not multi-building ambiguity.
         boolean multi = distinctBuildingEntityCount(hosts) > 1;
         HeightBindResult heightResult = resolveHeightBindings(hosts, primary, multi, bindings);
-        Map<String, Integer> heightByMassId = heightResult.byMassId();
+        // Mutable: envelope-scaled storey heights must re-enter the seal pass below.
+        Map<String, Integer> heightByMassId = new HashMap<>(heightResult.byMassId());
         OmitBindResult omitResult = resolveDesignOmitBindings(plan, hosts, primary, multi, omits);
         Map<String, Set<String>> omitByMassId = omitResult.byMassId();
         List<Map<String, Object>> primaryDiags = new ArrayList<>();
@@ -188,6 +189,22 @@ public final class RequestIntentInjector {
             envelopeGap = envApplied.capabilityGap();
             if (envApplied.changed()) {
                 plan = PlanComponentRewrite.withComponents(plan, working);
+                // Second pass strips markers then reseals from heightByMassId — keep per-storey
+                // scaled heights here so FloorLayoutOverflowRepair sees a valid seal.
+                Map<String, Component> byId = new HashMap<>();
+                for (Component c : working) {
+                    String mid = BuildingHostResolver.massId(c);
+                    if (mid != null) byId.put(mid, c);
+                }
+                for (StackedHeightEnvelope env : heightResult.envelopes()) {
+                    if (env == null || env.massIds() == null) continue;
+                    for (String id : env.massIds()) {
+                        Component c = byId.get(id);
+                        if (c != null && c.dimensions() != null) {
+                            heightByMassId.put(id, Math.max(1, c.dimensions().height()));
+                        }
+                    }
+                }
             }
         }
         if (authorizeFromText && (heightResult.capabilityGap() || omitResult.capabilityGap() || envelopeGap
@@ -534,17 +551,24 @@ public final class RequestIntentInjector {
         }
         if (hits.isEmpty()) return List.of();
         if ("wing".equals(key)) {
-            String side = wingSideHint(clauseText);
-            if (side != null) {
-                List<String> sided = new ArrayList<>();
-                for (String id : hits) {
-                    Component host = byId.get(id);
-                    if (host != null && hostMatchesWingSide(hostIdentityBlob(host), side)) {
-                        sided.add(id);
+            Set<String> sides = wingSidesFromText(clauseText);
+            if (!sides.isEmpty()) {
+                List<String> resolved = new ArrayList<>();
+                for (String side : sides) {
+                    List<String> sided = new ArrayList<>();
+                    for (String id : hits) {
+                        Component host = byId.get(id);
+                        if (host != null && hostMatchesWingSide(hostIdentityBlob(host), side)) {
+                            sided.add(id);
+                        }
+                    }
+                    // Each declared side must uniquely bind; empty/multi → ambiguity.
+                    if (sided.size() != 1) return List.of();
+                    if (!resolved.contains(sided.getFirst())) {
+                        resolved.add(sided.getFirst());
                     }
                 }
-                // Side-local cue must uniquely bind; empty/multi after filter → ambiguity.
-                return sided.size() == 1 ? List.copyOf(sided) : List.of();
+                return List.copyOf(resolved);
             }
             // Plural role-class without side cue — keep every wing.
             return List.copyOf(hits);
@@ -599,15 +623,25 @@ public final class RequestIntentInjector {
         return isStackedFamilyIds(ids) ? List.copyOf(ids) : List.of();
     }
 
-    /** west/east/south/north when clause locally qualifies a wing; else null. */
-    static String wingSideHint(String text) {
-        if (text == null || text.isBlank()) return null;
+    /**
+     * All wing sides named in the local clause (west/east/south/north).
+     * Joint subjects 「西厢房和东厢房都…」return both; first-only matching is rejected.
+     */
+    static Set<String> wingSidesFromText(String text) {
+        if (text == null || text.isBlank()) return Set.of();
         String t = text.toLowerCase(Locale.ROOT);
-        if (t.matches("(?s).*(?:西(?:厢|翼|侧)|west[_\\s-]?wing|\\bwest\\b|左厢).*")) return "west";
-        if (t.matches("(?s).*(?:东(?:厢|翼|侧)|east[_\\s-]?wing|\\beast\\b|右厢).*")) return "east";
-        if (t.matches("(?s).*(?:南(?:厢|翼|侧)|south[_\\s-]?wing|\\bsouth\\b).*")) return "south";
-        if (t.matches("(?s).*(?:北(?:厢|翼|侧)|north[_\\s-]?wing|\\bnorth\\b).*")) return "north";
-        return null;
+        LinkedHashSet<String> sides = new LinkedHashSet<>();
+        if (t.matches("(?s).*(?:西(?:厢|翼|侧)|west[_\\s-]?wing|\\bwest\\b|左厢).*")) sides.add("west");
+        if (t.matches("(?s).*(?:东(?:厢|翼|侧)|east[_\\s-]?wing|\\beast\\b|右厢).*")) sides.add("east");
+        if (t.matches("(?s).*(?:南(?:厢|翼|侧)|south[_\\s-]?wing|\\bsouth\\b).*")) sides.add("south");
+        if (t.matches("(?s).*(?:北(?:厢|翼|侧)|north[_\\s-]?wing|\\bnorth\\b).*")) sides.add("north");
+        return Set.copyOf(sides);
+    }
+
+    /** First wing side when exactly one is present; else null (use {@link #wingSidesFromText}). */
+    static String wingSideHint(String text) {
+        Set<String> sides = wingSidesFromText(text);
+        return sides.size() == 1 ? sides.iterator().next() : null;
     }
 
     static boolean hostMatchesWingSide(String identityBlob, String side) {
@@ -685,42 +719,66 @@ public final class RequestIntentInjector {
                 continue;
             }
             if (envelope == env.targetHeight()) {
-                // Already matches — seal authoritative height on the base storey only.
-                Component base = members.stream()
-                        .min(Comparator.comparingInt(c -> c.relativePosition().y()))
-                        .orElse(members.getFirst());
-                String baseId = BuildingHostResolver.massId(base);
-                if (baseId != null) newHeight.putIfAbsent(baseId, env.targetHeight());
+                // Already matches — leave every storey height and relative Y untouched.
+                // Never stamp the whole-building envelope onto the base storey dimensions.
                 continue;
             }
             double scale = env.targetHeight() / (double) envelope;
             members.sort(Comparator.comparingInt(c -> c.relativePosition().y()));
+            int[] minHeights = new int[members.size()];
+            int[] scaledHeights = new int[members.size()];
+            int minRequiredSum = 0;
+            for (int i = 0; i < members.size(); i++) {
+                Component c = members.get(i);
+                int oldH = Math.max(1, c.dimensions().height());
+                int minH = minFeasibleStoreyHeight(storeyFloorCount(c));
+                minHeights[i] = minH;
+                minRequiredSum += minH;
+                scaledHeights[i] = Math.max(minH, (int) Math.round(oldH * scale));
+            }
+            if (minRequiredSum > env.targetHeight()) {
+                gap = true;
+                diagnostics.add(Map.of(
+                        "code", "E_STACKED_HEIGHT_UNSUPPORTED",
+                        "blocks", env.targetHeight(),
+                        "message", "stacked height target cannot fit minimum storey bands"));
+                newHeight.clear();
+                newRelY.clear();
+                break;
+            }
+            // Restack from the shaft base so adjacent tiers stay connected (no overlap/gap).
+            int used = 0;
+            for (int i = 0; i < members.size() - 1; i++) {
+                used += scaledHeights[i];
+            }
+            int lastH = env.targetHeight() - used;
+            if (lastH < minHeights[members.size() - 1]) {
+                gap = true;
+                diagnostics.add(Map.of(
+                        "code", "E_STACKED_HEIGHT_UNSUPPORTED",
+                        "blocks", env.targetHeight(),
+                        "message", "stacked height remainder cannot keep the top storey usable"));
+                newHeight.clear();
+                newRelY.clear();
+                break;
+            }
+            scaledHeights[members.size() - 1] = lastH;
+            int yCursor = minY;
             for (int i = 0; i < members.size(); i++) {
                 Component c = members.get(i);
                 String mid = BuildingHostResolver.massId(c);
-                int oldY = c.relativePosition().y();
-                int oldH = Math.max(1, c.dimensions().height());
-                int scaledY = minY + (int) Math.round((oldY - minY) * scale);
-                int scaledH;
-                if (i == members.size() - 1) {
-                    // Fix rounding so the shaft top lands exactly on the envelope target.
-                    scaledH = Math.max(1, (minY + env.targetHeight()) - scaledY);
-                } else {
-                    scaledH = Math.max(1, (int) Math.round(oldH * scale));
-                }
-                if (scaledH < 1) {
+                if (mid == null) {
                     gap = true;
-                    diagnostics.add(Map.of(
-                            "code", "E_STACKED_HEIGHT_UNSUPPORTED",
-                            "target", mid == null ? "" : mid,
-                            "blocks", env.targetHeight(),
-                            "message", "stacked height scale would collapse a storey"));
-                    newHeight.clear();
-                    newRelY.clear();
                     break;
                 }
-                newHeight.put(mid, scaledH);
-                newRelY.put(mid, scaledY);
+                newHeight.put(mid, scaledHeights[i]);
+                newRelY.put(mid, yCursor);
+                yCursor += scaledHeights[i];
+            }
+            if (gap) {
+                newHeight.clear();
+                newRelY.clear();
+                break;
             }
         }
         if (gap) {
@@ -728,6 +786,14 @@ public final class RequestIntentInjector {
         }
         if (newHeight.isEmpty() && newRelY.isEmpty()) {
             return new EnvelopeApplyResult(components, diagnostics, false, false);
+        }
+        // Capture pre-scale host geometry so roofs/openings/stairs can stay attached.
+        Map<String, int[]> oldHostGeom = new HashMap<>();
+        for (Component c : components) {
+            if (c == null || c.relativePosition() == null || c.dimensions() == null) continue;
+            String mid = BuildingHostResolver.massId(c);
+            if (mid == null || (!newHeight.containsKey(mid) && !newRelY.containsKey(mid))) continue;
+            oldHostGeom.put(mid, new int[]{c.relativePosition().y(), Math.max(1, c.dimensions().height())});
         }
         List<Component> out = new ArrayList<>(components.size());
         boolean changed = false;
@@ -739,7 +805,15 @@ public final class RequestIntentInjector {
             String mid = BuildingHostResolver.massId(c);
             Integer h = mid == null ? null : newHeight.get(mid);
             Integer y = mid == null ? null : newRelY.get(mid);
-            if (h == null && y == null) {
+            String hostId = satelliteHostId(c);
+            int[] oldHost = hostId == null ? null : oldHostGeom.get(hostId);
+            Integer hostNewY = hostId == null ? null : newRelY.get(hostId);
+            Integer hostNewH = hostId == null ? null : newHeight.get(hostId);
+            boolean satelliteShift = oldHost != null
+                    && c.relativePosition() != null
+                    && (hostNewY != null || hostNewH != null)
+                    && h == null && y == null;
+            if (h == null && y == null && !satelliteShift) {
                 out.add(c);
                 continue;
             }
@@ -758,11 +832,55 @@ public final class RequestIntentInjector {
             }
             if (y != null && rel != null && rel.y() != y) {
                 rel = new Vec3i(rel.x(), y, rel.z());
+            } else if (satelliteShift && rel != null && oldHost != null) {
+                int newHY = hostNewY != null ? hostNewY : oldHost[0];
+                int newHH = hostNewH != null ? hostNewH : oldHost[1];
+                int oldTop = oldHost[0] + oldHost[1];
+                int offsetFromTop = rel.y() - oldTop;
+                int nextY;
+                if (Math.abs(offsetFromTop) <= 1) {
+                    // Roof / crown sitting on the host top plane.
+                    nextY = newHY + newHH + offsetFromTop;
+                } else {
+                    // Preserve offset from host base (windows / doors / stairs).
+                    nextY = newHY + (rel.y() - oldHost[0]);
+                }
+                if (nextY != rel.y()) {
+                    rel = new Vec3i(rel.x(), nextY, rel.z());
+                }
             }
             changed = true;
             out.add(new Component(c.componentType(), c.slotId(), rel, dims, c.features(), params));
         }
         return new EnvelopeApplyResult(out, diagnostics, false, changed);
+    }
+
+    /** floor_count when authored; 0 means no multi-storey band constraint on this mass. */
+    private static int storeyFloorCount(Component c) {
+        if (c == null || c.params() == null) return 0;
+        return Math.max(0, com.formacraft.common.generation.component.util.ComponentParamParsers
+                .intParam(c.params(), "floor_count", "floorCount"));
+    }
+
+    /**
+     * Minimum height that keeps FloorLayoutOverflowRepair from re-growing a sealed envelope.
+     * Multi-storey masses need floor_count × minStoreyBand; bare shells need at least 1.
+     */
+    private static int minFeasibleStoreyHeight(int floorCount) {
+        if (floorCount <= 0) return 1;
+        int minBand = com.formacraft.common.generation.component.util.InteriorSpaceDefaults.minStoreyBand();
+        return Math.max(1, floorCount * minBand);
+    }
+
+    private static String satelliteHostId(Component c) {
+        if (c == null || c.params() == null) return null;
+        Object host = c.params().get("host_id");
+        if (host == null) host = c.params().get("hostId");
+        if (host == null || String.valueOf(host).isBlank()
+                || "null".equalsIgnoreCase(String.valueOf(host))) {
+            return null;
+        }
+        return String.valueOf(host).trim();
     }
 
     private static String hostIdentityBlob(Component host) {
@@ -1047,7 +1165,13 @@ public final class RequestIntentInjector {
             } else if (hint.startsWith("building_")) {
                 target = resolveOrdinalOmitHost(hosts, primary, hint);
             } else {
-                List<String> namedHits = namedKeyHostIds(hosts, hint, null);
+                // Pass clause text so 西厢房高度 does not expand to every wing.
+                // namedKeys preserves wing when roleHint collapses wing→pavilion.
+                String clause = b.sourceText();
+                List<String> namedHits = namedKeyHostIds(hosts, hint, clause);
+                if (namedHits.isEmpty() && b.namedKeys() != null && b.namedKeys().size() == 1) {
+                    namedHits = namedKeyHostIds(hosts, b.namedKeys().getFirst(), clause);
+                }
                 if (namedHits.isEmpty()) {
                     String roleTarget = uniqueRoleHostId(hosts, hint);
                     if (roleTarget != null) namedHits = List.of(roleTarget);
