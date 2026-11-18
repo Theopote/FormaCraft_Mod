@@ -52,6 +52,7 @@ final class DesignValidatorSuite {
     /** Order is observable: repairs and previews use the first diagnostic. Keep checks lazy. */
     private static Optional<CapabilityGap> checkDesign(LlmPlan plan, List<Component> components) {
         return RoofDesignValidator.check(plan, components)
+                .or(() -> TypologyRoofCapabilityValidator.check(plan, components))
                 .or(() -> FacadeDesignValidator.check(plan, components))
                 .or(() -> MassDesignValidator.check(plan, components))
                 .or(() -> HostedPlateDesignValidator.check(plan, components))

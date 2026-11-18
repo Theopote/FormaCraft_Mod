@@ -237,20 +237,28 @@ public final class TailiangTimberHallBuilder {
         if (facadeDetails) addFacadeDetails(blocks, origin, entrance, ox, oz, xAxis, zAxis,
                 yCol0, yWallTop, trim, p.boolVal("includeWindows", true), p.boolVal("includeEntrance", true));
 
+        // Plan roof_type/roofType=none skips Chinese hall roof surfaces (capability-supported omit).
+        // Keep timber frame, walls, and sub-eave colonnade — those are not removable roof tiles.
+        boolean omitRoof = com.formacraft.common.style.ExplicitDesignPolicy.none(
+                p.raw(), "roof_type", "roofType");
         List<PlannedBlock> roofBlocks = new ArrayList<>();
-        String roofForm = ChineseHallRoofGenerator.normalize(p.strVal("roofType", "xie_shan"));
-        int roofRun = roofForm.equals("wu_dian") ? Math.min((w-1)/2,(d-1)/2)+roofOverhang : (w-1)/2+roofOverhang;
+        String roofForm = omitRoof ? null
+                : ChineseHallRoofGenerator.normalize(firstRoofForm(p));
+        int roofRun = roofForm != null && roofForm.equals("wu_dian")
+                ? Math.min((w-1)/2,(d-1)/2)+roofOverhang : (w-1)/2+roofOverhang;
         int roofRise = p.intVal("roofRise", roofRun, 3, 18);
         boolean softRoof = doubleEave || p.boolVal("flying_eaves", false)
                 || "飞檐".equals(p.strVal("features", ""));
         int roofCurve = p.intVal("roofCurve", softRoof ? 35 : 0, 0, 100);
         int roofCornerLift = p.intVal("roofCornerLift", softRoof ? 1 : 0, 0, 3);
-        ChineseHallRoofGenerator.Shape roofShape =
-                new ChineseHallRoofGenerator.Shape(roofOverhang, roofCurve, roofCornerLift);
+        ChineseHallRoofGenerator.Shape roofShape = omitRoof ? null
+                : new ChineseHallRoofGenerator.Shape(roofOverhang, roofCurve, roofCornerLift);
         int upperInset = 0;
         int upperBaseY = bodyTop;
         int midEaveY = bodyTop;
-        if (doubleEave) {
+        if (omitRoof) {
+            // No roof tile / hip surface emission.
+        } else if (doubleEave) {
             upperInset = Math.max(2, Math.min(w, d) / 4);
             int upperW = Math.max(5, w - upperInset * 2);
             int upperD = Math.max(5, d - upperInset * 2);
@@ -288,13 +296,15 @@ public final class TailiangTimberHallBuilder {
         if (subEaves) {
             if (p.boolVal("includeBrackets", true)) addPuzuoAtColumns(blocks, origin, entrance, 0, 0, outerW - 1, outerD - 1,
                     outerColumns, yCol1, roofBottom, trim, bracket, paint);
-            int innerRoofY = bodyTop;
-            ChineseTypologyDetailUtil.addSubEavesInnerRoof(
-                    (pos, state) -> put(blocks, placedOrigin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
-                    ox, oz, ox + w - 1, oz + d - 1,
-                    0, 0, outerW - 1, outerD - 1,
-                    innerRoofY, roofSlab, roofStairs
-            );
+            if (!omitRoof) {
+                int innerRoofY = bodyTop;
+                ChineseTypologyDetailUtil.addSubEavesInnerRoof(
+                        (pos, state) -> put(blocks, placedOrigin, entrance, pos.getX(), pos.getY(), pos.getZ(), state),
+                        ox, oz, ox + w - 1, oz + d - 1,
+                        0, 0, outerW - 1, outerD - 1,
+                        innerRoofY, roofSlab, roofStairs
+                );
+            }
         }
 
         for (PlannedBlock pb : roofBlocks) {
@@ -340,9 +350,16 @@ public final class TailiangTimberHallBuilder {
         if (p.intVal("eave_tiers", 1, 1, 4) >= 2 || p.intVal("eaveTiers", 1, 1, 4) >= 2) {
             return true;
         }
-        String roof = p.strVal("roofType", "");
+        String roof = firstRoofForm(p);
         return roof.toLowerCase(java.util.Locale.ROOT).contains("重檐")
                 || roof.toLowerCase(java.util.Locale.ROOT).contains("double_eave");
+    }
+
+    /** Prefer canonical roofType; accept plan snake_case roof_type stamped by building_contract. */
+    private static String firstRoofForm(TypologyParams p) {
+        String camel = p.strVal("roofType", "");
+        if (!camel.isBlank()) return camel;
+        return p.strVal("roof_type", "xie_shan");
     }
 
     /** Mid cornice under the upper tier: slab rim + outward stair lip. */

@@ -368,8 +368,8 @@ public final class RequestIntentInjector {
                             "message", "multi_named omit missing named_keys"));
                 } else {
                     for (String key : keys) {
-                        String id = uniqueNamedKeyHostId(hosts, key);
-                        if (id == null) {
+                        List<String> ids = namedKeyHostIds(hosts, key);
+                        if (ids.isEmpty()) {
                             ambiguous = true;
                             gap = true;
                             Map<String, Object> detail = new HashMap<>();
@@ -383,12 +383,7 @@ public final class RequestIntentInjector {
                             javaTargets.clear();
                             break;
                         }
-                        javaTargets.add(id);
-                    }
-                    if (!ambiguous && javaTargets.size() != keys.size()) {
-                        ambiguous = true;
-                        gap = true;
-                        javaTargets.clear();
+                        javaTargets.addAll(ids);
                     }
                 }
             } else if (hint.startsWith("building_")) {
@@ -406,24 +401,26 @@ public final class RequestIntentInjector {
                 }
             } else {
                 // Prefer exact named-key identity (office/workshop/boiler); fall back to role score.
-                String javaTarget = uniqueNamedKeyHostId(hosts, hint);
-                if (javaTarget == null) {
-                    javaTarget = uniqueRoleHostId(hosts, hint);
+                List<String> namedHits = namedKeyHostIds(hosts, hint);
+                if (namedHits.isEmpty() && b.namedKeys() != null && b.namedKeys().size() == 1) {
+                    namedHits = namedKeyHostIds(hosts, b.namedKeys().getFirst());
                 }
-                if (javaTarget == null && b.namedKeys() != null && b.namedKeys().size() == 1) {
-                    javaTarget = uniqueNamedKeyHostId(hosts, b.namedKeys().getFirst());
-                }
-                if (javaTarget == null) {
-                    ambiguous = true;
-                    gap = true;
-                    diagnostics.add(Map.of(
-                            "code", "E_OMIT_HOST_TIE",
-                            "domain", b.domain(),
-                            "roleHint", hint,
-                            "sourceText", b.sourceText() == null ? "" : b.sourceText(),
-                            "message", "omit host role score is not unique or missing"));
+                if (!namedHits.isEmpty()) {
+                    javaTargets.addAll(namedHits);
                 } else {
-                    javaTargets.add(javaTarget);
+                    String javaTarget = uniqueRoleHostId(hosts, hint);
+                    if (javaTarget == null) {
+                        ambiguous = true;
+                        gap = true;
+                        diagnostics.add(Map.of(
+                                "code", "E_OMIT_HOST_TIE",
+                                "domain", b.domain(),
+                                "roleHint", hint,
+                                "sourceText", b.sourceText() == null ? "" : b.sourceText(),
+                                "message", "omit host role score is not unique or missing"));
+                    } else {
+                        javaTargets.add(javaTarget);
+                    }
                 }
             }
             // Text ambiguity: never stamp and never accept plan-supplied target_components.
@@ -476,10 +473,17 @@ public final class RequestIntentInjector {
     }
 
     /**
-     * Resolve a named building key to a unique host via identity aliases — never hall-fallback for office/keep.
+     * Resolve a named building key via identity aliases — never hall-fallback for office/keep.
+     * Stacked storeys of one tower ({@code pagoda_tier_1..N}) count as one building entity and
+     * return every storey id so omit/height seals cover the whole shaft.
      */
     private static String uniqueNamedKeyHostId(List<Component> hosts, String namedKey) {
-        if (namedKey == null || namedKey.isBlank()) return null;
+        List<String> ids = namedKeyHostIds(hosts, namedKey);
+        return ids.size() == 1 ? ids.getFirst() : null;
+    }
+
+    private static List<String> namedKeyHostIds(List<Component> hosts, String namedKey) {
+        if (namedKey == null || namedKey.isBlank()) return List.of();
         String key = namedKey.trim().toLowerCase(Locale.ROOT);
         List<String> aliases = com.formacraft.common.typology.UserConstraintContract.aliasesForNamedKey(key);
         List<String> hits = new ArrayList<>();
@@ -498,7 +502,30 @@ public final class RequestIntentInjector {
             }
             if (matched) hits.add(mid);
         }
-        return hits.size() == 1 ? hits.getFirst() : null;
+        if (hits.isEmpty()) return List.of();
+        if (hits.size() == 1) return List.copyOf(hits);
+        // Stacked storeys of one tower (pagoda_tier_*) count as one building entity.
+        String family = stackedFamilyKey(hits.getFirst());
+        if (family != null && hits.stream().allMatch(id -> family.equals(stackedFamilyKey(id)))) {
+            return List.copyOf(hits);
+        }
+        // Plural role-class keys (wing) legitimately bind multiple compound masses.
+        if ("wing".equals(key)) {
+            return List.copyOf(hits);
+        }
+        // Singular named alias matching unrelated buildings — fail closed.
+        return List.of();
+    }
+
+    /** {@code pagoda_tier_3} → {@code pagoda}; non-tier ids → null. */
+    static String stackedFamilyKey(String componentId) {
+        if (componentId == null || componentId.isBlank()) return null;
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("^(.*?)(?:_tier_?|_level_?|_storey_?)(\\d+)$", java.util.regex.Pattern.CASE_INSENSITIVE)
+                .matcher(componentId.trim());
+        if (!m.matches()) return null;
+        String stem = m.group(1);
+        return stem == null || stem.isBlank() ? null : stem.toLowerCase(Locale.ROOT);
     }
 
     private static String hostIdentityBlob(Component host) {
@@ -760,11 +787,47 @@ public final class RequestIntentInjector {
             } else if (hint.startsWith("building_")) {
                 target = resolveOrdinalOmitHost(hosts, primary, hint);
             } else {
-                // Named identity / role must verify even when only one host is present.
-                target = uniqueNamedKeyHostId(hosts, hint);
-                if (target == null) {
-                    target = uniqueRoleHostId(hosts, hint);
+                // Named identity may cover stacked storeys of one tower — seal every storey.
+                List<String> namedHits = namedKeyHostIds(hosts, hint);
+                if (namedHits.isEmpty()) {
+                    String roleTarget = uniqueRoleHostId(hosts, hint);
+                    if (roleTarget != null) namedHits = List.of(roleTarget);
                 }
+                if (namedHits.isEmpty()) {
+                    gap = true;
+                    diagnostics.add(Map.of(
+                            "code", "E_HEIGHT_HOST_TIE",
+                            "blocks", b.blocks(),
+                            "roleHint", hint == null ? "" : hint,
+                            "message", "height host role score is not unique or missing"));
+                    continue;
+                }
+                for (String id : namedHits) {
+                    if (!BuildingHostResolver.isKnownDesignHostId(hosts, id)) {
+                        gap = true;
+                        Map<String, Object> detail = new HashMap<>();
+                        detail.put("code", "E_HEIGHT_HOST_MISSING");
+                        detail.put("blocks", b.blocks());
+                        detail.put("roleHint", hint == null ? "" : hint);
+                        detail.put("target", id);
+                        detail.put("message", "height target is not a design-constraint host");
+                        diagnostics.add(detail);
+                        continue;
+                    }
+                    Integer prior = out.get(id);
+                    if (prior != null && prior != b.blocks()) {
+                        gap = true;
+                        diagnostics.add(Map.of(
+                                "code", "E_HEIGHT_HOST_CONFLICT",
+                                "target", id,
+                                "blocks", b.blocks(),
+                                "priorBlocks", prior,
+                                "message", "conflicting height cues for the same host"));
+                        continue;
+                    }
+                    out.put(id, b.blocks());
+                }
+                continue;
             }
             if (target == null || !BuildingHostResolver.isKnownDesignHostId(hosts, target)) {
                 gap = true;

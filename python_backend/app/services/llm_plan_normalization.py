@@ -202,7 +202,7 @@ def _named_scope_mass_hits(masses: list, scope_key: str) -> list:
     """Resolve ``named_<key>`` scopes via NAMED_BUILDINGS aliases / component ids — never whole prompt."""
     if not scope_key.startswith("named_"):
         return []
-    from .building_contract import NAMED_BUILDINGS
+    from .building_contract import NAMED_BUILDINGS, _unique_named_hosts
 
     key = scope_key[len("named_") :]
     aliases = tuple(str(n).lower() for n in NAMED_BUILDINGS.get(key, ()) if n)
@@ -215,7 +215,9 @@ def _named_scope_mass_hits(masses: list, scope_key: str) -> list:
             continue
         if any(alias and (alias in cid or alias in blob) for alias in aliases):
             hits.append(mass)
-    return hits
+    # Stacked storeys of one tower count as one named building entity.
+    collapsed = _unique_named_hosts(hits)
+    return collapsed if collapsed is not None else []
 
 
 def _resolve_scoped_mass_targets(
@@ -246,8 +248,8 @@ def _resolve_scoped_mass_targets(
     if scope_key and scope_key not in ("plan", "all_main_masses"):
         if scope_key.startswith("named_"):
             named_hits = _named_scope_mass_hits(masses, scope_key)
-            # Unique named host only — ambiguous aliases must not guess.
-            return named_hits if len(named_hits) == 1 else []
+            # Unique named building (or stacked storeys of one tower) — never guess across buildings.
+            return named_hits
         scoped = [
             m for m in masses
             if str((m.get("params") or {}).get("requirement_scope") or "").strip() == scope_key
@@ -321,9 +323,9 @@ def _targets_for_req(masses: list, req: dict) -> list:
         # Every explicitly listed subject must resolve to exactly one mass — partial hits are failure.
         for key in keys:
             named = _named_scope_mass_hits(masses, f"named_{key}")
-            if len(named) != 1:
+            if not named:
                 return []
-            hits.append(named[0])
+            hits.extend(named)
         return hits
     targets = _resolve_scoped_mass_targets(
         masses,
@@ -412,8 +414,7 @@ def _infer_unique_named_roof_host(masses: list, req: dict, user_text: str = "") 
         return hit if len(hit) == 1 else []
     scope = str(req.get("scope") or "").strip()
     if scope.startswith("named_"):
-        named = _named_scope_mass_hits(masses, scope)
-        return named if len(named) == 1 else []
+        return _named_scope_mass_hits(masses, scope)
 
     cue = _roof_req_host_cue(req, user_text)
     if not cue.strip():

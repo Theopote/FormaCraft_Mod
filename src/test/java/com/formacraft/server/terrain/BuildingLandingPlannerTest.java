@@ -459,6 +459,57 @@ class BuildingLandingPlannerTest {
                 "distant buildings must not share one rigid Y translation");
     }
 
+    @Test void attachedTailiangTypologyDoesNotGetIndependentLandingSite() {
+        var hall=new com.formacraft.common.llm.dto.Component("MASS_MAIN","hall",
+                new com.formacraft.common.llm.dto.Vec3i(0,0,0),
+                new com.formacraft.common.llm.dto.Dimensions(16,12,8),List.of(),
+                Map.of("component_id","main_hall","anchor_mode","min_corner"));
+        var attached=new com.formacraft.common.llm.dto.Component("STRUCTURE","hall_annex",
+                new com.formacraft.common.llm.dto.Vec3i(18,2,0),
+                new com.formacraft.common.llm.dto.Dimensions(15,11,10),
+                List.of("typology:tailiang_timber_hall"),
+                Map.of("component_id","annex_hall","host_id","main_hall","typology_id","tailiang_timber_hall",
+                        "anchorMode","center","facing","SOUTH"));
+        var independent=new com.formacraft.common.llm.dto.Component("STRUCTURE","side_hall",
+                new com.formacraft.common.llm.dto.Vec3i(48,0,0),
+                new com.formacraft.common.llm.dto.Dimensions(15,11,10),
+                List.of("typology:tailiang_timber_hall"),
+                Map.of("component_id","side_hall","typology_id","tailiang_timber_hall",
+                        "anchorMode","center","facing","SOUTH","width",15,"depth",11));
+        var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true).mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
+                .components(List.of(hall,attached,independent)).build();
+        var sites=BuildingLandingPlanner.sites(plan,BlockPos.ORIGIN);
+        assertEquals(2,sites.size(),"host + independent typology only; attached typology excluded");
+    }
+
+    @Test void stackedPagodaTiersShareOneLandingDisplacement() {
+        List<com.formacraft.common.llm.dto.Component> tiers=new ArrayList<>();
+        for(int i=1;i<=5;i++) {
+            tiers.add(new com.formacraft.common.llm.dto.Component("MASS_MAIN","tier"+i,
+                    new com.formacraft.common.llm.dto.Vec3i(0,(i-1)*4,0),
+                    new com.formacraft.common.llm.dto.Dimensions(11-i,11-i,4),List.of(),
+                    Map.of("component_id","pagoda_tier_"+i,"anchor_mode","min_corner")));
+        }
+        var plan=com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true).mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
+                .components(tiers).build();
+        var sites=BuildingLandingPlanner.sites(plan,BlockPos.ORIGIN);
+        assertTrue(sites.size()>=1);
+        List<PlannedBlock> input=new ArrayList<>();
+        for(var site:sites) input.addAll(house(site,false));
+        // Sloped terrain under the shared XY footprint — storeys must keep relative heights.
+        var terrain=ground((x,z)->64+(x+z)/8);
+        var result=prepare(input,sites,terrain);
+        assertNull(result.problem(),result.problem());
+        int dy0=result.displacement(new BlockPos(sites.getFirst().body().minX()+1,
+                sites.getFirst().body().minY(),sites.getFirst().body().minZ()+1));
+        for(var site:sites) {
+            assertEquals(dy0,result.displacement(new BlockPos(site.body().minX()+1,site.body().minY(),site.body().minZ()+1)),
+                    "stacked pagoda storeys must share one landing dy");
+        }
+    }
+
     @Test void independentLandingHostOrderDoesNotChangeSiteCount() {
         var hall=new com.formacraft.common.llm.dto.Component("MASS_MAIN","hall",
                 new com.formacraft.common.llm.dto.Vec3i(0,0,0),

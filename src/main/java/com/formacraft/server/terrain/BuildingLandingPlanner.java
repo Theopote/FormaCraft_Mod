@@ -158,6 +158,8 @@ public final class BuildingLandingPlanner {
             for (Slot s : plan.layout().slots()) if (s != null) slots.put(s.slotId(), s);
         List<Site> out = new ArrayList<>();
         for (Component c : plan.components()) {
+            // Attachments/plates never become independent pads — including special typology envelopes.
+            if (MassComponentKinds.isPlate(c) || MassComponentKinds.hostId(c) != null) continue;
             if ("STRUCTURE".equalsIgnoreCase(c.componentType())
                     && (c.params()!=null && "courtyard_compound".equals(c.params().get("typology_id"))
                     || c.features()!=null && c.features().contains("typology:courtyard_compound"))) {

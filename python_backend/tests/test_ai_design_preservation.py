@@ -2336,6 +2336,136 @@ class AiDesignPreservationTest(unittest.TestCase):
         )
         self.assertEqual(set(fo.get("target_components") or []), set(bo.get("target_components") or []))
 
+    def test_dense_eaves_pagoda_omit_roof_is_capability_gap(self):
+        """Omit must not succeed on param stamp alone — dense eaves cannot drop eaves/finial."""
+        from app.services.building_contract import apply_building_contract, is_design_constraint_host
+
+        text = "建造一座密檐塔，不要屋顶。"
+        plan = {
+            "mode": "build",
+            "components": [{
+                "component_type": "STRUCTURE",
+                "slot_id": "pagoda",
+                "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": 10, "depth": 10, "height": 24},
+                "features": ["typology:dense_eaves_pagoda"],
+                "params": {
+                    "component_id": "dense_pagoda",
+                    "typology_id": "dense_eaves_pagoda",
+                    "roof_type": "none",
+                },
+            }],
+        }
+        out = apply_building_contract(plan, text, finalize=True)
+        self.assertTrue(is_design_constraint_host(out["components"][0]))
+        diagnostics = (out.get("proportion_hints") or {}).get("building_contract", {}).get("diagnostics") or []
+        self.assertTrue(
+            any(d.get("code") == "E_TYPOLOGY_ROOF_UNSUPPORTED" for d in diagnostics),
+            diagnostics,
+        )
+        self.assertEqual("capability_gap", out.get("plan_status"))
+
+    def test_dense_eaves_pagoda_prefilled_xieshan_still_gaps(self):
+        from app.services.building_contract import apply_building_contract
+
+        text = "密檐塔使用歇山顶。"
+        plan = {
+            "mode": "build",
+            "components": [{
+                "component_type": "STRUCTURE",
+                "slot_id": "pagoda",
+                "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": 10, "depth": 10, "height": 24},
+                "features": ["typology:dense_eaves_pagoda"],
+                "params": {
+                    "component_id": "dense_pagoda",
+                    "typology_id": "dense_eaves_pagoda",
+                    "roof_type": "xieshan",
+                },
+            }],
+        }
+        out = apply_building_contract(plan, text, finalize=True)
+        diagnostics = (out.get("proportion_hints") or {}).get("building_contract", {}).get("diagnostics") or []
+        self.assertTrue(
+            any(d.get("code") == "E_TYPOLOGY_ROOF_UNSUPPORTED" for d in diagnostics),
+            diagnostics,
+        )
+
+    def test_mass_ancillary_without_identity_is_not_design_host(self):
+        from app.services.building_contract import is_design_constraint_host, apply_building_contract
+
+        corridor = {
+            "component_type": "MASS_ANCILLARY",
+            "slot_id": "link",
+            "relative_position": {"x": 0, "y": 0, "z": 0},
+            "dimensions": {"width": 4, "depth": 12, "height": 4},
+            "features": [],
+            # component_id embeds neighbor names — must NOT become a design host.
+            "params": {"component_id": "corridor_office_workshop", "roof_type": "flat"},
+        }
+        office = {
+            "component_type": "MASS_ANCILLARY",
+            "slot_id": "office",
+            "relative_position": {"x": 20, "y": 0, "z": 0},
+            "dimensions": {"width": 10, "depth": 10, "height": 8},
+            "features": [],
+            "params": {
+                "component_id": "building_a",
+                "building_role": "office",
+                "roof_type": "gable",
+            },
+        }
+        self.assertFalse(is_design_constraint_host(corridor))
+        self.assertTrue(is_design_constraint_host(office))
+        out = apply_building_contract(
+            {"mode": "build", "components": [corridor, office]},
+            "所有建筑都不要屋顶。",
+            finalize=True,
+        )
+        omits = [
+            r for r in (out.get("proportion_hints") or {}).get("building_contract", {}).get("requirements", [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        self.assertEqual({"building_a"}, set(omits[0].get("target_components") or []))
+
+    def test_stacked_pagoda_tiers_named_tower_is_one_building(self):
+        from app.services.building_contract import apply_building_contract, _unique_named_hosts
+
+        tiers = []
+        for i in range(1, 6):
+            tiers.append({
+                "component_type": "MASS_MAIN",
+                "slot_id": "pagoda",
+                "relative_position": {"x": 0, "y": (i - 1) * 4, "z": 0},
+                "dimensions": {"width": 12 - i, "depth": 12 - i, "height": 4},
+                "features": [],
+                "params": {"component_id": f"pagoda_tier_{i}", "roof_type": "flat"},
+            })
+        collapsed = _unique_named_hosts(tiers)
+        self.assertIsNotNone(collapsed)
+        self.assertEqual(5, len(collapsed))
+        out = apply_building_contract(
+            {"mode": "build", "components": tiers},
+            "塔楼不要屋顶。",
+            finalize=True,
+        )
+        bindings = (out.get("proportion_hints") or {}).get("building_contract", {}).get("scope_bindings") or {}
+        self.assertEqual(
+            {f"pagoda_tier_{i}" for i in range(1, 6)},
+            set(bindings.get("named_tower") or []),
+        )
+        omits = [
+            r for r in (out.get("proportion_hints") or {}).get("building_contract", {}).get("requirements", [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        self.assertEqual(
+            {f"pagoda_tier_{i}" for i in range(1, 6)},
+            set(omits[0].get("target_components") or []),
+        )
+        self.assertNotEqual("unresolved_binding", omits[0].get("status"))
+
 
 if __name__ == "__main__":
     unittest.main()

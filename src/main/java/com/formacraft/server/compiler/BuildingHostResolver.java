@@ -88,11 +88,50 @@ final class BuildingHostResolver {
         // Deck/bridge plates and attached satellites are never whole-building constraint hosts.
         if (MassComponentKinds.isPlate(c)) return false;
         if (MassComponentKinds.hostId(c) != null) return false;
-        if (MassComponentKinds.isHostMass(c)) return true;
         String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        // MASS_ANCILLARY is multipurpose (corridor/quay vs building). Require building identity
+        // evidence — never treat bare type as a whole-building host (HARD_CONSTRAINT).
+        if ("MASS_ANCILLARY".equals(t)) {
+            return hasBuildingIdentityEvidence(c);
+        }
+        if (MassComponentKinds.isHostMass(c)) return true;
         if ("GATE".equals(t) || "HALL".equals(t) || t.startsWith("MASS")) return true;
         if ("STRUCTURE".equals(t)) {
             return looksIndependentBuildingStructure(c);
+        }
+        return false;
+    }
+
+    /**
+     * Explicit use/name identity for multipurpose volumes (MASS_ANCILLARY).
+     * Classification: HARD_CONSTRAINT — missing evidence excludes the host (no dual standards).
+     * Never scans {@code component_id}: corridor ids like {@code corridor_office_workshop}
+     * embed neighbor names and must not become whole-building hosts.
+     */
+    static boolean hasBuildingIdentityEvidence(Component c) {
+        if (c == null || c.params() == null) return false;
+        Object scope = first(c.params(), "requirement_scope");
+        if (scope != null && String.valueOf(scope).trim().toLowerCase(Locale.ROOT).startsWith("named_")) {
+            return true;
+        }
+        StringBuilder blob = new StringBuilder();
+        for (String k : List.of("building_role", "buildingRole", "part", "label")) {
+            Object v = c.params().get(k);
+            if (v != null && !String.valueOf(v).isBlank()) {
+                blob.append(String.valueOf(v).trim().toLowerCase(Locale.ROOT)).append(' ');
+            }
+        }
+        String text = blob.toString();
+        if (text.isBlank()) return false;
+        for (String key : List.of(
+                "main_body", "keep", "tower", "office", "workshop", "boiler", "main_hall",
+                "pavilion", "wing", "gatehouse", "mill", "warehouse", "reception",
+                "research", "dispatch", "residence", "chapel")) {
+            for (String alias : com.formacraft.common.typology.UserConstraintContract.aliasesForNamedKey(key)) {
+                if (alias != null && !alias.isBlank() && text.contains(alias.toLowerCase(Locale.ROOT))) {
+                    return true;
+                }
+            }
         }
         return false;
     }
