@@ -151,19 +151,33 @@ public final class RequestIntentInjector {
                         ? com.formacraft.common.typology.UserConstraintContract
                         .parseDesignOmitBindings(text)
                         : List.of();
-        String primary = BuildingHostResolver.primaryMassId(plan, plan.components());
         List<Component> hosts = new ArrayList<>();
         for (Component c : plan.components()) {
-            // Design seals only on building-level masses — never STRUCTURE stairs / GATE_STRUCTURE.
+            // Design seals only on building-level masses — never plates / attached / bare STRUCTURE.
             if (BuildingHostResolver.isDesignConstraintHost(c)) hosts.add(c);
         }
+        // Rank primary only among design-constraint hosts so plates never steal unscoped seals.
+        String primary = BuildingHostResolver.primaryMassId(plan, hosts);
+        String declaredPrimary = BuildingHostResolver.declaredPrimaryBuildingId(plan);
         boolean multi = hosts.size() > 1;
         HeightBindResult heightResult = resolveHeightBindings(hosts, primary, multi, bindings);
         Map<String, Integer> heightByMassId = heightResult.byMassId();
         OmitBindResult omitResult = resolveDesignOmitBindings(plan, hosts, primary, multi, omits);
         Map<String, Set<String>> omitByMassId = omitResult.byMassId();
+        List<Map<String, Object>> primaryDiags = new ArrayList<>();
+        if (authorizeFromText && declaredPrimary != null
+                && !BuildingHostResolver.isKnownDesignHostId(hosts, declaredPrimary)
+                && (!bindings.isEmpty() || !omits.isEmpty())) {
+            Map<String, Object> detail = new HashMap<>();
+            detail.put("code", "E_PRIMARY_HOST_MISSING");
+            detail.put("declared", declaredPrimary);
+            detail.put("recoveredPrimary", primary == null ? "" : primary);
+            detail.put("message", "primary_building_id is missing from design-constraint hosts");
+            primaryDiags.add(detail);
+        }
         if (authorizeFromText && (heightResult.capabilityGap() || omitResult.capabilityGap()
-                || !heightResult.diagnostics().isEmpty() || !omitResult.diagnostics().isEmpty())) {
+                || !heightResult.diagnostics().isEmpty() || !omitResult.diagnostics().isEmpty()
+                || !primaryDiags.isEmpty())) {
             Map<String, Object> meta = plan.planMeta() == null
                     ? new HashMap<>()
                     : new HashMap<>(plan.planMeta());
@@ -171,6 +185,7 @@ public final class RequestIntentInjector {
             List<Object> diags = meta.get("scope_diagnostics") instanceof List<?> raw
                     ? new ArrayList<>((List<Object>) raw)
                     : new ArrayList<>();
+            diags.addAll(primaryDiags);
             diags.addAll(heightResult.diagnostics());
             diags.addAll(omitResult.diagnostics());
             meta.put("scope_diagnostics", diags);
@@ -287,8 +302,20 @@ public final class RequestIntentInjector {
             // Unscoped omit may bind the sole building body; named/ordinal/multi always verify identity.
             if (!scopedIdentity) {
                 if (!multi || hosts.size() == 1) {
-                    String one = primary != null ? primary : BuildingHostResolver.massId(hosts.getFirst());
-                    if (one != null) javaTargets.add(one);
+                    String one = primary;
+                    if (one == null || !BuildingHostResolver.isKnownDesignHostId(hosts, one)) {
+                        one = BuildingHostResolver.massId(hosts.getFirst());
+                    }
+                    if (one != null && BuildingHostResolver.isKnownDesignHostId(hosts, one)) {
+                        javaTargets.add(one);
+                    } else {
+                        ambiguous = true;
+                        gap = true;
+                        diagnostics.add(Map.of(
+                                "code", "E_OMIT_HOST_MISSING",
+                                "domain", b.domain(),
+                                "message", "omit target is not a design-constraint host"));
+                    }
                 } else {
                     ambiguous = true;
                     gap = true;
@@ -415,6 +442,16 @@ public final class RequestIntentInjector {
             }
             for (String target : targets) {
                 if (target == null || target.isBlank()) continue;
+                if (!BuildingHostResolver.isKnownDesignHostId(hosts, target)) {
+                    gap = true;
+                    Map<String, Object> detail = new HashMap<>();
+                    detail.put("code", "E_OMIT_HOST_MISSING");
+                    detail.put("domain", b.domain());
+                    detail.put("target", target);
+                    detail.put("message", "omit target is not a design-constraint host");
+                    diagnostics.add(detail);
+                    continue;
+                }
                 out.computeIfAbsent(target, k -> new HashSet<>()).add(b.domain());
             }
         }
@@ -679,7 +716,7 @@ public final class RequestIntentInjector {
                 // Unscoped height: sole building body only — never invent ownership across masses.
                 if (!multi || hosts.size() == 1) {
                     target = primary;
-                    if (target == null || target.isBlank()) {
+                    if (target == null || !BuildingHostResolver.isKnownDesignHostId(hosts, target)) {
                         target = BuildingHostResolver.massId(hosts.getFirst());
                     }
                 } else {
@@ -699,13 +736,16 @@ public final class RequestIntentInjector {
                     target = uniqueRoleHostId(hosts, hint);
                 }
             }
-            if (target == null) {
+            if (target == null || !BuildingHostResolver.isKnownDesignHostId(hosts, target)) {
                 gap = true;
                 Map<String, Object> detail = new HashMap<>();
-                detail.put("code", "E_HEIGHT_HOST_TIE");
+                detail.put("code", target == null ? "E_HEIGHT_HOST_TIE" : "E_HEIGHT_HOST_MISSING");
                 detail.put("blocks", b.blocks());
                 detail.put("roleHint", hint == null ? "" : hint);
-                detail.put("message", "height host role score is not unique or missing");
+                if (target != null) detail.put("target", target);
+                detail.put("message", target == null
+                        ? "height host role score is not unique or missing"
+                        : "height target is not a design-constraint host");
                 diagnostics.add(detail);
                 continue;
             }

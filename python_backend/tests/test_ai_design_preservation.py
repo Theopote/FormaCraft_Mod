@@ -1392,6 +1392,51 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertTrue(any("main_hall" in s or "hall" in s for s in scopes), scopes)
         self.assertTrue(any("pavilion" in s for s in scopes), scopes)
 
+    def test_newline_joint_quantifier_does_not_merge_across_lines(self):
+        from app.services.building_contract import extract_requirements
+
+        text = "主殿不要屋顶\n亭子都不要屋顶"
+        omits = [
+            r for r in extract_requirements(text)
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertGreaterEqual(len(omits), 2, omits)
+        scopes = [str(r.get("scope") or "") for r in omits]
+        self.assertNotIn("multi_named", scopes, scopes)
+        self.assertTrue(any("main_hall" in s or "hall" in s for s in scopes), scopes)
+        self.assertTrue(any("pavilion" in s for s in scopes), scopes)
+
+    def test_plate_secondary_excluded_from_design_constraint_hosts(self):
+        from app.services.llm_plan_normalization import _is_design_constraint_host
+
+        house = {
+            "component_type": "MASS_MAIN",
+            "params": {"component_id": "house_main"},
+        }
+        plate = {
+            "component_type": "MASS_SECONDARY",
+            "params": {"component_id": "deck_plate", "extrude_mode": "plate"},
+        }
+        attached = {
+            "component_type": "MASS_SECONDARY",
+            "params": {"component_id": "wing_mass", "host_id": "house_main"},
+        }
+        bare_structure = {
+            "component_type": "STRUCTURE",
+            "params": {"component_id": "porch_column"},
+            "features": [],
+        }
+        typology_structure = {
+            "component_type": "STRUCTURE",
+            "params": {"component_id": "pagoda"},
+            "features": ["typology:dense_eaves_pagoda"],
+        }
+        self.assertTrue(_is_design_constraint_host(house))
+        self.assertFalse(_is_design_constraint_host(plate))
+        self.assertFalse(_is_design_constraint_host(attached))
+        self.assertFalse(_is_design_constraint_host(bare_structure))
+        self.assertTrue(_is_design_constraint_host(typology_structure))
+
     def test_workshop_boiler_multi_named_omit_extracted(self):
         from app.services.building_contract import extract_requirements
 

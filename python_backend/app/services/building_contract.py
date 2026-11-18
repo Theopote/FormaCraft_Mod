@@ -40,9 +40,10 @@ _EXPLICIT_ALL_MASS_QUANTIFIERS = re.compile(
 
 
 def _clause_window(text: str, match: re.Match) -> str:
-    """Sentence/clause containing the match (stops at 。；;)."""
-    start = max(text.rfind(s, 0, match.start()) for s in ('。', '；', ';')) + 1
-    end_candidates = [text.find(s, match.end()) for s in ('。', '；', ';')]
+    """Sentence/clause containing the match (stops at 。；; and newlines)."""
+    bounds = ('。', '；', ';', '\n', '\r')
+    start = max(text.rfind(s, 0, match.start()) for s in bounds) + 1
+    end_candidates = [text.find(s, match.end()) for s in bounds]
     end_candidates = [i for i in end_candidates if i >= 0]
     end = min(end_candidates) if end_candidates else len(text)
     return text[start:end]
@@ -53,12 +54,18 @@ def _explicit_all_mass_quantifier(text: str, match: re.Match | None = None) -> b
     return bool(_EXPLICIT_ALL_MASS_QUANTIFIERS.search(blob))
 
 
-_JOINT_MULTI_SUBJECT = re.compile(r'(?:都|均|全部|一起|皆)(?:要|采用|使用|改成|改用|设置)?')
+_JOINT_MULTI_SUBJECT = re.compile(
+    r'(?:都|均|全部|一起|皆)(?:要|采用|使用|改成|改用|设置|不要|不需要|不需)?'
+)
 
 
 def _roof_clause_window(text: str, match: re.Match) -> tuple[str, int]:
-    """Comma-bounded clause window and match offset inside it."""
-    bounds = ('。', '；', ';', '，', ',', '、')
+    """Comma/newline-bounded clause window and match offset inside it.
+
+    Newlines are hard scope boundaries so adjacent lines cannot merge into one
+    multi_named declaration (parity with Java isHeightClauseBoundary).
+    """
+    bounds = ('。', '；', ';', '，', ',', '、', '\n', '\r')
     start = max(text.rfind(s, 0, match.start()) for s in bounds) + 1
     end_at = [text.find(s, match.end()) for s in bounds]
     end_at = [i for i in end_at if i >= 0]

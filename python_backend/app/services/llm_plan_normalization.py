@@ -166,10 +166,44 @@ def _is_mass_like(ctype: str) -> bool:
     return t.startswith("MASS") or t in _MASS_TYPES_FOR_EXPLICIT
 
 
+def _is_design_constraint_host(comp: Dict[str, Any]) -> bool:
+    """Building-level constraint hosts — parity with Java isDesignConstraintHost.
+
+    Excludes plate decks/bridges and attached satellites (host_id). Bare STRUCTURE
+    without typology identity is never a whole-building host.
+    """
+    if not isinstance(comp, dict):
+        return False
+    ctype = str(comp.get("component_type") or "").strip().upper()
+    params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+    if str(params.get("extrude_mode") or "").strip().lower() == "plate":
+        return False
+    host = params.get("host_id")
+    if host is None:
+        host = params.get("hostId")
+    if host is not None and str(host).strip() and str(host).strip().lower() != "null":
+        return False
+    if _is_mass_like(ctype):
+        return True
+    if ctype == "STRUCTURE":
+        features = comp.get("features") if isinstance(comp.get("features"), list) else []
+        blob = " ".join(str(f or "").lower() for f in features)
+        if any(
+            tok in blob
+            for tok in ("stair", "bridge", "fence", "railing", "path", "column", "pillar", "porch")
+        ):
+            return False
+        if any(str(f or "").lower().startswith("typology:") for f in features):
+            return True
+        tid = params.get("typology_id") or params.get("typologyId") or params.get("structural_typology")
+        return bool(tid and str(tid).strip())
+    return False
+
+
 def _mass_like_components(components: list) -> list:
     return [
         c for c in components
-        if isinstance(c, dict) and _is_mass_like(str(c.get("component_type") or ""))
+        if isinstance(c, dict) and _is_design_constraint_host(c)
     ]
 
 

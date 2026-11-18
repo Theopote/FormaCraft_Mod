@@ -3,6 +3,7 @@ package com.formacraft.common.typology;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -129,6 +130,32 @@ class UserConstraintContractTest {
         assertEquals(2, omits.size());
         assertEquals("hall", omits.get(0).roleHint());
         assertEquals("pavilion", omits.get(1).roleHint());
+    }
+
+    @Test
+    void newlineWithJointQuantifierDoesNotCrossLines() {
+        var omits = UserConstraintContract.parseDesignOmitBindings("主殿不要屋顶\n亭子都不要屋顶");
+        assertEquals(2, omits.size());
+        assertEquals("hall", omits.get(0).roleHint());
+        assertEquals("pavilion", omits.get(1).roleHint());
+        assertFalse(omits.stream().anyMatch(o -> "multi_named".equals(o.roleHint())),
+                "newline must prevent multi_named merge across lines");
+    }
+
+    @Test
+    void officeBesideBoilerHeightBindsNearestNamedKey() {
+        var bindings = UserConstraintContract.parseExplicitHeightBindings("办公楼旁边的锅炉房高度6格");
+        assertEquals(1, bindings.size());
+        assertEquals(6, bindings.get(0).blocks());
+        assertEquals("boiler", bindings.get(0).roleHint());
+    }
+
+    @Test
+    void officeBesideBoilerOmitBindsNearestNamedKey() {
+        var omits = UserConstraintContract.parseDesignOmitBindings("办公楼旁边的锅炉房不要屋顶");
+        assertEquals(1, omits.size());
+        assertEquals("boiler", omits.get(0).roleHint());
+        assertEquals(List.of("boiler"), omits.get(0).namedKeys());
     }
 
     @Test

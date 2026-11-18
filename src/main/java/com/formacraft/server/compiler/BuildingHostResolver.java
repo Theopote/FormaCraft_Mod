@@ -16,14 +16,19 @@ import java.util.Map;
 final class BuildingHostResolver {
     private BuildingHostResolver() {}
 
+    /** Declared {@code primary_building_id} from plan meta/contract (may be stale). */
+    static String declaredPrimaryBuildingId(LlmPlan plan) {
+        return explicitPrimaryId(plan);
+    }
+
     static String primaryMassId(LlmPlan plan, List<Component> components) {
         if (components == null || components.isEmpty()) return null;
 
         String explicit = explicitPrimaryId(plan);
         if (explicit != null) {
             String matched = findMassId(components, explicit);
+            // Missing primary_building_id must not become a phantom seal target.
             if (matched != null) return matched;
-            return explicit;
         }
 
         Component bestRole = null;
@@ -74,13 +79,15 @@ final class BuildingHostResolver {
 
     /**
      * Building-level design-constraint hosts (height / roof / window / entrance omit).
-     * Aligns with {@link MassComponentKinds} + Python mass-like bodies:
-     * MASS* / TOWER / GATE / HALL, plus independent STRUCTURE building shells (pagoda).
-     * Never GATE_STRUCTURE frames or STRUCTURE stairs/bridges.
+     * Independent building bodies only: MASS family, TOWER, GATE, HALL without plate/host
+     * attachment, plus STRUCTURE shells that carry an explicit typology feature or typology_id.
      * Classification: HARD_CONSTRAINT host inventory — not a design template.
      */
     static boolean isDesignConstraintHost(Component c) {
         if (c == null || c.componentType() == null) return false;
+        // Deck/bridge plates and attached satellites are never whole-building constraint hosts.
+        if (MassComponentKinds.isPlate(c)) return false;
+        if (MassComponentKinds.hostId(c) != null) return false;
         if (MassComponentKinds.isHostMass(c)) return true;
         String t = c.componentType().trim().toUpperCase(Locale.ROOT);
         if ("GATE".equals(t) || "HALL".equals(t) || t.startsWith("MASS")) return true;
@@ -90,25 +97,47 @@ final class BuildingHostResolver {
         return false;
     }
 
-    /** STRUCTURE that is a building shell (e.g. typology pagoda), not a stair/bridge accessory. */
+    /**
+     * STRUCTURE building shell requires verifiable typology identity (allow-list).
+     * Bare columns / porch posts without typology: stay accessories.
+     */
     private static boolean looksIndependentBuildingStructure(Component c) {
-        if (c.params() != null) {
-            Object host = first(c.params(), "host_id", "hostId");
-            if (host != null && !String.valueOf(host).isBlank()) return false;
-            if (Boolean.TRUE.equals(c.params().get("exterior"))) return false;
+        if (c.params() != null && Boolean.TRUE.equals(c.params().get("exterior"))) {
+            return false;
         }
+        boolean hasTypology = false;
         if (c.features() != null) {
             for (String f : c.features()) {
                 if (f == null) continue;
                 String fl = f.toLowerCase(Locale.ROOT);
                 if (fl.startsWith("stair") || fl.contains("stair:")
                         || fl.contains("bridge") || fl.contains("fence")
-                        || fl.contains("railing") || fl.contains("path")) {
+                        || fl.contains("railing") || fl.contains("path")
+                        || fl.contains("column") || fl.contains("pillar")
+                        || fl.contains("porch")) {
                     return false;
+                }
+                if (fl.startsWith("typology:")) {
+                    hasTypology = true;
                 }
             }
         }
-        return true;
+        if (!hasTypology && c.params() != null) {
+            Object tid = first(c.params(), "typology_id", "typologyId", "structural_typology");
+            if (tid != null && !String.valueOf(tid).isBlank()) {
+                hasTypology = true;
+            }
+        }
+        return hasTypology;
+    }
+
+    /** True when {@code id} is one of the design-constraint host mass ids. */
+    static boolean isKnownDesignHostId(List<Component> designHosts, String id) {
+        if (id == null || id.isBlank() || designHosts == null) return false;
+        for (Component host : designHosts) {
+            if (id.equals(massId(host))) return true;
+        }
+        return false;
     }
 
     static String massId(Component c) {

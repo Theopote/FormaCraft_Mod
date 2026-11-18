@@ -344,14 +344,15 @@ public final class UserConstraintContract {
         }
         if (namedKeys.size() == 1) {
             String key = namedKeys.getFirst();
-            // Keep classic role hints for hall/pavilion/tower; other identities stay as named keys.
-            String role = switch (key) {
-                case "main_hall", "main_body" -> "hall";
-                case "pavilion", "wing" -> "pavilion";
-                case "tower" -> "tower";
-                default -> key;
-            };
-            return new OmitScopeInference(role, List.of(key));
+            return new OmitScopeInference(roleHintForNamedKey(key), List.of(key));
+        }
+        if (namedKeys.size() > 1) {
+            // 「办公楼旁的锅炉房不要屋顶」→ nearest full namedKey, never hall/pavilion/tower-only.
+            String nearest = nearestNamedKey(window, matchStart - from);
+            if (nearest != null) {
+                return new OmitScopeInference(roleHintForNamedKey(nearest), List.of(nearest));
+            }
+            return new OmitScopeInference(null, List.of());
         }
         return new OmitScopeInference(nearestRoleHint(window, matchStart - from), List.of());
     }
@@ -414,11 +415,60 @@ public final class UserConstraintContract {
         return List.of(key);
     }
 
+    /** Map shared named-building keys onto classic role hints where applicable. */
+    private static String roleHintForNamedKey(String key) {
+        if (key == null) return null;
+        return switch (key) {
+            case "main_hall", "main_body" -> "hall";
+            case "pavilion", "wing" -> "pavilion";
+            case "tower" -> "tower";
+            default -> key;
+        };
+    }
+
+    /**
+     * Nearest full named-building identity (office/boiler/workshop/…).
+     * Equal-distance distinct keys → null (capability gap, no guess).
+     */
+    static String nearestNamedKey(String window, int relToken) {
+        if (window == null || window.isBlank()) return null;
+        String lower = window.toLowerCase(Locale.ROOT);
+        record Marker(String key, int dist) {}
+        List<Marker> hits = new ArrayList<>();
+        for (String[] group : NAMED_BUILDING_ALIASES) {
+            String key = group[0];
+            for (int i = 1; i < group.length; i++) {
+                String n = group[i].toLowerCase(Locale.ROOT);
+                int fromIdx = 0;
+                while (true) {
+                    int idx = lower.indexOf(n, fromIdx);
+                    if (idx < 0) break;
+                    hits.add(new Marker(key, Math.abs(idx - relToken)));
+                    fromIdx = idx + Math.max(1, n.length());
+                }
+            }
+        }
+        if (hits.isEmpty()) return null;
+        hits.sort(Comparator.comparingInt(Marker::dist));
+        int best = hits.getFirst().dist();
+        String key = hits.getFirst().key();
+        for (Marker m : hits) {
+            if (m.dist() > best) break;
+            if (!key.equals(m.key())) return null;
+        }
+        return key;
+    }
+
     /**
      * Role nearest the constraint token wins. Dual markers at equal distance → null (no guess).
+     * Prefers full named-building keys; falls back to short hall/pavilion/tower cues (亭/塔).
      * Never uses bare {@code main} — that false-matches {@code MASS_MAIN}.
      */
     private static String nearestRoleHint(String window, int relToken) {
+        String named = nearestNamedKey(window, relToken);
+        if (named != null) {
+            return roleHintForNamedKey(named);
+        }
         if (window == null || window.isBlank()) return null;
         String lower = window.toLowerCase(Locale.ROOT);
         record Marker(String role, int dist) {}
@@ -549,13 +599,14 @@ public final class UserConstraintContract {
         }
         List<String> namedKeys = namedKeysInWindow(window);
         if (namedKeys.size() == 1) {
-            String key = namedKeys.getFirst();
-            return switch (key) {
-                case "main_hall", "main_body" -> "hall";
-                case "pavilion", "wing" -> "pavilion";
-                case "tower" -> "tower";
-                default -> key;
-            };
+            return roleHintForNamedKey(namedKeys.getFirst());
+        }
+        if (namedKeys.size() > 1) {
+            String nearest = nearestNamedKey(window, matchStart - from);
+            if (nearest != null) {
+                return roleHintForNamedKey(nearest);
+            }
+            return null;
         }
         return nearestRoleHint(window, matchStart - from);
     }
