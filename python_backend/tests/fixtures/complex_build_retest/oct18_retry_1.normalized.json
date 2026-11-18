@@ -893,7 +893,6 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_mill": [
-          "mill_body",
           "mill_body"
         ],
         "small_warehouse": [

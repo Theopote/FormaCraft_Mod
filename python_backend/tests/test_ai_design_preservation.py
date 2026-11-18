@@ -1407,6 +1407,7 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertTrue(any("pavilion" in s for s in scopes), scopes)
 
     def test_plate_secondary_excluded_from_design_constraint_hosts(self):
+        from app.services.building_contract import is_design_constraint_host
         from app.services.llm_plan_normalization import _is_design_constraint_host
 
         house = {
@@ -1432,10 +1433,149 @@ class AiDesignPreservationTest(unittest.TestCase):
             "features": ["typology:dense_eaves_pagoda"],
         }
         self.assertTrue(_is_design_constraint_host(house))
+        self.assertTrue(is_design_constraint_host(house))
         self.assertFalse(_is_design_constraint_host(plate))
         self.assertFalse(_is_design_constraint_host(attached))
         self.assertFalse(_is_design_constraint_host(bare_structure))
         self.assertTrue(_is_design_constraint_host(typology_structure))
+
+    def test_building_contract_all_masses_includes_tower(self):
+        from app.services.building_contract import apply_building_contract, design_constraint_hosts
+
+        text = "建造一座主殿和一座塔楼，所有建筑都不要屋顶。"
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 8},
+                    "features": [],
+                    "params": {
+                        "component_id": "main_hall",
+                        "roof_type": "xieshan",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "TOWER",
+                    "slot_id": "tower",
+                    "relative_position": {"x": 24, "y": 0, "z": 0},
+                    "dimensions": {"width": 6, "depth": 6, "height": 16},
+                    "features": [],
+                    "params": {
+                        "component_id": "bell_tower",
+                        "roof_type": "hip",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        hosts = {c["params"]["component_id"] for c in design_constraint_hosts(plan["components"])}
+        self.assertEqual({"main_hall", "bell_tower"}, hosts)
+        out = apply_building_contract(plan, text)
+        contract = (out.get("proportion_hints") or {}).get("building_contract") or {}
+        omits = [
+            r for r in (contract.get("requirements") or [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        targets = set(omits[0].get("target_components") or [])
+        self.assertEqual({"main_hall", "bell_tower"}, targets, omits[0])
+
+    def test_standalone_tower_omit_is_not_ignored_by_contract(self):
+        from app.services.building_contract import apply_building_contract
+
+        text = "塔楼不要屋顶。"
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "TOWER",
+                    "slot_id": "tower",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 6, "depth": 6, "height": 16},
+                    "features": [],
+                    "params": {
+                        "component_id": "bell_tower",
+                        "roof_type": "hip",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        out = apply_building_contract(plan, text)
+        contract = (out.get("proportion_hints") or {}).get("building_contract") or {}
+        omits = [
+            r for r in (contract.get("requirements") or [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        self.assertIn("bell_tower", set(omits[0].get("target_components") or []), omits[0])
+
+    def test_typology_structure_omit_writes_params(self):
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        text = "不要屋顶"
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "slot_id": "pagoda",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 10, "height": 18},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {
+                        "component_id": "pagoda_shell",
+                        "roof_type": "xieshan",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(plan, text)
+        params = out["components"][0]["params"]
+        self.assertEqual("none", params.get("roof_type"))
+        sources = params.get("design_sources") or {}
+        self.assertEqual("USER_EXPLICIT", str(sources.get("roof_type") or "").upper())
+
+    def test_hall_plus_typology_structure_all_mass_targets_agree(self):
+        from app.services.building_contract import apply_building_contract, design_constraint_hosts
+
+        text = "所有建筑都不要屋顶。"
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 8},
+                    "features": [],
+                    "params": {"component_id": "main_hall", "roof_type": "xieshan"},
+                },
+                {
+                    "component_type": "STRUCTURE",
+                    "slot_id": "pagoda",
+                    "relative_position": {"x": 30, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 10, "height": 18},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda_shell", "roof_type": "xieshan"},
+                },
+            ],
+        }
+        host_ids = {c["params"]["component_id"] for c in design_constraint_hosts(plan["components"])}
+        self.assertEqual({"main_hall", "pagoda_shell"}, host_ids)
+        out = apply_building_contract(plan, text)
+        contract = (out.get("proportion_hints") or {}).get("building_contract") or {}
+        omits = [
+            r for r in (contract.get("requirements") or [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(omits, omits)
+        self.assertEqual(host_ids, set(omits[0].get("target_components") or []), omits[0])
 
     def test_workshop_boiler_multi_named_omit_extracted(self):
         from app.services.building_contract import extract_requirements

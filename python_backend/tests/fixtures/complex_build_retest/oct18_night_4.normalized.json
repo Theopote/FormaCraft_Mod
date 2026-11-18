@@ -219,7 +219,6 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_main_hall": [
-          "main_hall",
           "main_hall"
         ],
         "named_wing": [

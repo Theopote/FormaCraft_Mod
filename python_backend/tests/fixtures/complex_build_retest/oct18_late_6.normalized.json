@@ -207,11 +207,9 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_chapel": [
-          "chapel",
           "chapel"
         ],
         "named_residence": [
-          "residence",
           "residence"
         ]
       },

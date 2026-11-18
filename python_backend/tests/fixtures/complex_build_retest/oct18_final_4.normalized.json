@@ -292,6 +292,9 @@
         "building_wing_south": [
           "wing_south_body"
         ],
+        "building_clock_tower": [
+          "clock_tower_body"
+        ],
         "named_tower": [
           "clock_tower_body"
         ]

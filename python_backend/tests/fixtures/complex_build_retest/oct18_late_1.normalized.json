@@ -143,7 +143,6 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_mill": [
-          "mill_main",
           "mill_main"
         ]
       },

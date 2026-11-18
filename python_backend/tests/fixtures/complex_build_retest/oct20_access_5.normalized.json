@@ -62,7 +62,6 @@
           "mass_workshop"
         ],
         "named_dispatch": [
-          "mass_dispatch",
           "mass_dispatch"
         ]
       },

@@ -203,10 +203,6 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_keep": [
-          "keep_main",
-          "keep_main"
-        ],
-        "named_main_body": [
           "keep_main"
         ],
         "named_tower": [
@@ -215,6 +211,9 @@
           "tower_sw",
           "tower_se",
           "south_gate_tower"
+        ],
+        "named_main_body": [
+          "keep_main"
         ]
       },
       "resolved_buildings": [

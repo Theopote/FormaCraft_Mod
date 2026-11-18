@@ -231,7 +231,8 @@
         "terrace_material": "minecraft:quartz_block",
         "hall_wall_material": "minecraft:red_concrete",
         "roof_material": "minecraft:blue_concrete",
-        "finial_material": "minecraft:gold_block"
+        "finial_material": "minecraft:gold_block",
+        "building_id": "temple_of_heaven_main"
       }
     }
   ],

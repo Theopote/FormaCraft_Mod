@@ -33,6 +33,95 @@ NAMED_BUILDINGS = {
 
 ELEMENT_SUBJECTS = ('楼梯', '步道', '走道', '连廊', '木桥', '水渠', '栏杆', '阳台', '回廊', '窗口', '窗户', '入口', '门洞')
 
+# Building-level design-constraint hosts — parity with Java BuildingHostResolver.isDesignConstraintHost.
+_DESIGN_HOST_MASS_TYPES = (
+    'MASS_MAIN', 'MASS_SECONDARY', 'MASS_WING', 'SIDE_WING', 'MAIN_MASS',
+    'MASS_ANCILLARY', 'TOWER', 'GATE', 'HALL',
+)
+
+
+def is_design_constraint_host(comp: dict[str, Any] | None) -> bool:
+    """Whole-building constraint host identity (height / roof / window / entrance).
+
+    Classification: HARD_CONSTRAINT host inventory — excludes plates, attached
+    satellites, and bare STRUCTURE accessories. Independent typology STRUCTURE
+    shells are allowed. Does not reclassify geometry generation types.
+    """
+    if not isinstance(comp, dict):
+        return False
+    ctype = str(comp.get('component_type') or '').strip().upper()
+    params = comp.get('params') if isinstance(comp.get('params'), dict) else {}
+    if str(params.get('extrude_mode') or '').strip().lower() == 'plate':
+        return False
+    host = params.get('host_id')
+    if host is None:
+        host = params.get('hostId')
+    if host is not None and str(host).strip() and str(host).strip().lower() != 'null':
+        return False
+    if ctype.startswith('MASS') or ctype in _DESIGN_HOST_MASS_TYPES:
+        return True
+    if ctype == 'STRUCTURE':
+        features = comp.get('features') if isinstance(comp.get('features'), list) else []
+        blob = ' '.join(str(f or '').lower() for f in features)
+        if any(
+            tok in blob
+            for tok in ('stair', 'bridge', 'fence', 'railing', 'path', 'column', 'pillar', 'porch')
+        ):
+            return False
+        if any(str(f or '').lower().startswith('typology:') for f in features):
+            return True
+        tid = params.get('typology_id') or params.get('typologyId') or params.get('structural_typology')
+        return bool(tid and str(tid).strip())
+    return False
+
+
+def design_constraint_hosts(components: list | None) -> list[dict[str, Any]]:
+    """Design-constraint host list shared by contract validation and normalization."""
+    if not isinstance(components, list):
+        return []
+    return [c for c in components if isinstance(c, dict) and is_design_constraint_host(c)]
+
+
+# Properties whose all_main_masses / plan scope must cover the full design-host inventory
+# (parity with Java RequestIntentInjector seals). Dimensional / material envelope stays MASS_MAIN.
+_DESIGN_HOST_PROPERTIES = frozenset({
+    'roof_type', 'roof_block', 'window_style', 'entrance_type',
+})
+
+
+def _is_typology_structure(comp: dict[str, Any] | None) -> bool:
+    """STRUCTURE shell with explicit typology identity (native roof params path)."""
+    if not isinstance(comp, dict):
+        return False
+    if str(comp.get('component_type') or '').strip().upper() != 'STRUCTURE':
+        return False
+    features = comp.get('features') if isinstance(comp.get('features'), list) else []
+    if any(str(f or '').lower().startswith('typology:') for f in features):
+        return True
+    params = comp.get('params') if isinstance(comp.get('params'), dict) else {}
+    tid = params.get('typology_id') or params.get('typologyId') or params.get('structural_typology')
+    return bool(tid and str(tid).strip())
+
+
+def _all_mass_design_targets(
+    requirement: dict[str, Any],
+    design_hosts: list[dict[str, Any]],
+    masses: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Select all_main_masses targets: design hosts for roof/window/entrance, else MASS_MAIN."""
+    prop = str(requirement.get('property') or '')
+    if prop not in _DESIGN_HOST_PROPERTIES:
+        return list(masses)
+    targets = list(design_hosts)
+    # Positive roof styles on typology STRUCTURE are applied by chinese_roof_contract /
+    # typology native params — do not fail building_contract snake_case roof_type checks.
+    if prop == 'roof_type' and requirement.get('value') not in (None, 'none'):
+        targets = [t for t in targets if not _is_typology_structure(t)]
+        if not targets:
+            return list(masses)
+    return targets
+
+
 # Explicit whole-compound quantifiers only — never inferred from missing building names.
 _EXPLICIT_ALL_MASS_QUANTIFIERS = re.compile(
     r'所有建筑|全部建筑|两栋均|两栋都|每栋均|每栋都|全部主体|所有主体|所有房子|全部房子'
@@ -719,14 +808,21 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 counter += 1; identity = f'{stem}_{counter}'
             params['component_id'] = identity; used.add(identity)
     masses = [c for c in components if c.get('component_type') == 'MASS_MAIN']
+    # Design-constraint hosts: MASS*/TOWER/GATE/HALL + independent typology STRUCTURE.
+    # Used for all_main_masses / named design requirements — parity with Java.
+    design_hosts = design_constraint_hosts(components)
     # Towers and wings own their attached roofs/windows too. Keep requirement
     # targets separate: a main-building width must not be imposed on its towers.
     owners = [c for c in components if c.get('component_type') in
               ('MASS_MAIN', 'TOWER', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY', 'MASS_SECONDARY',
-               'TERRACE', 'COURTYARD', 'COURTYARD_SPACE', 'GATE')]
+               'TERRACE', 'COURTYARD', 'COURTYARD_SPACE', 'GATE', 'HALL')]
     referenced_hosts = {c['params'].get('host_id') for c in components if c.get('component_type') in HOSTED}
     owners.extend(c for c in components if c.get('component_type') in ('PLAZA','PAVING','PATH','ROAD','FOUNDATION','STRUCTURE','MODULE')
                   and c['params']['component_id'] in referenced_hosts)
+    # Independent design hosts (e.g. typology STRUCTURE) must participate in owner graphs.
+    for host in design_hosts:
+        if host not in owners:
+            owners.append(host)
     _repair_compound_courtyard_inheritance(out, components)
     ids = {c['params']['component_id']: c for c in owners}
     # Global attributes cannot encode different materials for separate buildings.
@@ -736,12 +832,19 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if isinstance(value, str) and '/' in value and 'building_' in value and masses and all(
                 isinstance(m['params'].get(role + '_block'), str) and m['params'][role + '_block'] for m in masses):
             attrs.pop(role + '_material', None)
+    # Historical wing/ancillary named bindings, plus independent TOWER/GATE/HALL /
+    # typology STRUCTURE hosts for named design scopes — not every MASS_ANCILLARY.
     requirement_masses = [c for c in owners if c.get('component_type') in
                           ('MASS_MAIN', 'MASS_WING', 'SIDE_WING', 'MASS_ANCILLARY')
                           and (c.get('component_type') != 'MASS_ANCILLARY'
                                or str((c.get('params') or {}).get('requirement_scope', '')).startswith('named_'))
                           and (c.get('params') or {}).get('extrude_mode') != 'plate'
                           and c.get('dimensions', {}).get('height', 0) > 1]
+    for host in design_hosts:
+        ctype = str(host.get('component_type') or '').strip().upper()
+        if ctype in ('TOWER', 'GATE', 'HALL') or _is_typology_structure(host):
+            if host not in requirement_masses:
+                requirement_masses.append(host)
     for mass in masses:
         params = mass['params']
         own = [r for r in requirements if r['scope'] in ('all_main_masses', 'plan', params.get('requirement_scope'))]
@@ -881,19 +984,26 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     for mass in requirement_masses:
         scope = mass['params'].get('requirement_scope')
         if isinstance(scope, str):
-            bindings.setdefault(scope, []).append(mass)
+            targets = bindings.setdefault(scope, [])
+            if mass not in targets:
+                targets.append(mass)
         identity = str(mass['params']['component_id']).lower()
         for key, names in NAMED_BUILDINGS.items():
             if any(name in identity for name in names):
-                bindings.setdefault('named_' + key, []).append(mass)
+                targets = bindings.setdefault('named_' + key, [])
+                if mass not in targets:
+                    targets.append(mass)
             elif key == 'wing' and re.search(r'(?:^|[_\s-])wing(?:$|[_\s-])',identity):
                 targets = bindings.setdefault('named_wing', [])
-                if mass not in targets: targets.append(mass)
+                if mass not in targets:
+                    targets.append(mass)
     if len(masses) == 1:
         bindings.setdefault('named_main_body', masses)
     for tower in owners:
         if tower.get('component_type') == 'TOWER':
-            bindings.setdefault('named_tower', []).append(tower)
+            tower_targets = bindings.setdefault('named_tower', [])
+            if tower not in tower_targets:
+                tower_targets.append(tower)
     contract['scope_bindings'] = {scope: [m['params']['component_id'] for m in targets]
                                   for scope, targets in bindings.items()}
     slots = {slot.get('slot_id'): slot for slot in (out.get('layout') or {}).get('slots', []) if isinstance(slot, dict)}
@@ -904,21 +1014,44 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         if scope == 'element_scope':
             continue
         if scope == 'unresolved':
-            # Only roof_type may verify on a lone mass without claiming all_main_masses.
+            # Only roof_type may verify on a lone host without claiming all_main_masses.
+            # Positive roofs on typology STRUCTURE stay for chinese_roof_contract.
             # Conflicting floor/dim values (value=None / unsupported_scope) stay unbound.
+            sole = design_hosts if len(design_hosts) == 1 else (masses if len(masses) == 1 else [])
             may_bind_single = (
-                len(masses) == 1
+                len(sole) == 1
                 and requirement.get('property') == 'roof_type'
                 and requirement.get('value') is not None
                 and requirement.get('status') not in ('unsupported_scope', 'unresolved')
             )
-            if not may_bind_single:
-                if not masses and requirement.get('status') == 'pending':
-                    requirement['status'] = 'unverified'
+            if may_bind_single and requirement.get('value') != 'none' and _is_typology_structure(sole[0]):
                 continue
-            targets = masses
+            if not may_bind_single:
+                if (not design_hosts and not masses
+                        and requirement.get('status') == 'pending'
+                        and requirement.get('property') in _DESIGN_HOST_PROPERTIES):
+                    requirement['status'] = 'unverified'
+                    contract['diagnostics'].append({
+                        'code': 'E_DESIGN_HOST_MISSING',
+                        'scope': scope,
+                        'requirement_id': requirement['id'],
+                        'message': 'explicit design requirement with no design-constraint host',
+                    })
+                continue
+            targets = sole
         elif scope in ('all_main_masses', 'plan'):
-            targets = masses
+            targets = _all_mass_design_targets(requirement, design_hosts, masses)
+            if (not targets and requirement.get('status') == 'pending'
+                    and requirement.get('property') in _DESIGN_HOST_PROPERTIES
+                    and not design_hosts and not masses):
+                requirement['status'] = 'unverified'
+                contract['diagnostics'].append({
+                    'code': 'E_DESIGN_HOST_MISSING',
+                    'scope': scope,
+                    'requirement_id': requirement['id'],
+                    'message': 'all-mass design requirement with no design-constraint host',
+                })
+                continue
         elif scope == 'multi_named':
             keys = [str(k).strip() for k in (requirement.get('named_keys') or []) if k]
             targets = []
@@ -942,8 +1075,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                     break
                 targets.append(uniq[0])
             if incomplete or len(targets) != len(keys):
-                requirement['status'] = 'unverified' if not masses else 'unresolved_binding'
-                if masses:
+                requirement['status'] = 'unverified' if not design_hosts else 'unresolved_binding'
+                if design_hosts:
                     contract['diagnostics'].append({
                         'code': 'E_REQUIREMENT_SCOPE',
                         'scope': scope,
@@ -955,9 +1088,30 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         else:
             targets = bindings.get(scope, [])
         if not targets or (str(scope).startswith('building_') and len(targets) != 1):
-            requirement['status'] = 'unverified' if not masses else 'unresolved_binding'
-            if masses:
-                contract['diagnostics'].append({'code': 'E_REQUIREMENT_SCOPE', 'scope': scope, 'requirement_id': requirement['id']})
+            # Envelope dims / materials still key off MASS_MAIN; design omit props use design hosts.
+            pool = (
+                design_hosts
+                if requirement.get('property') in _DESIGN_HOST_PROPERTIES
+                else masses
+            )
+            requirement['status'] = 'unverified' if not pool else 'unresolved_binding'
+            if pool:
+                contract['diagnostics'].append({
+                    'code': 'E_REQUIREMENT_SCOPE',
+                    'scope': scope,
+                    'requirement_id': requirement['id'],
+                })
+            elif (
+                requirement.get('property') in _DESIGN_HOST_PROPERTIES
+                and requirement.get('status') == 'pending'
+                and not design_hosts
+            ):
+                contract['diagnostics'].append({
+                    'code': 'E_DESIGN_HOST_MISSING',
+                    'scope': scope,
+                    'requirement_id': requirement['id'],
+                    'message': 'explicit design requirement with no design-constraint host',
+                })
             continue
         target_ids = {m['params']['component_id'] for m in targets}
         owned = components if scope in ('all_main_masses', 'plan', 'unresolved', 'multi_named') else [

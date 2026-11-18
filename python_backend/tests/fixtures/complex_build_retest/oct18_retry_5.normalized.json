@@ -204,7 +204,6 @@
           "workshop_main"
         ],
         "named_dispatch": [
-          "dispatch_main",
           "dispatch_main"
         ]
       },

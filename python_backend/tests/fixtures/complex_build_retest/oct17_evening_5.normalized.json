@@ -191,11 +191,9 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_workshop": [
-          "workshop_main",
           "workshop_main"
         ],
         "named_office": [
-          "office_main",
           "office_main"
         ],
         "named_boiler": [

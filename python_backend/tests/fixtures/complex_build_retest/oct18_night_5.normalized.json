@@ -92,7 +92,6 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_dispatch": [
-          "dispatch_body",
           "dispatch_body"
         ]
       },

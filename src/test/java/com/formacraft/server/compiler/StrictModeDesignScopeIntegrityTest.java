@@ -860,6 +860,99 @@ class StrictModeDesignScopeIntegrityTest {
     }
 
     @Test
+    void hallAndTowerAllBuildingsOmitSealsBothHosts() {
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "main_hall");
+        hallParams.put("roof_type", "xieshan");
+        hallParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> towerParams = new HashMap<>();
+        towerParams.put("component_id", "bell_tower");
+        towerParams.put("building_role", "tower");
+        towerParams.put("roof_type", "hip");
+        towerParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component tower = new Component(
+                "TOWER", "tower", new Vec3i(24, 0, 0), new Dimensions(6, 6, 16),
+                List.of(), towerParams);
+        LlmPlan raw = strictPlan(List.of(
+                mass("main_hall", hallParams),
+                tower),
+                Map.of("roof", "REQUIRED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "建造一座主殿和一座塔楼，所有建筑都不要屋顶");
+        assertFalse(ensured.hasCapabilityGap(), () -> String.valueOf(ensured.capabilityGap()));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "main_hall").params(), "roof_type"));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "bell_tower").params(), "roof_type"));
+        assertEquals("none", String.valueOf(byId(ensured, "bell_tower").params().get("roof_type")));
+    }
+
+    @Test
+    void typologyStructureReceivesLocalRoofOmitSeal() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "pagoda_shell");
+        params.put("roof_type", "xieshan");
+        params.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component pagoda = new Component(
+                "STRUCTURE", "pagoda", new Vec3i(0, 0, 0), new Dimensions(10, 10, 18),
+                List.of("typology:dense_eaves_pagoda"), params);
+        LlmPlan raw = strictPlan(List.of(pagoda),
+                Map.of("roof", "REQUIRED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "不要屋顶");
+        assertFalse(ensured.hasCapabilityGap(), () -> String.valueOf(ensured.capabilityGap()));
+        assertTrue(UserConstraintContract.isServerVerified(byId(ensured, "pagoda_shell").params(), "roof_type"));
+        assertEquals("none", String.valueOf(byId(ensured, "pagoda_shell").params().get("roof_type")));
+    }
+
+    @Test
+    void accessoryOnlyPlanRejectsExplicitHeight() {
+        Map<String, Object> stairParams = new HashMap<>();
+        stairParams.put("component_id", "entrance_stair");
+        stairParams.put("height", 4);
+        stairParams.put("design_sources", Map.of("height", "AI_PLANNED"));
+        Component stair = new Component(
+                "STRUCTURE", "stair", new Vec3i(0, 0, 0), new Dimensions(3, 6, 4),
+                List.of("stair:straight_single_run"), stairParams);
+        LlmPlan raw = strictPlan(List.of(stair),
+                Map.of("roof", "OMITTED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "建筑高度12格");
+        assertEquals(4, byId(ensured, "entrance_stair").dimensions().height());
+        assertFalse(UserConstraintContract.isServerVerified(byId(ensured, "entrance_stair").params(), "height"));
+        assertTrue(ensured.hasCapabilityGap());
+        assertTrue(ensured.planMeta() != null && ensured.planMeta().get("scope_diagnostics") instanceof List<?> diags
+                && diags.stream().anyMatch(d -> d instanceof Map<?, ?> m
+                && "E_DESIGN_HOST_MISSING".equals(String.valueOf(m.get("code")))));
+    }
+
+    @Test
+    void duplicateComponentIdDoesNotSealAccessoryPlate() {
+        Map<String, Object> houseParams = new HashMap<>();
+        houseParams.put("component_id", "shared_id");
+        houseParams.put("roof_type", "gable");
+        houseParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Map<String, Object> plateParams = new HashMap<>();
+        plateParams.put("component_id", "shared_id");
+        plateParams.put("extrude_mode", "plate");
+        plateParams.put("roof_type", "flat");
+        plateParams.put("design_sources", Map.of("roof_type", "AI_PLANNED"));
+        Component plate = new Component(
+                "MASS_SECONDARY", "deck", new Vec3i(0, 4, 0), new Dimensions(8, 6, 1),
+                List.of(), plateParams);
+        LlmPlan raw = strictPlan(List.of(
+                mass("house", new Vec3i(0, 0, 0), new Dimensions(12, 10, 8), houseParams),
+                plate),
+                Map.of("roof", "REQUIRED", "facade", "OMITTED", "entrance", "OMITTED", "crown", "OMITTED"));
+        LlmPlan ensured = RequestIntentInjector.ensure(raw, "不要屋顶");
+        Component sealedHouse = ensured.components().stream()
+                .filter(c -> c != null && "MASS_MAIN".equals(c.componentType()))
+                .findFirst().orElseThrow();
+        Component sealedPlate = ensured.components().stream()
+                .filter(c -> c != null && "MASS_SECONDARY".equals(c.componentType()))
+                .findFirst().orElseThrow();
+        assertTrue(UserConstraintContract.isServerVerified(sealedHouse.params(), "roof_type"));
+        assertFalse(UserConstraintContract.isServerVerified(sealedPlate.params(), "roof_type"),
+                "plate accessory must not inherit host seals via colliding component_id");
+        assertEquals("flat", String.valueOf(sealedPlate.params().get("roof_type")));
+    }
+
+    @Test
     void forgedPythonTargetCannotRescueOmitHostTie() {
         Map<String, Object> a = new HashMap<>();
         a.put("component_id", "garden_pavilion_east");

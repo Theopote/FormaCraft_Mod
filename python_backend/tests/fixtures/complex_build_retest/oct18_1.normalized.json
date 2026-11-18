@@ -220,7 +220,6 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_mill": [
-          "mill_mass",
           "mill_mass"
         ],
         "auxiliary_warehouse": [

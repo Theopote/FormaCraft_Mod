@@ -243,7 +243,6 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_main_body": [
-          "main_body",
           "main_body"
         ]
       },

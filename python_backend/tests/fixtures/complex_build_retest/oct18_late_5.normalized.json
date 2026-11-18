@@ -838,7 +838,6 @@
           "workshop_mass"
         ],
         "named_dispatch": [
-          "dispatch_mass",
           "dispatch_mass"
         ]
       },

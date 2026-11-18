@@ -116,11 +116,9 @@
       "validation_stage": "plan",
       "scope_bindings": {
         "named_workshop": [
-          "workshop",
           "workshop"
         ],
         "named_office": [
-          "office",
           "office"
         ]
       },

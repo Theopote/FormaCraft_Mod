@@ -51,6 +51,10 @@
           "louvre_wing_south",
           "louvre_wing_east"
         ],
+        "named_pavilion": [
+          "louvre_pavilion_nw",
+          "louvre_pavilion_sw"
+        ],
         "named_tower": [
           "louvre_pavilion_nw",
           "louvre_pavilion_sw"

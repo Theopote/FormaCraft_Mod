@@ -145,8 +145,7 @@ def _ensure_compiler_satellite_policy(plan: Dict[str, Any]) -> Dict[str, Any]:
 _COURTYARD_LITERALS = (
     "courtyard", "siheyuan", "中庭", "庭院", "四合院", "院落", "内院",
 )
-# Building-level design-constraint hosts — parity with Java MassComponentKinds + GATE.
-# Never treat bare STRUCTURE / GATE_STRUCTURE stairs or frames as building hosts.
+# Building-level MASS/TOWER/GATE/HALL types (type-token only — not STRUCTURE shells).
 _MASS_TYPES_FOR_EXPLICIT = (
     "MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS",
     "MASS_ANCILLARY", "TOWER", "GATE", "HALL",
@@ -162,49 +161,20 @@ def _user_explicit_courtyard(text: str) -> bool:
 
 
 def _is_mass_like(ctype: str) -> bool:
+    """Type-token MASS/TOWER/GATE/HALL probe — never includes STRUCTURE."""
     t = (ctype or "").strip().upper()
     return t.startswith("MASS") or t in _MASS_TYPES_FOR_EXPLICIT
 
 
 def _is_design_constraint_host(comp: Dict[str, Any]) -> bool:
-    """Building-level constraint hosts — parity with Java isDesignConstraintHost.
-
-    Excludes plate decks/bridges and attached satellites (host_id). Bare STRUCTURE
-    without typology identity is never a whole-building host.
-    """
-    if not isinstance(comp, dict):
-        return False
-    ctype = str(comp.get("component_type") or "").strip().upper()
-    params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
-    if str(params.get("extrude_mode") or "").strip().lower() == "plate":
-        return False
-    host = params.get("host_id")
-    if host is None:
-        host = params.get("hostId")
-    if host is not None and str(host).strip() and str(host).strip().lower() != "null":
-        return False
-    if _is_mass_like(ctype):
-        return True
-    if ctype == "STRUCTURE":
-        features = comp.get("features") if isinstance(comp.get("features"), list) else []
-        blob = " ".join(str(f or "").lower() for f in features)
-        if any(
-            tok in blob
-            for tok in ("stair", "bridge", "fence", "railing", "path", "column", "pillar", "porch")
-        ):
-            return False
-        if any(str(f or "").lower().startswith("typology:") for f in features):
-            return True
-        tid = params.get("typology_id") or params.get("typologyId") or params.get("structural_typology")
-        return bool(tid and str(tid).strip())
-    return False
+    """Delegate to shared building_contract host inventory (Java parity)."""
+    from .building_contract import is_design_constraint_host
+    return is_design_constraint_host(comp)
 
 
 def _mass_like_components(components: list) -> list:
-    return [
-        c for c in components
-        if isinstance(c, dict) and _is_design_constraint_host(c)
-    ]
+    from .building_contract import design_constraint_hosts
+    return design_constraint_hosts(components)
 
 
 def _comp_id(comp: Dict[str, Any]) -> str:
@@ -591,7 +561,8 @@ def _stamp_roof_on_targets(
         if not isinstance(params, dict):
             params = {}
             comp["params"] = params
-        if _is_mass_like(ctype):
+        # Design-constraint hosts (incl. independent typology STRUCTURE), not all STRUCTURE.
+        if _is_design_constraint_host(comp):
             cid = _comp_id(comp)
             matched = (cid and cid in target_ids) or any(comp is t for t in targets)
             if not matched:
@@ -908,7 +879,8 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         if drop:
             continue
 
-        if _is_mass_like(ctype):
+        # Write design omissions onto matched design hosts (incl. typology STRUCTURE).
+        if _is_design_constraint_host(comp):
             if _mass_in(window_omit_targets, comp):
                 params["window_style"] = "none"
                 params["window_ratio"] = 0

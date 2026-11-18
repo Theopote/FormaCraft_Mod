@@ -216,8 +216,12 @@ public final class RequestIntentInjector {
                 continue;
             }
             String mid = BuildingHostResolver.massId(c);
-            Integer boundH = heightByMassId.get(mid);
-            Set<String> omitDomains = omitByMassId.getOrDefault(mid, Set.of());
+            // Never seal accessories — even when component_id collides with a design host.
+            boolean designHost = BuildingHostResolver.isDesignConstraintHost(c);
+            Integer boundH = designHost ? heightByMassId.get(mid) : null;
+            Set<String> omitDomains = designHost
+                    ? omitByMassId.getOrDefault(mid, Set.of())
+                    : Set.of();
             boolean needHeight = boundH != null && boundH > 0;
             boolean needOmit = !omitDomains.isEmpty();
             boolean hadParams = c.params() != null && !c.params().isEmpty();
@@ -290,8 +294,21 @@ public final class RequestIntentInjector {
         Map<String, Set<String>> out = new HashMap<>();
         List<Map<String, Object>> diagnostics = new ArrayList<>();
         boolean gap = false;
-        if (bindings == null || bindings.isEmpty() || hosts == null || hosts.isEmpty()) {
+        if (bindings == null || bindings.isEmpty()) {
             return new OmitBindResult(out, diagnostics, false);
+        }
+        if (hosts == null || hosts.isEmpty()) {
+            for (var b : bindings) {
+                if (b == null || b.domain() == null || b.domain().isBlank()) continue;
+                gap = true;
+                Map<String, Object> detail = new HashMap<>();
+                detail.put("code", "E_DESIGN_HOST_MISSING");
+                detail.put("domain", b.domain());
+                detail.put("sourceText", b.sourceText() == null ? "" : b.sourceText());
+                detail.put("message", "explicit design omit with no design-constraint host");
+                diagnostics.add(detail);
+            }
+            return new OmitBindResult(out, diagnostics, gap);
         }
         for (var b : bindings) {
             if (b == null || b.domain() == null || b.domain().isBlank()) continue;
@@ -705,8 +722,21 @@ public final class RequestIntentInjector {
         Map<String, Integer> out = new HashMap<>();
         List<Map<String, Object>> diagnostics = new ArrayList<>();
         boolean gap = false;
-        if (bindings == null || bindings.isEmpty() || hosts == null || hosts.isEmpty()) {
+        if (bindings == null || bindings.isEmpty()) {
             return new HeightBindResult(out, diagnostics, false);
+        }
+        if (hosts == null || hosts.isEmpty()) {
+            for (var b : bindings) {
+                if (b == null || b.blocks() <= 0) continue;
+                gap = true;
+                Map<String, Object> detail = new HashMap<>();
+                detail.put("code", "E_DESIGN_HOST_MISSING");
+                detail.put("blocks", b.blocks());
+                detail.put("roleHint", b.roleHint() == null ? "" : b.roleHint());
+                detail.put("message", "explicit height cue with no design-constraint host");
+                diagnostics.add(detail);
+            }
+            return new HeightBindResult(out, diagnostics, gap);
         }
         for (var b : bindings) {
             if (b == null || b.blocks() <= 0) continue;
