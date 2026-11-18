@@ -492,6 +492,10 @@ public final class TypologyParamResolver {
                     if (sources != null) {
                         sources.put(canonical + "_alias_conflict", alt);
                     }
+                    // Visible to DesignValidatorSuite → E_ROOF_ALIAS_CONFLICT.
+                    if ("roofType".equals(canonical) || "roof_type".equals(canonical)) {
+                        merged.put("roof_alias_conflict", true);
+                    }
                     return;
                 }
                 boolean altPlan = isPlanLikeSource(altSrc);

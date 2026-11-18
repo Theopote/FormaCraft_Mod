@@ -9,6 +9,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -189,22 +190,11 @@ public final class RequestIntentInjector {
             envelopeGap = envApplied.capabilityGap();
             if (envApplied.changed()) {
                 plan = PlanComponentRewrite.withComponents(plan, working);
-                // Second pass strips markers then reseals from heightByMassId — keep per-storey
-                // scaled heights here so FloorLayoutOverflowRepair sees a valid seal.
-                Map<String, Component> byId = new HashMap<>();
-                for (Component c : working) {
-                    String mid = BuildingHostResolver.massId(c);
-                    if (mid != null) byId.put(mid, c);
-                }
-                for (StackedHeightEnvelope env : heightResult.envelopes()) {
-                    if (env == null || env.massIds() == null) continue;
-                    for (String id : env.massIds()) {
-                        Component c = byId.get(id);
-                        if (c != null && c.dimensions() != null) {
-                            heightByMassId.put(id, Math.max(1, c.dimensions().height()));
-                        }
-                    }
-                }
+            }
+            // Seal storey heights even when geometry is unchanged (matched envelope), so
+            // FloorLayoutOverflowRepair cannot quietly re-grow the player whole-building height.
+            if (envApplied.sealedHeights() != null && !envApplied.sealedHeights().isEmpty()) {
+                heightByMassId.putAll(envApplied.sealedHeights());
             }
         }
         if (authorizeFromText && (heightResult.capabilityGap() || omitResult.capabilityGap() || envelopeGap
@@ -438,28 +428,20 @@ public final class RequestIntentInjector {
                     javaTargets.add(javaTarget);
                 }
             } else {
-                // Prefer exact named-key identity (office/workshop/boiler); fall back to role score.
-                // Pass sourceText so 西厢房 does not expand to every named_wing hit.
-                List<String> namedHits = namedKeyHostIds(hosts, hint, b.sourceText());
-                if (namedHits.isEmpty() && b.namedKeys() != null && b.namedKeys().size() == 1) {
-                    namedHits = namedKeyHostIds(hosts, b.namedKeys().getFirst(), b.sourceText());
-                }
+                // namedKeys first (wing≠pavilion); roleHint only when no named identity.
+                List<String> namedHits = resolveNamedOrRoleHostIds(
+                        hosts, hint, b.namedKeys(), b.sourceText());
                 if (!namedHits.isEmpty()) {
                     javaTargets.addAll(namedHits);
                 } else {
-                    String javaTarget = uniqueRoleHostId(hosts, hint);
-                    if (javaTarget == null) {
-                        ambiguous = true;
-                        gap = true;
-                        diagnostics.add(Map.of(
-                                "code", "E_OMIT_HOST_TIE",
-                                "domain", b.domain(),
-                                "roleHint", hint,
-                                "sourceText", b.sourceText() == null ? "" : b.sourceText(),
-                                "message", "omit host role score is not unique or missing"));
-                    } else {
-                        javaTargets.add(javaTarget);
-                    }
+                    ambiguous = true;
+                    gap = true;
+                    diagnostics.add(Map.of(
+                            "code", "E_OMIT_HOST_TIE",
+                            "domain", b.domain(),
+                            "roleHint", hint == null ? "" : hint,
+                            "sourceText", b.sourceText() == null ? "" : b.sourceText(),
+                            "message", "omit host role score is not unique or missing"));
                 }
             }
             // Text ambiguity: never stamp and never accept plan-supplied target_components.
@@ -519,6 +501,45 @@ public final class RequestIntentInjector {
     private static String uniqueNamedKeyHostId(List<Component> hosts, String namedKey) {
         List<String> ids = namedKeyHostIds(hosts, namedKey, null);
         return ids.size() == 1 ? ids.getFirst() : null;
+    }
+
+    /**
+     * Prefer explicit {@code namedKeys} (wing/office/…) over collapsed roleHint.
+     * Role-score fallback only when no named identity resolves.
+     * Classification: HARD_CONSTRAINT host identity — wing must not bind pavilion.
+     */
+    static List<String> resolveNamedOrRoleHostIds(
+            List<Component> hosts,
+            String roleHint,
+            List<String> namedKeys,
+            String clauseText
+    ) {
+        if (namedKeys != null && !namedKeys.isEmpty()) {
+            if (namedKeys.size() == 1) {
+                List<String> hits = namedKeyHostIds(hosts, namedKeys.getFirst(), clauseText);
+                if (!hits.isEmpty()) return hits;
+            } else {
+                List<String> all = new ArrayList<>();
+                for (String key : namedKeys) {
+                    List<String> part = namedKeyHostIds(hosts, key, clauseText);
+                    if (part.isEmpty()) {
+                        all = List.of();
+                        break;
+                    }
+                    for (String id : part) {
+                        if (!all.contains(id)) all.add(id);
+                    }
+                }
+                if (!all.isEmpty()) return List.copyOf(all);
+            }
+        }
+        if (roleHint != null && !roleHint.isBlank()) {
+            List<String> hits = namedKeyHostIds(hosts, roleHint, clauseText);
+            if (!hits.isEmpty()) return hits;
+            String roleTarget = uniqueRoleHostId(hosts, roleHint);
+            if (roleTarget != null) return List.of(roleTarget);
+        }
+        return List.of();
     }
 
     private static List<String> namedKeyHostIds(List<Component> hosts, String namedKey) {
@@ -671,7 +692,8 @@ public final class RequestIntentInjector {
     ) {
         List<Map<String, Object>> diagnostics = new ArrayList<>();
         if (components == null || envelopes == null || envelopes.isEmpty()) {
-            return new EnvelopeApplyResult(components == null ? List.of() : components, diagnostics, false, false);
+            return new EnvelopeApplyResult(
+                    components == null ? List.of() : components, diagnostics, false, false, Map.of());
         }
         Map<String, Component> hostById = new HashMap<>();
         for (Component host : hosts == null ? List.<Component>of() : hosts) {
@@ -680,6 +702,7 @@ public final class RequestIntentInjector {
         }
         Map<String, Integer> newHeight = new HashMap<>();
         Map<String, Integer> newRelY = new HashMap<>();
+        Map<String, Integer> sealedHeights = new HashMap<>();
         boolean gap = false;
         for (StackedHeightEnvelope env : envelopes) {
             if (env == null || env.massIds() == null || env.massIds().isEmpty() || env.targetHeight() <= 0) {
@@ -718,23 +741,50 @@ public final class RequestIntentInjector {
                         "message", "stacked height envelope is non-positive"));
                 continue;
             }
+            members.sort(Comparator.comparingInt(c -> c.relativePosition().y()));
             if (envelope == env.targetHeight()) {
-                // Already matches — leave every storey height and relative Y untouched.
-                // Never stamp the whole-building envelope onto the base storey dimensions.
+                // Geometry stays put — but authored floor bands must still fit, and the
+                // matched envelope must seal so FloorLayoutOverflowRepair cannot re-grow.
+                boolean infeasible = false;
+                for (Component c : members) {
+                    int h = Math.max(1, c.dimensions().height());
+                    int need = authoredFloorNeed(c);
+                    if (need > h) {
+                        infeasible = true;
+                        String mid = BuildingHostResolver.massId(c);
+                        diagnostics.add(Map.of(
+                                "code", "E_STACKED_HEIGHT_UNSUPPORTED",
+                                "target", mid == null ? "" : mid,
+                                "blocks", env.targetHeight(),
+                                "message", "storey floor bands exceed height under matched envelope"));
+                        break;
+                    }
+                }
+                if (infeasible) {
+                    gap = true;
+                    newHeight.clear();
+                    newRelY.clear();
+                    break;
+                }
+                for (Component c : members) {
+                    String mid = BuildingHostResolver.massId(c);
+                    if (mid != null) {
+                        // Seal current storey height only — never rewrite dims to envelope.
+                        sealedHeights.put(mid, Math.max(1, c.dimensions().height()));
+                    }
+                }
                 continue;
             }
-            double scale = env.targetHeight() / (double) envelope;
-            members.sort(Comparator.comparingInt(c -> c.relativePosition().y()));
+            int[] oldHeights = new int[members.size()];
             int[] minHeights = new int[members.size()];
-            int[] scaledHeights = new int[members.size()];
             int minRequiredSum = 0;
             for (int i = 0; i < members.size(); i++) {
                 Component c = members.get(i);
-                int oldH = Math.max(1, c.dimensions().height());
-                int minH = minFeasibleStoreyHeight(storeyFloorCount(c));
-                minHeights[i] = minH;
-                minRequiredSum += minH;
-                scaledHeights[i] = Math.max(minH, (int) Math.round(oldH * scale));
+                oldHeights[i] = Math.max(1, c.dimensions().height());
+                // Scale mins use clear-air bands (not authored fh) so fair shrink can succeed
+                // when FloorLayoutOverflowRepair will clamp sealed storeys afterward.
+                minHeights[i] = minFeasibleStoreyHeight(c);
+                minRequiredSum += minHeights[i];
             }
             if (minRequiredSum > env.targetHeight()) {
                 gap = true;
@@ -746,23 +796,8 @@ public final class RequestIntentInjector {
                 newRelY.clear();
                 break;
             }
-            // Restack from the shaft base so adjacent tiers stay connected (no overlap/gap).
-            int used = 0;
-            for (int i = 0; i < members.size() - 1; i++) {
-                used += scaledHeights[i];
-            }
-            int lastH = env.targetHeight() - used;
-            if (lastH < minHeights[members.size() - 1]) {
-                gap = true;
-                diagnostics.add(Map.of(
-                        "code", "E_STACKED_HEIGHT_UNSUPPORTED",
-                        "blocks", env.targetHeight(),
-                        "message", "stacked height remainder cannot keep the top storey usable"));
-                newHeight.clear();
-                newRelY.clear();
-                break;
-            }
-            scaledHeights[members.size() - 1] = lastH;
+            // Min bands first, then distribute remainder by expandable weight (largest remainder).
+            int[] scaledHeights = allocateStackedHeights(oldHeights, minHeights, env.targetHeight());
             int yCursor = minY;
             for (int i = 0; i < members.size(); i++) {
                 Component c = members.get(i);
@@ -772,20 +807,23 @@ public final class RequestIntentInjector {
                     break;
                 }
                 newHeight.put(mid, scaledHeights[i]);
+                sealedHeights.put(mid, scaledHeights[i]);
                 newRelY.put(mid, yCursor);
                 yCursor += scaledHeights[i];
             }
             if (gap) {
                 newHeight.clear();
                 newRelY.clear();
+                sealedHeights.clear();
                 break;
             }
         }
         if (gap) {
-            return new EnvelopeApplyResult(components, diagnostics, true, false);
+            return new EnvelopeApplyResult(components, diagnostics, true, false, Map.of());
         }
         if (newHeight.isEmpty() && newRelY.isEmpty()) {
-            return new EnvelopeApplyResult(components, diagnostics, false, false);
+            // Equal-envelope path may still seal without geometry change.
+            return new EnvelopeApplyResult(components, diagnostics, false, false, Map.copyOf(sealedHeights));
         }
         // Capture pre-scale host geometry so roofs/openings/stairs can stay attached.
         Map<String, int[]> oldHostGeom = new HashMap<>();
@@ -852,7 +890,7 @@ public final class RequestIntentInjector {
             changed = true;
             out.add(new Component(c.componentType(), c.slotId(), rel, dims, c.features(), params));
         }
-        return new EnvelopeApplyResult(out, diagnostics, false, changed);
+        return new EnvelopeApplyResult(out, diagnostics, false, changed, Map.copyOf(sealedHeights));
     }
 
     /** floor_count when authored; 0 means no multi-storey band constraint on this mass. */
@@ -863,13 +901,85 @@ public final class RequestIntentInjector {
     }
 
     /**
-     * Minimum height that keeps FloorLayoutOverflowRepair from re-growing a sealed envelope.
-     * Multi-storey masses need floor_count × minStoreyBand; bare shells need at least 1.
+     * Minimum clear-air storey band for scale allocation: floor_count × minStoreyBand.
+     * Bare shells (no floor_count) need at least 1.
      */
-    private static int minFeasibleStoreyHeight(int floorCount) {
+    private static int minFeasibleStoreyHeight(Component c) {
+        int floorCount = storeyFloorCount(c);
         if (floorCount <= 0) return 1;
         int minBand = com.formacraft.common.generation.component.util.InteriorSpaceDefaults.minStoreyBand();
         return Math.max(1, floorCount * minBand);
+    }
+
+    /**
+     * Authored floor_count × floor_height (or minBand) that must fit the current storey height
+     * when the whole-building envelope already matches — conflict → capability gap.
+     */
+    private static int authoredFloorNeed(Component c) {
+        int floorCount = storeyFloorCount(c);
+        if (floorCount <= 0) return 0;
+        int authoredFh = c.params() == null ? 0
+                : com.formacraft.common.generation.component.util.ComponentParamParsers
+                .intParam(c.params(), "floor_height", "floorHeight");
+        int band = authoredFh > 0
+                ? authoredFh
+                : com.formacraft.common.generation.component.util.InteriorSpaceDefaults.minStoreyBand();
+        return Math.max(1, floorCount * band);
+    }
+
+    /**
+     * Assign min bands first, then distribute {@code target - sum(mins)} by expandable weight
+     * using the largest-remainder method so the sum equals {@code target} exactly.
+     */
+    static int[] allocateStackedHeights(int[] oldHeights, int[] minHeights, int target) {
+        int n = oldHeights.length;
+        int[] out = new int[n];
+        int minSum = 0;
+        for (int i = 0; i < n; i++) {
+            out[i] = minHeights[i];
+            minSum += minHeights[i];
+        }
+        int remainder = target - minSum;
+        if (remainder <= 0) return out;
+        long weightSum = 0L;
+        int[] weights = new int[n];
+        for (int i = 0; i < n; i++) {
+            weights[i] = Math.max(0, oldHeights[i] - minHeights[i]);
+            weightSum += weights[i];
+        }
+        if (weightSum <= 0) {
+            // No expandable mass — spread remainder from the base upward.
+            for (int i = 0; i < n && remainder > 0; i++) {
+                out[i] += 1;
+                remainder--;
+            }
+            if (remainder > 0) out[n - 1] += remainder;
+            return out;
+        }
+        int[] baseExtra = new int[n];
+        double[] frac = new double[n];
+        int assigned = 0;
+        for (int i = 0; i < n; i++) {
+            double exact = remainder * (weights[i] / (double) weightSum);
+            baseExtra[i] = (int) Math.floor(exact);
+            frac[i] = exact - baseExtra[i];
+            assigned += baseExtra[i];
+        }
+        int left = remainder - assigned;
+        // Largest remainder: give leftover units to highest fractional parts (stable by index).
+        Integer[] order = new Integer[n];
+        for (int i = 0; i < n; i++) order[i] = i;
+        Arrays.sort(order, (a, b) -> {
+            int cmp = Double.compare(frac[b], frac[a]);
+            return cmp != 0 ? cmp : Integer.compare(a, b);
+        });
+        for (int k = 0; k < left; k++) {
+            baseExtra[order[k % n]] += 1;
+        }
+        for (int i = 0; i < n; i++) {
+            out[i] += baseExtra[i];
+        }
+        return out;
     }
 
     private static String satelliteHostId(Component c) {
@@ -1038,6 +1148,7 @@ public final class RequestIntentInjector {
             case "hall" -> s.contains("main_hall") || s.contains("hall") || s.contains("main_body")
                     || s.contains("正殿") || s.contains("主殿") || s.equals("named_main_hall");
             case "pavilion" -> s.contains("pavilion") || s.contains("亭") || s.equals("named_pavilion");
+            case "wing" -> s.contains("wing") || s.contains("厢") || s.equals("named_wing");
             case "tower" -> s.contains("tower") || s.contains("pagoda") || s.contains("塔");
             case "all_main_masses" -> s.equals("all_main_masses") || s.equals("plan");
             case "multi_named" -> s.equals("multi_named");
@@ -1104,8 +1215,13 @@ public final class RequestIntentInjector {
             List<Component> components,
             List<Map<String, Object>> diagnostics,
             boolean capabilityGap,
-            boolean changed
-    ) {}
+            boolean changed,
+            Map<String, Integer> sealedHeights
+    ) {
+        private EnvelopeApplyResult {
+            sealedHeights = sealedHeights == null ? Map.of() : Map.copyOf(sealedHeights);
+        }
+    }
 
     /**
      * Map mass ids to player height values by unique role/ordinal host.
@@ -1165,17 +1281,9 @@ public final class RequestIntentInjector {
             } else if (hint.startsWith("building_")) {
                 target = resolveOrdinalOmitHost(hosts, primary, hint);
             } else {
-                // Pass clause text so 西厢房高度 does not expand to every wing.
-                // namedKeys preserves wing when roleHint collapses wing→pavilion.
-                String clause = b.sourceText();
-                List<String> namedHits = namedKeyHostIds(hosts, hint, clause);
-                if (namedHits.isEmpty() && b.namedKeys() != null && b.namedKeys().size() == 1) {
-                    namedHits = namedKeyHostIds(hosts, b.namedKeys().getFirst(), clause);
-                }
-                if (namedHits.isEmpty()) {
-                    String roleTarget = uniqueRoleHostId(hosts, hint);
-                    if (roleTarget != null) namedHits = List.of(roleTarget);
-                }
+                // namedKeys first (wing≠pavilion); clause text keeps 西厢房 side-local.
+                List<String> namedHits = resolveNamedOrRoleHostIds(
+                        hosts, hint, b.namedKeys(), b.sourceText());
                 if (namedHits.isEmpty()) {
                     gap = true;
                     diagnostics.add(Map.of(
@@ -1282,12 +1390,15 @@ public final class RequestIntentInjector {
             }
         }
         String lower = sb.toString().toLowerCase(Locale.ROOT);
+        // Pavilion must not score wing hosts; wing has its own identity.
         boolean pavilionLike = lower.contains("pavilion") || lower.contains("亭")
-                || lower.contains("廊") || lower.contains("wing");
+                || lower.contains("廊");
+        boolean wingLike = lower.contains("wing") || lower.contains("厢");
         boolean towerLike = lower.contains("tower") || lower.contains("塔")
                 || lower.contains("pagoda");
         return switch (roleHint) {
             case "pavilion" -> pavilionLike ? 3 : 0;
+            case "wing" -> wingLike ? 3 : 0;
             case "hall" -> {
                 if (lower.contains("main_hall") || lower.contains("townhall")
                         || lower.contains("hall") || lower.contains("殿")
@@ -1297,7 +1408,7 @@ public final class RequestIntentInjector {
                     yield 3;
                 }
                 // Weak identity only (never componentType): house_main / *_main without pavilion/tower cues.
-                if (!pavilionLike && !towerLike
+                if (!pavilionLike && !wingLike && !towerLike
                         && (lower.contains("_main") || lower.contains("house"))) {
                     yield 2;
                 }

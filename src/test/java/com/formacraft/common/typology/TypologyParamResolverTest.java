@@ -356,10 +356,9 @@ class TypologyParamResolverTest {
         @SuppressWarnings("unchecked")
         var sources = (java.util.Map<String, String>) merged.get(TypologyParamResolver.PARAM_SOURCES_KEY);
         assertNotNull(sources);
-        assertTrue(sources.containsKey("roofType_alias_conflict")
-                        || "xie_shan".equals(String.valueOf(merged.get("roofType")))
-                        || String.valueOf(merged.get("roofType")).contains("xie"),
-                "conflicting dual USER_EXPLICIT must not silently adopt roof_type=wu_dian");
+        assertTrue(sources.containsKey("roofType_alias_conflict"),
+                "dual USER_EXPLICIT must mark roofType_alias_conflict");
+        assertEquals(Boolean.TRUE, merged.get("roof_alias_conflict"));
         assertFalse(String.valueOf(merged.get("roofType")).contains("wu"),
                 "must keep canonical roofType under dual USER_EXPLICIT conflict");
     }

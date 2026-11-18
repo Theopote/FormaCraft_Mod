@@ -109,4 +109,17 @@ class DesignValidatorSuiteTest {
         assertTrue(ComponentPlanCompiler.compile(plan).isEmpty());
         assertEquals("E_ROOF_TYPE_UNSUPPORTED", AssemblyCompileDiagnostics.get().code());
     }
+
+    @Test void dualUserExplicitRoofAliasConflictIsDiagnosed() {
+        java.util.Map<String, Object> params = new java.util.HashMap<>();
+        params.put("component_id", "hall");
+        params.put("roofType", "xie_shan");
+        params.put("roof_type", "wu_dian");
+        com.formacraft.common.typology.UserConstraintContract.stampVerified(params, "roofType", "roof_type");
+        var hall = new Component("MASS_MAIN", "hall", new Vec3i(0, 0, 0), new Dimensions(21, 13, 20),
+                List.of(), params);
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(List.of(hall)).build();
+        assertEquals("E_ROOF_ALIAS_CONFLICT",
+                DesignValidatorSuite.checkAuthored(plan).orElseThrow().code());
+    }
 }

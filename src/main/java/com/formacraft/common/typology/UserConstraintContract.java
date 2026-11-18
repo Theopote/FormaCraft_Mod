@@ -493,12 +493,17 @@ public final class UserConstraintContract {
         return List.of(key);
     }
 
-    /** Map shared named-building keys onto classic role hints where applicable. */
+    /**
+     * Map shared named-building keys onto classic role hints where applicable.
+     * {@code wing} stays {@code wing} — never borrow pavilion (凉亭) as wing identity.
+     * Classification: HARD_CONSTRAINT host identity.
+     */
     private static String roleHintForNamedKey(String key) {
         if (key == null) return null;
         return switch (key) {
             case "main_hall", "main_body" -> "hall";
-            case "pavilion", "wing" -> "pavilion";
+            case "pavilion" -> "pavilion";
+            case "wing" -> "wing";
             case "tower" -> "tower";
             default -> key;
         };

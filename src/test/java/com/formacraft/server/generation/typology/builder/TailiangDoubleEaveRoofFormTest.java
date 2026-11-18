@@ -41,6 +41,67 @@ class TailiangDoubleEaveRoofFormTest {
     }
 
     @Test
+    void doubleEaveXieshanEmitsTwoRoofTiersInBlockPatch() {
+        Map<String, Object> params = baseParams();
+        params.put("roof_type", "double_eave_xieshan");
+        params.put("roofRise", 6);
+        params.put("includeSubEaves", false);
+        Component component = new Component(
+                "STRUCTURE", null, new Vec3i(0, 0, 0),
+                new Dimensions(21, 13, 20),
+                List.of("typology:tailiang_timber_hall"),
+                params);
+        Map<String, Object> merged = TypologyParamResolver.merge("tailiang_timber_hall", component);
+        var single = new HashMap<>(merged);
+        single.put("doubleEave", false);
+        single.put("double_eave", false);
+        single.put("doubleEaves", false);
+        single.put("double_eaves", false);
+        single.put("roof_type", "xie_shan");
+        single.put("roofType", "xie_shan");
+
+        var doubleGen = TailiangTimberHallBuilder.generate(merged, new BlockPos(0, 64, 0), null, null);
+        var singleGen = TailiangTimberHallBuilder.generate(single, new BlockPos(100, 64, 0), null, null);
+        assertNotNull(doubleGen);
+        assertNotNull(singleGen);
+
+        int doubleMaxY = maxBlockY(doubleGen.getBlocks());
+        int singleMaxY = maxBlockY(singleGen.getBlocks());
+        int doubleCount = doubleGen.getBlocks() == null ? 0 : doubleGen.getBlocks().size();
+        int singleCount = singleGen.getBlocks() == null ? 0 : singleGen.getBlocks().size();
+        assertTrue(doubleCount > singleCount,
+                "double eave must emit more blocks than single xie_shan ("
+                        + doubleCount + " vs " + singleCount + ")");
+        assertTrue(doubleMaxY >= singleMaxY,
+                "double eave upper tier must reach at least as high as single roof");
+        // Distinct Y bands above the timber body (≥2 roof layers).
+        assertTrue(distinctHighYBands(doubleGen.getBlocks(), 64 + 10) >= 2,
+                "double eave BlockPatch must occupy at least two roof Y bands");
+    }
+
+    private static int maxBlockY(List<com.formacraft.common.build.PlannedBlock> blocks) {
+        int max = Integer.MIN_VALUE;
+        if (blocks == null) return max;
+        for (var pb : blocks) {
+            if (pb != null && pb.getPos() != null) {
+                max = Math.max(max, pb.getPos().getY());
+            }
+        }
+        return max;
+    }
+
+    private static int distinctHighYBands(List<com.formacraft.common.build.PlannedBlock> blocks, int minY) {
+        java.util.Set<Integer> ys = new java.util.HashSet<>();
+        if (blocks == null) return 0;
+        for (var pb : blocks) {
+            if (pb == null || pb.getPos() == null) continue;
+            int y = pb.getPos().getY();
+            if (y >= minY) ys.add(y);
+        }
+        return ys.size();
+    }
+
+    @Test
     void planRoofTypeBeatsTypologyDefaultWudian() {
         Map<String, Object> params = new HashMap<>();
         params.put("roof_type", "xieshan");

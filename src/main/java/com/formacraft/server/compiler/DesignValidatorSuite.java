@@ -53,6 +53,8 @@ final class DesignValidatorSuite {
     private static Optional<CapabilityGap> checkDesign(LlmPlan plan, List<Component> components) {
         return RoofDesignValidator.check(plan, components)
                 .or(() -> TypologyRoofCapabilityValidator.check(plan, components))
+                .or(() -> RoofAliasConflictValidator.check(plan, components))
+                .or(() -> StackedEnvelopeIntegrityValidator.check(plan, components))
                 .or(() -> FacadeDesignValidator.check(plan, components))
                 .or(() -> MassDesignValidator.check(plan, components))
                 .or(() -> HostedPlateDesignValidator.check(plan, components))

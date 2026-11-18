@@ -76,6 +76,67 @@ class StackedTowerHeightEnvelopeTest {
     }
 
     @Test
+    void fairShrinkTwentyFourFourToTwelveSucceeds() {
+        // 20+4+4 → 12 with floor_count=1 (min band 4): must become 4+4+4, not reject.
+        List<Component> tiers = stackedTiersWithFloors(new int[]{20, 4, 4}, 1);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(tiers)
+                .build();
+        LlmPlan out = RequestIntentInjector.ensure(plan, "建造一座高度12格的宝塔。");
+        assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
+        List<Component> masses = pagodaTiers(out);
+        masses.sort(Comparator.comparingInt(c -> c.relativePosition().y()));
+        assertEquals(3, masses.size());
+        assertEquals(12, envelopeHeight(masses));
+        for (Component c : masses) {
+            assertEquals(4, c.dimensions().height(),
+                    "fair min-band allocation must keep every storey usable");
+        }
+        assertAdjacentStoreysConnected(masses);
+    }
+
+    @Test
+    void matchedEnvelopeWithOversizedFloorBandsReportsGap() {
+        // Two tiers × 8 = 16 matches target, but floor_count=2 × floor_height=5 needs 10 each.
+        List<Component> tiers = stackedTiersWithFloors(new int[]{8, 8}, 2);
+        for (Component c : tiers) {
+            c.params().put("floor_height", 5);
+        }
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(tiers)
+                .build();
+        LlmPlan out = RequestIntentInjector.ensure(plan, "建造一座高度16格的宝塔。");
+        assertTrue(out.hasCapabilityGap(), "matched envelope with impossible floor bands must gap");
+        assertEquals("E_STACKED_HEIGHT_UNSUPPORTED", out.capabilityGap().code());
+        List<Component> masses = pagodaTiers(out);
+        assertEquals(8, masses.get(0).dimensions().height());
+        assertEquals(8, masses.get(1).dimensions().height());
+    }
+
+    @Test
+    void matchedEnvelopeSealsHeightWithoutChangingGeometry() {
+        List<Component> tiers = stackedTiers(new int[]{8, 8, 7, 6, 5});
+        List<int[]> before = captureGeom(tiers);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(tiers)
+                .build();
+        LlmPlan out = RequestIntentInjector.ensure(plan, "建造一座高度34格的宝塔。");
+        assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
+        List<Component> masses = pagodaTiers(out);
+        masses.sort(Comparator.comparingInt(c -> c.relativePosition().y()));
+        for (int i = 0; i < masses.size(); i++) {
+            assertEquals(before.get(i)[0], masses.get(i).relativePosition().y());
+            assertEquals(before.get(i)[1], masses.get(i).dimensions().height());
+            assertTrue(com.formacraft.common.typology.UserConstraintContract
+                            .isServerVerified(masses.get(i).params(), "height"),
+                    "matched envelope must still seal storey height");
+        }
+    }
+
+    @Test
     void infeasibleShrinkReportsStackedHeightGapWithoutOverlappingTiers() {
         // floor_count=2 needs ≥8 band; five such tiers cannot fit into height 10.
         List<Component> tiers = stackedTiersWithFloors(new int[]{8, 8, 7, 6, 5}, 2);
