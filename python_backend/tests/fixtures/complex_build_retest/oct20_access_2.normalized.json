@@ -70,13 +70,13 @@
           "dimensions": {
             "width": 16,
             "depth": 12,
-            "height": 12
+            "height": 8
           },
           "floor_ys_local": [
             0,
             4
           ],
-          "roof_y_local": 11,
+          "roof_y_local": 7,
           "floor_layout_fits": true,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
@@ -92,9 +92,9 @@
                 "dimensions": {
                   "width": 16,
                   "depth": 12,
-                  "height": 12
+                  "height": 8
                 },
-                "roof_y_local": 11
+                "roof_y_local": 7
               }
             ],
             "envelope_local": {
@@ -103,7 +103,7 @@
               "max_x": 8,
               "max_z": 6,
               "min_y": 0,
-              "max_y": 12
+              "max_y": 8
             },
             "footprint_status": "rectangular_union",
             "outline_local": [
@@ -345,7 +345,7 @@
       "dimensions": {
         "width": 16,
         "depth": 12,
-        "height": 12
+        "height": 8
       },
       "features": [],
       "params": {
@@ -370,7 +370,7 @@
       "slot_id": "exhibition",
       "relative_position": {
         "x": -8,
-        "y": 11,
+        "y": 8,
         "z": -6
       },
       "dimensions": {
@@ -400,7 +400,7 @@
       "dimensions": {
         "width": 16,
         "depth": 12,
-        "height": 12
+        "height": 8
       },
       "features": [],
       "params": {

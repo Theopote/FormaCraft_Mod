@@ -1300,6 +1300,120 @@ class AiDesignPreservationTest(unittest.TestCase):
         self.assertEqual("xieshan", hall["params"]["roof_type"])
         self.assertEqual("xieshan", pavilion["params"]["roof_type"])
 
+    def test_joint_multi_named_missing_pavilion_is_not_partial_success(self):
+        from app.services.building_contract import extract_requirements, apply_building_contract
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources, _targets_for_req
+
+        text = "主殿和亭子都采用歇山顶。"
+        multi = next(
+            r for r in extract_requirements(text)
+            if r.get("property") == "roof_type" and r.get("scope") == "multi_named"
+        )
+        masses = [
+            {"component_type": "MASS_MAIN", "params": {"component_id": "main_hall", "roof_type": "gable"}},
+        ]
+        self.assertEqual([], _targets_for_req(masses, multi))
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 8},
+                    "features": [],
+                    "params": {
+                        "component_id": "main_hall",
+                        "roof_type": "gable",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(copy.deepcopy(plan), text)
+        hall = out["components"][0]
+        self.assertEqual("gable", hall["params"]["roof_type"], "partial multi_named must not stamp hall alone")
+        self.assertEqual("AI_PLANNED", hall["params"]["design_sources"]["roof_type"])
+        diags = (out.get("plan_meta") or {}).get("scope_diagnostics") or []
+        self.assertTrue(any(d.get("code") == "E_ROOF_HOST_UNRESOLVED" for d in diags), diags)
+
+        contracted = apply_building_contract(copy.deepcopy(plan), text, finalize=True)
+        multi_req = next(
+            r for r in (contracted.get("proportion_hints") or {})
+            .get("building_contract", {})
+            .get("requirements", [])
+            if r.get("scope") == "multi_named"
+        )
+        self.assertIn(multi_req.get("status"), ("unresolved_binding", "unverified"))
+        self.assertTrue(
+            any(
+                d.get("code") == "E_REQUIREMENT_SCOPE" and d.get("scope") == "multi_named"
+                for d in (contracted.get("proportion_hints") or {})
+                .get("building_contract", {})
+                .get("diagnostics", [])
+            )
+        )
+
+    def test_dual_roof_omit_declarations_bind_independently(self):
+        from app.services.building_contract import extract_requirements, apply_building_contract
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+
+        text = "主殿不要屋顶，旁边的亭子也不要屋顶。"
+        omits = [
+            r for r in extract_requirements(text)
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertGreaterEqual(len(omits), 2, omits)
+        scopes = {str(r.get("scope") or "") for r in omits}
+        self.assertTrue(any("hall" in s or "main" in s for s in scopes), scopes)
+        self.assertTrue(any("pavilion" in s or "ting" in s for s in scopes), scopes)
+
+        plan = {
+            "mode": "build",
+            "components": [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 12, "height": 8},
+                    "features": [],
+                    "params": {
+                        "component_id": "main_hall",
+                        "roof_type": "xieshan",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "ting",
+                    "relative_position": {"x": 24, "y": 0, "z": 0},
+                    "dimensions": {"width": 8, "depth": 8, "height": 5},
+                    "features": [],
+                    "params": {
+                        "component_id": "garden_pavilion",
+                        "roof_type": "flat",
+                        "design_sources": {"roof_type": "AI_PLANNED"},
+                    },
+                },
+            ],
+        }
+        out = _apply_user_explicit_design_sources(copy.deepcopy(plan), text)
+        hall = next(c for c in out["components"] if c["params"]["component_id"] == "main_hall")
+        pavilion = next(c for c in out["components"] if c["params"]["component_id"] == "garden_pavilion")
+        self.assertEqual("none", hall["params"]["roof_type"])
+        self.assertEqual("none", pavilion["params"]["roof_type"])
+        contracted = apply_building_contract(copy.deepcopy(plan), text, finalize=True)
+        roof_omits = [
+            r for r in (contracted.get("proportion_hints") or {})
+            .get("building_contract", {})
+            .get("requirements", [])
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        target_sets = [set(r.get("target_components") or []) for r in roof_omits]
+        self.assertTrue(any(t == {"main_hall"} for t in target_sets), target_sets)
+        self.assertTrue(any(t == {"garden_pavilion"} for t in target_sets), target_sets)
+
     def test_double_negation_window_omit_not_extracted(self):
         from app.services.building_contract import extract_requirements
 

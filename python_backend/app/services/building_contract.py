@@ -322,6 +322,7 @@ def _extract_global_requirements(text: str) -> list[dict]:
         for i, match in enumerate(hits):
             req = {'id': f'req_disable_{prop}' + (f'_{i}' if i else ''), 'property': prop,
                    'value': 'none', 'source': 'user_explicit', 'source_text': [match.group(0)],
+                   'match_span': [match.start(), match.end()],
                    'scope': 'unresolved', 'scope_source': 'INFERRED',
                    'priority': 'hard', 'status': 'pending'}
             if prop == 'roof_type':
@@ -824,15 +825,36 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         elif scope == 'multi_named':
             keys = [str(k).strip() for k in (requirement.get('named_keys') or []) if k]
             targets = []
-            seen: set[str] = set()
+            incomplete = False
             for key in keys:
-                for mass in bindings.get('named_' + key, []):
-                    cid = str(mass['params'].get('component_id') or '')
-                    if cid and cid not in seen:
-                        seen.add(cid)
-                        targets.append(mass)
-                    elif not cid and mass not in targets:
-                        targets.append(mass)
+                found = bindings.get('named_' + key, []) or []
+                # Unique host per named key — duplicates or misses fail the whole joint declaration.
+                uniq: list = []
+                seen_ids: set[str] = set()
+                for mass in found:
+                    cid = str((mass.get('params') or {}).get('component_id') or '')
+                    if cid:
+                        if cid in seen_ids:
+                            continue
+                        seen_ids.add(cid)
+                        uniq.append(mass)
+                    elif mass not in uniq:
+                        uniq.append(mass)
+                if len(uniq) != 1:
+                    incomplete = True
+                    break
+                targets.append(uniq[0])
+            if incomplete or len(targets) != len(keys):
+                requirement['status'] = 'unverified' if not masses else 'unresolved_binding'
+                if masses:
+                    contract['diagnostics'].append({
+                        'code': 'E_REQUIREMENT_SCOPE',
+                        'scope': scope,
+                        'requirement_id': requirement['id'],
+                        'named_keys': keys,
+                        'message': 'multi_named requires every listed subject to bind uniquely',
+                    })
+                continue
         else:
             targets = bindings.get(scope, [])
         if not targets or (str(scope).startswith('building_') and len(targets) != 1):

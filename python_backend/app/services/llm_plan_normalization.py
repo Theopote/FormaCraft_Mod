@@ -308,20 +308,16 @@ def _targets_for_req(masses: list, req: dict) -> list:
     scope = str(req.get("scope") or "").strip()
     if scope == "multi_named":
         keys = [str(k).strip() for k in (req.get("named_keys") or []) if k]
+        if not keys:
+            return []
         hits: list = []
-        seen: set[str] = set()
+        # Every explicitly listed subject must resolve to exactly one mass — partial hits are failure.
         for key in keys:
-            for mass in _named_scope_mass_hits(masses, f"named_{key}"):
-                cid = _comp_id(mass)
-                if cid and cid not in seen:
-                    seen.add(cid)
-                    hits.append(mass)
-                elif not cid:
-                    hits.append(mass)
-        if hits:
-            return hits
-        # Joint multi-subject declared but hosts unresolved → surface gap, do not guess.
-        return []
+            named = _named_scope_mass_hits(masses, f"named_{key}")
+            if len(named) != 1:
+                return []
+            hits.append(named[0])
+        return hits
     targets = _resolve_scoped_mass_targets(
         masses,
         scope,
@@ -744,16 +740,33 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
             continue
         targets = _targets_for_req(masses, req)
         if not targets:
-            # Soft name bind: unique pavilion/hall cue from player text may identify one host.
-            targets = _infer_unique_named_roof_host(masses, req, user_text=text)
+            scope = str(req.get("scope") or "").strip()
+            scope_source = str(req.get("scope_source") or "").strip().upper()
+            # Joint multi_named must not soft-bind a partial subject set.
+            if scope != "multi_named" and scope_source != "EXPLICIT_MULTI":
+                # Soft name bind: unique pavilion/hall cue from player text may identify one host.
+                targets = _infer_unique_named_roof_host(masses, req, user_text=text)
         if targets:
             roof_targets.setdefault(value, [])
             for t in targets:
                 if t not in roof_targets[value]:
                     roof_targets[value].append(t)
 
+    multi_named_pending = any(
+        str(r.get("scope") or "").strip() == "multi_named"
+        or str(r.get("scope_source") or "").strip().upper() == "EXPLICIT_MULTI"
+        for r in roof_reqs
+        if str(r.get("value") or "").strip().lower() not in ("", "none")
+    )
     if not roof_targets and fallback_roof and fallback_roof != "none":
-        if len(masses) <= 1:
+        # Incomplete joint multi_named must not fall back to single-mass keyword paint.
+        if multi_named_pending:
+            _record_scope_ambiguity(
+                plan,
+                code="E_ROOF_HOST_UNRESOLVED",
+                message=f"multi_named roof_type={fallback_roof} subjects incomplete; left AI plan intact",
+            )
+        elif len(masses) <= 1:
             roof_targets[fallback_roof] = list(masses)
         else:
             inferred = _infer_unique_named_roof_host(
@@ -775,20 +788,30 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         value = str(req.get("value") or "").strip().lower()
         if not value or value == "none":
             continue
-        if _targets_for_req(masses, req) or _infer_unique_named_roof_host(masses, req, user_text=text):
+        resolved = _targets_for_req(masses, req)
+        scope = str(req.get("scope") or "").strip()
+        scope_source = str(req.get("scope_source") or "").strip().upper()
+        if not resolved and scope != "multi_named" and scope_source != "EXPLICIT_MULTI":
+            resolved = _infer_unique_named_roof_host(masses, req, user_text=text)
+        if resolved:
             continue
         already = [
             m for m in masses
             if str((m.get("params") or {}).get("roof_type") or "").strip().lower() == value
         ]
-        if len(already) == 1:
+        # multi_named incomplete: never treat a coincidental single-mass match as success.
+        if len(already) == 1 and scope != "multi_named" and scope_source != "EXPLICIT_MULTI":
             continue
-        if len(masses) > 1:
+        if len(masses) > 1 or scope == "multi_named" or scope_source == "EXPLICIT_MULTI":
             _record_scope_ambiguity(
                 plan,
                 code="E_ROOF_HOST_UNRESOLVED",
                 message=f"roof_type={value} could not bind to a unique mass",
-                detail={"scope": req.get("scope"), "target_components": req.get("target_components")},
+                detail={
+                    "scope": req.get("scope"),
+                    "named_keys": req.get("named_keys"),
+                    "target_components": req.get("target_components"),
+                },
             )
 
     courtyard_targets: list = []

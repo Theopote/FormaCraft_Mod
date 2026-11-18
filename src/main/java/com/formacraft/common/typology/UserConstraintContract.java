@@ -39,11 +39,23 @@ public final class UserConstraintContract {
 
     /**
      * One player-authored design omission (roof / windows / entrance), optionally role/ordinal-scoped.
+     * Each text match is an independent declaration (span + sourceText) — never merge by domain.
      * Classification: HARD_CONSTRAINT — server re-verifies from real player text before sealing.
      */
-    public record DesignOmitBinding(String domain, String roleHint, String ordinalScope) {
+    public record DesignOmitBinding(
+            String domain,
+            String roleHint,
+            String ordinalScope,
+            String sourceText,
+            int matchStart,
+            int matchEnd
+    ) {
         public DesignOmitBinding(String domain, String roleHint) {
-            this(domain, roleHint, null);
+            this(domain, roleHint, null, null, -1, -1);
+        }
+
+        public DesignOmitBinding(String domain, String roleHint, String ordinalScope) {
+            this(domain, roleHint, ordinalScope, null, -1, -1);
         }
     }
 
@@ -242,7 +254,8 @@ public final class UserConstraintContract {
                 if (prefix.matches("(?s).*山墙[^。；\\n]*")) continue;
             }
             String hint = inferDesignOmitRoleHint(text, m.start(), m.end());
-            out.add(new DesignOmitBinding(domain, hint));
+            out.add(new DesignOmitBinding(
+                    domain, hint, null, m.group(), m.start(), m.end()));
         }
     }
 

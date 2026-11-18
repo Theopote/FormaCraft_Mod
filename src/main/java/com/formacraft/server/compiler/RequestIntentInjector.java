@@ -248,7 +248,8 @@ public final class RequestIntentInjector {
 
     /**
      * Map mass ids to local design-omit domains using clause role hints.
-     * Unique max role score required; ties and Python/Java host mismatches do not stamp.
+     * Per-declaration: unique max role score required; ties/unscoped are blocking gaps.
+     * Python targets are matched per declaration (never domain-aggregated); cannot rescue ties.
      */
     static OmitBindResult resolveDesignOmitBindings(
             LlmPlan plan,
@@ -267,57 +268,63 @@ public final class RequestIntentInjector {
             if (b == null || b.domain() == null || b.domain().isBlank()) continue;
             String hint = b.roleHint();
             String javaTarget = null;
+            boolean ambiguous = false;
             if (!multi || hosts.size() == 1) {
                 javaTarget = primary != null ? primary : BuildingHostResolver.massId(hosts.getFirst());
             } else if (hint != null && hint.startsWith("building_")) {
                 javaTarget = resolveOrdinalOmitHost(hosts, primary, hint);
-            } else if (hint != null && !hint.isBlank()) {
-                javaTarget = uniqueRoleHostId(hosts, hint);
                 if (javaTarget == null) {
+                    ambiguous = true;
+                    gap = true;
                     diagnostics.add(Map.of(
                             "code", "E_OMIT_HOST_TIE",
                             "domain", b.domain(),
                             "roleHint", hint,
+                            "message", "ordinal omit host is not unique"));
+                }
+            } else if (hint != null && !hint.isBlank()) {
+                javaTarget = uniqueRoleHostId(hosts, hint);
+                if (javaTarget == null) {
+                    ambiguous = true;
+                    gap = true;
+                    diagnostics.add(Map.of(
+                            "code", "E_OMIT_HOST_TIE",
+                            "domain", b.domain(),
+                            "roleHint", hint,
+                            "sourceText", b.sourceText() == null ? "" : b.sourceText(),
                             "message", "omit host role score is not unique"));
                 }
             } else {
+                ambiguous = true;
+                gap = true;
                 diagnostics.add(Map.of(
                         "code", "E_OMIT_HOST_UNSCOPED",
                         "domain", b.domain(),
+                        "sourceText", b.sourceText() == null ? "" : b.sourceText(),
                         "message", "multi-mass omit without role/ordinal scope"));
             }
-            Set<String> pythonTargets = pythonOmitTargetIds(plan, b.domain());
+            // Text ambiguity: never stamp and never accept plan-supplied target_components.
+            if (ambiguous) {
+                continue;
+            }
+            Set<String> pythonTargets = pythonOmitTargetsForDeclaration(plan, b);
             String target = javaTarget;
             if (!pythonTargets.isEmpty()) {
                 if (javaTarget != null && pythonTargets.equals(Set.of(javaTarget))) {
                     target = javaTarget;
-                } else if (javaTarget == null && pythonTargets.size() == 1) {
-                    String only = pythonTargets.iterator().next();
-                    Component host = findHostById(hosts, only);
-                    if (host != null && (hint == null || hint.isBlank()
-                            || heightRoleScore(host, hint) > 0
-                            || (hint.startsWith("building_") && only.equals(
-                            resolveOrdinalOmitHost(hosts, primary, hint))))) {
-                        target = only;
-                    } else {
-                        target = null;
-                        gap = true;
-                        diagnostics.add(Map.of(
-                                "code", "E_OMIT_HOST_MISMATCH",
-                                "domain", b.domain(),
-                                "pythonTargets", List.copyOf(pythonTargets),
-                                "javaTarget", "",
-                                "message", "python omit host could not be re-verified from text"));
-                    }
+                } else if (javaTarget != null && pythonTargets.contains(javaTarget)
+                        && pythonTargets.size() == 1) {
+                    target = javaTarget;
                 } else {
                     target = null;
                     gap = true;
                     Map<String, Object> detail = new HashMap<>();
                     detail.put("code", "E_OMIT_HOST_MISMATCH");
                     detail.put("domain", b.domain());
+                    detail.put("sourceText", b.sourceText() == null ? "" : b.sourceText());
                     detail.put("pythonTargets", List.copyOf(pythonTargets));
                     detail.put("javaTarget", javaTarget == null ? "" : javaTarget);
-                    detail.put("message", "python and java omit hosts disagree");
+                    detail.put("message", "python and java omit hosts disagree for this declaration");
                     diagnostics.add(detail);
                 }
             }
@@ -346,79 +353,98 @@ public final class RequestIntentInjector {
         return BuildingHostResolver.massId(best);
     }
 
-    private static Component findHostById(List<Component> hosts, String massId) {
-        if (massId == null || massId.isBlank()) return null;
-        for (Component host : hosts) {
-            if (massId.equals(BuildingHostResolver.massId(host))) return host;
-        }
-        return null;
-    }
-
     /**
-     * Python-normalized omit targets from building_contract requirements or pre-marked params.
-     * Used only for cross-check — never as a forged seal substitute.
+     * Targets for the same player omit declaration as {@code binding} (by source span / scope / role).
+     * Never aggregates every roof/window omit in the plan — that false-conflicts multi-declaration texts.
+     * Classification: HARD_CONSTRAINT cross-check only; cannot authorize seals by itself.
      */
     @SuppressWarnings("unchecked")
-    private static Set<String> pythonOmitTargetIds(LlmPlan plan, String domain) {
+    private static Set<String> pythonOmitTargetsForDeclaration(
+            LlmPlan plan,
+            com.formacraft.common.typology.UserConstraintContract.DesignOmitBinding binding
+    ) {
         Set<String> out = new HashSet<>();
-        if (plan == null || domain == null) return out;
-        String prop = switch (domain) {
+        if (plan == null || binding == null || binding.domain() == null) return out;
+        String prop = switch (binding.domain()) {
             case "roof" -> "roof_type";
             case "window" -> "window_style";
             case "entrance" -> "entrance_type";
             default -> "";
         };
         if (prop.isEmpty()) return out;
+        String sourceText = binding.sourceText() == null ? "" : binding.sourceText().trim();
+        String hint = binding.roleHint();
         Object hints = plan.proportionHints();
-        if (hints instanceof Map<?, ?> hintMap) {
-            Object contract = hintMap.get("building_contract");
-            if (contract instanceof Map<?, ?> cMap) {
-                Object reqs = cMap.get("requirements");
-                if (reqs instanceof List<?> list) {
-                    for (Object raw : list) {
-                        if (!(raw instanceof Map<?, ?> req)) continue;
-                        if (!prop.equals(String.valueOf(req.get("property")))) continue;
-                        if (!"none".equalsIgnoreCase(String.valueOf(req.get("value")))) continue;
-                        Object targets = req.get("target_components");
-                        if (targets instanceof List<?> ids) {
-                            for (Object id : ids) {
-                                if (id != null && !String.valueOf(id).isBlank()) {
-                                    out.add(String.valueOf(id).trim());
-                                }
-                            }
-                        }
+        if (!(hints instanceof Map<?, ?> hintMap)) return out;
+        Object contract = hintMap.get("building_contract");
+        if (!(contract instanceof Map<?, ?> cMap)) return out;
+        Object reqs = cMap.get("requirements");
+        if (!(reqs instanceof List<?> list)) return out;
+        Map<?, ?> best = null;
+        int bestScore = 0;
+        for (Object raw : list) {
+            if (!(raw instanceof Map<?, ?> req)) continue;
+            if (!prop.equals(String.valueOf(req.get("property")))) continue;
+            if (!"none".equalsIgnoreCase(String.valueOf(req.get("value")))) continue;
+            int score = 0;
+            Object st = req.get("source_text");
+            if (st instanceof List<?> texts && !sourceText.isEmpty()) {
+                for (Object t : texts) {
+                    if (t != null && sourceText.equals(String.valueOf(t).trim())) {
+                        score += 3;
+                        break;
                     }
                 }
             }
+            Object span = req.get("match_span");
+            if (span instanceof List<?> sp && sp.size() >= 2
+                    && binding.matchStart() >= 0 && binding.matchEnd() >= 0) {
+                try {
+                    int a = Integer.parseInt(String.valueOf(sp.get(0)));
+                    int b = Integer.parseInt(String.valueOf(sp.get(1)));
+                    if (a == binding.matchStart() && b == binding.matchEnd()) score += 4;
+                } catch (NumberFormatException ignored) {
+                    // ignore malformed spans
+                }
+            }
+            String scope = String.valueOf(req.get("scope") == null ? "" : req.get("scope")).trim();
+            if (hint != null && !hint.isBlank() && omitScopeMatchesRole(scope, hint)) {
+                score += 2;
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                best = req;
+            } else if (score > 0 && score == bestScore) {
+                best = null; // ambiguous declaration match — do not guess
+            }
         }
-        if (!out.isEmpty()) return out;
-        // Fallback: component params already carrying USER_EXPLICIT omit values from Python.
-        if (plan.components() != null) {
-            for (Component c : plan.components()) {
-                if (c == null || c.params() == null || !BuildingHostResolver.isHostMass(c)) continue;
-                Object sources = c.params().get("design_sources");
-                if (!(sources instanceof Map<?, ?> src)) continue;
-                boolean marked = "USER_EXPLICIT".equalsIgnoreCase(
-                        String.valueOf(src.get(prop)).trim());
-                if (!marked && "window".equals(domain)) {
-                    marked = "USER_EXPLICIT".equalsIgnoreCase(
-                            String.valueOf(src.get("window_requirement")).trim())
-                            || "USER_EXPLICIT".equalsIgnoreCase(
-                            String.valueOf(src.get("facade_requirement")).trim());
-                }
-                if (!marked && "roof".equals(domain)) {
-                    marked = "USER_EXPLICIT".equalsIgnoreCase(
-                            String.valueOf(src.get("roof_requirement")).trim());
-                }
-                if (!marked) continue;
-                Object val = c.params().get(prop);
-                if (val != null && "none".equalsIgnoreCase(String.valueOf(val).trim())) {
-                    String mid = BuildingHostResolver.massId(c);
-                    if (mid != null) out.add(mid);
+        if (best == null || bestScore <= 0) return out;
+        Object targets = best.get("target_components");
+        if (targets instanceof List<?> ids) {
+            for (Object id : ids) {
+                if (id != null && !String.valueOf(id).isBlank()) {
+                    out.add(String.valueOf(id).trim());
                 }
             }
         }
         return out;
+    }
+
+    /** Map Java omit role hints onto Python named_/building_ scopes for per-declaration match. */
+    private static boolean omitScopeMatchesRole(String scope, String roleHint) {
+        if (scope == null || roleHint == null) return false;
+        String s = scope.toLowerCase(Locale.ROOT);
+        String r = roleHint.toLowerCase(Locale.ROOT);
+        if (r.startsWith("building_")) {
+            return s.equals(r);
+        }
+        return switch (r) {
+            case "hall" -> s.contains("main_hall") || s.contains("hall") || s.contains("main_body")
+                    || s.contains("正殿") || s.contains("主殿") || s.equals("named_main_hall");
+            case "pavilion" -> s.contains("pavilion") || s.contains("亭") || s.equals("named_pavilion");
+            case "tower" -> s.contains("tower") || s.contains("pagoda") || s.contains("塔");
+            default -> false;
+        };
     }
 
     private static String resolveOrdinalOmitHost(

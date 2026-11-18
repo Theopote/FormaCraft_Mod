@@ -10,8 +10,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class Oct20AccessReplayTest {
     @BeforeAll static void setup() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
     @TestFactory Stream<DynamicTest> loggedPlans() {
+        // Plan 2 historical capture stays height=8 (coplanar pyramid conflict). Compile success
+        // uses the explicit repaired fixture — never rewrite the immutable LLM raw capture.
         return IntStream.of(1,2,3,5,6,7,8).mapToObj(i -> DynamicTest.dynamicTest("oct20 plan "+i, () -> {
-            var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(LlmPlanParser.parse(Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/oct20_access_"+i+".normalized.json"))));
+            String path = i == 2
+                    ? "python_backend/tests/fixtures/complex_build_retest/oct20_access_2_repaired.normalized.json"
+                    : "python_backend/tests/fixtures/complex_build_retest/oct20_access_"+i+".normalized.json";
+            var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(
+                    LlmPlanParser.parse(Files.readString(Path.of(path))));
             var patches=ComponentPlanCompiler.compile(plan);
             assertFalse(patches.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
             assertFalse(AssemblyCompileDiagnostics.hasGap(),String.valueOf(AssemblyCompileDiagnostics.get()));
@@ -32,6 +38,18 @@ class Oct20AccessReplayTest {
                     assertNotNull(blocks.get(new com.formacraft.common.llm.dto.Vec3i(x,level,i==5?-2:10)), "stair-to-deck connection has no missing row");
             }
         }));
+    }
+
+    @Test
+    void historicalOct20Plan2WithoutRepairSurfacesFlatRoofCoverageGap() throws Exception {
+        var plan = com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(
+                LlmPlanParser.parse(Files.readString(Path.of(
+                        "python_backend/tests/fixtures/complex_build_retest/oct20_access_2.normalized.json"))));
+        AssemblyCompileDiagnostics.clear();
+        ComponentPlanCompiler.compile(plan);
+        assertTrue(AssemblyCompileDiagnostics.hasGap(),
+                "immutable historical capture must not silently pass after geometry rewrite policy");
+        assertEquals("E_FLAT_ROOF_COVERAGE", AssemblyCompileDiagnostics.get().code());
     }
 
     @Test void descendingDescriptionKeepsLandingAtRaisedEnd() throws Exception {
