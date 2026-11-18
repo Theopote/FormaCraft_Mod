@@ -267,9 +267,35 @@ public final class UserConstraintContract {
             OmitScopeInference scope = inferOmitScope(text, m.start(), m.end());
             String ordinal = scope.roleHint() != null && scope.roleHint().startsWith("building_")
                     ? scope.roleHint() : null;
+            // Clause window keeps 西厢房 visible beside 不要屋顶 for side-local wing binds.
+            String clause = omitClauseWindow(text, m.start(), m.end());
             out.add(new DesignOmitBinding(
-                    domain, scope.roleHint(), ordinal, m.group(), m.start(), m.end(), scope.namedKeys()));
+                    domain, scope.roleHint(), ordinal, clause, m.start(), m.end(), scope.namedKeys()));
         }
+    }
+
+    /** Expand omit match to the surrounding clause (parity with Python _span_clause_window). */
+    static String omitClauseWindow(String text, int matchStart, int matchEnd) {
+        if (text == null || text.isEmpty()) return "";
+        int from = Math.max(0, Math.min(text.length(), matchStart));
+        int to = Math.max(from, Math.min(text.length(), matchEnd));
+        while (from > 0) {
+            char c = text.charAt(from - 1);
+            if (c == '。' || c == '；' || c == '！' || c == '？' || c == '\n' || c == '\r'
+                    || c == '.' || c == '!' || c == '?' || c == ';') {
+                break;
+            }
+            from--;
+        }
+        while (to < text.length()) {
+            char c = text.charAt(to);
+            if (c == '。' || c == '；' || c == '！' || c == '？' || c == '\n' || c == '\r'
+                    || c == '.' || c == '!' || c == '?' || c == ';') {
+                break;
+            }
+            to++;
+        }
+        return text.substring(from, to);
     }
 
     private record OmitScopeInference(String roleHint, List<String> namedKeys) {

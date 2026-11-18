@@ -198,11 +198,15 @@ def _looks_courtyard_named(comp: Dict[str, Any]) -> bool:
     return any(hint in blob for hint in _COURTYARD_NAME_HINTS)
 
 
-def _named_scope_mass_hits(masses: list, scope_key: str) -> list:
+def _named_scope_mass_hits(masses: list, scope_key: str, source_text=None) -> list:
     """Resolve ``named_<key>`` scopes via NAMED_BUILDINGS aliases / component ids — never whole prompt."""
     if not scope_key.startswith("named_"):
         return []
-    from .building_contract import NAMED_BUILDINGS, _unique_named_hosts
+    from .building_contract import (
+        NAMED_BUILDINGS,
+        _filter_hosts_by_wing_side,
+        _unique_named_hosts,
+    )
 
     key = scope_key[len("named_") :]
     aliases = tuple(str(n).lower() for n in NAMED_BUILDINGS.get(key, ()) if n)
@@ -216,8 +220,14 @@ def _named_scope_mass_hits(masses: list, scope_key: str) -> list:
         if any(alias and (alias in cid or alias in blob) for alias in aliases):
             hits.append(mass)
     # Stacked storeys of one tower count as one named building entity.
-    collapsed = _unique_named_hosts(hits)
-    return collapsed if collapsed is not None else []
+    # Plural role-class keys (wing) require named_key so west+east stay coherent.
+    collapsed = _unique_named_hosts(hits, named_key=key)
+    if collapsed is None:
+        return []
+    if key == "wing":
+        sided = _filter_hosts_by_wing_side(collapsed, source_text)
+        return sided if sided is not None else []
+    return collapsed
 
 
 def _resolve_scoped_mass_targets(
@@ -313,8 +323,11 @@ def _user_reqs(requirements: list, prop: str) -> list:
     ]
 
 
-def _targets_for_req(masses: list, req: dict) -> list:
+def _targets_for_req(masses: list, req: dict, *, user_text: str | None = None) -> list:
+    from .building_contract import _filter_hosts_by_wing_side, _requirement_clause_text
+
     scope = str(req.get("scope") or "").strip()
+    clause = _requirement_clause_text(req, user_text)
     if scope == "multi_named":
         keys = [str(k).strip() for k in (req.get("named_keys") or []) if k]
         if not keys:
@@ -322,17 +335,26 @@ def _targets_for_req(masses: list, req: dict) -> list:
         hits: list = []
         # Every explicitly listed subject must resolve to exactly one mass — partial hits are failure.
         for key in keys:
-            named = _named_scope_mass_hits(masses, f"named_{key}")
+            named = _named_scope_mass_hits(masses, f"named_{key}", source_text=clause)
             if not named:
                 return []
             hits.extend(named)
         return hits
+    if scope.startswith("named_"):
+        # Prefer named resolver (with wing-side filter) over bare target_components expansion.
+        named = _named_scope_mass_hits(masses, scope, source_text=clause)
+        if named:
+            return named
+        # Fall through when named resolution is empty — target_components may still bind.
     targets = _resolve_scoped_mass_targets(
         masses,
         scope,
         list(req.get("target_components") or []),
         scope_source=str(req.get("scope_source") or ""),
     )
+    if scope == "named_wing" and targets:
+        sided = _filter_hosts_by_wing_side(targets, clause)
+        return sided if sided is not None else []
     if not targets and len(masses) <= 1:
         # Single-mass compounds: unresolved INFERRED roof may still bind locally.
         if scope in ("", "unresolved", "plan", "all_main_masses"):
@@ -708,7 +730,7 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
 
     roof_omit_targets: list = []
     for req in roof_omit_reqs:
-        hits = _targets_for_req(masses, req)
+        hits = _targets_for_req(masses, req, user_text=text)
         if not hits and len(masses) > 1:
             _note_omit_ambiguous("roof")
         for t in hits:
@@ -716,7 +738,7 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
                 roof_omit_targets.append(t)
     window_omit_targets: list = []
     for req in window_omit_reqs:
-        hits = _targets_for_req(masses, req)
+        hits = _targets_for_req(masses, req, user_text=text)
         if not hits and len(masses) > 1:
             _note_omit_ambiguous("windows")
         for t in hits:
@@ -724,7 +746,7 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
                 window_omit_targets.append(t)
     entrance_omit_targets: list = []
     for req in entrance_omit_reqs:
-        hits = _targets_for_req(masses, req)
+        hits = _targets_for_req(masses, req, user_text=text)
         if not hits and len(masses) > 1:
             _note_omit_ambiguous("entrance")
         for t in hits:
@@ -747,7 +769,7 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         value = str(req.get("value") or "").strip().lower()
         if not value or value == "none":
             continue
-        targets = _targets_for_req(masses, req)
+        targets = _targets_for_req(masses, req, user_text=text)
         if not targets:
             scope = str(req.get("scope") or "").strip()
             scope_source = str(req.get("scope_source") or "").strip().upper()
@@ -797,7 +819,7 @@ def _apply_user_explicit_design_sources(plan: Dict[str, Any], user_text: str) ->
         value = str(req.get("value") or "").strip().lower()
         if not value or value == "none":
             continue
-        resolved = _targets_for_req(masses, req)
+        resolved = _targets_for_req(masses, req, user_text=text)
         scope = str(req.get("scope") or "").strip()
         scope_source = str(req.get("scope_source") or "").strip().upper()
         if not resolved and scope != "multi_named" and scope_source != "EXPLICIT_MULTI":

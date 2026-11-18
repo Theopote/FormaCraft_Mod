@@ -355,11 +355,29 @@ public final class TailiangTimberHallBuilder {
                 || roof.toLowerCase(java.util.Locale.ROOT).contains("double_eave");
     }
 
-    /** Prefer canonical roofType; accept plan snake_case roof_type stamped by building_contract. */
+    /**
+     * Read roof form after {@link com.formacraft.common.typology.TypologyParamResolver} merge.
+     * Resolver unifies roofType/roof_type by provenance and decomposes double_eave_*.
+     */
     private static String firstRoofForm(TypologyParams p) {
         String camel = p.strVal("roofType", "");
-        if (!camel.isBlank()) return camel;
-        return p.strVal("roof_type", "xie_shan");
+        if (!camel.isBlank()) return stripDoubleEavePrefix(camel);
+        String snake = p.strVal("roof_type", "");
+        if (!snake.isBlank()) return stripDoubleEavePrefix(snake);
+        return "xie_shan";
+    }
+
+    /** Defense in depth: never pass double_eave_* into ChineseHallRoofGenerator.normalize. */
+    private static String stripDoubleEavePrefix(String form) {
+        if (form == null) return "xie_shan";
+        String lower = form.trim().toLowerCase(java.util.Locale.ROOT);
+        if (lower.startsWith("double_eave_")) {
+            return lower.substring("double_eave_".length());
+        }
+        if (lower.startsWith("重檐")) {
+            return lower.substring("重檐".length());
+        }
+        return form.trim();
     }
 
     /** Mid cornice under the upper tier: slab rim + outward stair lip. */

@@ -293,6 +293,8 @@ public final class TypologyParamResolver {
         }
         // height ↔ towerHeight: PLAN alias overwrites soft default on the canonical key.
         syncHeightAliases(merged, sources);
+        // roofType ↔ roof_type: plan/user beat typology soft defaults; decompose 重檐复合值.
+        syncRoofAliases(merged, sources);
         promote(merged, sources, "eaves_per_level", "eavesPerLevel");
         alias(merged, sources, "eave_tiers", "eaveTiers");
         promote(merged, sources, "baseWidth", "base_width", "basewidth");
@@ -375,6 +377,72 @@ public final class TypologyParamResolver {
                     sources.put("height_alias_conflict", "height_wins");
                 }
             }
+        }
+    }
+
+    /**
+     * Unify roofType/roof_type by provenance and decompose double_eave_* / 重檐* into
+     * base Chinese hall form + doubleEave=true so generators never see unsupported tokens.
+     */
+    private static void syncRoofAliases(Map<String, Object> merged, Map<String, String> sources) {
+        if (merged == null) return;
+        // Prefer plan-authored alias over typology soft default (same pattern as height).
+        promote(merged, sources, "roofType", "roof_type");
+        if (merged.containsKey("roofType") && !merged.containsKey("roof_type")) {
+            merged.put("roof_type", merged.get("roofType"));
+            if (sources != null && sources.containsKey("roofType")) {
+                sources.put("roof_type", sources.get("roofType"));
+            }
+        } else if (merged.containsKey("roof_type") && !merged.containsKey("roofType")) {
+            // promote should have handled plan-authored roof_type; mirror residual soft values.
+            Object v = merged.get("roof_type");
+            if (v != null && !String.valueOf(v).isBlank()) {
+                boolean typePlan = sources != null && isPlanLikeSource(sources.get("roof_type"));
+                boolean camelPlan = sources != null && isPlanLikeSource(sources.get("roofType"));
+                if (typePlan || !merged.containsKey("roofType") || !camelPlan) {
+                    merged.put("roofType", v);
+                    if (sources != null && sources.get("roof_type") != null) {
+                        sources.put("roofType", sources.get("roof_type"));
+                    }
+                }
+            }
+        }
+        Object roofVal = merged.get("roofType");
+        if (roofVal == null) roofVal = merged.get("roof_type");
+        if (roofVal == null) return;
+        String roof = String.valueOf(roofVal).trim();
+        if (roof.isBlank() || "none".equalsIgnoreCase(roof)) {
+            // Preserve omit semantics on both keys.
+            merged.put("roofType", "none");
+            merged.put("roof_type", "none");
+            return;
+        }
+        String lower = roof.toLowerCase(java.util.Locale.ROOT);
+        boolean doubleEave = lower.contains("double_eave") || lower.contains("重檐")
+                || truthy(merged.get("doubleEave")) || truthy(merged.get("double_eave"))
+                || truthy(merged.get("doubleEaves")) || truthy(merged.get("double_eaves"));
+        String base = lower;
+        if (lower.startsWith("double_eave_")) {
+            base = lower.substring("double_eave_".length());
+            doubleEave = true;
+        } else if (lower.startsWith("重檐")) {
+            base = lower.substring("重檐".length());
+            doubleEave = true;
+        }
+        base = switch (base) {
+            case "xieshan", "xie_shan", "歇山" -> "xie_shan";
+            case "xuanshan", "xuan_shan", "悬山" -> "xuan_shan";
+            case "yingshan", "ying_shan", "硬山" -> "ying_shan";
+            case "wudian", "wu_dian", "庑殿" -> "wu_dian";
+            default -> base;
+        };
+        merged.put("roofType", base);
+        merged.put("roof_type", base);
+        if (doubleEave) {
+            merged.put("doubleEave", true);
+            merged.put("double_eave", true);
+            merged.put("doubleEaves", true);
+            merged.put("double_eaves", true);
         }
     }
 

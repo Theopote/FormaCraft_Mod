@@ -188,6 +188,95 @@ def _stacked_family_key(component_id: str | None) -> str | None:
 # Role-class scopes that legitimately bind multiple masses of one compound (west+east wings).
 _PLURAL_NAMED_KEYS = frozenset({'wing'})
 
+# Local wing side cues — keep plural named_wing, but never expand 西厢房 to east wing.
+_WING_SIDE_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ('west', (r'西(?:厢|翼|侧)', r'west[_\s-]?wing', r'\bwest\b', r'左厢')),
+    ('east', (r'东(?:厢|翼|侧)', r'east[_\s-]?wing', r'\beast\b', r'右厢')),
+    ('south', (r'南(?:厢|翼|侧)', r'south[_\s-]?wing', r'\bsouth\b')),
+    ('north', (r'北(?:厢|翼|侧)', r'north[_\s-]?wing', r'\bnorth\b')),
+)
+_WING_SIDE_HOST_TOKENS: dict[str, tuple[str, ...]] = {
+    'west': ('west', '西', '左厢', 'west_wing', 'wing_west', 'westwing'),
+    'east': ('east', '东', '右厢', 'east_wing', 'wing_east', 'eastwing'),
+    'south': ('south', '南', 'south_wing', 'wing_south', 'southwing'),
+    'north': ('north', '北', 'north_wing', 'wing_north', 'northwing'),
+}
+
+
+def _wing_side_from_text(text: str | None) -> str | None:
+    """Return west/east/south/north when the clause locally qualifies a wing; else None."""
+    raw = str(text or '').strip()
+    if not raw:
+        return None
+    for side, patterns in _WING_SIDE_PATTERNS:
+        for pat in patterns:
+            if re.search(pat, raw, flags=re.IGNORECASE):
+                return side
+    return None
+
+
+def _wing_side_from_texts(texts: Any) -> str | None:
+    if isinstance(texts, (list, tuple)):
+        for item in texts:
+            side = _wing_side_from_text(str(item) if item is not None else '')
+            if side:
+                return side
+        return None
+    return _wing_side_from_text(str(texts) if texts is not None else '')
+
+
+def _span_clause_window(text: str | None, start: int | None, end: int | None) -> str:
+    """Expand a match span to the surrounding clause so 西厢房 is visible beside 不要屋顶."""
+    raw = str(text or '')
+    if not raw:
+        return ''
+    try:
+        s = int(start) if start is not None else 0
+        e = int(end) if end is not None else len(raw)
+    except (TypeError, ValueError):
+        return raw
+    s = max(0, min(len(raw), s))
+    e = max(s, min(len(raw), e))
+    left = s
+    while left > 0 and raw[left - 1] not in '。；！？\n\r.!?;':
+        left -= 1
+    right = e
+    while right < len(raw) and raw[right] not in '。；！？\n\r.!?;':
+        right += 1
+    return raw[left:right]
+
+
+def _requirement_clause_text(requirement: dict[str, Any] | None, full_text: str | None) -> str:
+    """Prefer clause window around match_span; fall back to source_text fragments."""
+    req = requirement if isinstance(requirement, dict) else {}
+    span = req.get('match_span')
+    if isinstance(span, (list, tuple)) and len(span) >= 2 and full_text:
+        window = _span_clause_window(full_text, span[0], span[1])
+        if window.strip():
+            return window
+    texts = req.get('source_text')
+    if isinstance(texts, (list, tuple)):
+        return ' '.join(str(x) for x in texts if x)
+    return str(texts or '')
+
+
+def _host_matches_wing_side(comp: dict[str, Any] | None, side: str) -> bool:
+    blob = _host_identity_blob(comp)
+    tokens = _WING_SIDE_HOST_TOKENS.get(str(side or '').strip().lower(), ())
+    return any(tok and tok.lower() in blob for tok in tokens)
+
+
+def _filter_hosts_by_wing_side(
+        hosts: list[dict[str, Any]],
+        source_text: Any,
+) -> list[dict[str, Any]] | None:
+    """None → side cue present but no unique matching wing (ambiguity)."""
+    side = _wing_side_from_texts(source_text)
+    if not side:
+        return list(hosts)
+    filtered = [h for h in hosts if _host_matches_wing_side(h, side)]
+    return filtered if filtered else None
+
 
 def _unique_named_hosts(
         found: list[dict[str, Any]],
@@ -1245,6 +1334,21 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                     continue
                 if collapsed is not None:
                     targets = collapsed
+                # 西厢房 / west wing: keep plural named_wing, but never expand side-local cues.
+                if named_key == 'wing' and targets:
+                    clause = _requirement_clause_text(requirement, text)
+                    sided = _filter_hosts_by_wing_side(targets, clause)
+                    if sided is None:
+                        requirement['status'] = 'unverified' if not design_hosts else 'unresolved_binding'
+                        if design_hosts:
+                            contract['diagnostics'].append({
+                                'code': 'E_REQUIREMENT_SCOPE',
+                                'scope': scope,
+                                'requirement_id': requirement['id'],
+                                'message': 'wing side cue could not uniquely bind a wing host',
+                            })
+                        continue
+                    targets = sided
         if not targets or (str(scope).startswith('building_') and len(targets) != 1):
             # Envelope dims / materials still key off MASS_MAIN; design omit props use design hosts.
             pool = (

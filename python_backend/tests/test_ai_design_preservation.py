@@ -2466,6 +2466,80 @@ class AiDesignPreservationTest(unittest.TestCase):
         )
         self.assertNotEqual("unresolved_binding", omits[0].get("status"))
 
+    def test_named_wing_plural_and_west_side_through_normalization(self):
+        from copy import deepcopy
+        from app.services.llm_plan_normalization import _apply_user_explicit_design_sources
+        from app.services.building_contract import _unique_named_hosts, apply_building_contract
+
+        def wings():
+            return [
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "w",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 9, "depth": 13, "height": 6},
+                    "features": [],
+                    "params": {"component_id": "townhall_west_wing", "roof_type": "gable"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "e",
+                    "relative_position": {"x": 20, "y": 0, "z": 0},
+                    "dimensions": {"width": 9, "depth": 13, "height": 6},
+                    "features": [],
+                    "params": {"component_id": "townhall_east_wing", "roof_type": "gable"},
+                },
+            ]
+
+        sample = wings()
+        # Normalization must pass named_key=wing so plural hosts stay coherent.
+        self.assertIsNotNone(_unique_named_hosts(sample, named_key="wing"))
+        self.assertIsNone(_unique_named_hosts(sample))
+
+        all_text = "\u6240\u6709\u53a2\u623f\u90fd\u4e0d\u8981\u5c4b\u9876"  # 所有厢房都不要屋顶
+        west_text = "\u897f\u53a2\u623f\u4e0d\u8981\u5c4b\u9876"  # 西厢房不要屋顶
+        all_out = _apply_user_explicit_design_sources(
+            {"mode": "build", "components": deepcopy(wings())},
+            all_text,
+        )
+        self.assertEqual(
+            "none",
+            next(c for c in all_out["components"] if c["params"]["component_id"] == "townhall_west_wing")
+            ["params"]["roof_type"],
+        )
+        self.assertEqual(
+            "none",
+            next(c for c in all_out["components"] if c["params"]["component_id"] == "townhall_east_wing")
+            ["params"]["roof_type"],
+        )
+
+        west_out = _apply_user_explicit_design_sources(
+            {"mode": "build", "components": deepcopy(wings())},
+            west_text,
+        )
+        self.assertEqual(
+            "none",
+            next(c for c in west_out["components"] if c["params"]["component_id"] == "townhall_west_wing")
+            ["params"]["roof_type"],
+        )
+        self.assertEqual(
+            "gable",
+            next(c for c in west_out["components"] if c["params"]["component_id"] == "townhall_east_wing")
+            ["params"]["roof_type"],
+        )
+
+        contract = apply_building_contract(
+            {"mode": "build", "components": deepcopy(wings())},
+            west_text,
+            finalize=True,
+        )
+        roof_reqs = [
+            r for r in contract["proportion_hints"]["building_contract"]["requirements"]
+            if r.get("property") == "roof_type" and r.get("value") == "none"
+        ]
+        self.assertTrue(roof_reqs)
+        self.assertEqual(["townhall_west_wing"], roof_reqs[0].get("target_components"))
+
 
 if __name__ == "__main__":
     unittest.main()
