@@ -56,7 +56,10 @@ final class GothicBellTowerFidelityRepair {
             } else if ("ROOF".equals(type) || type.startsWith("ROOF")) {
                 next = repairRoof(c, corpus);
             } else if ("ENTRANCE".equals(type)) {
-                next = repairEntrance(c, primaryMass, plan);
+                // Host-scoped: never snap a side-chapel / annex door onto the primary shaft.
+                if (belongsToPrimaryHost(c, primaryMass)) {
+                    next = repairEntrance(c, primaryMass, plan);
+                }
             }
             if (next != c) {
                 changed = true;
@@ -296,6 +299,30 @@ final class GothicBellTowerFidelityRepair {
             }
         }
         return best;
+    }
+
+    /**
+     * Unbound entrances and those hosted on the primary mass may be centered.
+     * Foreign {@code host_id} values are preserved (cross-host GEOMETRY boundary).
+     */
+    private static boolean belongsToPrimaryHost(Component entrance, Component primaryMass) {
+        if (entrance == null || primaryMass == null) return false;
+        String host = satelliteHostId(entrance);
+        if (host == null) return true;
+        String primaryId = primaryMass.params() == null ? null
+                : String.valueOf(primaryMass.params().getOrDefault("component_id", "")).trim();
+        return primaryId != null && !primaryId.isEmpty() && primaryId.equals(host);
+    }
+
+    private static String satelliteHostId(Component c) {
+        if (c == null || c.params() == null) return null;
+        Object host = c.params().get("host_id");
+        if (host == null) host = c.params().get("hostId");
+        if (host == null || String.valueOf(host).isBlank()
+                || "null".equalsIgnoreCase(String.valueOf(host))) {
+            return null;
+        }
+        return String.valueOf(host).trim();
     }
 
     private static String resolveIronBarsGlazing(LlmPlan plan) {

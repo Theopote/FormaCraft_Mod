@@ -267,8 +267,13 @@ public class RoofGenerator implements ComponentGenerator {
      * Stair-only roofs look right near 45°. Shallower authored rises leave multi-cell flats
      * (e.g. 3 stairs at one Y) and groove artifacts — bump toward half-span rise unless an
      * explicit shallow pitch was requested.
+     * <p>
+     * Public so inferred {@code ROOF} {@link Dimensions#height()} (via
+     * {@code ComponentSatelliteInference.makeRoofComponent}) can mirror the same bump before
+     * sealing building-mode envelopes — otherwise BlockPatch Y exceeds plan budget.
+     * Classification: GEOMETRY (envelope fidelity), not aesthetic redesign.
      */
-    static int normalizeStairRoofRise(int height, int width, int depth, RoofTypeKind roofType,
+    public static int normalizeStairRoofRise(int height, int width, int depth, RoofTypeKind roofType,
                                       Map<String, Object> params, boolean alongDepth) {
         int across = switch (roofType) {
             case HIP, XIESHAN, PYRAMID, CONE, DOME, HEMISPHERICAL_DOME, POINTED_DOME -> Math.min(width, depth);

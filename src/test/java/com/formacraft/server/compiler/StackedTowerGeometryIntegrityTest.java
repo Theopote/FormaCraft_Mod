@@ -451,9 +451,15 @@ class StackedTowerGeometryIntegrityTest {
         int shaft = shaftEnvelope(pagodaTiers(sealed));
         assertEquals(50 - riseAfter, shaft,
                 "shaft must reserve inferred top roof rise=" + riseAfter + ", not mid-tier eave");
-        // Old bug: mid H=4 → net 3 → shaft 47. Correct path uses only top inferred rise.
-        assertTrue(shaft > 50 - 3,
-                "mid-tier eave must not steal top budget (shaft=" + shaft + ", inferred=" + riseAfter + ")");
+        // Mid eave (H=4 on tier_3) must not replace the top-storey estimate. Top xieshan may
+        // itself normalize to net rise 3 (shaft=47) — that is correct GEOMETRY, not mid-steal.
+        Component topHost = pagodaTiers(sealed).get(pagodaTiers(sealed).size() - 1);
+        int topOnly = RequestIntentInjector.estimateInferredRoofRise(
+                sealed, List.of(topHost), List.of(topHost));
+        // Recompute with full component list but prove rise equals top-only estimate.
+        assertEquals(topOnly, riseAfter,
+                "mid-tier ROOF must not change top inferred rise (topOnly=" + topOnly
+                        + ", withMid=" + riseAfter + ")");
     }
 
     @Test

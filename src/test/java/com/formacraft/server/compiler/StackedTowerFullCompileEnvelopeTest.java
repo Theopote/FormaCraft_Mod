@@ -294,8 +294,9 @@ class StackedTowerFullCompileEnvelopeTest {
         assertTrue(hasRoofLikeBlocksAbove(blocks, fp, shaftTopY(pagodaTiers(sealed))),
                 "inferred roof must place blocks above the shaft");
         int solid = footprintSolidHeight(blocks, fp);
-        assertTrue(solid >= 50,
-                "inferred roof must at least reach whole-building target (solid=" + solid + ")");
+        assertEquals(50, solid,
+                "inferred xieshan BlockPatch height must match sealed building budget (solid="
+                        + solid + ", inferred=" + inferred + ")");
     }
 
     /**

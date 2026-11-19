@@ -107,6 +107,39 @@ class GothicBellTowerFidelityRepairTest {
     }
 
     @Test
+    void doesNotSnapForeignHostEntranceOntoPrimaryShaft() {
+        Component shaft = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 24), List.of(),
+                Map.of("component_id", "shaft"));
+        Component chapel = new Component(
+                "MASS_SECONDARY", "chapel", new Vec3i(12, 0, 0),
+                new Dimensions(6, 6, 10), List.of(),
+                Map.of("component_id", "side_chapel"));
+        Component chapelDoor = new Component(
+                "ENTRANCE", "chapel", new Vec3i(12, 0, 5),
+                new Dimensions(2, 1, 3), List.of(),
+                Map.of("host_id", "side_chapel", "facing", "SOUTH"));
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("request_intent_text", "生成一座哥特式四角钟楼，旁侧小礼拜堂另设门");
+        meta.put("request_intent", Map.of(
+                "building_class", "tower_like",
+                "original_text", "生成一座哥特式四角钟楼，旁侧小礼拜堂另设门"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Gothic_Cathedral")
+                .components(List.of(shaft, chapel, chapelDoor))
+                .planMeta(meta)
+                .build();
+
+        LlmPlan out = GothicBellTowerFidelityRepair.apply(plan);
+        Component door = out.components().stream()
+                .filter(c -> "ENTRANCE".equals(c.componentType())).findFirst().orElseThrow();
+        assertEquals(12, door.relativePosition().x(), "foreign-host door X must stay on chapel");
+        assertEquals(5, door.relativePosition().z(), "foreign-host door Z must stay on chapel");
+        assertEquals("side_chapel", door.params().get("host_id"));
+    }
+
+    @Test
     void remapsButtressStructureToMassSecondary() {
         Component shaft = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),

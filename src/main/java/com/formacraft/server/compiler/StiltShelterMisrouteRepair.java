@@ -1,20 +1,21 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
-import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
-import com.formacraft.common.llm.dto.Vec3i;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
  * 「吊脚楼」prompts must not lock onto {@code suspension_bridge} just because they mention 吊桥.
- * Rewrite the misrouted STRUCTURE into a stilts-supported shelter mass.
+ * <p>
+ * Never silently replace an open AI composition with a fixed stilts shelter template
+ * (DESIGN_OVERRIDE). When a STRUCTURE carries the suspension_bridge typology executor
+ * under stilt-shelter intent, emit {@code E_STILT_SHELTER_ROUTE_UNSUPPORTED}. Feature tags
+ * alone are not an executor.
  */
 final class StiltShelterMisrouteRepair {
     private StiltShelterMisrouteRepair() {}
@@ -37,188 +38,91 @@ final class StiltShelterMisrouteRepair {
         if (containsAny(corpus, TRUE_BRIDGE_CUES)) {
             return plan;
         }
-        if (!hasSuspensionBridgeTypology(plan)) {
+        if (alreadyStiltShelterComposition(plan)) {
             return plan;
         }
-
-        Component bridge = findSuspensionBridge(plan);
-        if (bridge == null || bridge.dimensions() == null) {
+        Component bridge = findSuspensionBridgeExecutor(plan);
+        if (bridge == null) {
             return plan;
         }
-
-        // Prefer a compact shelter footprint — ignore bridge span×deck envelopes.
-        int width = Math.min(16, Math.max(7, Math.min(bridge.dimensions().width(), bridge.dimensions().depth())));
-        int depth = Math.min(14, Math.max(7, width - 1));
-        int height = Math.min(10, Math.max(5, bridge.dimensions().height() / 3));
-
-        String wall = resolveMaterial(plan, "minecraft:spruce_planks",
-                "surface", "primary_wood", "wall", "body");
-        String accent = resolveMaterial(plan, "minecraft:mud_bricks",
-                "accent", "masonry", "band", "wall_accent");
-        String frame = resolveMaterial(plan, "minecraft:spruce_log",
-                "frame", "primary_structure", "tower", "structural");
-        String scrap = resolveMaterial(plan, "minecraft:iron_block",
-                "plate", "metal_sheet", "metal", "ornament");
-        String roof = resolveMaterial(plan, wall, "roof", "surface", "deck");
-        String posts = resolveMaterial(plan, "minecraft:spruce_fence",
-                "railing", "tower", "primary_structure");
-
-        Map<String, Object> massParams = new HashMap<>();
-        massParams.put("component_id", "stilt_shelter_main");
-        massParams.put("building_id", "stilt_shelter_main");
-        massParams.put("anchor_mode", "center");
-        massParams.put("hollow", true);
-        massParams.put("wall_thickness", 1);
-        massParams.put("wall_block", wall);
-        massParams.put("accent_block", accent);
-        massParams.put("floor_block", wall);
-        massParams.put("roof_type", "gable");
-        massParams.put("roof_block", roof);
-        massParams.put("foundation_type", "stilts");
-        massParams.put("foundation_mode", "STILTS");
-        massParams.put("window_ratio", 0.2);
-        massParams.put("void_ratio", 0.2);
-        massParams.put("wall_pattern", "banded");
-        massParams.put("band_blocks", List.of(accent, scrap));
-
-        Map<String, Object> stiltsParams = new HashMap<>();
-        stiltsParams.put("component_id", "stilt_posts");
-        stiltsParams.put("host_id", "stilt_shelter_main");
-        stiltsParams.put("foundation_type", "stilts");
-        stiltsParams.put("uneven", true);
-        stiltsParams.put("material", posts);
-        stiltsParams.put("wall_block", frame);
-        stiltsParams.put("height", Math.max(4, Math.min(10, height)));
-        stiltsParams.put("anchor_mode", "center");
-
-        Map<String, Object> roofParams = new HashMap<>();
-        roofParams.put("component_id", "stilt_shelter_roof");
-        roofParams.put("host_id", "stilt_shelter_main");
-        roofParams.put("roof_type", "gable");
-        roofParams.put("roof_block", roof);
-        roofParams.put("overhang", 1);
-        roofParams.put("roof_dormers", false);
-        roofParams.put("anchor_mode", "min_corner");
-
-        int stiltH = stiltsParams.get("height") instanceof Number n ? n.intValue() : 5;
-        int bridgeLen = Math.max(4, Math.min(8, depth / 2 + 2));
-        int bridgeW = Math.max(2, Math.min(4, width / 3));
-        Map<String, Object> accessParams = new HashMap<>();
-        accessParams.put("component_id", "stilt_access_bridge");
-        accessParams.put("host_id", "stilt_shelter_main");
-        accessParams.put("anchor_mode", "min_corner");
-        accessParams.put("extrude_mode", "plate");
-        accessParams.put("plate_role", "bridge");
-        accessParams.put("floor_block", wall);
-        accessParams.put("railing_block", posts);
-        accessParams.put("railing", true);
-        accessParams.put("allow_patch_overwrite", true);
-
-        int craneH = stiltH + Math.max(3, height - 2);
-        Map<String, Object> craneParams = new HashMap<>();
-        craneParams.put("component_id", "stilt_crane_frame");
-        craneParams.put("host_id", "stilt_shelter_main");
-        craneParams.put("anchor_mode", "min_corner");
-        craneParams.put("kind", "crane_gantry");
-        craneParams.put("detail_type", "crane_frame");
-        craneParams.put("wall_block", scrap);
-        craneParams.put("frame_block", scrap);
-        craneParams.put("beam_block", scrap);
-        craneParams.put("allow_patch_overwrite", true);
-
-        List<Component> rebuilt = new ArrayList<>();
-        rebuilt.add(new Component("MASS_MAIN", "main", new Vec3i(0, stiltH, 0),
-                new Dimensions(width, depth, height),
-                List.of("asymmetric_stilt_shelter", "stilts", "refuge"),
-                massParams));
-        rebuilt.add(new Component("FOUNDATION", "main", new Vec3i(0, 0, 0),
-                new Dimensions(width, depth, stiltH),
-                List.of("uneven_stilts", "wood_posts"),
-                stiltsParams));
-        rebuilt.add(new Component("ROOF", "main",
-                new Vec3i(-1, stiltH + height, -1),
-                new Dimensions(width + 2, depth + 2, 3),
-                List.of("gable"),
-                roofParams));
-        rebuilt.add(new Component("MASS_SECONDARY", "main",
-                new Vec3i(-(bridgeW / 2), Math.max(0, stiltH - 1), -(depth / 2 + bridgeLen)),
-                new Dimensions(bridgeW, bridgeLen, Math.max(1, stiltH)),
-                List.of("access_drawbridge", "吊桥", "wood_deck_bridge"),
-                accessParams));
-        rebuilt.add(new Component("STRUCTURE", "main",
-                new Vec3i(width / 2 + 1, 0, -(Math.max(2, depth / 4))),
-                new Dimensions(3, 4, craneH),
-                List.of("crane_gantry", "吊车支架", "scrap_metal_frame"),
-                craneParams));
 
         FormacraftMod.LOGGER.info(
-                "StiltShelterMisrouteRepair: rewrite suspension_bridge → stilts shelter {}x{}x{} + bridge + crane",
-                width, depth, height);
-        Map<String, Object> hints = plan.proportionHints() == null
-                ? new HashMap<>()
-                : new HashMap<>(plan.proportionHints());
-        hints.put("typology", "stilt_shelter");
-        hints.remove("span_to_tower_height");
-        hints.remove("cable_sag_ratio");
-        return new LlmPlan(
-                plan.mode(),
-                plan.styleProfile() == null ? "Industrial_Structural" : plan.styleProfile(),
-                plan.anchor(),
-                plan.globalConstraints(),
-                plan.layout(),
-                rebuilt,
-                plan.genome(),
-                plan.styleAttributes(),
-                hints,
-                plan.alignmentAndSymmetry(),
-                plan.targetSlotId(),
-                plan.allowedArea(),
-                plan.patch(),
-                plan.planProgram(),
-                plan.planSkeleton(),
-                plan.planStatus(),
-                plan.error(),
-                plan.capabilityGap(),
-                plan.playerFidelityNoticeZh(),
-                List.of("asymmetric_stilt_shelter", "uneven_wood_stilts", "access_drawbridge", "crane_gantry"),
-                plan.enrichmentGuard(),
-                plan.planMeta(),
-                plan.designSources());
+                "StiltShelterMisrouteRepair: refusing silent stilts-shelter rewrite ({} components)",
+                plan.components().size());
+        return PlanComponentRewrite.withCapabilityGap(plan, new CapabilityGap(
+                "E_STILT_SHELTER_ROUTE_UNSUPPORTED",
+                "吊脚楼意图命中了 suspension_bridge STRUCTURE 执行器，已拒绝用内置 stilts shelter 模板覆盖 AI 构件；请改用开放组合（MASS + FOUNDATION stilts）或显式 stilt_shelter 路由",
+                "StiltShelterMisrouteRepair",
+                List.of(
+                        "Keep authored masses and re-plan stilts foundation / access",
+                        "Or route STRUCTURE with typology_id=stilt_shelter when that executor exists",
+                        "Do not treat suspension_bridge feature tags as stilts opt-in")));
     }
 
-    private static boolean hasSuspensionBridgeTypology(LlmPlan plan) {
-        return findSuspensionBridge(plan) != null;
+    /** True when the plan already describes a stilts-supported shelter (not a bridge typo). */
+    private static boolean alreadyStiltShelterComposition(LlmPlan plan) {
+        for (Component c : plan.components()) {
+            if (c == null) continue;
+            String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (type.startsWith("MASS") || "MAIN_MASS".equals(type)) {
+                String id = idOf(c).toLowerCase(Locale.ROOT);
+                String feat = featuresOf(c).toLowerCase(Locale.ROOT);
+                if (id.contains("stilt") || feat.contains("stilt") || feat.contains("吊脚")
+                        || feat.contains("干栏")) {
+                    return true;
+                }
+                if (c.params() != null) {
+                    Object foundation = c.params().get("foundation_type");
+                    if (foundation == null) foundation = c.params().get("foundation_mode");
+                    if (foundation != null) {
+                        String f = String.valueOf(foundation).toLowerCase(Locale.ROOT);
+                        if (f.contains("stilt")) return true;
+                    }
+                }
+            }
+            if ("FOUNDATION".equals(type) && c.params() != null) {
+                Object foundation = c.params().get("foundation_type");
+                if (foundation == null) foundation = c.params().get("foundation_mode");
+                if (foundation != null
+                        && String.valueOf(foundation).toLowerCase(Locale.ROOT).contains("stilt")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
-    private static Component findSuspensionBridge(LlmPlan plan) {
+    /**
+     * Only a STRUCTURE with suspension_bridge typology/module params counts as the misrouted
+     * executor. Feature tags alone must not trigger the gap (semantic labels ≠ routing).
+     */
+    private static Component findSuspensionBridgeExecutor(LlmPlan plan) {
         for (Component c : plan.components()) {
             if (c == null || c.params() == null) continue;
+            if (!"STRUCTURE".equalsIgnoreCase(c.componentType())) continue;
             for (String key : List.of("typology_id", "typology", "structural_typology",
-                    "reference_landmark")) {
+                    "module_id", "reference_landmark")) {
                 Object v = c.params().get(key);
                 if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains("suspension_bridge")) {
                     return c;
-                }
-            }
-            if (c.features() != null) {
-                for (String f : c.features()) {
-                    if (f != null && f.toLowerCase(Locale.ROOT).contains("suspension_bridge")) {
-                        return c;
-                    }
                 }
             }
         }
         return null;
     }
 
-    private static String resolveMaterial(LlmPlan plan, String fallback, String... keys) {
-        if (plan.styleAttributes() != null) {
-            String fromPalette = plan.styleAttributes().resolvePaletteBlock(keys);
-            if (fromPalette != null && !fromPalette.isBlank()) {
-                return fromPalette;
-            }
+    private static String idOf(Component c) {
+        if (c.params() == null || c.params().get("component_id") == null) return "";
+        return String.valueOf(c.params().get("component_id"));
+    }
+
+    private static String featuresOf(Component c) {
+        if (c.features() == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (String f : c.features()) {
+            if (f != null) sb.append(f).append(' ');
         }
-        return fallback;
+        return sb.toString();
     }
 
     private static String intentCorpus(LlmPlan plan) {

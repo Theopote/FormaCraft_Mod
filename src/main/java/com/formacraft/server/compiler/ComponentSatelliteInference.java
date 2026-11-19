@@ -1028,6 +1028,19 @@ final class ComponentSatelliteInference {
         params.put("anchor_mode", "min_corner");
         applyInferredOverhang(params, roofType, base);
 
+        // Mirror RoofGenerator.generate: normalizeStairRoofRise runs on the CORE footprint
+        // before overhang expansion. Without this, Dimensions under-count and building-mode
+        // seals leave BlockPatch solids above the sealed envelope (inferred xieshan +2).
+        if (!com.formacraft.common.generation.component.util.RoofPitchGeometry.hasExplicitRiseIntent(params)) {
+            var kind = com.formacraft.common.generation.component.util.RoofTypeCatalog
+                    .parseExplicit(roofType);
+            if (kind.isPresent()) {
+                boolean alongDepth = depth >= width;
+                roofHeight = com.formacraft.common.generation.component.impl.RoofGenerator
+                        .normalizeStairRoofRise(roofHeight, width, depth, kind.get(), params, alongDepth);
+            }
+        }
+
         List<String> features = new ArrayList<>();
         if (base.features() != null) {
             features.addAll(base.features());
