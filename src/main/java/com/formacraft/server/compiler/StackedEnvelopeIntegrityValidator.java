@@ -23,8 +23,9 @@ import java.util.Set;
  *   <li>{@code shaft} — only MASS tiers must equal the target</li>
  *   <li>{@code building} — shaft + roofs/finials must equal the target (shaft alone may be shorter)</li>
  * </ul>
- * Authority is the server {@code plan_meta} record (family, mass_ids, target, mode), merged with
- * sealed component stamps. Classification: HARD_CONSTRAINT geometry integrity.
+ * Authority is the <em>sealed</em> server {@code plan_meta} record (family, mass_ids, target, mode),
+ * merged with component stamps whose envelope fields are covered by the server seal.
+ * Classification: HARD_CONSTRAINT geometry integrity.
  */
 final class StackedEnvelopeIntegrityValidator {
     private StackedEnvelopeIntegrityValidator() {}
@@ -37,7 +38,7 @@ final class StackedEnvelopeIntegrityValidator {
 
         Map<String, List<Component>> shaftByFamily = new HashMap<>();
         Map<String, List<Component>> crownByFamily = new HashMap<>();
-        Map<String, Set<String>> presentMassIds = new HashMap<>();
+        Map<String, List<String>> presentMassIds = new HashMap<>();
         for (Component c : components) {
             if (c == null || c.relativePosition() == null || c.dimensions() == null) continue;
             String mid = BuildingHostResolver.massId(c);
@@ -46,7 +47,7 @@ final class StackedEnvelopeIntegrityValidator {
             if (isShaftMass(c, mid)) {
                 shaftByFamily.computeIfAbsent(family, k -> new ArrayList<>()).add(c);
                 if (mid != null) {
-                    presentMassIds.computeIfAbsent(family, k -> new LinkedHashSet<>()).add(mid);
+                    presentMassIds.computeIfAbsent(family, k -> new ArrayList<>()).add(mid);
                 }
             } else if (isCrownLike(c)) {
                 crownByFamily.computeIfAbsent(family, k -> new ArrayList<>()).add(c);
@@ -56,9 +57,26 @@ final class StackedEnvelopeIntegrityValidator {
         for (Map.Entry<String, FamilyTarget> e : targets.entrySet()) {
             String family = e.getKey();
             FamilyTarget ft = e.getValue();
+            if (ft.conflict() || ft.targetHeight() <= 0) {
+                return Optional.of(new CapabilityGap(
+                        "E_HEIGHT_HOST_CONFLICT",
+                        "堆叠塔楼「" + family + "」存在互相冲突的高度目标记录",
+                        "StackedEnvelopeIntegrityValidator",
+                        List.of("Clarify a single height for this tower")));
+            }
             int target = ft.targetHeight();
             List<Component> shaft = shaftByFamily.getOrDefault(family, List.of());
-            Set<String> present = presentMassIds.getOrDefault(family, Set.of());
+            List<String> presentList = presentMassIds.getOrDefault(family, List.of());
+            Set<String> present = new LinkedHashSet<>(presentList);
+
+            if (presentList.size() != present.size()) {
+                return Optional.of(new CapabilityGap(
+                        "E_STACKED_HEIGHT_UNSUPPORTED",
+                        "堆叠塔楼「" + family + "」存在重复塔层 ID（" + presentList.size()
+                                + " 段构件 / " + present.size() + " 个唯一 ID）",
+                        "StackedEnvelopeIntegrityValidator",
+                        List.of("Remove duplicate storey components")));
+            }
 
             // Expected members from server meta — never skip when tiers were dropped to one.
             if (ft.expectedMassIds() != null && !ft.expectedMassIds().isEmpty()) {
@@ -100,7 +118,6 @@ final class StackedEnvelopeIntegrityValidator {
             int buildingEnv = envelopeOf(building);
 
             if ("building".equals(ft.mode())) {
-                // Building mode: only whole envelope is authoritative — shaft may be shorter.
                 if (buildingEnv != target) {
                     return Optional.of(new CapabilityGap(
                             "E_STACKED_HEIGHT_UNSUPPORTED",
@@ -110,7 +127,6 @@ final class StackedEnvelopeIntegrityValidator {
                             List.of("Clarify shaft vs whole-building height")));
                 }
             } else {
-                // Shaft mode: only MASS envelope; roofs above do not fail this check.
                 if (shaftEnv != target) {
                     return Optional.of(new CapabilityGap(
                             "E_STACKED_HEIGHT_UNSUPPORTED",
@@ -124,12 +140,24 @@ final class StackedEnvelopeIntegrityValidator {
         return Optional.empty();
     }
 
-    /** Merge plan_meta (authoritative) with sealed component stamps. */
+    /** Merge sealed plan_meta (authoritative) with sealed component stamps. */
     private static Map<String, FamilyTarget> mergeTargets(LlmPlan plan, List<Component> components) {
-        Map<String, FamilyTarget> out = new LinkedHashMap<>();
-        out.putAll(targetsFromPlanMeta(plan));
+        Map<String, FamilyTarget> out = new LinkedHashMap<>(targetsFromPlanMeta(plan));
         Map<String, FamilyTarget> fromComps = targetsFromComponents(components);
         for (Map.Entry<String, FamilyTarget> e : fromComps.entrySet()) {
+            FamilyTarget prior = out.get(e.getKey());
+            if (e.getValue().conflict()) {
+                out.put(e.getKey(), e.getValue());
+                continue;
+            }
+            if (prior != null && prior.conflict()) continue;
+            if (prior != null && prior.targetHeight() > 0
+                    && e.getValue().targetHeight() > 0
+                    && prior.targetHeight() != e.getValue().targetHeight()) {
+                out.put(e.getKey(), new FamilyTarget(
+                        e.getKey(), -1, prior.mode(), prior.expectedMassIds(), true, true));
+                continue;
+            }
             out.merge(e.getKey(), e.getValue(), FamilyTarget::mergePreferMeta);
         }
         return out;
@@ -137,11 +165,14 @@ final class StackedEnvelopeIntegrityValidator {
 
     private static Map<String, FamilyTarget> targetsFromComponents(List<Component> components) {
         Map<String, FamilyTarget> out = new LinkedHashMap<>();
+        Map<String, Integer> seenHeight = new HashMap<>();
         for (Component c : components) {
             if (c == null || c.params() == null) continue;
-            // Only server-sealed height stamps are trusted component targets.
-            if (!UserConstraintContract.isServerVerified(c.params(), "height")
-                    && !UserConstraintContract.isServerVerified(c.params(), "towerHeight")) {
+            // Envelope fields must themselves be covered by the server seal — height alone is not enough.
+            if (!UserConstraintContract.isServerVerified(c.params(),
+                    RequestIntentInjector.SHAFT_ENVELOPE_TARGET_KEY)
+                    || !UserConstraintContract.isServerVerified(c.params(),
+                    RequestIntentInjector.ENVELOPE_MODE_KEY)) {
                 continue;
             }
             Object raw = c.params().get(RequestIntentInjector.SHAFT_ENVELOPE_TARGET_KEY);
@@ -153,12 +184,25 @@ final class StackedEnvelopeIntegrityValidator {
                 family = RequestIntentInjector.stackedFamilyKey(mid);
             }
             if (family == null || family.isBlank()) continue;
+            if (!UserConstraintContract.isServerVerified(c.params(),
+                    RequestIntentInjector.SHAFT_ENVELOPE_FAMILY_KEY)
+                    && c.params().containsKey(RequestIntentInjector.SHAFT_ENVELOPE_FAMILY_KEY)) {
+                // Family stamped but not sealed → ignore untrusted family override; derive from id.
+                String mid = BuildingHostResolver.massId(c);
+                family = RequestIntentInjector.stackedFamilyKey(mid);
+                if (family == null || family.isBlank()) continue;
+            }
             String mode = String.valueOf(c.params().getOrDefault(
                     RequestIntentInjector.ENVELOPE_MODE_KEY, "shaft"));
-            if (!"building".equals(mode)) mode = "shaft";
+            mode = UserConstraintContract.normalizeEnvelopeMode(mode);
+            Integer priorH = seenHeight.putIfAbsent(family, n.intValue());
+            if (priorH != null && priorH != n.intValue()) {
+                out.put(family, new FamilyTarget(family, -1, mode, List.of(), false, true));
+                continue;
+            }
             String mid = BuildingHostResolver.massId(c);
             List<String> ids = mid == null ? List.of() : List.of(mid);
-            out.merge(family, new FamilyTarget(family, n.intValue(), mode, ids, false),
+            out.merge(family, new FamilyTarget(family, n.intValue(), mode, ids, false, false),
                     FamilyTarget::mergePreferMeta);
         }
         return out;
@@ -169,14 +213,19 @@ final class StackedEnvelopeIntegrityValidator {
         Map<String, FamilyTarget> out = new LinkedHashMap<>();
         if (plan.planMeta() == null) return out;
         Object raw = plan.planMeta().get(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_META);
+        Object seal = plan.planMeta().get(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_SEAL_META);
         if (!(raw instanceof List<?> list)) return out;
+        // Forged / unsigned meta rows are ignored — trusted=true alone is never enough.
+        if (!UserConstraintContract.verifyStackedEnvelopeTargets(list, seal)) {
+            return out;
+        }
         for (Object row : list) {
             if (!(row instanceof Map<?, ?> m)) continue;
             Object fam = m.get("family");
             Object th = m.get("target_height");
             if (fam == null || !(th instanceof Number n) || n.intValue() <= 0) continue;
             String mode = m.get("mode") == null ? "shaft" : String.valueOf(m.get("mode"));
-            if (!"building".equals(mode)) mode = "shaft";
+            mode = UserConstraintContract.normalizeEnvelopeMode(mode);
             List<String> massIds = new ArrayList<>();
             Object idsRaw = m.get("mass_ids");
             if (idsRaw instanceof List<?> idList) {
@@ -187,7 +236,12 @@ final class StackedEnvelopeIntegrityValidator {
                 }
             }
             String family = String.valueOf(fam);
-            out.put(family, new FamilyTarget(family, n.intValue(), mode, massIds, true));
+            FamilyTarget prior = out.get(family);
+            if (prior != null && prior.targetHeight() != n.intValue()) {
+                out.put(family, new FamilyTarget(family, -1, mode, massIds, true, true));
+                continue;
+            }
+            out.put(family, new FamilyTarget(family, n.intValue(), mode, massIds, true, false));
         }
         return out;
     }
@@ -195,7 +249,11 @@ final class StackedEnvelopeIntegrityValidator {
     private static String familyOf(Component c, String mid) {
         if (c.params() != null) {
             Object f = c.params().get(RequestIntentInjector.SHAFT_ENVELOPE_FAMILY_KEY);
-            if (f != null && !String.valueOf(f).isBlank()) return String.valueOf(f);
+            if (f != null && !String.valueOf(f).isBlank()
+                    && UserConstraintContract.isServerVerified(c.params(),
+                    RequestIntentInjector.SHAFT_ENVELOPE_FAMILY_KEY)) {
+                return String.valueOf(f);
+            }
         }
         String family = RequestIntentInjector.stackedFamilyKey(mid);
         if (family != null) return family;
@@ -213,8 +271,7 @@ final class StackedEnvelopeIntegrityValidator {
 
     private static boolean isCrownLike(Component c) {
         String type = c.componentType() == null ? "" : c.componentType().toUpperCase();
-        if (type.startsWith("ROOF") || type.contains("CROWN") || "DECOR_DETAIL".equals(type)
-                || "FINIAL".equals(type)) {
+        if (type.startsWith("ROOF") || type.contains("CROWN") || "FINIAL".equals(type)) {
             return true;
         }
         String mid = BuildingHostResolver.massId(c);
@@ -247,29 +304,32 @@ final class StackedEnvelopeIntegrityValidator {
         return maxTop - minY;
     }
 
-    /**
-     * @param fromMeta true when this row came from server plan_meta (authoritative).
-     */
     private record FamilyTarget(
             String family,
             int targetHeight,
             String mode,
             List<String> expectedMassIds,
-            boolean fromMeta
+            boolean fromMeta,
+            boolean conflict
     ) {
         static FamilyTarget mergePreferMeta(FamilyTarget a, FamilyTarget b) {
+            if (a.conflict || b.conflict) {
+                return new FamilyTarget(a.family, -1, a.mode, a.expectedMassIds, a.fromMeta || b.fromMeta, true);
+            }
+            if (a.targetHeight != b.targetHeight && a.targetHeight > 0 && b.targetHeight > 0
+                    && a.fromMeta == b.fromMeta) {
+                return new FamilyTarget(a.family, -1, a.mode, a.expectedMassIds, a.fromMeta, true);
+            }
             FamilyTarget primary = a.fromMeta ? a : (b.fromMeta ? b : a);
             FamilyTarget secondary = primary == a ? b : a;
             String mode = primary.fromMeta ? primary.mode : secondary.mode;
             if (primary.fromMeta && "shaft".equals(primary.mode) && "building".equals(secondary.mode)
                     && !secondary.fromMeta) {
-                // Untrusted component mode must not override meta shaft.
                 mode = primary.mode;
             }
             if (!primary.fromMeta && secondary.fromMeta) {
                 mode = secondary.mode;
             }
-            // Prefer meta mass_ids; otherwise union.
             List<String> ids;
             if (primary.fromMeta && primary.expectedMassIds != null && !primary.expectedMassIds.isEmpty()) {
                 ids = primary.expectedMassIds;
@@ -285,7 +345,7 @@ final class StackedEnvelopeIntegrityValidator {
             int height = primary.fromMeta ? primary.targetHeight : secondary.targetHeight;
             if (!primary.fromMeta && secondary.fromMeta) height = secondary.targetHeight;
             return new FamilyTarget(primary.family, height, mode, ids,
-                    a.fromMeta || b.fromMeta);
+                    a.fromMeta || b.fromMeta, false);
         }
     }
 }

@@ -102,6 +102,10 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | stacked restack deletes gaps | `yCursor += h` erased oct18 inter-storey eaves voids; crown absorbed remainder | **Fixed (2026-11-19):** scale solids+gaps together; hard `floor_height` conflicts gap instead of silent clamp |
 | building mode dual equality | integrity required shaftEnv==target AND buildingEnv==target | **Fixed (2026-11-19):** mutually exclusive modes; building reserves crown rise when scaling; meta mass_ids cross-check |
 | satellite bottom-offset float | windows kept old bottom offset after host shrink | **Fixed (2026-11-19):** proportional+clamp into host; unfit satellites → capability gap |
+| stacked height last-write-wins | duplicate pagoda height cues silently overwrote | **Fixed (2026-11-19):** `registerStackedEnvelope` dedupes equals / `E_HEIGHT_HOST_CONFLICT` on mismatch |
+| near-top window top-stick | `abs(offsetFromTop)<=1` treated openings as crowns | **Fixed (2026-11-19):** openings/stairs never top-stick |
+| whole-request building mode | `wantsBuildingEnvelope(fullText)` flipped every tower | **Fixed (2026-11-19):** per-binding `HeightBinding.envelopeMode` from local clause |
+| forged envelope meta | `trusted=true` / unsigned plan_meta accepted | **Fixed (2026-11-19):** `stacked_envelope_targets_seal` + sealed envelope param keys |
 | `_named_scope_mass_hits` omitted `named_key` | plural wing collapsed to None → `E_OMIT_SCOPE_AMBIGUOUS` after contract bound both wings | **Fixed (2026-11-19):** pass `named_key=wing`; clause-window side filter for 西/东厢房 |
 | `double_eave_xieshan` capability vs generator | capability allowed token; `ChineseHallRoofGenerator.normalize` rejected it | **Fixed (2026-11-19):** `TypologyParamResolver.syncRoofAliases` decomposes to `xie_shan`+`doubleEave`; plan `roof_type` beats typology soft `roofType` |
 | `llm_plan_normalization` omit/roof stamp path | matched typology STRUCTURE but `_is_mass_like` skipped writes | **Fixed (2026-11-19):** write roof/window/entrance onto `_is_design_constraint_host` targets only (not all STRUCTURE) |

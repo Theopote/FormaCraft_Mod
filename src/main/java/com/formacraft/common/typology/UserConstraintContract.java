@@ -38,15 +38,49 @@ public final class UserConstraintContract {
      * One player-authored height cue, optionally scoped to a building role hint.
      * {@code sourceText} is the local clause window (side cues like 西厢房); {@code namedKeys}
      * preserves shared identity keys (wing) that roleHint may collapse (wing→pavilion).
+     * {@code envelopeMode} is {@code shaft} (MASS only) or {@code building} (incl. roof/finial),
+     * inferred only from this clause — never from another building's wording in the same request.
      */
-    public record HeightBinding(int blocks, String roleHint, String sourceText, List<String> namedKeys) {
+    public record HeightBinding(
+            int blocks, String roleHint, String sourceText, List<String> namedKeys, String envelopeMode) {
         public HeightBinding {
             namedKeys = namedKeys == null ? List.of() : List.copyOf(namedKeys);
+            envelopeMode = normalizeEnvelopeMode(envelopeMode);
         }
 
         public HeightBinding(int blocks, String roleHint) {
-            this(blocks, roleHint, null, List.of());
+            this(blocks, roleHint, null, List.of(), "shaft");
         }
+
+        public HeightBinding(int blocks, String roleHint, String sourceText, List<String> namedKeys) {
+            this(blocks, roleHint, sourceText, namedKeys, "shaft");
+        }
+    }
+
+    /** Normalize to {@code shaft} or {@code building}. */
+    public static String normalizeEnvelopeMode(String mode) {
+        return "building".equals(mode) ? "building" : "shaft";
+    }
+
+    /**
+     * Local-clause height semantics. 「整座/含屋顶」→ building; 「主体/塔身」→ shaft.
+     * Classification: HARD_CONSTRAINT height semantics from explicit player phrasing.
+     */
+    public static String inferEnvelopeMode(String clause) {
+        if (clause == null || clause.isBlank()) return "shaft";
+        String t = clause.toLowerCase(Locale.ROOT);
+        // Shaft-explicit wins inside the same clause over whole-building cues.
+        if (clause.contains("主体高度") || clause.contains("塔身高度") || clause.contains("塔身")
+                || t.contains("shaft height") || t.contains("shaft only")) {
+            return "shaft";
+        }
+        if (clause.contains("整座") || clause.contains("整栋") || clause.contains("整体高度")
+                || clause.contains("含屋顶")
+                || t.contains("whole-building") || t.contains("whole building")
+                || t.contains("including the roof") || t.contains("including roof")) {
+            return "building";
+        }
+        return "shaft";
     }
 
     /**
@@ -177,7 +211,8 @@ public final class UserConstraintContract {
                 // Same clause window as omit — keeps 西厢房 beside 高度12格 for side-local binds.
                 String clause = omitClauseWindow(userText, m.start(), m.end());
                 List<String> keys = namedKeysForConstraintWindow(userText, m.start(), m.end());
-                out.add(new HeightBinding(n, hint, clause, keys));
+                String mode = inferEnvelopeMode(clause);
+                out.add(new HeightBinding(n, hint, clause, keys, mode));
             } catch (NumberFormatException ignored) {
                 // continue
             }
@@ -714,6 +749,54 @@ public final class UserConstraintContract {
         }
         String payload = SEAL_SECRET + "|" + ordered;
         return SERVER_SEAL_PREFIX + sha256Hex(payload);
+    }
+
+    /**
+     * Server seal for stacked envelope plan_meta rows (family / mass_ids / target / mode).
+     * A plain {@code trusted=true} boolean is never sufficient.
+     */
+    public static String sealStackedEnvelopeTargets(List<Map<String, Object>> rows) {
+        return SERVER_SEAL_PREFIX + "env:" + sha256Hex(SEAL_SECRET + "|stacked|" + canonicalEnvelopeRows(rows));
+    }
+
+    /** True when {@code seal} matches the canonical form of {@code rows}. */
+    public static boolean verifyStackedEnvelopeTargets(List<?> rows, Object seal) {
+        if (seal == null || rows == null) return false;
+        List<Map<String, Object>> normalized = new ArrayList<>();
+        for (Object row : rows) {
+            if (!(row instanceof Map<?, ?> m)) return false;
+            Map<String, Object> copy = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> e : m.entrySet()) {
+                if (e.getKey() == null) continue;
+                String k = String.valueOf(e.getKey());
+                // Ignore non-authoritative flags when verifying.
+                if ("trusted".equals(k)) continue;
+                copy.put(k, e.getValue());
+            }
+            normalized.add(copy);
+        }
+        return sealStackedEnvelopeTargets(normalized).equals(String.valueOf(seal));
+    }
+
+    private static String canonicalEnvelopeRows(List<Map<String, Object>> rows) {
+        if (rows == null || rows.isEmpty()) return "[]";
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> row : rows) {
+            if (row == null) continue;
+            TreeMap<String, String> ordered = new TreeMap<>();
+            for (Map.Entry<String, Object> e : row.entrySet()) {
+                if (e.getKey() == null || "trusted".equals(e.getKey())) continue;
+                Object v = e.getValue();
+                if (v instanceof List<?> list) {
+                    ordered.put(e.getKey(), list.stream().map(String::valueOf).sorted()
+                            .reduce((a, b) -> a + "," + b).orElse(""));
+                } else {
+                    ordered.put(e.getKey(), String.valueOf(v));
+                }
+            }
+            sb.append(ordered).append(';');
+        }
+        return sb.toString();
     }
 
     private static String sha256Hex(String payload) {

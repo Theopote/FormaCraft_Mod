@@ -41,6 +41,8 @@ public final class RequestIntentInjector {
     public static final String ENVELOPE_MODE_KEY = "_fc_envelope_mode";
     /** plan_meta list of {family, mass_ids, target_height, mode}. */
     public static final String STACKED_ENVELOPE_TARGETS_META = "stacked_envelope_targets";
+    /** Opaque server seal for {@link #STACKED_ENVELOPE_TARGETS_META} rows. */
+    public static final String STACKED_ENVELOPE_TARGETS_SEAL_META = "stacked_envelope_targets_seal";
 
     private static final Pattern FOOTPRINT = Pattern.compile("(\\d{1,2})\\s*[×xX*]\\s*(\\d{1,2})");
     /** Storey cue and entrance cue in the same short clause (not whole-prompt co-occurrence). */
@@ -236,23 +238,29 @@ public final class RequestIntentInjector {
             meta.put("scope_diagnostics", diags);
             plan = withMeta(plan, meta);
             if (heightResult.capabilityGap() || omitResult.capabilityGap() || envelopeGap) {
-                String code = envelopeGap
-                        ? "E_STACKED_HEIGHT_UNSUPPORTED"
-                        : (heightResult.capabilityGap() && omitResult.capabilityGap()
-                        ? "E_DESIGN_CONSTRAINT_HOST_SCOPE"
-                        : (heightResult.capabilityGap()
-                        ? "E_DESIGN_HEIGHT_HOST_SCOPE"
-                        : "E_DESIGN_OMIT_HOST_SCOPE"));
                 List<Map<String, Object>> allDiags = new ArrayList<>();
                 allDiags.addAll(heightResult.diagnostics());
                 allDiags.addAll(envelopeDiags);
                 allDiags.addAll(omitResult.diagnostics());
+                boolean heightConflict = allDiags.stream().anyMatch(d ->
+                        d != null && "E_HEIGHT_HOST_CONFLICT".equals(String.valueOf(d.get("code"))));
+                String code = envelopeGap
+                        ? "E_STACKED_HEIGHT_UNSUPPORTED"
+                        : (heightConflict
+                        ? "E_HEIGHT_HOST_CONFLICT"
+                        : (heightResult.capabilityGap() && omitResult.capabilityGap()
+                        ? "E_DESIGN_CONSTRAINT_HOST_SCOPE"
+                        : (heightResult.capabilityGap()
+                        ? "E_DESIGN_HEIGHT_HOST_SCOPE"
+                        : "E_DESIGN_OMIT_HOST_SCOPE")));
                 plan = withCapabilityGap(plan,
                         new com.formacraft.common.llm.dto.CapabilityGap(
                                 code,
-                                envelopeGap
+                                heightConflict
+                                        ? "同一建筑存在互相冲突的高度硬约束"
+                                        : (envelopeGap
                                         ? "堆叠塔楼整体高度无法在保留分层关系下执行"
-                                        : "局部高度或设计省略无法唯一绑定宿主，或与计划目标不一致",
+                                        : "局部高度或设计省略无法唯一绑定宿主，或与计划目标不一致"),
                                 "RequestIntentInjector.applyServerConstraintsToComponents",
                                 List.of("clarify building host", "use ordinal building_N or unique name"),
                                 Map.of("diagnostics", allDiags)));
@@ -752,7 +760,6 @@ public final class RequestIntentInjector {
                     components == null ? List.of() : components, diagnostics, false, false,
                     Map.of(), Map.of(), Map.of(), Map.of());
         }
-        boolean buildingMode = wantsBuildingEnvelope(userText);
         Map<String, Component> hostById = new HashMap<>();
         for (Component host : hosts == null ? List.<Component>of() : hosts) {
             String mid = BuildingHostResolver.massId(host);
@@ -803,13 +810,22 @@ public final class RequestIntentInjector {
                 continue;
             }
             members.sort(Comparator.comparingInt(c -> c.relativePosition().y()));
-            String family = stackedFamilyKey(BuildingHostResolver.massId(members.getFirst()));
+            String family = env.familyKey() != null && !env.familyKey().isBlank()
+                    ? env.familyKey()
+                    : stackedFamilyKey(BuildingHostResolver.massId(members.getFirst()));
             if (family == null) family = "stacked";
-            String mode = buildingMode ? "building" : "shaft";
-            // Building mode: player target is whole building; shaft budget excludes crown rise.
-            int crownRise = buildingMode
-                    ? measureCrownRiseAboveShaft(components, members, maxTop)
-                    : 0;
+            // Per-binding mode from the local height clause — never whole-request text.
+            String mode = env.mode() == null ? "shaft" : env.mode();
+            boolean buildingMode = "building".equals(mode);
+            // Building mode: player target is whole building; shaft budget excludes crown rise
+            // (existing roofs/finials and roofs the compiler is expected to infer).
+            int crownRise = 0;
+            if (buildingMode) {
+                crownRise = measureCrownRiseAboveShaft(components, members, maxTop);
+                if (crownRise <= 0) {
+                    crownRise = estimateInferredRoofRise(components, members);
+                }
+            }
             int shaftTarget = buildingMode
                     ? env.targetHeight() - crownRise
                     : env.targetHeight();
@@ -988,6 +1004,11 @@ public final class RequestIntentInjector {
                 params.put(SHAFT_ENVELOPE_TARGET_KEY, envTarget);
                 if (envFamily != null) params.put(SHAFT_ENVELOPE_FAMILY_KEY, envFamily);
                 params.put(ENVELOPE_MODE_KEY, envMode == null ? "shaft" : envMode);
+                // Seal envelope fields with the same server digest as height — not height alone.
+                com.formacraft.common.typology.UserConstraintContract.stampVerified(
+                        params,
+                        "height", "towerHeight",
+                        SHAFT_ENVELOPE_TARGET_KEY, SHAFT_ENVELOPE_FAMILY_KEY, ENVELOPE_MODE_KEY);
             }
             if (y != null && rel != null && rel.y() != y) {
                 rel = new Vec3i(rel.x(), y, rel.z());
@@ -1024,20 +1045,53 @@ public final class RequestIntentInjector {
     }
 
     /**
-     * Explicit whole-building height phrasing from the player.
-     * Classification: HARD_CONSTRAINT height semantics (server-stamped mode), not design override.
+     * Prefer per-binding {@link com.formacraft.common.typology.UserConstraintContract#inferEnvelopeMode}.
+     * Kept for focused unit tests that pass a single local clause as the whole string.
      */
     static boolean wantsBuildingEnvelope(String userText) {
-        if (userText == null || userText.isBlank()) return false;
-        String t = userText.toLowerCase(Locale.ROOT);
-        return userText.contains("整座")
-                || userText.contains("整栋")
-                || userText.contains("整体高度")
-                || userText.contains("含屋顶")
-                || t.contains("whole-building")
-                || t.contains("whole building")
-                || t.contains("including the roof")
-                || t.contains("including roof");
+        return "building".equals(
+                com.formacraft.common.typology.UserConstraintContract.inferEnvelopeMode(userText));
+    }
+
+    /**
+     * Conservative roof rise the compiler may later infer when no ROOF satellite exists yet.
+     * Used only in building-mode budget so later inference does not inflate past the player target.
+     */
+    static int estimateInferredRoofRise(List<Component> components, List<Component> shaftMembers) {
+        if (shaftMembers == null || shaftMembers.isEmpty()) return 0;
+        Set<String> shaftIds = new HashSet<>();
+        for (Component m : shaftMembers) {
+            String id = BuildingHostResolver.massId(m);
+            if (id != null) shaftIds.add(id);
+        }
+        // Existing roof already counted elsewhere.
+        if (components != null) {
+            for (Component c : components) {
+                if (c == null) continue;
+                if (!isCrownLikeSatellite(c)) continue;
+                String host = satelliteHostId(c);
+                if (host != null && shaftIds.contains(host)) return 0;
+            }
+        }
+        Component top = shaftMembers.get(shaftMembers.size() - 1);
+        if (top == null || top.dimensions() == null) return 0;
+        if (com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(top)) return 0;
+        Map<String, Object> params = top.params() == null ? Map.of() : top.params();
+        // Explicit omit / none → no inferred roof budget.
+        Object rt = params.get("roof_type");
+        if (rt == null) rt = params.get("roofType");
+        if (rt != null) {
+            String roof = String.valueOf(rt).trim().toLowerCase(Locale.ROOT);
+            if (roof.isEmpty() || "none".equals(roof) || "flat".equals(roof) || "无".equals(roof)) {
+                return "flat".equals(roof) ? 1 : 0;
+            }
+        }
+        int w = Math.max(2, top.dimensions().width());
+        int d = Math.max(2, top.dimensions().depth());
+        int rise = com.formacraft.common.generation.component.util.RoofPitchGeometry
+                .resolveRise(w, d, 0, params instanceof Map ? new HashMap<>(params) : new HashMap<>());
+        // Cap so a speculative roof cannot consume the whole tower budget.
+        return Math.max(1, Math.min(rise, Math.max(3, Math.min(w, d) / 3)));
     }
 
     /** Extra rise of roofs/finials above the current shaft top (0 when none). */
@@ -1090,7 +1144,8 @@ public final class RequestIntentInjector {
 
     /**
      * Relocate a satellite after its host height changes.
-     * Crowns stick to the new top; openings/stairs stay inside the host facade.
+     * Only true roofs/finials/crowns stick to the new top — never openings/stairs, even when
+     * their start Y is within 1 of the old host top.
      * Returns null when the satellite cannot fit — caller must emit a capability gap.
      */
     static Integer relocateSatelliteY(Component c, int[] oldHost, int newHY, int newHH) {
@@ -1104,13 +1159,17 @@ public final class RequestIntentInjector {
         int relY = c.relativePosition().y();
         int offsetFromTop = relY - oldTop;
         String type = c.componentType() == null ? "" : c.componentType().toUpperCase();
-        boolean crownLike = type.startsWith("ROOF") || type.contains("CROWN")
-                || "FINIAL".equals(type) || "DECOR_DETAIL".equals(type)
-                || isCrownLikeSatellite(c);
-        if (crownLike || Math.abs(offsetFromTop) <= 1) {
+        boolean openingOrStair = type.contains("WINDOW") || type.contains("FACADE")
+                || type.contains("ENTRANCE") || type.contains("DOOR")
+                || type.contains("STAIR") || type.contains("OPENING")
+                || "FLOOR_SLAB".equals(type) || type.contains("FLOOR");
+        boolean crownLike = !openingOrStair && (type.startsWith("ROOF")
+                || type.contains("CROWN") || "FINIAL".equals(type)
+                || isCrownLikeSatellite(c));
+        if (crownLike) {
             return newHY + newHH + offsetFromTop;
         }
-        // Openings / stairs / floors: proportional then clamp into host.
+        // Openings / stairs / floors: proportional then clamp entirely inside host.
         int offsetFromBottom = relY - oldHY;
         int nextY = newHY + (int) Math.round(offsetFromBottom * (double) newHH / (double) oldHH);
         int maxStart = newHY + newHH - satH;
@@ -1120,6 +1179,55 @@ public final class RequestIntentInjector {
         if (nextY < newHY) nextY = newHY;
         if (nextY > maxStart) nextY = maxStart;
         return nextY;
+    }
+
+    /**
+     * Register a stacked envelope; identical height+mode is deduped; conflicting heights gap.
+     * @return false when a hard conflict was recorded
+     */
+    private static boolean registerStackedEnvelope(
+            List<StackedHeightEnvelope> envelopes,
+            Map<String, Integer> heightByFamily,
+            Map<String, String> modeByFamily,
+            List<Map<String, Object>> diagnostics,
+            List<String> massIds,
+            int blocks,
+            String mode
+    ) {
+        if (massIds == null || massIds.isEmpty() || blocks <= 0) return true;
+        String family = stackedFamilyKey(massIds.getFirst());
+        if (family == null || family.isBlank()) family = "stacked";
+        String normMode = com.formacraft.common.typology.UserConstraintContract.normalizeEnvelopeMode(mode);
+        Integer prior = heightByFamily.get(family);
+        if (prior != null) {
+            if (prior != blocks) {
+                Map<String, Object> detail = new HashMap<>();
+                detail.put("code", "E_HEIGHT_HOST_CONFLICT");
+                detail.put("target", family);
+                detail.put("blocks", blocks);
+                detail.put("priorBlocks", prior);
+                detail.put("message", "conflicting stacked height cues for the same tower family");
+                diagnostics.add(detail);
+                return false;
+            }
+            // Same height: upgrade shaft→building if a later clause is more specific; never demote.
+            String priorMode = modeByFamily.getOrDefault(family, "shaft");
+            if ("building".equals(normMode) && !"building".equals(priorMode)) {
+                modeByFamily.put(family, "building");
+                for (int i = 0; i < envelopes.size(); i++) {
+                    StackedHeightEnvelope e = envelopes.get(i);
+                    if (family.equals(e.familyKey())) {
+                        envelopes.set(i, new StackedHeightEnvelope(
+                                e.massIds(), e.targetHeight(), e.familyKey(), "building"));
+                    }
+                }
+            }
+            return true;
+        }
+        heightByFamily.put(family, blocks);
+        modeByFamily.put(family, normMode);
+        envelopes.add(new StackedHeightEnvelope(massIds, blocks, family, normMode));
+        return true;
     }
 
     /** floor_count when authored; 0 means no multi-storey band constraint on this mass. */
@@ -1505,8 +1613,17 @@ public final class RequestIntentInjector {
             boolean capabilityGap
     ) {}
 
-    /** Whole-building height for stacked storeys — never copy onto each tier's dimensions.height. */
-    private record StackedHeightEnvelope(List<String> massIds, int targetHeight) {}
+    /**
+     * Whole-building height for stacked storeys — never copy onto each tier's dimensions.height.
+     * {@code familyKey} is the stable stacked identity (e.g. pagoda); {@code mode} is shaft|building.
+     */
+    private record StackedHeightEnvelope(
+            List<String> massIds, int targetHeight, String familyKey, String mode) {
+        private StackedHeightEnvelope {
+            massIds = massIds == null ? List.of() : List.copyOf(massIds);
+            mode = com.formacraft.common.typology.UserConstraintContract.normalizeEnvelopeMode(mode);
+        }
+    }
 
     private record HeightBindResult(
             Map<String, Integer> byMassId,
@@ -1552,6 +1669,8 @@ public final class RequestIntentInjector {
     ) {
         Map<String, Integer> out = new HashMap<>();
         List<StackedHeightEnvelope> envelopes = new ArrayList<>();
+        Map<String, Integer> envelopeHeightByFamily = new HashMap<>();
+        Map<String, String> envelopeModeByFamily = new HashMap<>();
         List<Map<String, Object>> diagnostics = new ArrayList<>();
         boolean gap = false;
         if (bindings == null || bindings.isEmpty()) {
@@ -1573,13 +1692,18 @@ public final class RequestIntentInjector {
         for (var b : bindings) {
             if (b == null || b.blocks() <= 0) continue;
             String hint = b.roleHint();
+            String mode = b.envelopeMode() == null ? "shaft" : b.envelopeMode();
             String target = null;
             if (hint == null || hint.isBlank()) {
                 // Unscoped: one building entity (incl. stacked storeys) only.
                 if (!multi || hosts.size() == 1) {
                     List<String> stackedIds = stackedFamilyMassIds(hosts);
                     if (stackedIds.size() > 1) {
-                        envelopes.add(new StackedHeightEnvelope(stackedIds, b.blocks()));
+                        if (!registerStackedEnvelope(
+                                envelopes, envelopeHeightByFamily, envelopeModeByFamily,
+                                diagnostics, stackedIds, b.blocks(), mode)) {
+                            gap = true;
+                        }
                         continue;
                     }
                     target = primary;
@@ -1623,7 +1747,11 @@ public final class RequestIntentInjector {
                         }
                     }
                     if (!gap) {
-                        envelopes.add(new StackedHeightEnvelope(List.copyOf(namedHits), b.blocks()));
+                        if (!registerStackedEnvelope(
+                                envelopes, envelopeHeightByFamily, envelopeModeByFamily,
+                                diagnostics, List.copyOf(namedHits), b.blocks(), mode)) {
+                            gap = true;
+                        }
                     }
                     continue;
                 }
@@ -2473,7 +2601,6 @@ public final class RequestIntentInjector {
                 m.put("target_height", e.getValue());
                 m.put("mode", finalMode);
                 m.put("mass_ids", new ArrayList<String>());
-                m.put("trusted", Boolean.TRUE);
                 return m;
             });
             row.put("target_height", e.getValue());
@@ -2482,10 +2609,13 @@ public final class RequestIntentInjector {
             List<String> ids = (List<String>) row.get("mass_ids");
             if (!ids.contains(massId)) ids.add(massId);
         }
+        List<Map<String, Object>> rows = new ArrayList<>(byFamily.values());
         Map<String, Object> meta = plan.planMeta() == null
                 ? new HashMap<>()
                 : new HashMap<>(plan.planMeta());
-        meta.put(STACKED_ENVELOPE_TARGETS_META, new ArrayList<>(byFamily.values()));
+        meta.put(STACKED_ENVELOPE_TARGETS_META, rows);
+        meta.put(STACKED_ENVELOPE_TARGETS_SEAL_META,
+                com.formacraft.common.typology.UserConstraintContract.sealStackedEnvelopeTargets(rows));
         return withMeta(plan, meta);
     }
 

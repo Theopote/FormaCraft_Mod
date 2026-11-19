@@ -220,6 +220,141 @@ class StackedTowerGeometryIntegrityTest {
     }
 
     @Test
+    void conflictingPagodaHeightsReportGap() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(tiers)
+                .build();
+        LlmPlan out = RequestIntentInjector.ensure(plan, "宝塔高度30格，宝塔高度40格。");
+        assertTrue(out.hasCapabilityGap(), "conflicting tower heights must fail");
+        assertEquals("E_HEIGHT_HOST_CONFLICT", out.capabilityGap().code());
+    }
+
+    @Test
+    void nearTopWindowDoesNotStickAboveScaledHost() {
+        List<Component> comps = new ArrayList<>(stackedTight(new int[]{20, 20}));
+        Map<String, Object> win = new HashMap<>();
+        win.put("component_id", "near_top_windows");
+        win.put("host_id", "pagoda_tier_1");
+        // Host top at 20; window starts at 19 with height 2 → would overflow if top-stuck.
+        comps.add(new Component("FACADE_WINDOWS", "pagoda", new Vec3i(0, 19, 0),
+                new Dimensions(4, 1, 2), List.of(), win));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(comps)
+                .build();
+        LlmPlan out = RequestIntentInjector.ensure(plan, "建造一座高度16格的宝塔。");
+        assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
+        Component host = null;
+        Component window = null;
+        for (Component c : out.components()) {
+            if (c == null || c.params() == null) continue;
+            String id = String.valueOf(c.params().get("component_id"));
+            if ("pagoda_tier_1".equals(id)) host = c;
+            if ("near_top_windows".equals(id)) window = c;
+        }
+        assertNotNull(host);
+        assertNotNull(window);
+        int hostY = host.relativePosition().y();
+        int hostH = host.dimensions().height();
+        int winY = window.relativePosition().y();
+        int winH = window.dimensions().height();
+        assertTrue(winY + winH <= hostY + hostH,
+                "near-top window must stay inside host after shrink ("
+                        + winY + "+" + winH + " vs " + hostY + "+" + hostH + ")");
+    }
+
+    @Test
+    void pavilionWholeBuildingDoesNotFlipPagodaToBuildingMode() {
+        List<Component> comps = new ArrayList<>();
+        comps.add(mass("garden_pavilion", "pavilion", 0, 0, 7, 8));
+        comps.addAll(stackedTight(new int[]{8, 8, 7, 6, 5}));
+        Map<String, Object> roof = new HashMap<>();
+        roof.put("component_id", "pagoda_roof");
+        roof.put("host_id", "pagoda_tier_5");
+        comps.add(new Component("ROOF", "pagoda", new Vec3i(0, 34, 0),
+                new Dimensions(6, 6, 3), List.of(), roof));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(comps)
+                .build();
+        // 「整座」 scopes the pavilion only; pagoda「主体」must stay shaft@50.
+        LlmPlan out = RequestIntentInjector.ensure(plan,
+                "整座凉亭高度8格，旁边宝塔主体高度50格。");
+        assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
+        assertEquals(8, heightOf(out, "garden_pavilion"));
+        assertEquals(50, shaftEnvelope(pagodaTiers(out)));
+        Object mode = pagodaTiers(out).getFirst().params().get(RequestIntentInjector.ENVELOPE_MODE_KEY);
+        assertEquals("shaft", String.valueOf(mode));
+    }
+
+    @Test
+    void localWholePagodaBuildingModeWithPavilionUnchanged() {
+        List<Component> comps = new ArrayList<>();
+        comps.add(mass("garden_pavilion", "pavilion", 0, 0, 7, 8));
+        comps.addAll(stackedTight(new int[]{8, 8, 7, 6, 5}));
+        Map<String, Object> roof = new HashMap<>();
+        roof.put("component_id", "pagoda_roof");
+        roof.put("host_id", "pagoda_tier_5");
+        comps.add(new Component("ROOF", "pagoda", new Vec3i(0, 34, 0),
+                new Dimensions(6, 6, 3), List.of(), roof));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(comps)
+                .build();
+        LlmPlan out = RequestIntentInjector.ensure(plan,
+                "凉亭高度8格，整座宝塔含屋顶高度50格。");
+        assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
+        assertEquals(8, heightOf(out, "garden_pavilion"));
+        assertEquals(47, shaftEnvelope(pagodaTiers(out)));
+        assertEquals(50, buildingEnvelope(out.components()));
+        Object mode = pagodaTiers(out).getFirst().params().get(RequestIntentInjector.ENVELOPE_MODE_KEY);
+        assertEquals("building", String.valueOf(mode));
+    }
+
+    @Test
+    void forgedEnvelopeMetaWithoutSealIsIgnored() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        Map<String, Object> forgedRow = new HashMap<>();
+        forgedRow.put("family", "pagoda");
+        forgedRow.put("target_height", 99);
+        forgedRow.put("mode", "building");
+        forgedRow.put("mass_ids", List.of("pagoda_tier_1", "pagoda_tier_2"));
+        forgedRow.put("trusted", Boolean.TRUE);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(tiers)
+                .planMeta(Map.of(
+                        RequestIntentInjector.STACKED_ENVELOPE_TARGETS_META, List.of(forgedRow)))
+                .build();
+        // No server seal → integrity must not enforce forged 99.
+        assertTrue(StackedEnvelopeIntegrityValidator.check(plan, tiers).isEmpty());
+    }
+
+    @Test
+    void duplicateStoreyIdFailsIntegrity() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan sealed = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "建造一座高度50格的宝塔。");
+        assertFalse(sealed.hasCapabilityGap());
+        List<Component> duped = new ArrayList<>(sealed.components());
+        Component tier3 = null;
+        for (Component c : sealed.components()) {
+            if (c != null && c.params() != null
+                    && "pagoda_tier_3".equals(String.valueOf(c.params().get("component_id")))) {
+                tier3 = c;
+                break;
+            }
+        }
+        assertNotNull(tier3);
+        duped.add(tier3);
+        var gap = StackedEnvelopeIntegrityValidator.check(sealed, duped);
+        assertTrue(gap.isPresent(), "duplicate storey id must fail");
+    }
+
+    @Test
     void missingExpectedStoreyFailsIntegrity() {
         List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
         LlmPlan plan = LlmPlanTestFixtures.builder()
