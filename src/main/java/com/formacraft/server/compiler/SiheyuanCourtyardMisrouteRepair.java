@@ -12,8 +12,8 @@ import java.util.Map;
 /**
  * Detects incomplete compositional 四合院 plans. Never silently replaces AI multi-mass
  * compositions with a fixed {@code courtyard_compound} STRUCTURE — that is DESIGN_OVERRIDE.
- * Explicit {@code typology:courtyard_compound} / already-routed STRUCTURE is left alone;
- * otherwise emit {@code capability_gap} for replan.
+ * Only an already-routed STRUCTURE {@code courtyard_compound} executor is left alone;
+ * request-text {@code typology:}/{@code preset:} alone does not skip the gap.
  */
 final class SiheyuanCourtyardMisrouteRepair {
     private SiheyuanCourtyardMisrouteRepair() {}
@@ -21,19 +21,24 @@ final class SiheyuanCourtyardMisrouteRepair {
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         if (!looksSiheyuan(plan)) return plan;
-        if (alreadyCourtyardCompound(plan) || explicitCourtyardOptIn(plan)) return plan;
+        // Only a STRUCTURE courtyard_compound executor counts as already routed.
+        // Request-text typology:/preset: alone is not proof the executor runs.
+        if (alreadyCourtyardCompound(plan)) return plan;
         if (!looksMisroutedComposition(plan)) return plan;
 
         FormacraftMod.LOGGER.info(
                 "SiheyuanCourtyardMisrouteRepair: refusing silent courtyard_compound rewrite ({} components)",
                 plan.components().size());
+        String hint = explicitCourtyardOptIn(plan)
+                ? "typology/preset opt-in is present but no STRUCTURE courtyard_compound executor — route or re-plan"
+                : "Add COURTYARD_SPACE / PATH and role labels on masses";
         return PlanComponentRewrite.withCapabilityGap(plan, new CapabilityGap(
                 "E_SIHEYUAN_COMPOSITION_UNSUPPORTED",
-                "四合院组合方案缺少庭院围合或角色标注，已拒绝用内置 courtyard_compound 模板覆盖 AI 构件；请补全正房/厢房/倒座/庭院或显式 typology:courtyard_compound",
+                "四合院组合方案缺少庭院围合或角色标注，已拒绝用内置 courtyard_compound 模板覆盖 AI 构件；请补全正房/厢房/倒座/庭院或路由到 STRUCTURE typology:courtyard_compound",
                 "SiheyuanCourtyardMisrouteRepair",
                 List.of(
-                        "Add COURTYARD_SPACE / PATH and role labels on masses",
-                        "Or opt in with typology:courtyard_compound / typology_id=courtyard_compound",
+                        hint,
+                        "Or ensure STRUCTURE with typology_id=courtyard_compound",
                         "Re-plan the courtyard composition")));
     }
 
@@ -45,24 +50,24 @@ final class SiheyuanCourtyardMisrouteRepair {
         return style.contains("siheyuan");
     }
 
-    /** User/plan already chose the fixed courtyard typology executor. */
+    /**
+     * Player request-text typology/preset cue (hint for gap message only).
+     * Does not short-circuit misroute detection — executor must be STRUCTURE.
+     */
     private static boolean explicitCourtyardOptIn(LlmPlan plan) {
-        String blob = blob(plan);
-        if (blob.contains("typology:courtyard_compound")
-                || blob.contains("preset:courtyard_compound")
-                || blob.contains("typology_id=courtyard_compound")) {
-            return true;
-        }
-        for (Component c : plan.components()) {
-            if (c == null || c.params() == null) continue;
-            for (String key : List.of("typology_id", "typology", "structural_typology")) {
-                Object v = c.params().get(key);
-                if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains("courtyard_compound")) {
-                    return true;
-                }
+        StringBuilder sb = new StringBuilder();
+        if (plan.planMeta() != null) {
+            Object text = plan.planMeta().get("request_intent_text");
+            if (text != null) sb.append(text).append(' ');
+            Object ri = plan.planMeta().get("request_intent");
+            if (ri instanceof Map<?, ?> map && map.get("original_text") != null) {
+                sb.append(map.get("original_text")).append(' ');
             }
         }
-        return false;
+        String blob = sb.toString().toLowerCase(Locale.ROOT);
+        return blob.contains("typology:courtyard_compound")
+                || blob.contains("preset:courtyard_compound")
+                || blob.contains("typology_id=courtyard_compound");
     }
 
     private static boolean alreadyCourtyardCompound(LlmPlan plan) {

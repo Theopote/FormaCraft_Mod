@@ -52,7 +52,7 @@ class LandmarkMisrouteRepairTest {
     }
 
     @Test
-    void explicitModuleOptInLeavesAssemblyAlone() {
+    void moduleTextWithMisroutedAssemblyStillGaps() {
         Map<String, Object> params = new HashMap<>();
         params.put("component_id", "office_ring");
         params.put("fbd_program", Map.of("kind", "ring"));
@@ -65,6 +65,28 @@ class LandmarkMisrouteRepairTest {
                 .distinguishingFeatures(List.of("eiffel"))
                 .components(List.of(ring))
                 .build();
-        assertSame(plan, LandmarkMisrouteRepair.apply(plan));
+        LlmPlan out = LandmarkMisrouteRepair.apply(plan);
+        assertTrue(out.hasCapabilityGap(),
+                "module: text without STRUCTURE executor must not skip misroute gap");
+        assertEquals(100, out.components().getFirst().dimensions().height());
+    }
+
+    @Test
+    void landmarkFeatureTagOnAssemblyDoesNotCountAsRouted() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "office_ring");
+        params.put("fbd_program", Map.of("kind", "ring"));
+        Component ring = new Component(
+                "ASSEMBLY", "landmark", new Vec3i(0, 0, 0),
+                new Dimensions(40, 40, 100), List.of("landmark:eiffel_tower"),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .planMeta(Map.of("request_intent_text", "建造埃菲尔铁塔"))
+                .components(List.of(ring))
+                .build();
+        LlmPlan out = LandmarkMisrouteRepair.apply(plan);
+        assertTrue(out.hasCapabilityGap(),
+                "landmark: feature tag is semantic only — not a STRUCTURE executor");
+        assertEquals("ASSEMBLY", out.components().getFirst().componentType());
     }
 }

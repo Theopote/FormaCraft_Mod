@@ -357,6 +357,137 @@ class TempleSideHallMisrouteRepairTest {
     }
 
     @Test
+    void mainWindowOmitKeepsPeidianFacades() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner",
+                        "window_style", "none"));
+        Component left = new Component(
+                "MASS_SECONDARY", "body", new Vec3i(-12, 0, 2),
+                new Dimensions(8, 10, 8), List.of("配殿", "side_hall"),
+                Map.of("component_id", "left_peidian", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        Component right = new Component(
+                "MASS_SECONDARY", "body", new Vec3i(24, 0, 2),
+                new Dimensions(8, 10, 8), List.of("配殿", "side_hall"),
+                Map.of("component_id", "right_peidian", "building_role", "side_hall",
+                        "anchor_mode", "min_corner"));
+        Component leftWin = new Component(
+                "FACADE_WINDOWS", "body", new Vec3i(-12, 2, 2),
+                new Dimensions(8, 10, 4), List.of(),
+                Map.of("component_id", "left_peidian_windows", "host_id", "left_peidian",
+                        "anchor_mode", "min_corner"));
+        Component rightWin = new Component(
+                "FACADE_WINDOWS", "body", new Vec3i(24, 2, 2),
+                new Dimensions(8, 10, 4), List.of(),
+                Map.of("component_id", "right_peidian_windows", "host_id", "right_peidian",
+                        "anchor_mode", "min_corner"));
+        String prompt = "生成一座大雄宝殿，不要窗，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true)
+                .styleProfile("chinese_temple_imperial")
+                .components(List.of(hall, left, right, leftWin, rightWin))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt,
+                        "design_requirements", Map.of("facade", "OMITTED")))
+                .build());
+        assertTrue(repaired.components().stream().noneMatch(c ->
+                "FACADE_WINDOWS".equalsIgnoreCase(c.componentType())
+                        && "temple_hall".equals(String.valueOf(c.params().get("host_id")))),
+                "main hall omit must not invent main windows");
+        Component keptLeft = repaired.components().stream()
+                .filter(c -> "left_peidian_windows".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("left_peidian", String.valueOf(keptLeft.params().get("host_id")));
+        Component keptRight = repaired.components().stream()
+                .filter(c -> "right_peidian_windows".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("right_peidian", String.valueOf(keptRight.params().get("host_id")));
+    }
+
+    @Test
+    void secondMassMainKeepsDistinctComponentId() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        Component annex = new Component(
+                "MASS_MAIN", "annex", new Vec3i(40, 0, 0),
+                new Dimensions(10, 10, 8), List.of("annex_hall"),
+                Map.of("component_id", "west_annex", "anchor_mode", "min_corner"));
+        String prompt = "生成一座大雄宝殿，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true)
+                .styleProfile("chinese_temple_imperial")
+                .components(List.of(hall, annex))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        long annexIds = repaired.components().stream()
+                .filter(c -> "west_annex".equals(String.valueOf(c.params().get("component_id"))))
+                .count();
+        assertEquals(1, annexIds, "secondary MASS_MAIN must not be rewritten to temple_hall id");
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                "temple_hall".equals(String.valueOf(c.params().get("component_id")))));
+    }
+
+    @Test
+    void roofTypeNoneIsNotRewrittenToXieshan() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner",
+                        "roof_type", "none"));
+        String prompt = "生成一座大雄宝殿，不要屋顶，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true)
+                .styleProfile("chinese_temple_imperial")
+                .components(List.of(hall))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt,
+                        "design_requirements", Map.of("roof", "OMITTED")))
+                .build());
+        Component outHall = repaired.components().stream()
+                .filter(c -> "temple_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("none", String.valueOf(outHall.params().get("roof_type")));
+        assertTrue(repaired.components().stream().noneMatch(c ->
+                "ROOF".equalsIgnoreCase(c.componentType())
+                        && "temple_hall".equals(String.valueOf(c.params().get("host_id")))));
+    }
+
+    @Test
+    void planLockedCrownIsNotDropped() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        Component crown = new Component(
+                "CROWN", "body", new Vec3i(8, 12, 6),
+                new Dimensions(4, 4, 6), List.of("crown"),
+                Map.of("component_id", "locked_cupola", "host_id", "temple_hall",
+                        "crown_template", "CLASSICAL_CUPOLA"));
+        String prompt = "生成一座大雄宝殿，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true)
+                .styleProfile("DEFAULT")
+                .components(List.of(hall, crown))
+                .proportionHints(Map.of("typology", "classical_monument"))
+                .designSources(Map.of("crown_template", "USER_EXPLICIT"))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                "locked_cupola".equals(String.valueOf(c.params().get("component_id")))),
+                "plan-level USER_EXPLICIT crown_template must block classical crown drop");
+    }
+
+    @Test
     void nonClassicalAiCrownIsPreserved() {
         Component hall = new Component(
                 "MASS_MAIN", "body", new Vec3i(0, 0, 0),

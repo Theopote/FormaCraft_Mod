@@ -109,7 +109,7 @@ class SiheyuanCourtyardMisrouteRepairTest {
     }
 
     @Test
-    void explicitTypologyOptInLeavesMultiMassAlone() {
+    void explicitTypologyTextWithoutStructureExecutorStillGaps() {
         LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Chinese_Vernacular_Siheyuan")
                 .planMeta(Map.of("request_intent_text",
@@ -120,7 +120,9 @@ class SiheyuanCourtyardMisrouteRepairTest {
                         mass("west", -8, 0, 6, 10, 4)))
                 .build();
         LlmPlan out = SiheyuanCourtyardMisrouteRepair.apply(plan);
-        assertSame(plan, out, "explicit typology opt-in must not force gap or STRUCTURE rewrite");
+        assertTrue(out.hasCapabilityGap(),
+                "typology: text alone is not a STRUCTURE executor — still refuse silent rewrite");
+        assertEquals(3, out.components().size());
     }
 
     private static Component mass(String id, int x, int z, int w, int d, int h) {

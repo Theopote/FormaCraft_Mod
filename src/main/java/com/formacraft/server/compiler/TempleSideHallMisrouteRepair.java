@@ -3,6 +3,7 @@ package com.formacraft.server.compiler;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.generation.design.DesignRequirement;
 import com.formacraft.common.generation.design.DesignRequirementAccess;
 import com.formacraft.common.llm.dto.Component;
@@ -79,25 +80,37 @@ final class TempleSideHallMisrouteRepair {
 
         // Drop classical ornament that produces floating cornice / cupola frames.
         // Keep non-classical AI crowns and USER_EXPLICIT / server-verified crown params.
+        // Host-scope: never rebind peidian/other-building satellites onto the main hall.
         for (Component c : plan.components()) {
             if (c == null) continue;
             String t = typeOf(c);
             if (("CROWN".equals(t) || "CUPOLA".equals(t) || "DOME".equals(t))
-                    && shouldDropCrown(c, classicalDegrade)) {
+                    && shouldDropCrown(plan, c, classicalDegrade)) {
                 continue;
             }
             if ("DECOR_DETAIL".equals(t) && isClassicalDecor(c)) {
                 continue;
             }
-            if (isPrimaryMass(c) || isMainRoof(c, mainId)) {
-                out.add(enrichMainOrRoof(c, mainId, mainRoofType, doubleEave));
+            if (isSelectedPrimary(c, main) || isMainRoof(c, mainId)) {
+                out.add(enrichMainOrRoof(plan, c, main, mainId, mainRoofType, doubleEave, roofOmitted));
+            } else if (isPrimaryMass(c)) {
+                // Other MASS_MAIN buildings keep their own identity (HARD_CONSTRAINT).
+                out.add(c);
             } else if ("ENTRANCE".equals(t)) {
-                if (!entranceOmitted) {
-                    out.add(sanitizeEntrance(c, mainId, hallW));
+                if (belongsToHost(c, mainId)) {
+                    if (!entranceOmitted) {
+                        out.add(sanitizeEntrance(c, mainId, hallW));
+                    }
+                } else {
+                    out.add(c);
                 }
             } else if ("FACADE_WINDOWS".equals(t) || "FACADE".equals(t)) {
-                if (!windowsOmitted) {
-                    out.add(sanitizeFacade(c, mainId, hallW, hallD, hallH));
+                if (belongsToHost(c, mainId)) {
+                    if (!windowsOmitted) {
+                        out.add(sanitizeFacade(c, mainId, hallW, hallD, hallH));
+                    }
+                } else {
+                    out.add(c);
                 }
             } else if ("FOUNDATION".equals(t)) {
                 out.add(c);
@@ -111,15 +124,17 @@ final class TempleSideHallMisrouteRepair {
             }
         }
 
-        // Ensure primary mass + roof exist after filtering.
-        if (out.stream().noneMatch(TempleSideHallMisrouteRepair::isPrimaryMass)) {
+        // Ensure selected primary mass + roof exist after filtering.
+        if (out.stream().noneMatch(c -> isSelectedPrimary(c, main))) {
             Map<String, Object> params = new HashMap<>();
             if (main.params() != null) params.putAll(main.params());
             params.put("component_id", mainId);
-            params.put("roof_type", mainRoofType);
-            params.put("preferred_roof_type", mainRoofType);
+            if (!roofOmitted) {
+                DesignProvenance.putIfAllowed(plan, params, "roof_type", mainRoofType);
+                DesignProvenance.putIfAllowed(plan, params, "preferred_roof_type", mainRoofType);
+            }
             params.put("anchor_mode", "min_corner");
-            if (doubleEave) {
+            if (doubleEave && !roofOmitted) {
                 params.put("double_eave", true);
                 params.put("eave_tiers", 2);
             }
@@ -182,7 +197,9 @@ final class TempleSideHallMisrouteRepair {
         }
 
         // Ensure a readable central door exists after classical door_width=30 envelopes are sanitized.
-        if (!entranceOmitted && out.stream().noneMatch(c -> "ENTRANCE".equals(typeOf(c)))) {
+        // Only invent for the selected main hall — never treat peidian satellites as coverage.
+        if (!entranceOmitted && out.stream().noneMatch(c ->
+                "ENTRANCE".equals(typeOf(c)) && belongsToHost(c, mainId))) {
             int doorW = Math.max(3, Math.min(5, hallW / 5));
             Map<String, Object> door = new HashMap<>();
             door.put("component_id", mainId + "_entrance");
@@ -198,7 +215,9 @@ final class TempleSideHallMisrouteRepair {
                     door));
         }
         if (!windowsOmitted
-                && out.stream().noneMatch(c -> "FACADE_WINDOWS".equals(typeOf(c)) || "FACADE".equals(typeOf(c)))) {
+                && out.stream().noneMatch(c ->
+                ("FACADE_WINDOWS".equals(typeOf(c)) || "FACADE".equals(typeOf(c)))
+                        && belongsToHost(c, mainId))) {
             Map<String, Object> win = new HashMap<>();
             win.put("component_id", mainId + "_windows");
             win.put("host_id", mainId);
@@ -255,14 +274,24 @@ final class TempleSideHallMisrouteRepair {
     }
 
     private static Component enrichMainOrRoof(
-            Component c, String mainId, String roofType, boolean doubleEave
+            LlmPlan plan,
+            Component c,
+            Component main,
+            String mainId,
+            String roofType,
+            boolean doubleEave,
+            boolean roofOmitted
     ) {
         Map<String, Object> params = new HashMap<>();
         if (c.params() != null) params.putAll(c.params());
-        params.put("roof_type", roofType);
-        if (isPrimaryMass(c)) {
+        if (!roofOmitted) {
+            DesignProvenance.putIfAllowed(plan, params, "roof_type", roofType);
+        }
+        if (isSelectedPrimary(c, main)) {
             params.put("component_id", mainId);
-            params.put("preferred_roof_type", roofType);
+            if (!roofOmitted) {
+                DesignProvenance.putIfAllowed(plan, params, "preferred_roof_type", roofType);
+            }
             params.remove("facade_profile");
             params.remove("wall_pattern");
             params.remove("floor_cornice");
@@ -270,7 +299,7 @@ final class TempleSideHallMisrouteRepair {
             params.putIfAbsent("host_id", mainId);
         }
         params.put("anchor_mode", "min_corner");
-        if (doubleEave) {
+        if (doubleEave && !roofOmitted) {
             params.put("double_eave", true);
             params.put("eave_tiers", 2);
         }
@@ -285,7 +314,8 @@ final class TempleSideHallMisrouteRepair {
                 features.add(f);
             }
         }
-        if (doubleEave && features.stream().noneMatch(f -> f.toLowerCase(Locale.ROOT).contains("double_eave"))) {
+        if (doubleEave && !roofOmitted
+                && features.stream().noneMatch(f -> f.toLowerCase(Locale.ROOT).contains("double_eave"))) {
             features.add("double_eave");
         }
         return new Component(c.componentType(), c.slotId(), c.relativePosition(),
@@ -445,29 +475,57 @@ final class TempleSideHallMisrouteRepair {
     }
 
     /**
-     * Drop only classical cupola/dome crowns. Preserve USER_EXPLICIT / server-verified crown
-     * params and non-classical AI crowns (FORMAT_REPAIR — not DESIGN_OVERRIDE).
+     * Drop only classical cupola/dome crowns. Preserve design-locked / server-verified crown
+     * params and non-classical AI crowns via {@link DesignProvenance} (FORMAT_REPAIR).
      */
-    private static boolean shouldDropCrown(Component c, boolean classicalDegrade) {
+    private static boolean shouldDropCrown(LlmPlan plan, Component c, boolean classicalDegrade) {
         if (!isClassicalCrown(c)) return false;
-        if (c.params() != null) {
-            if (UserConstraintContract.isServerVerified(c.params(), "crown_template")
-                    || UserConstraintContract.isServerVerified(c.params(), "crown_type")
-                    || UserConstraintContract.isServerVerified(c.params(), "crown_requirement")) {
+        Map<String, Object> params = c.params();
+        if (params != null) {
+            if (UserConstraintContract.isServerVerified(params, "crown_template")
+                    || UserConstraintContract.isServerVerified(params, "crown_type")
+                    || UserConstraintContract.isServerVerified(params, "crown_requirement")) {
                 return false;
             }
-            Object src = c.params().get("design_sources");
-            if (src instanceof Map<?, ?> map) {
-                for (String key : List.of("crown_template", "crown_type", "crown_requirement")) {
-                    Object v = map.get(key);
-                    if (v != null && String.valueOf(v).toUpperCase(Locale.ROOT).contains("USER_EXPLICIT")) {
-                        return false;
-                    }
-                }
-            }
+        }
+        // Plan-level + component design_sources locks (shared with grammar / satellite policy).
+        if (!DesignProvenance.canMutateParam(plan, params, "crown_template")
+                || !DesignProvenance.canMutateParam(plan, params, "crown_type")
+                || !DesignProvenance.canMutateParam(plan, params, "crown_requirement")) {
+            return false;
         }
         // classicalDegrade retained for call-site clarity; classical crown alone is enough.
         return classicalDegrade || isClassicalCrown(c);
+    }
+
+    /** Selected primary hall only — never every MASS_MAIN in a multi-building plan. */
+    private static boolean isSelectedPrimary(Component c, Component main) {
+        if (c == null || main == null) return false;
+        if (c == main) return true;
+        if (!isPrimaryMass(c)) return false;
+        String mainId = idOf(main);
+        return !mainId.isBlank() && mainId.equals(idOf(c));
+    }
+
+    /**
+     * Satellite belongs to the selected main hall when host_id matches, or when unbound
+     * (classical degrade often omits host — treat as main). Foreign hosts are preserved.
+     */
+    private static boolean belongsToHost(Component c, String hostId) {
+        if (c == null || hostId == null || hostId.isBlank()) return false;
+        String host = satelliteHostId(c);
+        return host == null || hostId.equals(host);
+    }
+
+    private static String satelliteHostId(Component c) {
+        if (c == null || c.params() == null) return null;
+        Object host = c.params().get("host_id");
+        if (host == null) host = c.params().get("hostId");
+        if (host == null || String.valueOf(host).isBlank()
+                || "null".equalsIgnoreCase(String.valueOf(host))) {
+            return null;
+        }
+        return String.valueOf(host).trim();
     }
 
     private static boolean isClassicalDecor(Component c) {

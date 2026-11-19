@@ -12,8 +12,9 @@ import java.util.Map;
 /**
  * Detects landmark-named plans that arrived as FBD/ASSEMBLY office rings.
  * Never silently replaces AI assemblies with a fixed-dimension STRUCTURE module
- * (DESIGN_OVERRIDE). Explicit module/typology/preset opt-in or already-routed
- * landmark STRUCTURE is left alone; otherwise emit capability_gap for replan.
+ * (DESIGN_OVERRIDE). A semantic landmark feature/tag alone is not an executor —
+ * only STRUCTURE with matching {@code module_id}, or player request-text
+ * {@code module:}/{@code typology:}/{@code preset:} opt-in, skips the gap.
  */
 final class LandmarkMisrouteRepair {
     private LandmarkMisrouteRepair() {}
@@ -22,7 +23,12 @@ final class LandmarkMisrouteRepair {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         String landmark = detectLandmark(plan);
         if (landmark == null) return plan;
-        if (alreadyLandmarkRouted(plan, landmark) || explicitLandmarkOptIn(plan, landmark)) {
+        if (alreadyLandmarkRouted(plan, landmark)) {
+            return plan;
+        }
+        // Player request-text opt-in without a STRUCTURE executor still gaps when misrouted —
+        // tags must not pretend the fixed landmark module already runs.
+        if (explicitLandmarkOptIn(plan, landmark) && !looksMisrouted(plan)) {
             return plan;
         }
         if (!looksMisrouted(plan)) return plan;
@@ -35,52 +41,36 @@ final class LandmarkMisrouteRepair {
                 "LandmarkMisrouteRepair",
                 List.of(
                         "Keep authored height/width on the open composition",
-                        "Or opt in with module_id / typology: / preset: for " + landmark,
+                        "Or opt in with module_id / typology: / preset: for " + landmark
+                                + " and route to STRUCTURE",
                         "Re-plan landmark geometry without office/atrium rings")));
     }
 
+    /** True only when a STRUCTURE executor already carries the landmark module_id. */
     private static boolean alreadyLandmarkRouted(LlmPlan plan, String landmark) {
         for (Component c : plan.components()) {
-            if (c == null) continue;
-            if ("STRUCTURE".equalsIgnoreCase(c.componentType())
-                    && c.params() != null
-                    && landmark.equalsIgnoreCase(String.valueOf(c.params().get("module_id")))) {
+            if (c == null || c.params() == null) continue;
+            if (!"STRUCTURE".equalsIgnoreCase(c.componentType())) continue;
+            Object module = c.params().get("module_id");
+            if (module != null && landmark.equalsIgnoreCase(String.valueOf(module))) {
                 return true;
-            }
-            if (c.features() != null) {
-                for (String f : c.features()) {
-                    if (f != null && f.toLowerCase(Locale.ROOT).contains("landmark:" + landmark)) {
-                        return true;
-                    }
-                }
             }
         }
         return false;
     }
 
-    /** Explicit user/plan opt-in to the fixed landmark executor. */
+    /**
+     * Explicit player opt-in from request text only — never AI-forged component params
+     * or landmark: feature tags (those are semantic labels, not executor selection).
+     */
     private static boolean explicitLandmarkOptIn(LlmPlan plan, String landmark) {
-        String blob = blob(plan);
+        String blob = requestTextBlob(plan);
         String lower = landmark.toLowerCase(Locale.ROOT);
-        if (blob.contains("module:" + lower)
+        return blob.contains("module:" + lower)
                 || blob.contains("module_id=" + lower)
                 || blob.contains("typology:" + lower)
                 || blob.contains("preset:" + lower)
-                || blob.contains("preset:<" + lower)
-                || blob.contains("landmark:" + lower)) {
-            return true;
-        }
-        for (Component c : plan.components()) {
-            if (c == null || c.params() == null) continue;
-            for (String key : List.of("module_id", "landmark", "reference_landmark",
-                    "typology_id", "typology", "preset_id")) {
-                Object v = c.params().get(key);
-                if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains(lower)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+                || blob.contains("preset:<" + lower);
     }
 
     private static boolean looksMisrouted(LlmPlan plan) {
@@ -98,28 +88,23 @@ final class LandmarkMisrouteRepair {
     }
 
     private static String detectLandmark(LlmPlan plan) {
-        String blob = blob(plan);
+        String blob = detectionBlob(plan);
         if (blob.contains("eiffel") || blob.contains("埃菲尔") || blob.contains("艾菲尔")) {
             return "eiffel_tower";
         }
         return null;
     }
 
-    private static String blob(LlmPlan plan) {
-        StringBuilder sb = new StringBuilder();
-        if (plan.playerFidelityNoticeZh() != null) sb.append(plan.playerFidelityNoticeZh()).append(' ');
+    /** Request text + distinguishing features + component ids for landmark name detection. */
+    private static String detectionBlob(LlmPlan plan) {
+        StringBuilder sb = new StringBuilder(requestTextBlob(plan));
         if (plan.distinguishingFeatures() != null) {
             for (String f : plan.distinguishingFeatures()) {
                 if (f != null) sb.append(f).append(' ');
             }
         }
-        if (plan.planMeta() != null) {
-            Object text = plan.planMeta().get("request_intent_text");
-            if (text != null) sb.append(text).append(' ');
-            Object ri = plan.planMeta().get("request_intent");
-            if (ri instanceof Map<?, ?> map && map.get("original_text") != null) {
-                sb.append(map.get("original_text")).append(' ');
-            }
+        if (plan.playerFidelityNoticeZh() != null) {
+            sb.append(plan.playerFidelityNoticeZh()).append(' ');
         }
         if (plan.components() != null) {
             for (Component c : plan.components()) {
@@ -130,12 +115,25 @@ final class LandmarkMisrouteRepair {
                     }
                 }
                 if (c.params() != null) {
-                    for (String key : List.of("component_id", "module_id", "landmark",
-                            "reference_landmark", "typology_id", "typology", "preset_id")) {
+                    for (String key : List.of("component_id", "module_id", "landmark", "reference_landmark")) {
                         Object v = c.params().get(key);
                         if (v != null) sb.append(v).append(' ');
                     }
                 }
+            }
+        }
+        return sb.toString().toLowerCase(Locale.ROOT);
+    }
+
+    /** Player/server request text only — not component params. */
+    private static String requestTextBlob(LlmPlan plan) {
+        StringBuilder sb = new StringBuilder();
+        if (plan.planMeta() != null) {
+            Object text = plan.planMeta().get("request_intent_text");
+            if (text != null) sb.append(text).append(' ');
+            Object ri = plan.planMeta().get("request_intent");
+            if (ri instanceof Map<?, ?> map && map.get("original_text") != null) {
+                sb.append(map.get("original_text")).append(' ');
             }
         }
         return sb.toString().toLowerCase(Locale.ROOT);
