@@ -230,8 +230,13 @@ class StackedTowerHeightEnvelopeTest {
         Component base = pagodaTiers(out).stream()
                 .filter(c -> "pagoda_tier_1".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow();
-        assertEquals(base.relativePosition().y() + 2, window.relativePosition().y(),
-                "window must keep offset from scaled host base");
+        int hostY = base.relativePosition().y();
+        int hostH = base.dimensions().height();
+        int winY = window.relativePosition().y();
+        int winH = window.dimensions().height();
+        assertTrue(winY >= hostY && winY + winH <= hostY + hostH,
+                "window must stay inside scaled host facade (" + winY + "+" + winH
+                        + " vs " + hostY + "+" + hostH + ")");
     }
 
     @Test

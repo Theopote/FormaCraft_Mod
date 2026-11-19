@@ -8,6 +8,7 @@ import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,30 +78,76 @@ class TailiangDoubleEaveRoofFormTest {
         // Distinct Y bands above the timber body (≥2 roof layers).
         assertTrue(distinctHighYBands(doubleGen.getBlocks(), 64 + 10) >= 2,
                 "double eave BlockPatch must occupy at least two roof Y bands");
-        // True 重檐: lower full-span roof + inset upper roof (see TailiangTimberHallBuilder).
-        assertTrue(hasInsetUpperRoofDeck(doubleGen.getBlocks(), 64, 21, 13),
-                "double eave must show an inset upper roof deck above a wider lower deck");
-        // Single xie_shan must NOT look like two inset decks under the same check.
-        assertFalse(hasInsetUpperRoofDeck(singleGen.getBlocks(), 100, 21, 13),
-                "single eave must not pass the inset dual-deck signature");
+        // singleGen is at (100, 64, 0) — originY is 64, not the X offset 100.
+        assertTrue(countRoofMaterial(singleGen.getBlocks(), 64) >= 8,
+                "single-eave control must actually collect roof tiles");
+        assertTrue(countRoofMaterial(doubleGen.getBlocks(), 64) >= 8,
+                "double-eave roof must emit tile material");
+        // True 重檐: discrete inset jump from a near-full hall band exceeds single-eave taper.
+        int doubleJump = maxFullHallAdjacentSpanDrop(doubleGen.getBlocks(), 64, 21, 13);
+        int singleJump = maxFullHallAdjacentSpanDrop(singleGen.getBlocks(), 64, 21, 13);
+        assertTrue(doubleJump >= 4,
+                "double eave must show an inset jump ≥4 from a full-hall band (got " + doubleJump + ")");
+        assertTrue(doubleJump > singleJump,
+                "double-eave inset jump (" + doubleJump
+                        + ") must exceed single-eave taper (" + singleJump + ")");
+    }
+
+    private static int countRoofMaterial(
+            List<com.formacraft.common.build.PlannedBlock> blocks, int originY) {
+        if (blocks == null) return 0;
+        int n = 0;
+        for (var pb : blocks) {
+            if (pb == null || pb.getPos() == null || pb.getTargetState() == null) continue;
+            if (pb.getTargetState().isAir()) continue;
+            if (pb.getPos().getY() < originY + 8) continue;
+            String id = net.minecraft.registry.Registries.BLOCK
+                    .getId(pb.getTargetState().getBlock()).toString();
+            if (id.contains("deepslate_tile") || id.contains("deepslate_brick")) n++;
+        }
+        return n;
     }
 
     /**
-     * Detects lower full-span roof + inset upper roof: some lower band spans ≈ hall footprint,
-     * and a higher band is inset by ≥2 on both axes (generator upperInset).
+     * Largest min(dropX, dropZ) between adjacent roof Y bands where the lower band still spans
+     * ≈ the hall footprint. Double eave jumps from a full lower deck to an inset upper deck;
+     * single eave only sees large drops after it has already left the full-hall band.
      */
-    private static boolean hasInsetUpperRoofDeck(
+    private static int maxFullHallAdjacentSpanDrop(
             List<com.formacraft.common.build.PlannedBlock> blocks,
             int originY, int hallW, int hallD) {
-        if (blocks == null || blocks.isEmpty()) return false;
-        Map<Integer, int[]> acc = new HashMap<>(); // y -> minX,maxX,minZ,maxZ,count
+        Map<Integer, int[]> acc = roofBandsByY(blocks, originY);
+        if (acc.size() < 2) return 0;
+        List<Integer> ys = new ArrayList<>(acc.keySet());
+        ys.sort(Integer::compareTo);
+        int minUpperSpanX = Math.max(5, hallW / 2);
+        int minUpperSpanZ = Math.max(5, hallD / 2);
+        int best = 0;
+        for (int i = 0; i + 1 < ys.size(); i++) {
+            int[] a = acc.get(ys.get(i));
+            int[] b = acc.get(ys.get(i + 1));
+            if (a[4] < 8 || b[4] < 8) continue;
+            int spanAX = a[1] - a[0] + 1;
+            int spanAZ = a[3] - a[2] + 1;
+            int spanBX = b[1] - b[0] + 1;
+            int spanBZ = b[3] - b[2] + 1;
+            if (spanAX < hallW - 2 || spanAZ < hallD - 2) continue;
+            if (spanBX < minUpperSpanX || spanBZ < minUpperSpanZ) continue;
+            int drop = Math.min(spanAX - spanBX, spanAZ - spanBZ);
+            best = Math.max(best, drop);
+        }
+        return best;
+    }
+
+    private static Map<Integer, int[]> roofBandsByY(
+            List<com.formacraft.common.build.PlannedBlock> blocks, int originY) {
+        Map<Integer, int[]> acc = new HashMap<>();
+        if (blocks == null) return acc;
         for (var pb : blocks) {
             if (pb == null || pb.getPos() == null || pb.getTargetState() == null) continue;
-            // Ignore AIR clear-volume markers.
             if (pb.getTargetState().isAir()) continue;
             String id = net.minecraft.registry.Registries.BLOCK
                     .getId(pb.getTargetState().getBlock()).toString();
-            // Roof surfaces use deepslate tile/stair/slab in this typology's default palette.
             if (!(id.contains("deepslate_tile") || id.contains("deepslate_brick"))) continue;
             int y = pb.getPos().getY();
             if (y < originY + 8) continue;
@@ -113,36 +160,7 @@ class TailiangDoubleEaveRoofFormTest {
             a[3] = Math.max(a[3], z);
             a[4]++;
         }
-        if (acc.size() < 2) return false;
-        int minRoofY = acc.keySet().stream().mapToInt(Integer::intValue).min().orElse(0);
-        int maxRoofY = acc.keySet().stream().mapToInt(Integer::intValue).max().orElse(0);
-        int[] lower = null;
-        int lowerY = -1;
-        for (var e : acc.entrySet()) {
-            int y = e.getKey();
-            // Lower deck lives in the bottom third of the roof stack.
-            if (y > minRoofY + Math.max(1, (maxRoofY - minRoofY) / 3)) continue;
-            int[] a = e.getValue();
-            int spanX = a[1] - a[0] + 1;
-            int spanZ = a[3] - a[2] + 1;
-            if (spanX < hallW - 2 || spanZ < hallD - 2 || a[4] < 8) continue;
-            if (lower == null || spanX * spanZ > (lower[1] - lower[0] + 1) * (lower[3] - lower[2] + 1)) {
-                lower = a;
-                lowerY = y;
-            }
-        }
-        if (lower == null) return false;
-        for (var e : acc.entrySet()) {
-            int y = e.getKey();
-            if (y <= lowerY + 1) continue;
-            int[] a = e.getValue();
-            if (a[4] < 8) continue;
-            int insetX = (lower[1] - lower[0]) - (a[1] - a[0]);
-            int insetZ = (lower[3] - lower[2]) - (a[3] - a[2]);
-            // Generator uses upperInset ≥ 2 on each side ⇒ ≥4 total on an axis.
-            if (insetX >= 4 && insetZ >= 4) return true;
-        }
-        return false;
+        return acc;
     }
 
     private static int maxBlockY(List<com.formacraft.common.build.PlannedBlock> blocks) {

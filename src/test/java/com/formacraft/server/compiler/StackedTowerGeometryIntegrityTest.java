@@ -161,6 +161,103 @@ class StackedTowerGeometryIntegrityTest {
         assertTrue(StackedEnvelopeIntegrityValidator.check(out, out.components()).isEmpty());
     }
 
+    @Test
+    void buildingModeAllowsShaftShorterThanWholeTarget() {
+        // Shaft 34 + roof 3; player asks for whole-building 50 → shaft 47, building 50.
+        List<Component> comps = new ArrayList<>(stackedTight(new int[]{8, 8, 7, 6, 5}));
+        Map<String, Object> roof = new HashMap<>();
+        roof.put("component_id", "pagoda_roof");
+        roof.put("host_id", "pagoda_tier_5");
+        comps.add(new Component("ROOF", "pagoda", new Vec3i(0, 34, 0),
+                new Dimensions(6, 6, 3), List.of(), roof));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(comps)
+                .build();
+        LlmPlan out = RequestIntentInjector.ensure(plan, "建造一座整座高度50格的宝塔。");
+        assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
+        assertEquals(47, shaftEnvelope(pagodaTiers(out)));
+        assertEquals(50, buildingEnvelope(out.components()));
+        assertTrue(StackedEnvelopeIntegrityValidator.check(out, out.components()).isEmpty());
+        // Must not require shaftEnv == building target.
+        Object mode = pagodaTiers(out).getFirst().params().get(RequestIntentInjector.ENVELOPE_MODE_KEY);
+        assertEquals("building", String.valueOf(mode));
+    }
+
+    @Test
+    void facadeWindowStaysInsideScaledHost() {
+        List<Component> comps = new ArrayList<>(stackedTight(new int[]{20, 20}));
+        Map<String, Object> win = new HashMap<>();
+        win.put("component_id", "tier1_windows");
+        win.put("host_id", "pagoda_tier_1");
+        comps.add(new Component("FACADE_WINDOWS", "pagoda", new Vec3i(0, 15, 0),
+                new Dimensions(4, 1, 2), List.of(), win));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(comps)
+                .build();
+        // 40 → 16: each storey ~8; window must remain within [hostY, hostY+hostH).
+        LlmPlan out = RequestIntentInjector.ensure(plan, "建造一座高度16格的宝塔。");
+        assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
+        Component host = null;
+        Component window = null;
+        for (Component c : out.components()) {
+            if (c == null || c.params() == null) continue;
+            String id = String.valueOf(c.params().get("component_id"));
+            if ("pagoda_tier_1".equals(id)) host = c;
+            if ("tier1_windows".equals(id)) window = c;
+        }
+        assertNotNull(host);
+        assertNotNull(window);
+        int hostY = host.relativePosition().y();
+        int hostH = host.dimensions().height();
+        int winY = window.relativePosition().y();
+        int winH = window.dimensions().height();
+        assertTrue(winY >= hostY, "window below host");
+        assertTrue(winY + winH <= hostY + hostH,
+                "window must not float above scaled host (" + winY + "+" + winH
+                        + " vs host " + hostY + "+" + hostH + ")");
+    }
+
+    @Test
+    void missingExpectedStoreyFailsIntegrity() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(tiers)
+                .build();
+        LlmPlan sealed = RequestIntentInjector.ensure(plan, "建造一座高度50格的宝塔。");
+        assertFalse(sealed.hasCapabilityGap(), () -> String.valueOf(sealed.capabilityGap()));
+        // Drop top storey after seal — meta still expects five masses.
+        List<Component> dropped = new ArrayList<>();
+        for (Component c : sealed.components()) {
+            if (c != null && c.params() != null
+                    && "pagoda_tier_5".equals(String.valueOf(c.params().get("component_id")))) {
+                continue;
+            }
+            dropped.add(c);
+        }
+        var gap = StackedEnvelopeIntegrityValidator.check(sealed, dropped);
+        assertTrue(gap.isPresent(), "missing expected storey must fail integrity");
+        assertEquals("E_STACKED_HEIGHT_UNSUPPORTED", gap.orElseThrow().code());
+    }
+
+    private static int buildingEnvelope(List<Component> comps) {
+        int minY = Integer.MAX_VALUE;
+        int maxTop = Integer.MIN_VALUE;
+        for (Component c : comps) {
+            if (c == null || c.relativePosition() == null || c.dimensions() == null) continue;
+            String type = c.componentType() == null ? "" : c.componentType().toUpperCase();
+            String mid = String.valueOf(c.params() == null ? "" : c.params().get("component_id"));
+            boolean shaft = mid.startsWith("pagoda_tier_");
+            boolean crown = type.startsWith("ROOF") || mid.contains("roof");
+            if (!shaft && !crown) continue;
+            minY = Math.min(minY, c.relativePosition().y());
+            maxTop = Math.max(maxTop, c.relativePosition().y() + c.dimensions().height());
+        }
+        return maxTop - minY;
+    }
+
     /** oct18_landmark_1 tier layout: gaps 2,2,2,1 — shaft envelope 41. */
     private static List<Component> gappedPagodaTiers() {
         int[] ys = {4, 14, 24, 33, 40};
