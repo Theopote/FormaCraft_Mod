@@ -35,6 +35,11 @@ final class StackedEnvelopeIntegrityValidator {
         if (plan == null) return Optional.empty();
         List<Component> comps = components == null ? List.of() : components;
 
+        // Damaged meta seal must gap even when every component was wiped — do not
+        // treat "no trusted targets + empty comps" as an unconstrained plan.
+        Optional<CapabilityGap> damagedMeta = diagnoseDamagedMetaSeal(plan);
+        if (damagedMeta.isPresent()) return damagedMeta;
+
         // Trusted meta targets still require members even when the component list was wiped.
         Map<String, FamilyTarget> metaOnly = targetsFromPlanMeta(plan);
         if (comps.isEmpty() && !metaOnly.isEmpty()) {
@@ -134,11 +139,23 @@ final class StackedEnvelopeIntegrityValidator {
             int buildingEnv = envelopeOf(building);
 
             if ("building".equals(ft.mode())) {
-                if (buildingEnv != target) {
+                if (buildingEnv == target) {
+                    continue;
+                }
+                // Authored pass runs before satellite inference: shaft may already reserve
+                // the pending top-roof rise while no crown yet sits above the shaft.
+                int pending = 0;
+                if (buildingEnv == shaftEnv
+                        && buildingEnv < target
+                        && plan.allowCompilerSatellites()) {
+                    pending = RequestIntentInjector.estimateInferredRoofRise(plan, comps, shaft);
+                }
+                if (buildingEnv + pending != target) {
                     return Optional.of(new CapabilityGap(
                             "E_STACKED_HEIGHT_UNSUPPORTED",
                             "堆叠塔楼「" + family + "」含屋顶整体包络 " + buildingEnv
-                                    + " 与要求 " + target + " 不一致（主体=" + shaftEnv + "）",
+                                    + " 与要求 " + target + " 不一致（主体=" + shaftEnv
+                                    + (pending > 0 ? "，待推断屋顶+" + pending : "") + "）",
                             "StackedEnvelopeIntegrityValidator",
                             List.of("Clarify shaft vs whole-building height")));
                 }
@@ -294,12 +311,33 @@ final class StackedEnvelopeIntegrityValidator {
         return false;
     }
 
+    /** plan_meta rows present with a seal that fails verification. */
+    private static Optional<CapabilityGap> diagnoseDamagedMetaSeal(LlmPlan plan) {
+        if (plan == null || plan.planMeta() == null) return Optional.empty();
+        Object raw = plan.planMeta().get(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_META);
+        Object seal = plan.planMeta().get(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_SEAL_META);
+        if (!(raw instanceof List<?> list) || list.isEmpty() || seal == null) {
+            return Optional.empty();
+        }
+        if (UserConstraintContract.verifyStackedEnvelopeTargets(list, seal)) {
+            return Optional.empty();
+        }
+        return Optional.of(new CapabilityGap(
+                "E_STACKED_ENVELOPE_SEAL_INVALID",
+                "堆叠高度包络 plan_meta 签章被破坏，无法恢复可信塔层名单",
+                "StackedEnvelopeIntegrityValidator",
+                List.of("Re-run RequestIntentInjector with FormaRequest text")));
+    }
+
     /**
      * Envelope keys without any trusted meta or component seal are a hard failure —
      * never silently skip height integrity when authority was expected.
      */
     private static Optional<CapabilityGap> diagnoseBrokenEnvelopeAuthority(
             LlmPlan plan, List<Component> components, Map<String, FamilyTarget> targets) {
+        Optional<CapabilityGap> damagedMeta = diagnoseDamagedMetaSeal(plan);
+        if (damagedMeta.isPresent()) return damagedMeta;
+        if (!targets.isEmpty()) return Optional.empty();
         boolean hasEnvelopeKeys = false;
         for (Component c : components) {
             if (c == null || c.params() == null) continue;
@@ -309,25 +347,6 @@ final class StackedEnvelopeIntegrityValidator {
                 break;
             }
         }
-        boolean metaSealPresent = false;
-        boolean metaSealOk = false;
-        if (plan.planMeta() != null) {
-            Object raw = plan.planMeta().get(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_META);
-            Object seal = plan.planMeta().get(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_SEAL_META);
-            if (raw instanceof List<?> list && !list.isEmpty() && seal != null) {
-                metaSealPresent = true;
-                metaSealOk = UserConstraintContract.verifyStackedEnvelopeTargets(list, seal);
-            }
-        }
-        // Damaged server meta cannot be replaced by component height alone — mass_ids live only in meta.
-        if (metaSealPresent && !metaSealOk) {
-            return Optional.of(new CapabilityGap(
-                    "E_STACKED_ENVELOPE_SEAL_INVALID",
-                    "堆叠高度包络 plan_meta 签章被破坏，无法恢复可信塔层名单",
-                    "StackedEnvelopeIntegrityValidator",
-                    List.of("Re-run RequestIntentInjector with FormaRequest text")));
-        }
-        if (!targets.isEmpty()) return Optional.empty();
         if (hasEnvelopeKeys) {
             // Component-side envelope fields present but none sealed and no trusted meta.
             return Optional.of(new CapabilityGap(

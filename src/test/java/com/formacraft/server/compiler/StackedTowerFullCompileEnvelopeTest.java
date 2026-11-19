@@ -174,13 +174,137 @@ class StackedTowerFullCompileEnvelopeTest {
     }
 
     /**
-     * Preview delivery cells vs confirm identity: compile → PlanPatchConverter →
-     * BuildAutoRepair → BuildConstraintClipper → collapseToFinalCells, then
-     * ConfirmedPlanIdentity.toFinalPatches must match the compile-time final set
-     * after the same conversion path (no second identical compile()).
+     * Mid-tier eave (H=4) + explicit top ROOF (H=3). Old shaftTop+net budget would reserve
+     * mid net 3 and break exact whole-building 50; host-relative seating must not.
      */
     @Test
-    void previewPipelineFinalCellsMatchConfirmedPlanIdentity() {
+    void midTierEaveWithExplicitTopRoofMatchesBuildingEnvelope50() {
+        List<Component> comps = new ArrayList<>(stackedTight(new int[]{8, 8, 7, 6, 5}));
+        for (int i = 0; i < comps.size(); i++) {
+            Component c = comps.get(i);
+            Map<String, Object> p = new HashMap<>(c.params());
+            p.put("window_style", "none");
+            p.put("entrance_type", "none");
+            if (i < comps.size() - 1) p.put("roof_type", "none");
+            else p.put("roof_type", "xieshan");
+            comps.set(i, new Component(c.componentType(), c.slotId(), c.relativePosition(),
+                    c.dimensions(), c.features(), p));
+        }
+        Map<String, Object> midRoof = new HashMap<>();
+        midRoof.put("component_id", "pagoda_mid_eave");
+        midRoof.put("host_id", "pagoda_tier_3");
+        midRoof.put("roof_type", "flat");
+        comps.add(new Component("ROOF", "pagoda", new Vec3i(0, 20, 0),
+                new Dimensions(8, 8, 4), List.of("roof"), midRoof));
+        Map<String, Object> topRoof = new HashMap<>();
+        topRoof.put("component_id", "pagoda_roof");
+        topRoof.put("host_id", "pagoda_tier_5");
+        topRoof.put("roof_type", "xieshan");
+        comps.add(new Component("ROOF", "pagoda", new Vec3i(0, 34, 0),
+                new Dimensions(6, 6, 3), List.of("roof"), topRoof));
+        Map<String, Object> contract = Map.of("requirements", List.of(
+                Map.of("property", "window_style", "value", "none", "scope", "plan"),
+                Map.of("property", "entrance_type", "value", "none", "scope", "plan")));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .anchor(new Vec3i(0, 64, 0))
+                .styleProfile("CHINESE_CLASSICAL")
+                .components(comps)
+                .proportionHints(Map.of("building_contract", contract))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of(
+                                "facade", "OMITTED",
+                                "entrance", "OMITTED",
+                                "roof", "REQUIRED")))
+                .allowCompilerSatellites(true)
+                .build();
+
+        LlmPlan sealed = RequestIntentInjector.ensure(plan, "整座宝塔含屋顶高度50格。");
+        assertFalse(sealed.hasCapabilityGap(), () -> String.valueOf(sealed.capabilityGap()));
+        // Top enclosed H=3 → net 2; mid eave must not add another 3.
+        assertEquals(48, shaftEnvelope(pagodaTiers(sealed)));
+        assertEquals(50, buildingEnvelope(sealed.components()));
+        assertTrue(shaftEnvelope(pagodaTiers(sealed)) > 50 - 3,
+                "mid-tier eave must not consume top crown budget");
+
+        AssemblyCompileDiagnostics.clear();
+        var patches = ComponentPlanCompiler.compile(sealed, BlockPos.ORIGIN, null, null, false);
+        assertFalse(patches.isEmpty(),
+                () -> "mid-eave + top roof must compile, got " + AssemblyCompileDiagnostics.get());
+        Map<Vec3i, String> blocks = PatchTestSnapshot.blocks(patches);
+        Footprint fp = buildingFootprint(sealed.components());
+        assertEquals(50, footprintSolidHeight(blocks, fp),
+                "BlockPatch building height must be exact 50 with mid eaves present");
+        assertTrue(hasRoofLikeBlocksAbove(blocks, fp, shaftTopY(pagodaTiers(sealed))),
+                "top roof must place blocks above the shaft");
+    }
+
+    /**
+     * Shaft-only + roof_type → compiler infers top roof. Component envelope budgets exact 50;
+     * compile must succeed with roof voxels above the shaft.
+     * <p>UNCOVERED: inferred 歇山 BlockPatch solid height may exceed ROOF Dimensions
+     * (observed shaft=49 + dimNet=1 → component 50, voxels 52). Exact voxel==target remains
+     * covered by {@link #buildingModeWithExplicitRoofTypeAndSatellitesMatchesTargetEnvelope}
+     * and {@link #midTierEaveWithExplicitTopRoofMatchesBuildingEnvelope50}.
+     */
+    @Test
+    void inferredTopRoofBudgetsAndCompilesWithRoofAboveShaft() {
+        List<Component> comps = new ArrayList<>(stackedTight(new int[]{8, 8, 7, 6, 5}));
+        for (int i = 0; i < comps.size(); i++) {
+            Component c = comps.get(i);
+            Map<String, Object> p = new HashMap<>(c.params());
+            p.put("window_style", "none");
+            p.put("entrance_type", "none");
+            if (i < comps.size() - 1) p.put("roof_type", "none");
+            else p.put("roof_type", "xieshan");
+            comps.set(i, new Component(c.componentType(), c.slotId(), c.relativePosition(),
+                    c.dimensions(), c.features(), p));
+        }
+        Map<String, Object> contract = Map.of("requirements", List.of(
+                Map.of("property", "window_style", "value", "none", "scope", "plan"),
+                Map.of("property", "entrance_type", "value", "none", "scope", "plan")));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .mode(LlmPlan.Mode.build)
+                .anchor(new Vec3i(0, 64, 0))
+                .styleProfile("CHINESE_CLASSICAL")
+                .components(comps)
+                .proportionHints(Map.of("building_contract", contract))
+                .planMeta(Map.of(
+                        "design_requirements", Map.of(
+                                "facade", "OMITTED",
+                                "entrance", "OMITTED",
+                                "roof", "REQUIRED")))
+                .allowCompilerSatellites(true)
+                .build();
+        LlmPlan sealed = RequestIntentInjector.ensure(plan, "整座宝塔含屋顶高度50格。");
+        assertFalse(sealed.hasCapabilityGap(), () -> String.valueOf(sealed.capabilityGap()));
+        int inferred = RequestIntentInjector.estimateInferredRoofRise(
+                sealed, sealed.components(), pagodaTiers(sealed));
+        assertTrue(inferred > 0);
+        assertEquals(50 - inferred, shaftEnvelope(pagodaTiers(sealed)));
+        assertTrue(StackedEnvelopeIntegrityValidator.check(sealed, sealed.components()).isEmpty());
+
+        AssemblyCompileDiagnostics.clear();
+        var patches = ComponentPlanCompiler.compile(sealed, BlockPos.ORIGIN, null, null, false);
+        assertFalse(patches.isEmpty(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        Map<Vec3i, String> blocks = PatchTestSnapshot.blocks(patches);
+        Footprint fp = shaftFootprint(pagodaTiers(sealed));
+        assertTrue(hasRoofLikeBlocksAbove(blocks, fp, shaftTopY(pagodaTiers(sealed))),
+                "inferred roof must place blocks above the shaft");
+        int solid = footprintSolidHeight(blocks, fp);
+        assertTrue(solid >= 50,
+                "inferred roof must at least reach whole-building target (solid=" + solid + ")");
+    }
+
+    /**
+     * Preview-pipeline cell+block identity (not a live Minecraft world apply).
+     * compile → PlanPatchConverter → BuildAutoRepair → clip → collapseToFinalCells
+     * must match ConfirmedPlanIdentity final patches as BlockPos→blockId maps.
+     */
+    @Test
+    void previewPipelineCellAndBlockIdentityMatchesConfirmedPlan() {
         List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
         for (int i = 0; i < tiers.size(); i++) {
             Component c = tiers.get(i);
@@ -220,22 +344,26 @@ class StackedTowerFullCompileEnvelopeTest {
         var collapsed = BuildPreviewPipeline.collapseToFinalCellsWithStats(clipped).blocks();
         assertFalse(collapsed.isEmpty(), "preview pipeline must leave non-empty final cells");
 
-        java.util.Set<String> compileCells = new java.util.HashSet<>();
+        Map<String, String> compileCells = new java.util.LinkedHashMap<>();
         for (BlockPatch p : compileFinal) {
             if (p == null) continue;
             String action = p.action() == null ? "" : p.action().toLowerCase(Locale.ROOT);
             String target = p.targetBlock() == null ? "" : p.targetBlock().toLowerCase(Locale.ROOT);
             if (BlockPatch.REMOVE.equals(action) || target.contains("air")) continue;
-            compileCells.add(p.dx() + "," + p.dy() + "," + p.dz());
+            compileCells.put(p.dx() + "," + p.dy() + "," + p.dz(), target);
         }
-        java.util.Set<String> confirmCells = new java.util.HashSet<>();
+        Map<String, String> previewCells = new java.util.LinkedHashMap<>();
         for (var pb : collapsed) {
             if (pb == null || pb.getTargetState() == null || pb.getTargetState().isAir()) continue;
             BlockPos rel = pb.getPos().subtract(origin);
-            confirmCells.add(rel.getX() + "," + rel.getY() + "," + rel.getZ());
+            String id = net.minecraft.registry.Registries.BLOCK.getId(pb.getTargetState().getBlock())
+                    .toString().toLowerCase(Locale.ROOT);
+            previewCells.put(rel.getX() + "," + rel.getY() + "," + rel.getZ(), id);
         }
-        assertEquals(compileCells, confirmCells,
-                "preview pipeline solid cells must match compile final cells (confirm identity)");
+        assertEquals(compileCells.keySet(), previewCells.keySet(),
+                "preview pipeline solid cell coords must match compile final");
+        assertEquals(compileCells, previewCells,
+                "preview pipeline BlockPos→blockId must match compile final (not coords alone)");
     }
 
     private static boolean hasRoofComponent(List<Component> comps) {

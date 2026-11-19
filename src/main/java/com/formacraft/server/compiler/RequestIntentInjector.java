@@ -832,13 +832,13 @@ public final class RequestIntentInjector {
             String mode = env.mode() == null ? "shaft" : env.mode();
             boolean buildingMode = "building".equals(mode);
             // Building mode: player target is whole building; shaft budget excludes crown rise
-            // (existing roofs/finials and roofs the compiler is expected to infer).
+            // above the shaft top (existing roofs/finials AND roofs the compiler will infer).
+            // Mid-tier eaves below the shaft top must not suppress inferred top-roof budget.
             int crownRise = 0;
             if (buildingMode) {
-                crownRise = measureCrownRiseAboveShaft(components, members, maxTop);
-                if (crownRise <= 0) {
-                    crownRise = estimateInferredRoofRise(plan, components, members);
-                }
+                int measured = measureCrownRiseAboveShaft(components, members, maxTop);
+                int inferred = estimateInferredRoofRise(plan, components, members);
+                crownRise = Math.max(measured, inferred);
             }
             int shaftTarget = buildingMode
                     ? env.targetHeight() - crownRise
@@ -1034,7 +1034,9 @@ public final class RequestIntentInjector {
             } else if (satelliteShift && rel != null && oldHost != null) {
                 int newHY = hostNewY != null ? hostNewY : oldHost[0];
                 int newHH = hostNewH != null ? hostNewH : oldHost[1];
-                Integer nextY = relocateSatelliteY(c, oldHost, newHY, newHH);
+                Component hostComp = hostId == null ? null : hostById.get(hostId);
+                Map<String, Object> hostParams = hostComp != null ? hostComp.params() : null;
+                Integer nextY = relocateSatelliteY(c, oldHost, newHY, newHH, hostParams);
                 if (nextY == null) {
                     gap = true;
                     Map<String, Object> detail = new HashMap<>();
@@ -1100,14 +1102,21 @@ public final class RequestIntentInjector {
         return ComponentSatelliteInference.estimatedInferredRoofNetRise(plan, top);
     }
 
-    /** Extra rise of roofs/finials above the current shaft top (0 when none). */
+    /**
+     * Extra rise of roofs/finials above the current shaft top (0 when none).
+     * Each ROOF is seated on its own host storey — mid-tier eaves never invent rise at shaftTop.
+     */
     private static int measureCrownRiseAboveShaft(
             List<Component> components, List<Component> shaftMembers, int shaftTop) {
         if (components == null || shaftMembers == null || shaftMembers.isEmpty()) return 0;
         Set<String> shaftIds = new HashSet<>();
+        Map<String, Component> shaftById = new HashMap<>();
         for (Component m : shaftMembers) {
             String id = BuildingHostResolver.massId(m);
-            if (id != null) shaftIds.add(id);
+            if (id != null) {
+                shaftIds.add(id);
+                shaftById.put(id, m);
+            }
         }
         int maxTop = shaftTop;
         for (Component c : components) {
@@ -1122,28 +1131,36 @@ public final class RequestIntentInjector {
             if (!attached) continue;
             int satH = Math.max(1, c.dimensions().height());
             String type = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
-            // AlignRoofToMass / makeRoofComponent seat enclosed roofs at hostTop-1.
-            // Budget the post-align net rise, not a pre-align authored Y that sits flush on the top.
+            // AlignRoofToMass / makeRoofComponent: seat on the roof's own host, not shaftTop.
             if (type.startsWith("ROOF")) {
-                Component hostMass = null;
-                if (host != null) {
-                    for (Component m : shaftMembers) {
-                        if (host.equals(BuildingHostResolver.massId(m))) {
-                            hostMass = m;
-                            break;
-                        }
-                    }
+                Component hostMass = host == null ? null : shaftById.get(host);
+                if (hostMass != null
+                        && hostMass.relativePosition() != null
+                        && hostMass.dimensions() != null) {
+                    int hostTop = hostMass.relativePosition().y()
+                            + Math.max(1, hostMass.dimensions().height());
+                    int seatY = roofSeatYOnHost(hostTop, hostMass.params());
+                    maxTop = Math.max(maxTop, seatY + satH);
+                } else {
+                    // Unknown host: trust authored placement; never lift to shaftTop.
+                    maxTop = Math.max(maxTop, c.relativePosition().y() + satH);
                 }
-                boolean openFrame = hostMass != null
-                        && com.formacraft.common.generation.component.util.OpenFramePolicy
-                        .isOpen(hostMass.params());
-                int net = openFrame ? satH : Math.max(0, satH - 1);
-                maxTop = Math.max(maxTop, shaftTop + net);
                 continue;
             }
             maxTop = Math.max(maxTop, c.relativePosition().y() + satH);
         }
         return Math.max(0, maxTop - shaftTop);
+    }
+
+    /**
+     * Roof bearing Y on a host mass. Open-frame uses host MASS params (column tops);
+     * enclosed seals at hostTop-1. Matches {@code alignRoofToMass} / {@code makeRoofComponent}.
+     */
+    static int roofSeatYOnHost(int hostTop, Map<String, Object> hostParams) {
+        if (com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(hostParams)) {
+            return hostTop;
+        }
+        return hostTop - 1;
     }
 
     private static boolean familyMatchesShaft(String id, Set<String> shaftIds) {
@@ -1207,6 +1224,15 @@ public final class RequestIntentInjector {
      * Returns null when the satellite cannot fit — caller must emit a capability gap.
      */
     static Integer relocateSatelliteY(Component c, int[] oldHost, int newHY, int newHH) {
+        return relocateSatelliteY(c, oldHost, newHY, newHH, null);
+    }
+
+    /**
+     * @param hostParams host MASS params for open/closed seating — never the orphan ROOF's own
+     *                   {@code open} flag (alignRoofToMass keys off the mass).
+     */
+    static Integer relocateSatelliteY(
+            Component c, int[] oldHost, int newHY, int newHH, Map<String, Object> hostParams) {
         if (c == null || c.relativePosition() == null || oldHost == null || oldHost.length < 2) {
             return null;
         }
@@ -1218,12 +1244,9 @@ public final class RequestIntentInjector {
         int offsetFromTop = relY - oldTop;
         if (sticksToHostTop(c)) {
             String crownType = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
-            // Match ComponentSatelliteAligner / makeRoofComponent: enclosed roofs seat at hostTop-1.
+            // Match ComponentSatelliteAligner / makeRoofComponent: host MASS open policy.
             if (crownType.startsWith("ROOF")) {
-                if (com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(c.params())) {
-                    return newHY + newHH;
-                }
-                return newHY + newHH - 1;
+                return roofSeatYOnHost(newHY + newHH, hostParams);
             }
             return newHY + newHH + offsetFromTop;
         }

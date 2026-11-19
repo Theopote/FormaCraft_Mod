@@ -64,9 +64,22 @@ class StackedTowerGeometryFixtureReportTest {
                 .findFirst().orElse(null);
         assertNotNull(structure, "fixture must keep dense-eaves STRUCTURE mass");
         assertEquals(5, ((Number) structure.params().get("floor_count")).intValue());
+        assertTrue(structure.dimensions().height() >= 20,
+                "five-storey pagoda STRUCTURE must remain tall");
         assertTrue(structure.features().stream().anyMatch(f ->
                 f != null && f.toLowerCase(Locale.ROOT).contains("finial")),
                 "finial/塔刹 feature required");
+
+        // Dense-eaves typology STRUCTURE compile needs ServerWorld — report coverage gap explicitly.
+        AssemblyCompileDiagnostics.clear();
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(sealed, BlockPos.ORIGIN, null, null, false);
+        if (patches.isEmpty() || AssemblyCompileDiagnostics.hasGap()) {
+            System.out.println("[fixture 03_pagoda_5] UNCOVERED BlockPatch geometry: typology STRUCTURE "
+                    + "requires live ServerWorld (diag=" + AssemblyCompileDiagnostics.get() + ")");
+        } else {
+            Map<com.formacraft.common.llm.dto.Vec3i, String> blocks = PatchTestSnapshot.blocks(patches);
+            assertFalse(blocks.isEmpty(), "pagoda BlockPatch solids required when compile succeeds");
+        }
 
         System.out.println("[fixture 03_pagoda_5] components=" + comps.size()
                 + " height=" + structure.dimensions().height()
@@ -81,6 +94,19 @@ class StackedTowerGeometryFixtureReportTest {
         LlmPlan sealed = RequestIntentInjector.ensure(plan, prompt);
         assertFalse(sealed.hasCapabilityGap(), () -> String.valueOf(sealed.capabilityGap()));
 
+        List<Component> hosts = sealed.components().stream()
+                .filter(c -> c != null && BuildingHostResolver.isDesignConstraintHost(c))
+                .toList();
+        assertTrue(hosts.size() >= 2,
+                "garden+pavilion must keep ≥2 design hosts (hosts=" + hosts.size() + ")");
+        // Distinct component ids — not the same mass counted twice.
+        long distinctIds = hosts.stream()
+                .map(BuildingHostResolver::massId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .count();
+        assertTrue(distinctIds >= 2, "hosts must be distinct buildings (ids=" + distinctIds + ")");
+
         AssemblyCompileDiagnostics.clear();
         List<BlockPatch> patches = ComponentPlanCompiler.compile(sealed, BlockPos.ORIGIN, null, null, false);
         assertFalse(AssemblyCompileDiagnostics.hasGap(),
@@ -89,16 +115,20 @@ class StackedTowerGeometryFixtureReportTest {
         Map<com.formacraft.common.llm.dto.Vec3i, String> blocks = PatchTestSnapshot.blocks(patches);
         int minY = blocks.keySet().stream().mapToInt(com.formacraft.common.llm.dto.Vec3i::y).min().orElse(0);
         int maxY = blocks.keySet().stream().mapToInt(com.formacraft.common.llm.dto.Vec3i::y).max().orElse(0);
+        assertTrue(maxY - minY + 1 >= 4, "multi-building garden must produce vertical solids");
 
-        long hostCount = sealed.components().stream()
-                .filter(c -> c != null && BuildingHostResolver.isDesignConstraintHost(c))
-                .count();
-        assertTrue(hostCount >= 2 || sealed.components().size() >= 3,
-                "garden+pavilion fixture must keep multiple hosts/components (hosts="
-                        + hostCount + " comps=" + sealed.components().size() + ")");
+        // Footprints of the two largest hosts should not be identical origins (layout separation).
+        hosts = hosts.stream()
+                .sorted(Comparator.comparingInt(c ->
+                        -(c.dimensions().width() * c.dimensions().depth())))
+                .toList();
+        var a = hosts.get(0).relativePosition();
+        var b = hosts.get(1).relativePosition();
+        assertFalse(a.x() == b.x() && a.z() == b.z(),
+                "two garden hosts must not share the same XZ origin");
 
         System.out.println("[fixture 20_pavilion_garden] components=" + sealed.components().size()
-                + " hosts=" + hostCount
+                + " hosts=" + hosts.size()
                 + " patches=" + patches.size()
                 + " solidY=" + minY + ".." + maxY
                 + " envelope=" + (maxY - minY + 1)

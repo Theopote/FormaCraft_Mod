@@ -423,12 +423,12 @@ class StackedTowerGeometryIntegrityTest {
     @Test
     void midTierRoofDoesNotSuppressTopInferredRoofBudget() {
         List<Component> comps = new ArrayList<>(stackedTight(new int[]{8, 8, 7, 6, 5}));
+        // Tall mid eave: old shaftTop+net bug would reserve H-1=3 and shrink shaft to 47.
         Map<String, Object> midRoof = new HashMap<>();
         midRoof.put("component_id", "pagoda_mid_eave");
         midRoof.put("host_id", "pagoda_tier_3");
         comps.add(new Component("ROOF", "pagoda", new Vec3i(0, 20, 0),
-                new Dimensions(8, 8, 2), List.of(), midRoof));
-        // Top storey carries an explicit roof_type so compiler satellites would infer a roof.
+                new Dimensions(8, 8, 4), List.of(), midRoof));
         Component top = comps.get(4);
         Map<String, Object> topParams = new HashMap<>(top.params());
         topParams.put("roof_type", "xieshan");
@@ -438,8 +438,62 @@ class StackedTowerGeometryIntegrityTest {
                 .allowCompilerSatellites(true)
                 .components(comps)
                 .build();
-        int rise = RequestIntentInjector.estimateInferredRoofRise(plan, comps, pagodaTiers(plan));
-        assertTrue(rise > 0, "mid-tier eave must not zero the top-storey inferred roof budget");
+        int riseBefore = RequestIntentInjector.estimateInferredRoofRise(plan, comps, pagodaTiers(plan));
+        assertTrue(riseBefore > 0, "mid-tier eave must not zero the top-storey inferred roof budget");
+
+        LlmPlan sealed = RequestIntentInjector.ensure(plan, "整座宝塔含屋顶高度50格。");
+        assertFalse(sealed.hasCapabilityGap(), () -> String.valueOf(sealed.capabilityGap()));
+        assertTrue(StackedEnvelopeIntegrityValidator.check(sealed, sealed.components()).isEmpty(),
+                "authored building-mode may pending-infer top roof");
+        int riseAfter = RequestIntentInjector.estimateInferredRoofRise(
+                sealed, sealed.components(), pagodaTiers(sealed));
+        assertTrue(riseAfter > 0, "scaled top storey must still infer a roof");
+        int shaft = shaftEnvelope(pagodaTiers(sealed));
+        assertEquals(50 - riseAfter, shaft,
+                "shaft must reserve inferred top roof rise=" + riseAfter + ", not mid-tier eave");
+        // Old bug: mid H=4 → net 3 → shaft 47. Correct path uses only top inferred rise.
+        assertTrue(shaft > 50 - 3,
+                "mid-tier eave must not steal top budget (shaft=" + shaft + ", inferred=" + riseAfter + ")");
+    }
+
+    @Test
+    void emptyComponentsWithDamagedMetaSealReportsGap() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan sealed = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "建造一座高度50格的宝塔。");
+        assertFalse(sealed.hasCapabilityGap());
+        Map<String, Object> meta = new HashMap<>(sealed.planMeta());
+        meta.put(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_SEAL_META, "formacraft.forged");
+        LlmPlan broken = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(List.of())
+                .planMeta(meta)
+                .build();
+        var gap = StackedEnvelopeIntegrityValidator.check(broken, List.of());
+        assertTrue(gap.isPresent(), "damaged meta + empty comps must not silently pass");
+        assertEquals("E_STACKED_ENVELOPE_SEAL_INVALID", gap.orElseThrow().code());
+    }
+
+    @Test
+    void openHostSeatsRoofAtHostTopEvenWhenRoofLacksOpenFlag() {
+        // Host MASS is open pavilion; orphan ROOF has no open=true — seating must follow host.
+        assertEquals(10, RequestIntentInjector.roofSeatYOnHost(10, Map.of("open", true)));
+        assertEquals(9, RequestIntentInjector.roofSeatYOnHost(10, Map.of()));
+        Integer seat = RequestIntentInjector.relocateSatelliteY(
+                new Component("ROOF", "pavilion", new Vec3i(0, 7, 0),
+                        new Dimensions(6, 6, 3), List.of("roof"),
+                        Map.of("component_id", "pavilion_roof", "host_id", "garden_pavilion")),
+                new int[]{0, 8}, 0, 8,
+                Map.of("open", true, "wall_style", "none"));
+        assertEquals(8, seat, "open host MASS → roof at hostTop, ignoring missing ROOF.open");
+        Integer enclosed = RequestIntentInjector.relocateSatelliteY(
+                new Component("ROOF", "pavilion", new Vec3i(0, 7, 0),
+                        new Dimensions(6, 6, 3), List.of("roof"),
+                        Map.of("component_id", "hall_roof", "host_id", "main_hall", "open", true)),
+                new int[]{0, 8}, 0, 8,
+                Map.of()); // enclosed host wins over forged ROOF.open
+        assertEquals(7, enclosed, "enclosed host MASS → hostTop-1 even if ROOF claims open");
     }
 
     @Test
