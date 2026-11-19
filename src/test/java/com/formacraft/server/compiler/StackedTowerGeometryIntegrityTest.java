@@ -525,6 +525,24 @@ class StackedTowerGeometryIntegrityTest {
     }
 
     @Test
+    void topBannerDoesNotSuppressInferredRoofRise() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        Map<String, Object> bannerParams = new HashMap<>();
+        bannerParams.put("component_id", "pagoda_flagpole");
+        bannerParams.put("host_id", "pagoda_tier_5");
+        List<Component> comps = new ArrayList<>(tiers);
+        comps.add(new Component("DECOR_DETAIL", "pagoda", new Vec3i(0, 34, 0),
+                new Dimensions(1, 1, 3), List.of(), bannerParams));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true)
+                .components(comps)
+                .build();
+        int rise = RequestIntentInjector.estimateInferredRoofRise(plan, comps, pagodaTiers(plan));
+        assertTrue(rise > 0,
+                "TOP_PROTRUSION on top storey must not zero inferred roof budget; rise=" + rise);
+    }
+
+    @Test
     void tamperedEnvelopeMetaSealReportsGap() {
         List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
         LlmPlan sealed = RequestIntentInjector.ensure(

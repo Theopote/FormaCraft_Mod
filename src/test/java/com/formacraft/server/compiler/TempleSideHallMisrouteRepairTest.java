@@ -325,4 +325,59 @@ class TempleSideHallMisrouteRepairTest {
         assertTrue(repaired.components().stream().noneMatch(c ->
                 "classical_cornice".equals(String.valueOf(c.params().get("component_id")))));
     }
+
+    @Test
+    void windowOmitDoesNotInventFacadeWindows() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner",
+                        "window_style", "none"));
+        String prompt = "生成一座大雄宝殿，不要窗，左右各一配殿。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true)
+                .styleProfile("DEFAULT")
+                .components(List.of(hall))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt,
+                        "design_requirements", Map.of("facade", "OMITTED")))
+                .build());
+        assertTrue(repaired.components().stream().noneMatch(c ->
+                "FACADE_WINDOWS".equalsIgnoreCase(c.componentType())
+                        || "FACADE".equalsIgnoreCase(c.componentType())),
+                "explicit window omit must block wrap-window invent");
+        long peidian = repaired.components().stream()
+                .filter(c -> c.params() != null
+                        && String.valueOf(c.params().get("component_id")).contains("peidian")
+                        && c.componentType() != null
+                        && c.componentType().startsWith("MASS"))
+                .count();
+        assertEquals(2, peidian);
+    }
+
+    @Test
+    void nonClassicalAiCrownIsPreserved() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        Component finial = new Component(
+                "CROWN", "body", new Vec3i(8, 12, 6),
+                new Dimensions(4, 4, 6), List.of("finial", "宝顶"),
+                Map.of("component_id", "hall_finial", "host_id", "temple_hall",
+                        "crown_template", "SIMPLE_FINIAL"));
+        String prompt = "生成一座大雄宝殿，左右各一配殿，保留宝顶。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true)
+                .styleProfile("chinese_temple_imperial")
+                .components(List.of(hall, finial))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt))
+                .build());
+        assertTrue(repaired.components().stream().anyMatch(c ->
+                "hall_finial".equals(String.valueOf(c.params().get("component_id")))),
+                "non-classical AI crown must survive temple recovery");
+    }
 }

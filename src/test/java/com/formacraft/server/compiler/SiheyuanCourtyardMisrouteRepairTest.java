@@ -34,7 +34,7 @@ class SiheyuanCourtyardMisrouteRepairTest {
     }
 
     @Test
-    void incompleteSingleJinWithoutCourtStillRewrites() {
+    void incompleteSingleJinWithoutCourtEmitsGapAndKeepsMasses() {
         LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("Chinese_Vernacular_Siheyuan")
                 .planMeta(Map.of("request_intent_text", "生成一座四合院，正房和厢房"))
@@ -44,14 +44,35 @@ class SiheyuanCourtyardMisrouteRepairTest {
                         mass("west", -8, 0, 6, 10, 4)))
                 .build();
         LlmPlan out = SiheyuanCourtyardMisrouteRepair.apply(plan);
-        assertEquals(1, out.components().size());
-        assertEquals("STRUCTURE", out.components().getFirst().componentType());
-        assertEquals("courtyard_compound",
-                String.valueOf(out.components().getFirst().params().get("typology_id")));
+        assertTrue(out.hasCapabilityGap(), "open composition must not be replaced by typology STRUCTURE");
+        assertEquals("E_SIHEYUAN_COMPOSITION_UNSUPPORTED", out.capabilityGap().code());
+        assertEquals(3, out.components().size(), "AI masses must be retained");
+        assertTrue(out.components().stream().noneMatch(c ->
+                "STRUCTURE".equalsIgnoreCase(c.componentType())
+                        && c.params() != null
+                        && "courtyard_compound".equals(String.valueOf(c.params().get("typology_id")))));
     }
 
     @Test
-    void rewritePreservesAuthoredFacing() {
+    void nonKeywordMassIdsStillRefuseSilentStructureRewrite() {
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Chinese_Vernacular_Siheyuan")
+                .planMeta(Map.of("request_intent_text", "生成一座四合院"))
+                .components(List.of(
+                        mass("a_block", 0, 0, 12, 8, 6),
+                        mass("b_block", 14, 0, 6, 10, 4),
+                        mass("c_block", -8, 0, 6, 10, 4),
+                        mass("d_block", 0, 12, 10, 5, 4)))
+                .build();
+        LlmPlan out = SiheyuanCourtyardMisrouteRepair.apply(plan);
+        assertTrue(out.hasCapabilityGap());
+        assertEquals(4, out.components().size());
+        assertTrue(out.components().stream().allMatch(c ->
+                c.componentType() != null && c.componentType().startsWith("MASS")));
+    }
+
+    @Test
+    void facingPreservedOnGapWithoutStructureRewrite() {
         Component main = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(12, 8, 6), List.of(),
@@ -65,7 +86,11 @@ class SiheyuanCourtyardMisrouteRepairTest {
                         mass("west", -8, 0, 6, 10, 4)))
                 .build();
         LlmPlan out = SiheyuanCourtyardMisrouteRepair.apply(plan);
-        assertEquals("NORTH", String.valueOf(out.components().getFirst().params().get("facing")));
+        assertTrue(out.hasCapabilityGap());
+        Component kept = out.components().stream()
+                .filter(c -> "main".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("NORTH", String.valueOf(kept.params().get("facing")));
     }
 
     @Test
@@ -81,6 +106,21 @@ class SiheyuanCourtyardMisrouteRepairTest {
                 .build();
         LlmPlan out = SiheyuanCourtyardMisrouteRepair.apply(plan);
         assertSame(plan, out);
+    }
+
+    @Test
+    void explicitTypologyOptInLeavesMultiMassAlone() {
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Chinese_Vernacular_Siheyuan")
+                .planMeta(Map.of("request_intent_text",
+                        "typology:courtyard_compound 生成一座四合院，正房和厢房"))
+                .components(List.of(
+                        mass("main", 0, 0, 12, 8, 6),
+                        mass("east", 14, 0, 6, 10, 4),
+                        mass("west", -8, 0, 6, 10, 4)))
+                .build();
+        LlmPlan out = SiheyuanCourtyardMisrouteRepair.apply(plan);
+        assertSame(plan, out, "explicit typology opt-in must not force gap or STRUCTURE rewrite");
     }
 
     private static Component mass(String id, int x, int z, int w, int d, int h) {

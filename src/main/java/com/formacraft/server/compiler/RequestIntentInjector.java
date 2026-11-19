@@ -1091,10 +1091,14 @@ public final class RequestIntentInjector {
         Component top = shaftMembers.get(shaftMembers.size() - 1);
         if (top == null || top.dimensions() == null || top.relativePosition() == null) return 0;
         String topId = BuildingHostResolver.massId(top);
-        // Only a crown already on the TOP storey covers the building-mode budget.
+        // Only an existing top-hosted ROOF covers the inferred-roof budget. Finials / banners
+        // (TOP_PROTRUSION) and non-ROOF crowns still count in measureCrownRiseAboveShaft, but must
+        // not suppress satellite roof inference (GEOMETRY — matches ComponentSatelliteInference).
         if (components != null && topId != null) {
             for (Component c : components) {
-                if (c == null || !countsTowardBuildingEnvelope(c)) continue;
+                if (c == null || c.componentType() == null) continue;
+                String type = c.componentType().trim().toUpperCase(Locale.ROOT);
+                if (!type.startsWith("ROOF")) continue;
                 String host = satelliteHostId(c);
                 if (topId.equals(host)) return 0;
             }

@@ -1,19 +1,19 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
-import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
-import com.formacraft.common.llm.dto.Vec3i;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * When the user names a landmark (e.g. Eiffel Tower) but the LLM emits FBD atriums /
- * office rings, rewrite to a STRUCTURE landmark module that knows the silhouette.
+ * Detects landmark-named plans that arrived as FBD/ASSEMBLY office rings.
+ * Never silently replaces AI assemblies with a fixed-dimension STRUCTURE module
+ * (DESIGN_OVERRIDE). Explicit module/typology/preset opt-in or already-routed
+ * landmark STRUCTURE is left alone; otherwise emit capability_gap for replan.
  */
 final class LandmarkMisrouteRepair {
     private LandmarkMisrouteRepair() {}
@@ -22,28 +22,21 @@ final class LandmarkMisrouteRepair {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         String landmark = detectLandmark(plan);
         if (landmark == null) return plan;
-        if (alreadyLandmarkRouted(plan, landmark)) return plan;
+        if (alreadyLandmarkRouted(plan, landmark) || explicitLandmarkOptIn(plan, landmark)) {
+            return plan;
+        }
         if (!looksMisrouted(plan)) return plan;
 
-        Map<String, Object> params = new HashMap<>();
-        params.put("component_id", landmark);
-        params.put("module_id", landmark);
-        params.put("landmark", landmark);
-        params.put("reference_landmark", landmark);
-        if ("eiffel_tower".equals(landmark)) {
-            params.put("height", 60);
-            params.put("baseWidth", 27);
-        }
-        Component structure = new Component(
-                "STRUCTURE",
-                plan.components().getFirst().slotId(),
-                new Vec3i(0, 0, 0),
-                new Dimensions(27, 27, 60),
-                List.of("landmark:" + landmark, "module:" + landmark),
-                params);
         FormacraftMod.LOGGER.info(
-                "LandmarkMisrouteRepair: rewrite FBD/assembly plan → STRUCTURE landmark={}", landmark);
-        return PlanComponentRewrite.withComponents(plan, List.of(structure));
+                "LandmarkMisrouteRepair: refusing silent STRUCTURE rewrite for landmark={}", landmark);
+        return PlanComponentRewrite.withCapabilityGap(plan, new CapabilityGap(
+                "E_LANDMARK_ROUTE_UNSUPPORTED",
+                "地标「" + landmark + "」方案为 ASSEMBLY/FBD 组合，已拒绝用固定尺寸 STRUCTURE 模板覆盖；请保留开放组合并修正路由，或显式 module/typology/preset 选择地标模块",
+                "LandmarkMisrouteRepair",
+                List.of(
+                        "Keep authored height/width on the open composition",
+                        "Or opt in with module_id / typology: / preset: for " + landmark,
+                        "Re-plan landmark geometry without office/atrium rings")));
     }
 
     private static boolean alreadyLandmarkRouted(LlmPlan plan, String landmark) {
@@ -59,6 +52,31 @@ final class LandmarkMisrouteRepair {
                     if (f != null && f.toLowerCase(Locale.ROOT).contains("landmark:" + landmark)) {
                         return true;
                     }
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Explicit user/plan opt-in to the fixed landmark executor. */
+    private static boolean explicitLandmarkOptIn(LlmPlan plan, String landmark) {
+        String blob = blob(plan);
+        String lower = landmark.toLowerCase(Locale.ROOT);
+        if (blob.contains("module:" + lower)
+                || blob.contains("module_id=" + lower)
+                || blob.contains("typology:" + lower)
+                || blob.contains("preset:" + lower)
+                || blob.contains("preset:<" + lower)
+                || blob.contains("landmark:" + lower)) {
+            return true;
+        }
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null) continue;
+            for (String key : List.of("module_id", "landmark", "reference_landmark",
+                    "typology_id", "typology", "preset_id")) {
+                Object v = c.params().get(key);
+                if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains(lower)) {
+                    return true;
                 }
             }
         }
@@ -95,6 +113,14 @@ final class LandmarkMisrouteRepair {
                 if (f != null) sb.append(f).append(' ');
             }
         }
+        if (plan.planMeta() != null) {
+            Object text = plan.planMeta().get("request_intent_text");
+            if (text != null) sb.append(text).append(' ');
+            Object ri = plan.planMeta().get("request_intent");
+            if (ri instanceof Map<?, ?> map && map.get("original_text") != null) {
+                sb.append(map.get("original_text")).append(' ');
+            }
+        }
         if (plan.components() != null) {
             for (Component c : plan.components()) {
                 if (c == null) continue;
@@ -103,8 +129,12 @@ final class LandmarkMisrouteRepair {
                         if (f != null) sb.append(f).append(' ');
                     }
                 }
-                if (c.params() != null && c.params().get("component_id") != null) {
-                    sb.append(c.params().get("component_id")).append(' ');
+                if (c.params() != null) {
+                    for (String key : List.of("component_id", "module_id", "landmark",
+                            "reference_landmark", "typology_id", "typology", "preset_id")) {
+                        Object v = c.params().get(key);
+                        if (v != null) sb.append(v).append(' ');
+                    }
                 }
             }
         }

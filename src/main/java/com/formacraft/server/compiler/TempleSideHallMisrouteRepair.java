@@ -3,12 +3,16 @@ package com.formacraft.server.compiler;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.design.DesignRequirement;
+import com.formacraft.common.generation.design.DesignRequirementAccess;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.common.style.ExplicitDesignPolicy;
+import com.formacraft.common.typology.UserConstraintContract;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,7 +24,8 @@ import java.util.Map;
  * Classical-monument degrade of 「重檐歇山大雄宝殿 + 左右配殿 + 月台」prompts lands as a
  * single MASS with pilaster DECOR / cupola CROWN and no side halls. Recover the compound:
  * strip classical ornament, force double-eave xieshan on the main hall, inject left/right
- * 配殿 (悬山) and a front 月台, and sane entrance / wrap windows.
+ * 配殿 (悬山) and a front 月台 when the prompt asks, and sane entrance / wrap windows when
+ * not explicitly omitted. Non-classical AI crowns are preserved.
  */
 final class TempleSideHallMisrouteRepair {
     private TempleSideHallMisrouteRepair() {}
@@ -64,11 +69,21 @@ final class TempleSideHallMisrouteRepair {
         String mainRoofType = (blob.contains("歇山") || blob.contains("xieshan")) ? "xieshan" : "hip";
         String sideRoof = blob.contains("硬山") ? "yingshan" : "xuanshan";
 
+        boolean classicalDegrade = looksClassicalDegrade(plan, blob);
+        boolean roofOmitted = DesignRequirementAccess.roof(plan, main) == DesignRequirement.OMITTED
+                || ExplicitDesignPolicy.roofDisabled(main);
+        boolean windowsOmitted = DesignRequirementAccess.facade(plan, main) == DesignRequirement.OMITTED
+                || ExplicitDesignPolicy.windowsDisabled(main);
+        boolean entranceOmitted = DesignRequirementAccess.entrance(plan, main) == DesignRequirement.OMITTED
+                || ExplicitDesignPolicy.entranceDisabled(main);
+
         // Drop classical ornament that produces floating cornice / cupola frames.
+        // Keep non-classical AI crowns and USER_EXPLICIT / server-verified crown params.
         for (Component c : plan.components()) {
             if (c == null) continue;
             String t = typeOf(c);
-            if ("CROWN".equals(t) || "CUPOLA".equals(t) || "DOME".equals(t)) {
+            if (("CROWN".equals(t) || "CUPOLA".equals(t) || "DOME".equals(t))
+                    && shouldDropCrown(c, classicalDegrade)) {
                 continue;
             }
             if ("DECOR_DETAIL".equals(t) && isClassicalDecor(c)) {
@@ -77,9 +92,13 @@ final class TempleSideHallMisrouteRepair {
             if (isPrimaryMass(c) || isMainRoof(c, mainId)) {
                 out.add(enrichMainOrRoof(c, mainId, mainRoofType, doubleEave));
             } else if ("ENTRANCE".equals(t)) {
-                out.add(sanitizeEntrance(c, mainId, hallW));
+                if (!entranceOmitted) {
+                    out.add(sanitizeEntrance(c, mainId, hallW));
+                }
             } else if ("FACADE_WINDOWS".equals(t) || "FACADE".equals(t)) {
-                out.add(sanitizeFacade(c, mainId, hallW, hallD, hallH));
+                if (!windowsOmitted) {
+                    out.add(sanitizeFacade(c, mainId, hallW, hallD, hallH));
+                }
             } else if ("FOUNDATION".equals(t)) {
                 out.add(c);
             } else if (wantPeidian && looksLikeSideHall(c)) {
@@ -87,7 +106,7 @@ final class TempleSideHallMisrouteRepair {
             } else if (wantYuetai && looksLikePlatform(c)) {
                 out.add(c);
             } else if (!isClassicalDecor(c)) {
-                // Keep non-classical satellites (paths, etc.).
+                // Keep non-classical satellites (paths, crowns, etc.).
                 out.add(c);
             }
         }
@@ -112,7 +131,7 @@ final class TempleSideHallMisrouteRepair {
                     List.of("main_hall", "temple", "大雄宝殿"),
                     params));
         }
-        if (out.stream().noneMatch(c -> isMainRoof(c, mainId))) {
+        if (!roofOmitted && out.stream().noneMatch(c -> isMainRoof(c, mainId))) {
             Map<String, Object> roofParams = new HashMap<>();
             roofParams.put("component_id", mainId + "_roof");
             roofParams.put("host_id", mainId);
@@ -163,7 +182,7 @@ final class TempleSideHallMisrouteRepair {
         }
 
         // Ensure a readable central door exists after classical door_width=30 envelopes are sanitized.
-        if (out.stream().noneMatch(c -> "ENTRANCE".equals(typeOf(c)))) {
+        if (!entranceOmitted && out.stream().noneMatch(c -> "ENTRANCE".equals(typeOf(c)))) {
             int doorW = Math.max(3, Math.min(5, hallW / 5));
             Map<String, Object> door = new HashMap<>();
             door.put("component_id", mainId + "_entrance");
@@ -178,7 +197,8 @@ final class TempleSideHallMisrouteRepair {
                     List.of("main_entrance"),
                     door));
         }
-        if (out.stream().noneMatch(c -> "FACADE_WINDOWS".equals(typeOf(c)) || "FACADE".equals(typeOf(c)))) {
+        if (!windowsOmitted
+                && out.stream().noneMatch(c -> "FACADE_WINDOWS".equals(typeOf(c)) || "FACADE".equals(typeOf(c)))) {
             Map<String, Object> win = new HashMap<>();
             win.put("component_id", mainId + "_windows");
             win.put("host_id", mainId);
@@ -397,7 +417,7 @@ final class TempleSideHallMisrouteRepair {
         }
         for (Component c : plan.components()) {
             if (c == null) continue;
-            if ("CROWN".equals(typeOf(c))) return true;
+            if (isClassicalCrown(c)) return true;
             if (isClassicalDecor(c)) return true;
             if (c.params() != null) {
                 Object fp = c.params().get("facade_profile");
@@ -407,6 +427,47 @@ final class TempleSideHallMisrouteRepair {
             }
         }
         return "DEFAULT".equalsIgnoreCase(plan.styleProfile()) && asksForSideHalls(blob);
+    }
+
+    /** Classical cupola / dome / pilaster crowns — not AI Chinese-hall finials. */
+    private static boolean isClassicalCrown(Component c) {
+        if (c == null) return false;
+        String t = typeOf(c);
+        if (!("CROWN".equals(t) || "CUPOLA".equals(t) || "DOME".equals(t))) return false;
+        String feat = featuresOf(c).toLowerCase(Locale.ROOT);
+        String id = idOf(c).toLowerCase(Locale.ROOT);
+        Object template = c.params() == null ? null : c.params().get("crown_template");
+        String tmpl = template == null ? "" : String.valueOf(template).toLowerCase(Locale.ROOT);
+        return tmpl.contains("classical") || tmpl.contains("cupola") || tmpl.contains("dome")
+                || feat.contains("classical") || feat.contains("cupola") || feat.contains("dome")
+                || id.contains("cupola") || id.contains("classical")
+                || "CUPOLA".equals(t) || "DOME".equals(t);
+    }
+
+    /**
+     * Drop only classical cupola/dome crowns. Preserve USER_EXPLICIT / server-verified crown
+     * params and non-classical AI crowns (FORMAT_REPAIR — not DESIGN_OVERRIDE).
+     */
+    private static boolean shouldDropCrown(Component c, boolean classicalDegrade) {
+        if (!isClassicalCrown(c)) return false;
+        if (c.params() != null) {
+            if (UserConstraintContract.isServerVerified(c.params(), "crown_template")
+                    || UserConstraintContract.isServerVerified(c.params(), "crown_type")
+                    || UserConstraintContract.isServerVerified(c.params(), "crown_requirement")) {
+                return false;
+            }
+            Object src = c.params().get("design_sources");
+            if (src instanceof Map<?, ?> map) {
+                for (String key : List.of("crown_template", "crown_type", "crown_requirement")) {
+                    Object v = map.get(key);
+                    if (v != null && String.valueOf(v).toUpperCase(Locale.ROOT).contains("USER_EXPLICIT")) {
+                        return false;
+                    }
+                }
+            }
+        }
+        // classicalDegrade retained for call-site clarity; classical crown alone is enough.
+        return classicalDegrade || isClassicalCrown(c);
     }
 
     private static boolean isClassicalDecor(Component c) {

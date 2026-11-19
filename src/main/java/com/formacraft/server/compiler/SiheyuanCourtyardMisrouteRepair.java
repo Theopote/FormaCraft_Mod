@@ -1,21 +1,19 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
-import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
-import com.formacraft.common.llm.dto.StyleAttributes;
-import com.formacraft.common.llm.dto.Vec3i;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
- * Compositional LLM plans for 四合院 often scatter 正房/厢房/倒座 without a walkable
- * enclosure. Prefer the native {@code courtyard_compound} typology which already
- * places main hall, wings, and gate around a courtyard.
+ * Detects incomplete compositional 四合院 plans. Never silently replaces AI multi-mass
+ * compositions with a fixed {@code courtyard_compound} STRUCTURE — that is DESIGN_OVERRIDE.
+ * Explicit {@code typology:courtyard_compound} / already-routed STRUCTURE is left alone;
+ * otherwise emit {@code capability_gap} for replan.
  */
 final class SiheyuanCourtyardMisrouteRepair {
     private SiheyuanCourtyardMisrouteRepair() {}
@@ -23,34 +21,20 @@ final class SiheyuanCourtyardMisrouteRepair {
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         if (!looksSiheyuan(plan)) return plan;
-        if (alreadyCourtyardCompound(plan)) return plan;
+        if (alreadyCourtyardCompound(plan) || explicitCourtyardOptIn(plan)) return plan;
         if (!looksMisroutedComposition(plan)) return plan;
 
-        int[] size = footprintHint(plan);
-        Map<String, Object> params = new HashMap<>();
-        params.put("component_id", "siheyuan_courtyard");
-        params.put("typology_id", "courtyard_compound");
-        params.put("typology", "courtyard_compound");
-        params.put("structural_typology", "courtyard_compound");
-        params.put("width", size[0]);
-        params.put("depth", size[1]);
-        params.put("facing", preserveFacing(plan));
-        params.put("includePaths", true);
-        params.put("pathWidth", 3);
-        params.put("paveCourtyard", true);
-        stampMaterials(params, plan.styleAttributes());
-
-        Component structure = new Component(
-                "STRUCTURE",
-                plan.components().getFirst().slotId(),
-                new Vec3i(0, 0, 0),
-                new Dimensions(size[0], size[1], Math.max(8, size[1] / 4)),
-                List.of("typology:courtyard_compound", "siheyuan", "四合院"),
-                params);
         FormacraftMod.LOGGER.info(
-                "SiheyuanCourtyardMisrouteRepair: rewrite compositional 四合院 → STRUCTURE courtyard_compound {}x{}",
-                size[0], size[1]);
-        return PlanComponentRewrite.withComponents(plan, List.of(structure));
+                "SiheyuanCourtyardMisrouteRepair: refusing silent courtyard_compound rewrite ({} components)",
+                plan.components().size());
+        return PlanComponentRewrite.withCapabilityGap(plan, new CapabilityGap(
+                "E_SIHEYUAN_COMPOSITION_UNSUPPORTED",
+                "四合院组合方案缺少庭院围合或角色标注，已拒绝用内置 courtyard_compound 模板覆盖 AI 构件；请补全正房/厢房/倒座/庭院或显式 typology:courtyard_compound",
+                "SiheyuanCourtyardMisrouteRepair",
+                List.of(
+                        "Add COURTYARD_SPACE / PATH and role labels on masses",
+                        "Or opt in with typology:courtyard_compound / typology_id=courtyard_compound",
+                        "Re-plan the courtyard composition")));
     }
 
     private static boolean looksSiheyuan(LlmPlan plan) {
@@ -59,6 +43,26 @@ final class SiheyuanCourtyardMisrouteRepair {
         if (blob.contains("正房") && (blob.contains("厢房") || blob.contains("倒座"))) return true;
         String style = plan.styleProfile() == null ? "" : plan.styleProfile().toLowerCase(Locale.ROOT);
         return style.contains("siheyuan");
+    }
+
+    /** User/plan already chose the fixed courtyard typology executor. */
+    private static boolean explicitCourtyardOptIn(LlmPlan plan) {
+        String blob = blob(plan);
+        if (blob.contains("typology:courtyard_compound")
+                || blob.contains("preset:courtyard_compound")
+                || blob.contains("typology_id=courtyard_compound")) {
+            return true;
+        }
+        for (Component c : plan.components()) {
+            if (c == null || c.params() == null) continue;
+            for (String key : List.of("typology_id", "typology", "structural_typology")) {
+                Object v = c.params().get(key);
+                if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains("courtyard_compound")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean alreadyCourtyardCompound(LlmPlan plan) {
@@ -86,7 +90,7 @@ final class SiheyuanCourtyardMisrouteRepair {
 
     /**
      * Compositional plans that lack a clear courtyard enclosure, or that scatter many
-     * masses without COURTYARD_SPACE / gate / wing roles, need the typology builder.
+     * masses without COURTYARD_SPACE / gate / wing roles.
      */
     private static boolean looksMisroutedComposition(LlmPlan plan) {
         int masses = 0;
@@ -119,81 +123,11 @@ final class SiheyuanCourtyardMisrouteRepair {
         }
         String blob = blob(plan);
         // 三进 (and other multi-jin) layouts are not supported by courtyard_compound's single yard.
-        // Never silently demote them — keep the compositional plan (or let validators surface a gap).
         if (blob.contains("三进") || blob.contains("两进") || blob.contains("多进")) {
             return false;
         }
-        // Too many free masses is a classic bad 四合院 compositional dump.
         if (masses >= 4 && !(hasCourt && hasWing && hasGate && hasMain)) return true;
-        // Incomplete single-jin composition: several masses but no courtyard void / path.
         return masses >= 3 && !hasCourt;
-    }
-
-    private static int[] footprintHint(LlmPlan plan) {
-        int maxX = 0;
-        int maxZ = 0;
-        for (Component c : plan.components()) {
-            if (c == null || c.dimensions() == null || c.relativePosition() == null) continue;
-            String t = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
-            if (!(t.startsWith("MASS") || t.contains("COURTYARD") || "GATE".equals(t))) continue;
-            int x1 = c.relativePosition().x() + c.dimensions().width();
-            int z1 = c.relativePosition().z() + c.dimensions().depth();
-            maxX = Math.max(maxX, Math.max(Math.abs(c.relativePosition().x()), Math.abs(x1)));
-            maxZ = Math.max(maxZ, Math.max(Math.abs(c.relativePosition().z()), Math.abs(z1)));
-        }
-        int w = Math.max(28, Math.min(64, maxX * 2 + 4));
-        int d = Math.max(32, Math.min(72, maxZ * 2 + 4));
-        if (plan.proportionHints() != null) {
-            Object cw = plan.proportionHints().get("compound_width");
-            Object cd = plan.proportionHints().get("compound_depth");
-            if (cw instanceof Number n) w = Math.max(w, n.intValue());
-            if (cd instanceof Number n) d = Math.max(d, n.intValue());
-        }
-        return new int[]{w, d};
-    }
-
-    /**
-     * Prefer authored facing from global constraints or the first component that names one.
-     * Default SOUTH only when nothing was specified (classical 坐北朝南).
-     */
-    private static String preserveFacing(LlmPlan plan) {
-        if (plan.globalConstraints() != null && plan.globalConstraints().facing() != null) {
-            return plan.globalConstraints().facing().name();
-        }
-        for (Component c : plan.components()) {
-            if (c == null || c.params() == null) continue;
-            Object raw = c.params().get("facing");
-            if (raw == null) raw = c.params().get("orientation");
-            if (raw == null) continue;
-            String s = String.valueOf(raw).trim().toUpperCase(Locale.ROOT);
-            if (s.equals("NORTH") || s.equals("SOUTH") || s.equals("EAST") || s.equals("WEST")) {
-                return s;
-            }
-        }
-        String blob = blob(plan);
-        if (blob.contains("朝北") || blob.contains("坐南朝北") || blob.contains("facing north")) {
-            return "NORTH";
-        }
-        if (blob.contains("朝东") || blob.contains("facing east")) {
-            return "EAST";
-        }
-        if (blob.contains("朝西") || blob.contains("facing west")) {
-            return "WEST";
-        }
-        return "SOUTH";
-    }
-
-    private static void stampMaterials(Map<String, Object> params, StyleAttributes attrs) {
-        if (attrs == null) return;
-        if (attrs.wallMaterial() != null && !attrs.wallMaterial().isBlank()) {
-            params.put("wall_block", attrs.wallMaterial());
-        }
-        if (attrs.roofMaterial() != null && !attrs.roofMaterial().isBlank()) {
-            params.put("roof_block", attrs.roofMaterial());
-        }
-        if (attrs.floorMaterial() != null && !attrs.floorMaterial().isBlank()) {
-            params.put("floor_block", attrs.floorMaterial());
-        }
     }
 
     private static String idOf(Component c) {
@@ -237,6 +171,12 @@ final class SiheyuanCourtyardMisrouteRepair {
         for (Component c : plan.components()) {
             if (c == null) continue;
             sb.append(featuresOf(c)).append(' ').append(idOf(c)).append(' ');
+            if (c.params() != null) {
+                for (String key : List.of("typology_id", "typology", "structural_typology", "preset_id")) {
+                    Object v = c.params().get(key);
+                    if (v != null) sb.append(v).append(' ');
+                }
+            }
         }
         return sb.toString().toLowerCase(Locale.ROOT);
     }
