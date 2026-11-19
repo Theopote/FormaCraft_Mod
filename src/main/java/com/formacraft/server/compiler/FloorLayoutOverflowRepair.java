@@ -6,7 +6,10 @@ import com.formacraft.common.generation.component.util.InteriorSpaceDefaults;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.typology.TypologyParamResolver;
 import com.formacraft.common.typology.UserConstraintContract;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+import com.formacraft.common.llm.dto.CapabilityGap;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,20 +78,35 @@ final class FloorLayoutOverflowRepair {
             return new Component(component.componentType(), component.slotId(),
                     component.relativePosition(), dims, component.features(), next);
         }
-        // Sealed stacked/player height must not be re-grown — clamp bands into the envelope.
+        boolean hardFloor = UserConstraintContract.isServerVerified(params, "floor_height")
+                || UserConstraintContract.isServerVerified(params, "floorHeight")
+                || TypologyParamResolver.isUserHardConstraint(params, "floor_height", "floorHeight");
+        // Sealed height + hard floor_height that cannot fit → capability gap, never silent rewrite.
+        if (heightSealed && hardFloor && need > envelope) {
+            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                    "E_STACKED_HEIGHT_UNSUPPORTED",
+                    "玩家层高与整体高度冲突：floor_count×floor_height=" + need
+                            + " 超过密封高度 " + envelope,
+                    "FloorLayoutOverflowRepair",
+                    List.of("Relax floor_height", "Increase whole-building height")));
+            return component;
+        }
+        // Sealed stacked/player height must not be re-grown — clamp soft bands into the envelope.
         int clampedHeight = Math.max(hostMass ? minBand : 1, (int) Math.min(floorHeight, envelope / floorCount));
         int clampedCount = floorCount;
         if ((long) clampedHeight * clampedCount > envelope) {
             clampedCount = Math.max(1, envelope / Math.max(1, clampedHeight));
         }
-        next.put("floor_height", clampedHeight);
+        if (!hardFloor) {
+            next.put("floor_height", clampedHeight);
+        }
         if (clampedCount != floorCount) {
             next.put("floor_count", clampedCount);
         }
         FormacraftMod.LOGGER.info(
-                "FloorLayoutOverflowRepair: floors {}×{} → {}×{} (envelope={} sealed={})",
+                "FloorLayoutOverflowRepair: floors {}×{} → {}×{} (envelope={} sealed={} hardFloor={})",
                 floorCount, authoredFh > 0 ? authoredFh : floorHeight,
-                clampedCount, clampedHeight, envelope, heightSealed);
+                clampedCount, hardFloor ? floorHeight : clampedHeight, envelope, heightSealed, hardFloor);
         return new Component(component.componentType(), component.slotId(), component.relativePosition(),
                 dims, component.features(), next);
     }

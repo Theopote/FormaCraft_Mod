@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -29,6 +30,13 @@ import java.util.regex.Pattern;
  * have a strong hit.
  */
 public final class RequestIntentInjector {
+    /** Per-mass shaft envelope target (player whole-building height for this stacked family). */
+    public static final String SHAFT_ENVELOPE_TARGET_KEY = "_fc_shaft_envelope_target";
+    /** Stacked family stem (e.g. pagoda) owning {@link #SHAFT_ENVELOPE_TARGET_KEY}. */
+    public static final String SHAFT_ENVELOPE_FAMILY_KEY = "_fc_shaft_envelope_family";
+    /** plan_meta list of {family, mass_ids, target_height, mode}. */
+    public static final String STACKED_ENVELOPE_TARGETS_META = "stacked_envelope_targets";
+
     private static final Pattern FOOTPRINT = Pattern.compile("(\\d{1,2})\\s*[×xX*]\\s*(\\d{1,2})");
     /** Storey cue and entrance cue in the same short clause (not whole-prompt co-occurrence). */
     private static final Pattern UPPER_STOREY_ENTRANCE_CLAUSE = Pattern.compile(
@@ -195,6 +203,11 @@ public final class RequestIntentInjector {
             // FloorLayoutOverflowRepair cannot quietly re-grow the player whole-building height.
             if (envApplied.sealedHeights() != null && !envApplied.sealedHeights().isEmpty()) {
                 heightByMassId.putAll(envApplied.sealedHeights());
+            }
+            // Per-building shaft targets — never a single global height for every tower.
+            if (envApplied.envelopeTargetByMass() != null && !envApplied.envelopeTargetByMass().isEmpty()) {
+                plan = withStackedEnvelopeTargetsMeta(
+                        plan, envApplied.envelopeTargetByMass(), envApplied.envelopeFamilyByMass());
             }
         }
         if (authorizeFromText && (heightResult.capabilityGap() || omitResult.capabilityGap() || envelopeGap
@@ -504,9 +517,11 @@ public final class RequestIntentInjector {
     }
 
     /**
-     * Prefer explicit {@code namedKeys} (wing/office/…) over collapsed roleHint.
-     * Role-score fallback only when no named identity resolves.
-     * Classification: HARD_CONSTRAINT host identity — wing must not bind pavilion.
+     * Prefer explicit {@code namedKeys} (wing/office/…). Side-qualified misses stay fail-closed
+     * (西厢房 must not bind 东厢房). Class aliases like 主殿→hall may still resolve via role score
+     * when the plan used a generic component_id without the alias string.
+     * Role-score-only path runs when the request has no named identity.
+     * Classification: HARD_CONSTRAINT host identity.
      */
     static List<String> resolveNamedOrRoleHostIds(
             List<Component> hosts,
@@ -515,31 +530,53 @@ public final class RequestIntentInjector {
             String clauseText
     ) {
         if (namedKeys != null && !namedKeys.isEmpty()) {
+            List<String> namedHits;
             if (namedKeys.size() == 1) {
-                List<String> hits = namedKeyHostIds(hosts, namedKeys.getFirst(), clauseText);
-                if (!hits.isEmpty()) return hits;
+                namedHits = namedKeyHostIds(hosts, namedKeys.getFirst(), clauseText);
             } else {
                 List<String> all = new ArrayList<>();
                 for (String key : namedKeys) {
                     List<String> part = namedKeyHostIds(hosts, key, clauseText);
                     if (part.isEmpty()) {
-                        all = List.of();
-                        break;
+                        return List.of();
                     }
                     for (String id : part) {
                         if (!all.contains(id)) all.add(id);
                     }
                 }
-                if (!all.isEmpty()) return List.copyOf(all);
+                namedHits = List.copyOf(all);
+            }
+            if (!namedHits.isEmpty()) return namedHits;
+            // Side-qualified named miss (西厢房 / 东厢房 / …) — never role-fallback.
+            if (isSideQualifiedNamedMiss(namedKeys, clauseText)) {
+                return List.of();
+            }
+            // Class named key present in text but plan ids lack the alias string (house_main vs 主殿).
+            return roleScoreHostIds(hosts, roleHint, clauseText);
+        }
+        return roleScoreHostIds(hosts, roleHint, clauseText);
+    }
+
+    /** True when namedKeys include wing and the clause demands a cardinal side. */
+    private static boolean isSideQualifiedNamedMiss(List<String> namedKeys, String clauseText) {
+        if (namedKeys == null || namedKeys.isEmpty()) return false;
+        boolean hasWing = false;
+        for (String key : namedKeys) {
+            if (key != null && "wing".equalsIgnoreCase(key.trim())) {
+                hasWing = true;
+                break;
             }
         }
-        if (roleHint != null && !roleHint.isBlank()) {
-            List<String> hits = namedKeyHostIds(hosts, roleHint, clauseText);
-            if (!hits.isEmpty()) return hits;
-            String roleTarget = uniqueRoleHostId(hosts, roleHint);
-            if (roleTarget != null) return List.of(roleTarget);
-        }
-        return List.of();
+        return hasWing && !wingSidesFromText(clauseText).isEmpty();
+    }
+
+    private static List<String> roleScoreHostIds(
+            List<Component> hosts, String roleHint, String clauseText) {
+        if (roleHint == null || roleHint.isBlank()) return List.of();
+        List<String> hits = namedKeyHostIds(hosts, roleHint, clauseText);
+        if (!hits.isEmpty()) return hits;
+        String roleTarget = uniqueRoleHostId(hosts, roleHint);
+        return roleTarget == null ? List.of() : List.of(roleTarget);
     }
 
     private static List<String> namedKeyHostIds(List<Component> hosts, String namedKey) {
@@ -693,7 +730,8 @@ public final class RequestIntentInjector {
         List<Map<String, Object>> diagnostics = new ArrayList<>();
         if (components == null || envelopes == null || envelopes.isEmpty()) {
             return new EnvelopeApplyResult(
-                    components == null ? List.of() : components, diagnostics, false, false, Map.of());
+                    components == null ? List.of() : components, diagnostics, false, false,
+                    Map.of(), Map.of(), Map.of());
         }
         Map<String, Component> hostById = new HashMap<>();
         for (Component host : hosts == null ? List.<Component>of() : hosts) {
@@ -703,6 +741,8 @@ public final class RequestIntentInjector {
         Map<String, Integer> newHeight = new HashMap<>();
         Map<String, Integer> newRelY = new HashMap<>();
         Map<String, Integer> sealedHeights = new HashMap<>();
+        Map<String, Integer> envelopeTargetByMass = new HashMap<>();
+        Map<String, String> envelopeFamilyByMass = new HashMap<>();
         boolean gap = false;
         for (StackedHeightEnvelope env : envelopes) {
             if (env == null || env.massIds() == null || env.massIds().isEmpty() || env.targetHeight() <= 0) {
@@ -742,6 +782,8 @@ public final class RequestIntentInjector {
                 continue;
             }
             members.sort(Comparator.comparingInt(c -> c.relativePosition().y()));
+            String family = stackedFamilyKey(BuildingHostResolver.massId(members.getFirst()));
+            if (family == null) family = "stacked";
             if (envelope == env.targetHeight()) {
                 // Geometry stays put — but authored floor bands must still fit, and the
                 // matched envelope must seal so FloorLayoutOverflowRepair cannot re-grow.
@@ -769,37 +811,62 @@ public final class RequestIntentInjector {
                 for (Component c : members) {
                     String mid = BuildingHostResolver.massId(c);
                     if (mid != null) {
-                        // Seal current storey height only — never rewrite dims to envelope.
                         sealedHeights.put(mid, Math.max(1, c.dimensions().height()));
+                        envelopeTargetByMass.put(mid, env.targetHeight());
+                        envelopeFamilyByMass.put(mid, family);
                     }
                 }
                 continue;
             }
-            int[] oldHeights = new int[members.size()];
-            int[] minHeights = new int[members.size()];
+            int n = members.size();
+            int[] oldHeights = new int[n];
+            int[] gaps = new int[n]; // gap[i] = void above storey i before next (last=0)
+            int[] minHeights = new int[n];
             int minRequiredSum = 0;
-            for (int i = 0; i < members.size(); i++) {
+            for (int i = 0; i < n; i++) {
                 Component c = members.get(i);
                 oldHeights[i] = Math.max(1, c.dimensions().height());
-                // Scale mins use clear-air bands (not authored fh) so fair shrink can succeed
-                // when FloorLayoutOverflowRepair will clamp sealed storeys afterward.
                 minHeights[i] = minFeasibleStoreyHeight(c);
                 minRequiredSum += minHeights[i];
+                if (i + 1 < n) {
+                    int top = c.relativePosition().y() + oldHeights[i];
+                    int nextY = members.get(i + 1).relativePosition().y();
+                    gaps[i] = Math.max(0, nextY - top);
+                } else {
+                    gaps[i] = 0;
+                }
+                // Preserve at least 1 block of eave/transition when a gap originally existed.
+                if (gaps[i] > 0) {
+                    minRequiredSum += 1;
+                }
             }
             if (minRequiredSum > env.targetHeight()) {
                 gap = true;
                 diagnostics.add(Map.of(
                         "code", "E_STACKED_HEIGHT_UNSUPPORTED",
                         "blocks", env.targetHeight(),
-                        "message", "stacked height target cannot fit minimum storey bands"));
+                        "message", "stacked height target cannot fit minimum storey bands and gaps"));
                 newHeight.clear();
                 newRelY.clear();
                 break;
             }
-            // Min bands first, then distribute remainder by expandable weight (largest remainder).
-            int[] scaledHeights = allocateStackedHeights(oldHeights, minHeights, env.targetHeight());
+            // Scale solids + inter-storey gaps together so eaves/transitions are not deleted
+            // and excess height is not dumped onto the top tiers alone.
+            int[] scaledHeights = new int[n];
+            int[] scaledGaps = new int[n];
+            if (!allocateStackedShaftWithGaps(
+                    oldHeights, gaps, minHeights, env.targetHeight(), scaledHeights, scaledGaps)) {
+                gap = true;
+                diagnostics.add(Map.of(
+                        "code", "E_STACKED_HEIGHT_UNSUPPORTED",
+                        "blocks", env.targetHeight(),
+                        "message", "stacked height scale cannot preserve storey bands and gaps"));
+                newHeight.clear();
+                newRelY.clear();
+                break;
+            }
             int yCursor = minY;
-            for (int i = 0; i < members.size(); i++) {
+            for (int i = 0; i < n; i++) {
                 Component c = members.get(i);
                 String mid = BuildingHostResolver.massId(c);
                 if (mid == null) {
@@ -808,22 +875,27 @@ public final class RequestIntentInjector {
                 }
                 newHeight.put(mid, scaledHeights[i]);
                 sealedHeights.put(mid, scaledHeights[i]);
+                envelopeTargetByMass.put(mid, env.targetHeight());
+                envelopeFamilyByMass.put(mid, family);
                 newRelY.put(mid, yCursor);
-                yCursor += scaledHeights[i];
+                yCursor += scaledHeights[i] + scaledGaps[i];
             }
             if (gap) {
                 newHeight.clear();
                 newRelY.clear();
                 sealedHeights.clear();
+                envelopeTargetByMass.clear();
+                envelopeFamilyByMass.clear();
                 break;
             }
         }
         if (gap) {
-            return new EnvelopeApplyResult(components, diagnostics, true, false, Map.of());
+            return new EnvelopeApplyResult(
+                    components, diagnostics, true, false, Map.of(), Map.of(), Map.of());
         }
-        if (newHeight.isEmpty() && newRelY.isEmpty()) {
-            // Equal-envelope path may still seal without geometry change.
-            return new EnvelopeApplyResult(components, diagnostics, false, false, Map.copyOf(sealedHeights));
+        if (newHeight.isEmpty() && newRelY.isEmpty() && envelopeTargetByMass.isEmpty()) {
+            return new EnvelopeApplyResult(
+                    components, diagnostics, false, false, Map.copyOf(sealedHeights), Map.of(), Map.of());
         }
         // Capture pre-scale host geometry so roofs/openings/stairs can stay attached.
         Map<String, int[]> oldHostGeom = new HashMap<>();
@@ -843,6 +915,8 @@ public final class RequestIntentInjector {
             String mid = BuildingHostResolver.massId(c);
             Integer h = mid == null ? null : newHeight.get(mid);
             Integer y = mid == null ? null : newRelY.get(mid);
+            Integer envTarget = mid == null ? null : envelopeTargetByMass.get(mid);
+            String envFamily = mid == null ? null : envelopeFamilyByMass.get(mid);
             String hostId = satelliteHostId(c);
             int[] oldHost = hostId == null ? null : oldHostGeom.get(hostId);
             Integer hostNewY = hostId == null ? null : newRelY.get(hostId);
@@ -851,7 +925,8 @@ public final class RequestIntentInjector {
                     && c.relativePosition() != null
                     && (hostNewY != null || hostNewH != null)
                     && h == null && y == null;
-            if (h == null && y == null && !satelliteShift) {
+            boolean stampEnvelope = envTarget != null;
+            if (h == null && y == null && !satelliteShift && !stampEnvelope) {
                 out.add(c);
                 continue;
             }
@@ -867,6 +942,14 @@ public final class RequestIntentInjector {
                     dims = new com.formacraft.common.llm.dto.Dimensions(
                             Math.max(1, dims.width()), Math.max(1, dims.depth()), h);
                 }
+            } else if (stampEnvelope && sealedHeights.containsKey(mid)) {
+                // Matched envelope: seal current storey height without rewriting dims.
+                com.formacraft.common.typology.UserConstraintContract
+                        .applyAuthoritativeHeightValue(params, sealedHeights.get(mid));
+            }
+            if (stampEnvelope) {
+                params.put(SHAFT_ENVELOPE_TARGET_KEY, envTarget);
+                if (envFamily != null) params.put(SHAFT_ENVELOPE_FAMILY_KEY, envFamily);
             }
             if (y != null && rel != null && rel.y() != y) {
                 rel = new Vec3i(rel.x(), y, rel.z());
@@ -877,10 +960,8 @@ public final class RequestIntentInjector {
                 int offsetFromTop = rel.y() - oldTop;
                 int nextY;
                 if (Math.abs(offsetFromTop) <= 1) {
-                    // Roof / crown sitting on the host top plane.
                     nextY = newHY + newHH + offsetFromTop;
                 } else {
-                    // Preserve offset from host base (windows / doors / stairs).
                     nextY = newHY + (rel.y() - oldHost[0]);
                 }
                 if (nextY != rel.y()) {
@@ -890,7 +971,11 @@ public final class RequestIntentInjector {
             changed = true;
             out.add(new Component(c.componentType(), c.slotId(), rel, dims, c.features(), params));
         }
-        return new EnvelopeApplyResult(out, diagnostics, false, changed, Map.copyOf(sealedHeights));
+        return new EnvelopeApplyResult(
+                out, diagnostics, false, changed,
+                Map.copyOf(sealedHeights),
+                Map.copyOf(envelopeTargetByMass),
+                Map.copyOf(envelopeFamilyByMass));
     }
 
     /** floor_count when authored; 0 means no multi-storey band constraint on this mass. */
@@ -901,59 +986,141 @@ public final class RequestIntentInjector {
     }
 
     /**
-     * Minimum clear-air storey band for scale allocation: floor_count × minStoreyBand.
+     * Minimum clear-air storey band for scale allocation.
+     * USER_EXPLICIT / server-sealed floor_height is a hard band; otherwise minStoreyBand.
      * Bare shells (no floor_count) need at least 1.
      */
     private static int minFeasibleStoreyHeight(Component c) {
         int floorCount = storeyFloorCount(c);
         if (floorCount <= 0) return 1;
-        int minBand = com.formacraft.common.generation.component.util.InteriorSpaceDefaults.minStoreyBand();
-        return Math.max(1, floorCount * minBand);
-    }
-
-    /**
-     * Authored floor_count × floor_height (or minBand) that must fit the current storey height
-     * when the whole-building envelope already matches — conflict → capability gap.
-     */
-    private static int authoredFloorNeed(Component c) {
-        int floorCount = storeyFloorCount(c);
-        if (floorCount <= 0) return 0;
-        int authoredFh = c.params() == null ? 0
-                : com.formacraft.common.generation.component.util.ComponentParamParsers
-                .intParam(c.params(), "floor_height", "floorHeight");
-        int band = authoredFh > 0
-                ? authoredFh
+        int hardFh = hardFloorHeight(c);
+        int band = hardFh > 0
+                ? hardFh
                 : com.formacraft.common.generation.component.util.InteriorSpaceDefaults.minStoreyBand();
         return Math.max(1, floorCount * band);
     }
 
     /**
+     * Authored floor_count × floor_height (hard or minBand) that must fit the current storey height
+     * when the whole-building envelope already matches — conflict → capability gap.
+     */
+    private static int authoredFloorNeed(Component c) {
+        int floorCount = storeyFloorCount(c);
+        if (floorCount <= 0) return 0;
+        int hardFh = hardFloorHeight(c);
+        int authoredFh = c.params() == null ? 0
+                : com.formacraft.common.generation.component.util.ComponentParamParsers
+                .intParam(c.params(), "floor_height", "floorHeight");
+        int band = hardFh > 0
+                ? hardFh
+                : (authoredFh > 0
+                ? authoredFh
+                : com.formacraft.common.generation.component.util.InteriorSpaceDefaults.minStoreyBand());
+        return Math.max(1, floorCount * band);
+    }
+
+    /** Player-hard floor_height when server-sealed or _param_sources USER_EXPLICIT. */
+    private static int hardFloorHeight(Component c) {
+        if (c == null || c.params() == null) return 0;
+        int fh = com.formacraft.common.generation.component.util.ComponentParamParsers
+                .intParam(c.params(), "floor_height", "floorHeight");
+        if (fh <= 0) return 0;
+        if (com.formacraft.common.typology.UserConstraintContract
+                .isServerVerified(c.params(), "floor_height")
+                || com.formacraft.common.typology.UserConstraintContract
+                .isServerVerified(c.params(), "floorHeight")) {
+            return fh;
+        }
+        if (com.formacraft.common.typology.TypologyParamResolver
+                .isUserHardConstraint(c.params(), "floor_height", "floorHeight")) {
+            return fh;
+        }
+        return 0;
+    }
+
+    /**
      * Assign min bands first, then distribute {@code target - sum(mins)} by expandable weight
      * using the largest-remainder method so the sum equals {@code target} exactly.
+     * Kept for tightly-stacked shafts (no gaps). Prefer {@link #allocateStackedShaftWithGaps}.
      */
     static int[] allocateStackedHeights(int[] oldHeights, int[] minHeights, int target) {
         int n = oldHeights.length;
+        int[] gaps = new int[n];
+        int[] outH = new int[n];
+        int[] outG = new int[n];
+        if (!allocateStackedShaftWithGaps(oldHeights, gaps, minHeights, target, outH, outG)) {
+            return minHeights.clone();
+        }
+        return outH;
+    }
+
+    /**
+     * Scale storey solids and inter-storey gaps together so eave/transition voids are preserved
+     * and excess height is distributed by original slice weight (not dumped on the crown).
+     * {@code outHeights}/{@code outGaps} are filled; returns false when infeasible.
+     */
+    static boolean allocateStackedShaftWithGaps(
+            int[] oldHeights,
+            int[] gaps,
+            int[] minHeights,
+            int target,
+            int[] outHeights,
+            int[] outGaps
+    ) {
+        int n = oldHeights.length;
+        if (n == 0 || outHeights.length != n || outGaps.length != n) return false;
+        int[] minGaps = new int[n];
+        int minSum = 0;
+        for (int i = 0; i < n; i++) {
+            minGaps[i] = gaps[i] > 0 ? 1 : 0;
+            minSum += minHeights[i] + minGaps[i];
+        }
+        if (minSum > target) return false;
+        // Slice layout: solid0, gap0, solid1, gap1, ... (trailing gap of last is always 0).
+        int sliceCount = n * 2;
+        int[] oldSlices = new int[sliceCount];
+        int[] minSlices = new int[sliceCount];
+        for (int i = 0; i < n; i++) {
+            oldSlices[i * 2] = oldHeights[i];
+            minSlices[i * 2] = minHeights[i];
+            oldSlices[i * 2 + 1] = gaps[i];
+            minSlices[i * 2 + 1] = minGaps[i];
+        }
+        int[] outSlices = allocateSlicesLargestRemainder(oldSlices, minSlices, target);
+        if (outSlices == null) return false;
+        for (int i = 0; i < n; i++) {
+            outHeights[i] = outSlices[i * 2];
+            outGaps[i] = outSlices[i * 2 + 1];
+        }
+        return true;
+    }
+
+    /** Min-first then weight by (old-min); largest-remainder so sum == target. */
+    private static int[] allocateSlicesLargestRemainder(int[] oldSlices, int[] minSlices, int target) {
+        int n = oldSlices.length;
         int[] out = new int[n];
         int minSum = 0;
         for (int i = 0; i < n; i++) {
-            out[i] = minHeights[i];
-            minSum += minHeights[i];
+            out[i] = Math.max(0, minSlices[i]);
+            minSum += out[i];
         }
+        if (minSum > target) return null;
         int remainder = target - minSum;
-        if (remainder <= 0) return out;
+        if (remainder == 0) return out;
         long weightSum = 0L;
         int[] weights = new int[n];
         for (int i = 0; i < n; i++) {
-            weights[i] = Math.max(0, oldHeights[i] - minHeights[i]);
+            weights[i] = Math.max(0, oldSlices[i] - out[i]);
             weightSum += weights[i];
         }
         if (weightSum <= 0) {
-            // No expandable mass — spread remainder from the base upward.
             for (int i = 0; i < n && remainder > 0; i++) {
-                out[i] += 1;
+                // Prefer solids (even indices) when spreading with no weight.
+                int idx = (i * 2) % n;
+                out[idx] += 1;
                 remainder--;
             }
-            if (remainder > 0) out[n - 1] += remainder;
+            if (remainder > 0) out[0] += remainder;
             return out;
         }
         int[] baseExtra = new int[n];
@@ -966,7 +1133,6 @@ public final class RequestIntentInjector {
             assigned += baseExtra[i];
         }
         int left = remainder - assigned;
-        // Largest remainder: give leftover units to highest fractional parts (stable by index).
         Integer[] order = new Integer[n];
         for (int i = 0; i < n; i++) order[i] = i;
         Arrays.sort(order, (a, b) -> {
@@ -1216,10 +1382,14 @@ public final class RequestIntentInjector {
             List<Map<String, Object>> diagnostics,
             boolean capabilityGap,
             boolean changed,
-            Map<String, Integer> sealedHeights
+            Map<String, Integer> sealedHeights,
+            Map<String, Integer> envelopeTargetByMass,
+            Map<String, String> envelopeFamilyByMass
     ) {
         private EnvelopeApplyResult {
             sealedHeights = sealedHeights == null ? Map.of() : Map.copyOf(sealedHeights);
+            envelopeTargetByMass = envelopeTargetByMass == null ? Map.of() : Map.copyOf(envelopeTargetByMass);
+            envelopeFamilyByMass = envelopeFamilyByMass == null ? Map.of() : Map.copyOf(envelopeFamilyByMass);
         }
     }
 
@@ -2130,6 +2300,41 @@ public final class RequestIntentInjector {
         int idx = lower.indexOf(needleLower, from);
         if (idx >= 0) return idx;
         return text.indexOf(needle, from);
+    }
+
+    /** Record per-family shaft envelope targets on plan_meta for compile-time integrity checks. */
+    private static LlmPlan withStackedEnvelopeTargetsMeta(
+            LlmPlan plan,
+            Map<String, Integer> targetByMass,
+            Map<String, String> familyByMass
+    ) {
+        if (plan == null || targetByMass == null || targetByMass.isEmpty()) return plan;
+        Map<String, Map<String, Object>> byFamily = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> e : targetByMass.entrySet()) {
+            String massId = e.getKey();
+            String family = familyByMass == null ? null : familyByMass.get(massId);
+            if (family == null || family.isBlank()) {
+                family = stackedFamilyKey(massId);
+            }
+            if (family == null || family.isBlank()) family = massId;
+            Map<String, Object> row = byFamily.computeIfAbsent(family, k -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("family", k);
+                m.put("target_height", e.getValue());
+                m.put("mode", "shaft");
+                m.put("mass_ids", new ArrayList<String>());
+                return m;
+            });
+            row.put("target_height", e.getValue());
+            @SuppressWarnings("unchecked")
+            List<String> ids = (List<String>) row.get("mass_ids");
+            if (!ids.contains(massId)) ids.add(massId);
+        }
+        Map<String, Object> meta = plan.planMeta() == null
+                ? new HashMap<>()
+                : new HashMap<>(plan.planMeta());
+        meta.put(STACKED_ENVELOPE_TARGETS_META, new ArrayList<>(byFamily.values()));
+        return withMeta(plan, meta);
     }
 
     private static LlmPlan withMeta(LlmPlan plan, Map<String, Object> meta) {
