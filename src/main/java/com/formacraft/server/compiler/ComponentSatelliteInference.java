@@ -511,7 +511,7 @@ final class ComponentSatelliteInference {
         DeckRailingAccessCompiler.apply(prepared);
         ComponentFoundationEnforcer.apply(prepared);
         DeclaredInteriorOpeningCompiler.apply(prepared, slotMap);
-        prepared = ExplicitDesignConflictRepair.apply(prepared);
+        prepared = ExplicitDesignConflictRepair.apply(plan, prepared).components();
         prepared = FootprintCenterRepair.apply(prepared);
         FlatRoofAttachmentRepair.applyInPlace(prepared, slotMap);
 

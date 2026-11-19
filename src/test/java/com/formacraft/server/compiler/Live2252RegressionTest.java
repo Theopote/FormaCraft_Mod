@@ -106,11 +106,11 @@ class Live2252RegressionTest {
                             Map.entry("225358", "E_STAIR_COMPONENT_INVALID"),
                             Map.entry("225448", "E_COMPONENT_GENERATION_FAILED"),
                             Map.entry("225713", "E_SEMANTIC_FIDELITY"),
-                            // Dup-id scrub lands, but plate/shell still collide at one cell.
-                            Map.entry("230659", "E_PATCH_CONFLICT"),
                             Map.entry("231921", "E_STAIR_COMPONENT_INVALID"));
                     // Soft-repairs / open-frame / dup-id scrub / overhang reconcile land former hard rejects
                     // (incl. 230021 pagoda which now compiles past the old tier-plate PATCH_CONFLICT).
+                    // 230659 道观: temple host-scope + eaves cornice keep cleared the old plate/shell
+                    // E_PATCH_CONFLICT; accepted only when multi-hall openings survive (see daoGuan…).
                     if (!rejected.containsKey(name)) {
                         assertNull(gap, name); assertFalse(blocks.isEmpty(), name);
                     } else {
@@ -118,5 +118,46 @@ class Live2252RegressionTest {
                         assertEquals(rejected.get(name), gap.code(), name);
                     }
                 }));
+    }
+
+    /**
+     * 230659「生成一座道观」formerly rejected with E_PATCH_CONFLICT. After temple host-scope
+     * repairs it compiles; require the four MASS hosts and their openings survive the full chain.
+     */
+    @Test
+    void daoGuan230659CompilesWithFourHallsAndOpenings() throws Exception {
+        LlmPlan plan = load("230659");
+        AssemblyCompileDiagnostics.clear();
+        var blocks = ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false);
+        assertNull(AssemblyCompileDiagnostics.get(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(blocks.isEmpty());
+
+        LlmPlan afterTemple = TempleSideHallMisrouteRepair.apply(plan);
+        LlmPlan afterConflict = ExplicitDesignConflictRepair.apply(afterTemple);
+        Set<String> massIds = new TreeSet<>();
+        int entrances = 0;
+        int facades = 0;
+        int roofs = 0;
+        boolean eavesKept = false;
+        for (Component c : afterConflict.components()) {
+            if (c == null || c.componentType() == null) continue;
+            String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (t.startsWith("MASS") && c.params() != null && c.params().get("component_id") != null) {
+                massIds.add(String.valueOf(c.params().get("component_id")));
+            }
+            if ("ENTRANCE".equals(t)) entrances++;
+            if (t.startsWith("FACADE")) facades++;
+            if (t.startsWith("ROOF")) roofs++;
+            if (c.params() != null && "main_hall_eaves".equals(String.valueOf(c.params().get("component_id")))) {
+                eavesKept = true;
+            }
+        }
+        assertTrue(massIds.containsAll(Set.of(
+                "main_hall_body", "gate_body", "left_hall_body", "right_hall_body")),
+                "massIds=" + massIds);
+        assertTrue(roofs >= 4, "each hall keeps a roof, roofs=" + roofs);
+        assertTrue(entrances >= 4, "entrances=" + entrances);
+        assertTrue(facades >= 4, "facades=" + facades);
+        assertTrue(eavesKept, "main_hall_eaves (eave bracket / cornice under roof) must not be classical-dropped");
     }
 }

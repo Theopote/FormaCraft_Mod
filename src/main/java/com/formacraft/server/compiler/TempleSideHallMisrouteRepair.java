@@ -97,17 +97,17 @@ final class TempleSideHallMisrouteRepair {
                 // Other MASS_MAIN buildings keep their own identity (HARD_CONSTRAINT).
                 out.add(c);
             } else if ("ENTRANCE".equals(t)) {
-                if (belongsToHost(c, mainId)) {
+                if (belongsToHost(plan, c, main, mainId)) {
                     if (!entranceOmitted) {
-                        out.add(sanitizeEntrance(c, mainId, hallW));
+                        out.add(sanitizeEntrance(plan, c, mainId, hallW));
                     }
                 } else {
                     out.add(c);
                 }
             } else if ("FACADE_WINDOWS".equals(t) || "FACADE".equals(t)) {
-                if (belongsToHost(c, mainId)) {
+                if (belongsToHost(plan, c, main, mainId)) {
                     if (!windowsOmitted) {
-                        out.add(sanitizeFacade(c, mainId, hallW, hallD, hallH));
+                        out.add(sanitizeFacade(plan, c, mainId, hallW, hallD, hallH));
                     }
                 } else {
                     out.add(c);
@@ -199,7 +199,7 @@ final class TempleSideHallMisrouteRepair {
         // Ensure a readable central door exists after classical door_width=30 envelopes are sanitized.
         // Only invent for the selected main hall — never treat peidian satellites as coverage.
         if (!entranceOmitted && out.stream().noneMatch(c ->
-                "ENTRANCE".equals(typeOf(c)) && belongsToHost(c, mainId))) {
+                "ENTRANCE".equals(typeOf(c)) && hostIdEquals(c, mainId))) {
             int doorW = Math.max(3, Math.min(5, hallW / 5));
             Map<String, Object> door = new HashMap<>();
             door.put("component_id", mainId + "_entrance");
@@ -217,7 +217,7 @@ final class TempleSideHallMisrouteRepair {
         if (!windowsOmitted
                 && out.stream().noneMatch(c ->
                 ("FACADE_WINDOWS".equals(typeOf(c)) || "FACADE".equals(typeOf(c)))
-                        && belongsToHost(c, mainId))) {
+                        && hostIdEquals(c, mainId))) {
             Map<String, Object> win = new HashMap<>();
             win.put("component_id", mainId + "_windows");
             win.put("host_id", mainId);
@@ -322,21 +322,27 @@ final class TempleSideHallMisrouteRepair {
                 c.dimensions(), features, params);
     }
 
-    private static Component sanitizeEntrance(Component c, String mainId, int hallW) {
+    private static Component sanitizeEntrance(LlmPlan plan, Component c, String mainId, int hallW) {
         Map<String, Object> params = new HashMap<>();
         if (c.params() != null) params.putAll(c.params());
-        params.put("host_id", mainId);
-        params.put("anchor_mode", "min_corner");
+        params.putIfAbsent("host_id", mainId);
+        params.putIfAbsent("anchor_mode", "min_corner");
         int doorW = ComponentParamParsers.intParam(params, 0, "door_width", "doorWidth");
         int sane = Math.max(3, Math.min(5, Math.max(3, hallW / 5)));
-        if (doorW <= 0 || doorW > sane + 2) {
+        // Only repair missing / geometrically absurd widths — never rewrite USER_EXPLICIT sizes.
+        if (doorW <= 0) {
+            DesignProvenance.putIfAllowed(plan, params, "door_width", sane);
+        } else if (doorW > sane + 2
+                && DesignProvenance.canMutateParam(plan, params, "door_width")) {
             params.put("door_width", sane);
         }
         int doorH = ComponentParamParsers.intParam(params, 0, "door_height", "doorHeight");
-        if (doorH <= 0 || doorH > 6) {
+        if (doorH <= 0) {
+            DesignProvenance.putIfAllowed(plan, params, "door_height", 4);
+        } else if (doorH > 6 && DesignProvenance.canMutateParam(plan, params, "door_height")) {
             params.put("door_height", 4);
         }
-        // Thin south-face strip rather than whole-footprint envelope.
+        // Thin south-face strip rather than whole-footprint envelope (geometry only).
         Dimensions dims = c.dimensions();
         if (dims != null && dims.depth() > 2 && dims.width() > 8) {
             dims = new Dimensions(Math.min(dims.width(), hallW), 1, Math.min(dims.height(), 5));
@@ -345,19 +351,30 @@ final class TempleSideHallMisrouteRepair {
                 dims, c.features(), params);
     }
 
-    private static Component sanitizeFacade(Component c, String mainId, int hallW, int hallD, int hallH) {
+    private static Component sanitizeFacade(LlmPlan plan, Component c, String mainId, int hallW, int hallD, int hallH) {
         Map<String, Object> params = new HashMap<>();
         if (c.params() != null) params.putAll(c.params());
-        params.put("host_id", mainId);
-        params.put("anchor_mode", "min_corner");
-        params.put("wrap", true);
-        params.put("faces", "NORTH,SOUTH,EAST,WEST");
-        params.remove("rhythm_preset");
-        params.remove("repeating_pattern");
-        if ("CLASSICAL_PILASTER_BAY".equals(String.valueOf(params.get("rhythm_preset")))) {
+        params.putIfAbsent("host_id", mainId);
+        params.putIfAbsent("anchor_mode", "min_corner");
+        // Do not force wrap/four-face rhythm over AI-planned single-elevation facades.
+        Object wrap = params.get("wrap");
+        if (wrap == null && DesignProvenance.canMutateParam(plan, params, "wrap")) {
+            // Missing wrap only — never overwrite false / face lists.
+            if (!params.containsKey("faces") && !params.containsKey("face")) {
+                params.put("wrap", true);
+                params.put("faces", "NORTH,SOUTH,EAST,WEST");
+            }
+        }
+        // Strip classical pilaster bay presets only; keep other rhythm_preset / repeating_pattern.
+        Object rhythm = params.get("rhythm_preset");
+        if (rhythm != null && String.valueOf(rhythm).toUpperCase(Locale.ROOT).contains("CLASSICAL_PILASTER")
+                && DesignProvenance.canMutateParam(plan, params, "rhythm_preset")) {
             params.remove("rhythm_preset");
         }
-        Dimensions dims = new Dimensions(hallW, hallD, Math.min(hallH, Math.max(4, hallH - 2)));
+        Dimensions dims = c.dimensions();
+        if (dims == null || dims.width() <= 0 || dims.depth() <= 0) {
+            dims = new Dimensions(hallW, hallD, Math.min(hallH, Math.max(4, hallH - 2)));
+        }
         return new Component(c.componentType(), c.slotId(), c.relativePosition(),
                 dims, c.features(), params);
     }
@@ -381,7 +398,10 @@ final class TempleSideHallMisrouteRepair {
                 guard, plan.planMeta(), plan.designSources());
     }
 
-    /** Drop classical_monument floor-cornice / cupola hints that float bands after emit. */
+    /**
+     * Drop classical_monument floor-cornice / cupola hints that float bands after emit.
+     * Design-locked crown/facade keys in {@code design_sources} are preserved (FORMAT_REPAIR).
+     */
     private static LlmPlan clearClassicalHints(LlmPlan plan) {
         if (plan.proportionHints() == null || plan.proportionHints().isEmpty()) {
             return plan;
@@ -391,13 +411,14 @@ final class TempleSideHallMisrouteRepair {
         for (String key : List.of(
                 "floor_cornice", "base_plinth_detail", "crown_assembly", "crown_template",
                 "detail_rules", "repeating_pattern")) {
-            if (hints.containsKey(key)) {
-                hints.remove(key);
-                changed = true;
-            }
+            if (!hints.containsKey(key)) continue;
+            if (!DesignProvenance.canMutateParam(plan, null, key)) continue;
+            hints.remove(key);
+            changed = true;
         }
         Object typ = hints.get("typology");
-        if (typ != null && String.valueOf(typ).toLowerCase(Locale.ROOT).contains("classical")) {
+        if (typ != null && String.valueOf(typ).toLowerCase(Locale.ROOT).contains("classical")
+                && DesignProvenance.canMutateParam(plan, null, "typology")) {
             hints.put("typology", "chinese_timber_hall");
             changed = true;
         }
@@ -508,13 +529,24 @@ final class TempleSideHallMisrouteRepair {
     }
 
     /**
-     * Satellite belongs to the selected main hall when host_id matches, or when unbound
-     * (classical degrade often omits host — treat as main). Foreign hosts are preserved.
+     * Satellite belongs to the selected main hall when host_id matches.
+     * Unbound satellites use spatial {@link ComponentSatelliteInference#resolveUnboundHost}:
+     * only a unique MATCH binds to main — AMBIGUOUS/NONE keep the component untouched.
      */
-    private static boolean belongsToHost(Component c, String hostId) {
+    private static boolean belongsToHost(LlmPlan plan, Component c, Component main, String hostId) {
         if (c == null || hostId == null || hostId.isBlank()) return false;
         String host = satelliteHostId(c);
-        return host == null || hostId.equals(host);
+        if (host != null) return hostId.equals(host);
+        if (main == null || plan == null || plan.components() == null) return false;
+        List<Component> masses = new ArrayList<>();
+        for (Component m : plan.components()) {
+            if (m != null && ComponentPlanTypes.isMassType(
+                    ComponentPlanTypes.normalizeType(m.componentType()))) {
+                masses.add(m);
+            }
+        }
+        return ComponentSatelliteInference.resolveUnboundHost(main, masses, c)
+                == ComponentSatelliteInference.HostPick.MATCH;
     }
 
     private static String satelliteHostId(Component c) {
@@ -528,26 +560,37 @@ final class TempleSideHallMisrouteRepair {
         return String.valueOf(host).trim();
     }
 
+    private static boolean hostIdEquals(Component c, String hostId) {
+        if (c == null || hostId == null) return false;
+        String host = satelliteHostId(c);
+        return hostId.equals(host);
+    }
+
     private static boolean isClassicalDecor(Component c) {
         if (c == null) return false;
         if (!"DECOR_DETAIL".equals(typeOf(c))) return false;
         String feat = featuresOf(c).toLowerCase(Locale.ROOT);
         String id = idOf(c).toLowerCase(Locale.ROOT);
-        // East-asian timber ornament must survive temple recovery.
-        if (feat.contains("dougong") || feat.contains("斗拱") || feat.contains("carved_beam")
-                || feat.contains("雕梁") || feat.contains("花窗") || feat.contains("雀替")
-                || id.contains("dougong") || id.contains("carved_beam") || id.contains("雕梁")
-                || id.contains("斗拱")) {
+        String blob = feat + " " + id;
+        Object detail = c.params() == null ? null : c.params().get("detail_type");
+        if (detail != null) blob += " " + String.valueOf(detail).toLowerCase(Locale.ROOT);
+        boolean eastAsianEave = blob.contains("dougong") || blob.contains("斗拱")
+                || blob.contains("carved_beam") || blob.contains("雕梁") || blob.contains("花窗")
+                || blob.contains("雀替") || blob.contains("eave") || blob.contains("eaves")
+                || blob.contains("檐") || blob.contains("bracket") || blob.contains("飞檐");
+        // East-asian timber / eave ornament must survive (incl. "cornice under roof" / eave brackets).
+        if (eastAsianEave) {
             return false;
         }
-        if (feat.contains("cornice") || feat.contains("pilaster") || feat.contains("cupola")
-                || feat.contains("classical")) {
+        // Western classical signals.
+        if (blob.contains("pilaster") || blob.contains("cupola") || blob.contains("classical")
+                || blob.contains("ionic") || blob.contains("doric") || blob.contains("corinthian")
+                || blob.contains("western") || blob.contains("entablature") || blob.contains("pediment")
+                || blob.contains("triglyph") || blob.contains("frieze")) {
             return true;
         }
-        // Bare "column"/"carved" are too broad — require western classical cues.
-        return (feat.contains("column") || feat.contains("carved"))
-                && (feat.contains("ionic") || feat.contains("doric") || feat.contains("corinthian")
-                || feat.contains("classical") || feat.contains("pilaster") || feat.contains("western"));
+        // Floating classical cornice bands (carved/pattern) without eave cues — not bare "cornice" alone.
+        return blob.contains("cornice") && (blob.contains("carved") || blob.contains("pattern"));
     }
 
     /**

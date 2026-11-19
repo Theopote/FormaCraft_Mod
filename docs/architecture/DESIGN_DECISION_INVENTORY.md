@@ -127,6 +127,12 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `TempleSideHallMisrouteRepair` cross-host rewrite | ENTRANCE/FACADE rebinding + omit dropped peidian windows; all MASS_MAIN → same id | **Fixed (2026-11-20):** host-scoped sanitize/omit/invent; enrich only selected primary; other MASS_MAIN identity preserved |
 | `TempleSideHallMisrouteRepair` roof_type overwrite | enrich forced hip/xieshan over `roof_type=none` | **Fixed (2026-11-20):** `DesignProvenance.putIfAllowed` + roofOmitted skip |
 | `TempleSideHallMisrouteRepair` crown drop provenance | ad-hoc design_sources scan | **Fixed (2026-11-20):** `DesignProvenance.canMutateParam` (plan + component locks) |
+| `ExplicitDesignConflictRepair` drop any CROWN vs ROOF | silent delete of 宝顶 with pitched roof | **Fixed (2026-11-20):** keep Chinese finial/宝顶; drop classical/ambiguous only; locked classical → `E_CROWN_ROOF_CONFLICT` |
+| `TempleSideHallMisrouteRepair` unbound host=main | `host==null` treated as main | **Fixed (2026-11-20):** spatial `resolveUnboundHost` MATCH only |
+| `TempleSideHallMisrouteRepair` clearClassicalHints | deleted locked crown_* hints | **Fixed (2026-11-20):** `DesignProvenance.canMutateParam` gate |
+| `TempleSideHallMisrouteRepair` sanitize wrap/door | forced wrap + door clamp without provenance | **Fixed (2026-11-20):** putIfAllowed / missing-only; keep non-classical rhythm |
+| `TempleSideHallMisrouteRepair` isClassicalDecor cornice | bare cornice dropped CJK eaves | **Fixed (2026-11-20):** eave/bracket exclude; cornice needs western cues |
+| Live2252 `230659` E_PATCH_CONFLICT | temple host-scope now compiles 道观 | **Updated (2026-11-20):** accept success + `daoGuan230659CompilesWithFourHallsAndOpenings` integrity |
 | `estimateInferredRoofRise` top crown zero | any `countsTowardBuildingEnvelope` on top suppressed inferred roof | **Fixed (2026-11-20):** only top-hosted ROOF suppresses; TOP_PROTRUSION/finial/banner do not |
 | `GothicBellTowerFidelityRepair.repairEntrance` | snapped every ENTRANCE onto primary shaft | **Fixed (2026-11-20):** host-scoped; foreign `host_id` preserved |
 | `StiltShelterMisrouteRepair` whole-plan rewrite | keyword+suspension_bridge → invented stilts template DESIGN_OVERRIDE | **Fixed (2026-11-20):** `E_STILT_SHELTER_ROUTE_UNSUPPORTED` capability_gap; STRUCTURE+typology only; feature tags ≠ executor; existing stilts composition skipped |

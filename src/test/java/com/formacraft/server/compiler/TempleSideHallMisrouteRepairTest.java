@@ -10,7 +10,9 @@ import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -358,11 +360,19 @@ class TempleSideHallMisrouteRepairTest {
 
     @Test
     void mainWindowOmitKeepsPeidianFacades() {
+        // Host-local omit on the main hall only — not plan-level facade=OMITTED (would bind all hosts).
+        Map<String, Object> hallParams = new HashMap<>();
+        hallParams.put("component_id", "temple_hall");
+        hallParams.put("anchor_mode", "min_corner");
+        hallParams.put("window_style", "none");
+        hallParams.put("facade_requirement", "OMITTED");
+        hallParams.put("design_sources", Map.of(
+                "window_style", "USER_EXPLICIT",
+                "facade_requirement", "USER_EXPLICIT"));
         Component hall = new Component(
                 "MASS_MAIN", "body", new Vec3i(0, 0, 0),
                 new Dimensions(20, 16, 12), List.of("main_hall"),
-                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner",
-                        "window_style", "none"));
+                hallParams);
         Component left = new Component(
                 "MASS_SECONDARY", "body", new Vec3i(-12, 0, 2),
                 new Dimensions(8, 10, 8), List.of("配殿", "side_hall"),
@@ -383,15 +393,14 @@ class TempleSideHallMisrouteRepairTest {
                 new Dimensions(8, 10, 4), List.of(),
                 Map.of("component_id", "right_peidian_windows", "host_id", "right_peidian",
                         "anchor_mode", "min_corner"));
-        String prompt = "生成一座大雄宝殿，不要窗，左右各一配殿。";
+        String prompt = "生成一座大雄宝殿，主殿不要窗，左右各一配殿保留窗户。";
         LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
                 .allowCompilerSatellites(true)
                 .styleProfile("chinese_temple_imperial")
                 .components(List.of(hall, left, right, leftWin, rightWin))
                 .planMeta(Map.of(
                         "request_intent", Map.of("original_text", prompt),
-                        "request_intent_text", prompt,
-                        "design_requirements", Map.of("facade", "OMITTED")))
+                        "request_intent_text", prompt))
                 .build());
         assertTrue(repaired.components().stream().noneMatch(c ->
                 "FACADE_WINDOWS".equalsIgnoreCase(c.componentType())
@@ -405,6 +414,28 @@ class TempleSideHallMisrouteRepairTest {
                 .filter(c -> "right_peidian_windows".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow();
         assertEquals("right_peidian", String.valueOf(keptRight.params().get("host_id")));
+    }
+
+    @Test
+    void planLevelFacadeOmitDropsAllInventedWindows() {
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(20, 16, 12), List.of("main_hall"),
+                Map.of("component_id", "temple_hall", "anchor_mode", "min_corner"));
+        String prompt = "生成一座大雄宝殿，左右各一配殿，整组建筑都不要窗。";
+        LlmPlan repaired = TempleSideHallMisrouteRepair.apply(LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true)
+                .styleProfile("chinese_temple_imperial")
+                .components(List.of(hall))
+                .planMeta(Map.of(
+                        "request_intent", Map.of("original_text", prompt),
+                        "request_intent_text", prompt,
+                        "design_requirements", Map.of("facade", "OMITTED")))
+                .build());
+        assertTrue(repaired.components().stream()
+                .noneMatch(c -> c != null && c.componentType() != null
+                        && c.componentType().toUpperCase(Locale.ROOT).startsWith("FACADE")),
+                "plan-level facade OMITTED must not invent wrap windows");
     }
 
     @Test
@@ -476,8 +507,11 @@ class TempleSideHallMisrouteRepairTest {
                 .allowCompilerSatellites(true)
                 .styleProfile("DEFAULT")
                 .components(List.of(hall, crown))
-                .proportionHints(Map.of("typology", "classical_monument"))
-                .designSources(Map.of("crown_template", "USER_EXPLICIT"))
+                .proportionHints(Map.of(
+                        "typology", "classical_monument",
+                        "crown_template", "CLASSICAL_CUPOLA",
+                        "crown_assembly", true))
+                .designSources(Map.of("crown_template", "USER_EXPLICIT", "crown_assembly", "USER_EXPLICIT"))
                 .planMeta(Map.of(
                         "request_intent", Map.of("original_text", prompt),
                         "request_intent_text", prompt))
@@ -485,6 +519,10 @@ class TempleSideHallMisrouteRepairTest {
         assertTrue(repaired.components().stream().anyMatch(c ->
                 "locked_cupola".equals(String.valueOf(c.params().get("component_id")))),
                 "plan-level USER_EXPLICIT crown_template must block classical crown drop");
+        assertEquals("CLASSICAL_CUPOLA", repaired.proportionHints().get("crown_template"),
+                "locked crown_template hint must survive clearClassicalHints");
+        assertEquals(true, repaired.proportionHints().get("crown_assembly"),
+                "locked crown_assembly hint must survive clearClassicalHints");
     }
 
     @Test

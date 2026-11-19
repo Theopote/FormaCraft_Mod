@@ -8,6 +8,7 @@ import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -362,6 +363,47 @@ class TempleGardenAlignmentRepairTest {
                 .noneMatch(c -> c != null && "CROWN".equals(c.componentType())));
         assertTrue(repaired.components().stream()
                 .anyMatch(c -> c != null && "ROOF".equals(c.componentType())));
+    }
+
+    @Test
+    void chineseBaodingCrownKeptWithRoofOnSameHostThroughFullCompile() {
+        Component hall = new Component(
+                "MASS_MAIN", "hall", new Vec3i(0, 0, 0),
+                new Dimensions(16, 12, 10), List.of("大雄宝殿"),
+                Map.of("component_id", "main_hall", "window_style", "none", "entrance_type", "none"));
+        Component roof = new Component(
+                "ROOF", "hall", new Vec3i(-1, 9, -1),
+                new Dimensions(18, 14, 4), List.of("重檐歇山"),
+                Map.of("component_id", "main_roof", "host_id", "main_hall",
+                        "roof_type", "xieshan", "double_eave", true));
+        Component baoding = new Component(
+                "CROWN", "hall", new Vec3i(6, 14, 4),
+                new Dimensions(3, 3, 3), List.of("宝顶", "ridge finial"),
+                Map.of("component_id", "main_baoding", "host_id", "main_hall",
+                        "crown_type", "baoding",
+                        "design_sources", Map.of("crown_type", "USER_EXPLICIT")));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("chinese_temple_imperial")
+                .components(List.of(hall, roof, baoding))
+                .planMeta(Map.of(
+                        "request_intent_text", "重檐歇山大雄宝殿，屋脊上设置宝顶",
+                        "request_intent", Map.of("original_text", "重檐歇山大雄宝殿，屋脊上设置宝顶")))
+                .build();
+        LlmPlan afterTemple = TempleSideHallMisrouteRepair.apply(plan);
+        LlmPlan afterConflict = ExplicitDesignConflictRepair.apply(afterTemple);
+        assertTrue(afterConflict.components().stream().anyMatch(c ->
+                        c != null && "CROWN".equals(c.componentType())
+                                && "main_baoding".equals(String.valueOf(c.params().get("component_id")))),
+                "宝顶 must survive Temple + ExplicitDesignConflictRepair");
+        assertTrue(afterConflict.components().stream()
+                .anyMatch(c -> c != null && "ROOF".equals(c.componentType())));
+        assertFalse(afterConflict.hasCapabilityGap(), () -> String.valueOf(afterConflict.capabilityGap()));
+
+        AssemblyCompileDiagnostics.clear();
+        var patches = ComponentPlanCompiler.compile(afterConflict, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
     }
 
     @Test
