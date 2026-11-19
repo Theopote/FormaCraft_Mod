@@ -163,7 +163,8 @@ class StackedTowerGeometryIntegrityTest {
 
     @Test
     void buildingModeAllowsShaftShorterThanWholeTarget() {
-        // Shaft 34 + roof 3; player asks for whole-building 50 → shaft 47, building 50.
+        // Enclosed roof H=3 seats at hostTop-1 → net rise 2.
+        // Whole-building 50 → shaft 48, building 50 (not shaft 47 from pre-align flush Y).
         List<Component> comps = new ArrayList<>(stackedTight(new int[]{8, 8, 7, 6, 5}));
         Map<String, Object> roof = new HashMap<>();
         roof.put("component_id", "pagoda_roof");
@@ -176,7 +177,7 @@ class StackedTowerGeometryIntegrityTest {
                 .build();
         LlmPlan out = RequestIntentInjector.ensure(plan, "建造一座整座高度50格的宝塔。");
         assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
-        assertEquals(47, shaftEnvelope(pagodaTiers(out)));
+        assertEquals(48, shaftEnvelope(pagodaTiers(out)));
         assertEquals(50, buildingEnvelope(out.components()));
         assertTrue(StackedEnvelopeIntegrityValidator.check(out, out.components()).isEmpty());
         // Must not require shaftEnv == building target.
@@ -307,7 +308,8 @@ class StackedTowerGeometryIntegrityTest {
                 "凉亭高度8格，整座宝塔含屋顶高度50格。");
         assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
         assertEquals(8, heightOf(out, "garden_pavilion"));
-        assertEquals(47, shaftEnvelope(pagodaTiers(out)));
+        // Enclosed roof net rise 2 → shaft 48 for whole-building 50.
+        assertEquals(48, shaftEnvelope(pagodaTiers(out)));
         assertEquals(50, buildingEnvelope(out.components()));
         Object mode = pagodaTiers(out).getFirst().params().get(RequestIntentInjector.ENVELOPE_MODE_KEY);
         assertEquals("building", String.valueOf(mode));
@@ -497,6 +499,75 @@ class StackedTowerGeometryIntegrityTest {
         var gap = StackedEnvelopeIntegrityValidator.check(broken, stripped);
         assertTrue(gap.isPresent());
         assertEquals("E_STACKED_ENVELOPE_SEAL_INVALID", gap.orElseThrow().code());
+    }
+
+    @Test
+    void tamperedMetaSealNotRescuedByComponentHeightAlone() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan sealed = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "建造一座高度50格的宝塔。");
+        assertFalse(sealed.hasCapabilityGap());
+        // Keep component seals; only break plan_meta seal — mass_ids must not be abandoned.
+        Map<String, Object> meta = new HashMap<>(sealed.planMeta());
+        meta.put(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_SEAL_META, "formacraft.forged");
+        List<Component> droppedTop = new ArrayList<>();
+        for (Component c : sealed.components()) {
+            if (c != null && c.params() != null
+                    && "pagoda_tier_5".equals(String.valueOf(c.params().get("component_id")))) {
+                continue;
+            }
+            droppedTop.add(c);
+        }
+        LlmPlan broken = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(droppedTop)
+                .planMeta(meta)
+                .build();
+        var gap = StackedEnvelopeIntegrityValidator.check(broken, droppedTop);
+        assertTrue(gap.isPresent(), "broken meta seal must gap even when remaining tiers still seal height");
+        assertEquals("E_STACKED_ENVELOPE_SEAL_INVALID", gap.orElseThrow().code());
+    }
+
+    @Test
+    void emptyComponentsWithTrustedMetaReportsMissingTower() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan sealed = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "建造一座高度50格的宝塔。");
+        assertFalse(sealed.hasCapabilityGap());
+        var gap = StackedEnvelopeIntegrityValidator.check(sealed, List.of());
+        assertTrue(gap.isPresent());
+        assertEquals("E_STACKED_HEIGHT_UNSUPPORTED", gap.orElseThrow().code());
+    }
+
+    @Test
+    void metaAndComponentModeMismatchReportsConflict() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan sealed = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "建造一座高度50格的宝塔。");
+        assertFalse(sealed.hasCapabilityGap());
+        // Flip component mode stamps to building while meta remains shaft@50.
+        List<Component> flipped = new ArrayList<>();
+        for (Component c : sealed.components()) {
+            if (c == null || c.params() == null) {
+                flipped.add(c);
+                continue;
+            }
+            Map<String, Object> p = new HashMap<>(c.params());
+            p.put(RequestIntentInjector.ENVELOPE_MODE_KEY, "building");
+            UserConstraintContract.stampVerified(p,
+                    "height", "towerHeight",
+                    RequestIntentInjector.SHAFT_ENVELOPE_TARGET_KEY,
+                    RequestIntentInjector.SHAFT_ENVELOPE_FAMILY_KEY,
+                    RequestIntentInjector.ENVELOPE_MODE_KEY);
+            flipped.add(new Component(c.componentType(), c.slotId(), c.relativePosition(),
+                    c.dimensions(), c.features(), p));
+        }
+        var gap = StackedEnvelopeIntegrityValidator.check(sealed, flipped);
+        assertTrue(gap.isPresent());
+        assertEquals("E_HEIGHT_HOST_CONFLICT", gap.orElseThrow().code());
     }
 
     private static int buildingEnvelope(List<Component> comps) {

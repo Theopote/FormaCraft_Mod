@@ -875,10 +875,15 @@ public final class RequestIntentInjector {
                     newRelY.clear();
                     break;
                 }
+                // Keep current shaft H/Y so the rewrite loop still seats enclosed roofs
+                // at hostTop-1 (AlignRoofToMass) even when the shaft already matches.
                 for (Component c : members) {
                     String mid = BuildingHostResolver.massId(c);
                     if (mid != null) {
-                        sealedHeights.put(mid, Math.max(1, c.dimensions().height()));
+                        int curH = Math.max(1, c.dimensions().height());
+                        sealedHeights.put(mid, curH);
+                        newHeight.put(mid, curH);
+                        newRelY.put(mid, c.relativePosition().y());
                         envelopeTargetByMass.put(mid, env.targetHeight());
                         envelopeFamilyByMass.put(mid, family);
                         envelopeModeByMass.put(mid, mode);
@@ -1115,7 +1120,28 @@ public final class RequestIntentInjector {
                     || familyMatchesShaft(mid, shaftIds)
                     || familyMatchesShaft(host, shaftIds);
             if (!attached) continue;
-            maxTop = Math.max(maxTop, c.relativePosition().y() + Math.max(1, c.dimensions().height()));
+            int satH = Math.max(1, c.dimensions().height());
+            String type = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
+            // AlignRoofToMass / makeRoofComponent seat enclosed roofs at hostTop-1.
+            // Budget the post-align net rise, not a pre-align authored Y that sits flush on the top.
+            if (type.startsWith("ROOF")) {
+                Component hostMass = null;
+                if (host != null) {
+                    for (Component m : shaftMembers) {
+                        if (host.equals(BuildingHostResolver.massId(m))) {
+                            hostMass = m;
+                            break;
+                        }
+                    }
+                }
+                boolean openFrame = hostMass != null
+                        && com.formacraft.common.generation.component.util.OpenFramePolicy
+                        .isOpen(hostMass.params());
+                int net = openFrame ? satH : Math.max(0, satH - 1);
+                maxTop = Math.max(maxTop, shaftTop + net);
+                continue;
+            }
+            maxTop = Math.max(maxTop, c.relativePosition().y() + satH);
         }
         return Math.max(0, maxTop - shaftTop);
     }
@@ -1191,6 +1217,14 @@ public final class RequestIntentInjector {
         int relY = c.relativePosition().y();
         int offsetFromTop = relY - oldTop;
         if (sticksToHostTop(c)) {
+            String crownType = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
+            // Match ComponentSatelliteAligner / makeRoofComponent: enclosed roofs seat at hostTop-1.
+            if (crownType.startsWith("ROOF")) {
+                if (com.formacraft.common.generation.component.util.OpenFramePolicy.isOpen(c.params())) {
+                    return newHY + newHH;
+                }
+                return newHY + newHH - 1;
+            }
             return newHY + newHH + offsetFromTop;
         }
         // Openings / stairs / floors / facade decor: proportional then clamp inside host.

@@ -224,9 +224,10 @@ class StackedTowerHeightEnvelopeTest {
         assertNotNull(top);
         assertNotNull(roof);
         assertNotNull(window);
-        assertEquals(top.relativePosition().y() + top.dimensions().height(),
+        // Enclosed roofs seat at hostTop-1 (AlignRoofToMass / makeRoofComponent overlap).
+        assertEquals(top.relativePosition().y() + top.dimensions().height() - 1,
                 roof.relativePosition().y(),
-                "roof must stay on the scaled top plane");
+                "enclosed roof must seat on the scaled top plane (hostTop-1)");
         Component base = pagodaTiers(out).stream()
                 .filter(c -> "pagoda_tier_1".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow();

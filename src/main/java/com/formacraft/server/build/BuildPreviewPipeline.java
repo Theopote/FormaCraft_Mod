@@ -149,11 +149,11 @@ public final class BuildPreviewPipeline {
      * Aligns delivered BUILD preview with {@link com.formacraft.common.patch.ConfirmedPlanIdentity}
      * and {@link com.formacraft.server.preview.PreviewStorage#digestStructure}.
      */
-    static List<PlannedBlock> collapseToFinalCells(List<PlannedBlock> blocks) {
+    public static List<PlannedBlock> collapseToFinalCells(List<PlannedBlock> blocks) {
         return collapseToFinalCellsWithStats(blocks).blocks();
     }
 
-    static CollapseStats collapseToFinalCellsWithStats(List<PlannedBlock> blocks) {
+    public static CollapseStats collapseToFinalCellsWithStats(List<PlannedBlock> blocks) {
         if (blocks == null || blocks.isEmpty()) {
             return new CollapseStats(List.of(), 0, 0);
         }

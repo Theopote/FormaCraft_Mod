@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -31,17 +32,30 @@ final class StackedEnvelopeIntegrityValidator {
     private StackedEnvelopeIntegrityValidator() {}
 
     static Optional<CapabilityGap> check(LlmPlan plan, List<Component> components) {
-        if (plan == null || components == null || components.isEmpty()) return Optional.empty();
+        if (plan == null) return Optional.empty();
+        List<Component> comps = components == null ? List.of() : components;
 
-        Map<String, FamilyTarget> targets = mergeTargets(plan, components);
-        Optional<CapabilityGap> sealGap = diagnoseBrokenEnvelopeAuthority(plan, components, targets);
+        // Trusted meta targets still require members even when the component list was wiped.
+        Map<String, FamilyTarget> metaOnly = targetsFromPlanMeta(plan);
+        if (comps.isEmpty() && !metaOnly.isEmpty()) {
+            String family = metaOnly.keySet().iterator().next();
+            return Optional.of(new CapabilityGap(
+                    "E_STACKED_HEIGHT_UNSUPPORTED",
+                    "堆叠塔楼「" + family + "」已记录高度目标但全部塔层构件缺失",
+                    "StackedEnvelopeIntegrityValidator",
+                    List.of("Restore shaft masses")));
+        }
+        if (comps.isEmpty()) return Optional.empty();
+
+        Map<String, FamilyTarget> targets = mergeTargets(plan, comps);
+        Optional<CapabilityGap> sealGap = diagnoseBrokenEnvelopeAuthority(plan, comps, targets);
         if (sealGap.isPresent()) return sealGap;
         if (targets.isEmpty()) return Optional.empty();
 
         Map<String, List<Component>> shaftByFamily = new HashMap<>();
         Map<String, List<Component>> crownByFamily = new HashMap<>();
         Map<String, List<String>> presentMassIds = new HashMap<>();
-        for (Component c : components) {
+        for (Component c : comps) {
             if (c == null || c.relativePosition() == null || c.dimensions() == null) continue;
             String mid = BuildingHostResolver.massId(c);
             String family = familyOf(c, mid);
@@ -156,6 +170,15 @@ final class StackedEnvelopeIntegrityValidator {
             if (prior != null && prior.targetHeight() > 0
                     && e.getValue().targetHeight() > 0
                     && prior.targetHeight() != e.getValue().targetHeight()) {
+                out.put(e.getKey(), new FamilyTarget(
+                        e.getKey(), -1, prior.mode(), prior.expectedMassIds(), true, true));
+                continue;
+            }
+            // Both sealed sides disagree on mode (shaft vs building) — hard conflict.
+            if (prior != null && prior.fromMeta() && !e.getValue().fromMeta()
+                    && prior.targetHeight() > 0 && e.getValue().targetHeight() > 0
+                    && prior.targetHeight() == e.getValue().targetHeight()
+                    && !Objects.equals(prior.mode(), e.getValue().mode())) {
                 out.put(e.getKey(), new FamilyTarget(
                         e.getKey(), -1, prior.mode(), prior.expectedMassIds(), true, true));
                 continue;
@@ -296,16 +319,15 @@ final class StackedEnvelopeIntegrityValidator {
                 metaSealOk = UserConstraintContract.verifyStackedEnvelopeTargets(list, seal);
             }
         }
-        // Trusted targets from either side already available — cross-check succeeded.
-        if (!targets.isEmpty()) return Optional.empty();
-        // Seal present but digest mismatch = tampered server record (not a bare unsigned forge).
+        // Damaged server meta cannot be replaced by component height alone — mass_ids live only in meta.
         if (metaSealPresent && !metaSealOk) {
             return Optional.of(new CapabilityGap(
                     "E_STACKED_ENVELOPE_SEAL_INVALID",
-                    "堆叠高度包络 plan_meta 签章被破坏且组件侧无可用备用签章",
+                    "堆叠高度包络 plan_meta 签章被破坏，无法恢复可信塔层名单",
                     "StackedEnvelopeIntegrityValidator",
                     List.of("Re-run RequestIntentInjector with FormaRequest text")));
         }
+        if (!targets.isEmpty()) return Optional.empty();
         if (hasEnvelopeKeys) {
             // Component-side envelope fields present but none sealed and no trusted meta.
             return Optional.of(new CapabilityGap(
@@ -357,13 +379,15 @@ final class StackedEnvelopeIntegrityValidator {
                     && a.fromMeta == b.fromMeta) {
                 return new FamilyTarget(a.family, -1, a.mode, a.expectedMassIds, a.fromMeta, true);
             }
+            // Two sealed records (meta + component) with same height but different modes.
+            if (a.fromMeta != b.fromMeta && a.targetHeight > 0 && b.targetHeight > 0
+                    && a.targetHeight == b.targetHeight
+                    && a.mode != null && b.mode != null && !a.mode.equals(b.mode)) {
+                return new FamilyTarget(a.family, -1, a.mode, a.expectedMassIds, a.fromMeta || b.fromMeta, true);
+            }
             FamilyTarget primary = a.fromMeta ? a : (b.fromMeta ? b : a);
             FamilyTarget secondary = primary == a ? b : a;
             String mode = primary.fromMeta ? primary.mode : secondary.mode;
-            if (primary.fromMeta && "shaft".equals(primary.mode) && "building".equals(secondary.mode)
-                    && !secondary.fromMeta) {
-                mode = primary.mode;
-            }
             if (!primary.fromMeta && secondary.fromMeta) {
                 mode = secondary.mode;
             }
