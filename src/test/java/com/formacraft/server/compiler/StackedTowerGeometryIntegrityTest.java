@@ -377,6 +377,128 @@ class StackedTowerGeometryIntegrityTest {
         assertEquals("E_STACKED_HEIGHT_UNSUPPORTED", gap.orElseThrow().code());
     }
 
+    @Test
+    void envelopeFieldsRemainServerVerifiedAfterEnsure() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan out = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "建造一座高度50格的宝塔。");
+        assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
+        for (Component c : pagodaTiers(out)) {
+            assertTrue(UserConstraintContract.isServerVerified(
+                    c.params(), RequestIntentInjector.SHAFT_ENVELOPE_TARGET_KEY),
+                    "envelope target must stay verified after final constraint pass");
+            assertTrue(UserConstraintContract.isServerVerified(
+                    c.params(), RequestIntentInjector.ENVELOPE_MODE_KEY));
+            assertTrue(UserConstraintContract.isServerVerified(
+                    c.params(), RequestIntentInjector.SHAFT_ENVELOPE_FAMILY_KEY));
+            assertTrue(UserConstraintContract.isServerVerified(c.params(), "height"));
+        }
+        LlmPlan reentered = RequestIntentInjector.ensure(out, (String) null);
+        for (Component c : pagodaTiers(reentered)) {
+            assertTrue(UserConstraintContract.isServerVerified(
+                    c.params(), RequestIntentInjector.SHAFT_ENVELOPE_TARGET_KEY),
+                    "ensure(null) must preserve envelope seals for ComponentPlanCompiler");
+            assertTrue(UserConstraintContract.isServerVerified(
+                    c.params(), RequestIntentInjector.ENVELOPE_MODE_KEY));
+        }
+        assertTrue(StackedEnvelopeIntegrityValidator.check(reentered, reentered.components()).isEmpty());
+    }
+
+    @Test
+    void buildingModeWithoutSatellitesDoesNotReserveMissingRoof() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan out = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "整座宝塔高度50格。");
+        assertFalse(out.hasCapabilityGap(), () -> String.valueOf(out.capabilityGap()));
+        // No independent roof and satellites off → no speculative roof reserve; shaft == 50.
+        assertEquals(50, shaftEnvelope(pagodaTiers(out)));
+        assertEquals("building", String.valueOf(
+                pagodaTiers(out).getFirst().params().get(RequestIntentInjector.ENVELOPE_MODE_KEY)));
+    }
+
+    @Test
+    void midTierRoofDoesNotSuppressTopInferredRoofBudget() {
+        List<Component> comps = new ArrayList<>(stackedTight(new int[]{8, 8, 7, 6, 5}));
+        Map<String, Object> midRoof = new HashMap<>();
+        midRoof.put("component_id", "pagoda_mid_eave");
+        midRoof.put("host_id", "pagoda_tier_3");
+        comps.add(new Component("ROOF", "pagoda", new Vec3i(0, 20, 0),
+                new Dimensions(8, 8, 2), List.of(), midRoof));
+        // Top storey carries an explicit roof_type so compiler satellites would infer a roof.
+        Component top = comps.get(4);
+        Map<String, Object> topParams = new HashMap<>(top.params());
+        topParams.put("roof_type", "xieshan");
+        comps.set(4, new Component(top.componentType(), top.slotId(), top.relativePosition(),
+                top.dimensions(), top.features(), topParams));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true)
+                .components(comps)
+                .build();
+        int rise = RequestIntentInjector.estimateInferredRoofRise(plan, comps, pagodaTiers(plan));
+        assertTrue(rise > 0, "mid-tier eave must not zero the top-storey inferred roof budget");
+    }
+
+    @Test
+    void explicitShaftAndBuildingSameHeightConflict() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan out = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "宝塔塔身高度50格，整座宝塔含屋顶高度50格。");
+        assertTrue(out.hasCapabilityGap(), "explicit shaft+building at same height must conflict");
+        assertEquals("E_HEIGHT_HOST_CONFLICT", out.capabilityGap().code());
+    }
+
+    @Test
+    void facadeDecorDoesNotTopStickWhileBannerCountsAsCrown() {
+        assertEquals(RequestIntentInjector.CrownKind.NONE,
+                RequestIntentInjector.classifyCrownAttachment(
+                        new Component("DECOR_DETAIL", "pagoda", new Vec3i(0, 18, 0),
+                                new Dimensions(1, 1, 2), List.of(),
+                                Map.of("component_id", "pagoda_lintel", "host_id", "pagoda_tier_1"))));
+        assertEquals(RequestIntentInjector.CrownKind.TOP_PROTRUSION,
+                RequestIntentInjector.classifyCrownAttachment(
+                        new Component("DECOR_DETAIL", "pagoda", new Vec3i(0, 20, 0),
+                                new Dimensions(1, 1, 3), List.of(),
+                                Map.of("component_id", "pagoda_banner", "host_id", "pagoda_tier_1"))));
+        assertTrue(RequestIntentInjector.countsTowardBuildingEnvelope(
+                new Component("DECOR_DETAIL", "pagoda", new Vec3i(0, 20, 0),
+                        new Dimensions(1, 1, 3), List.of(),
+                        Map.of("component_id", "pagoda_flagpole", "host_id", "pagoda_tier_5"))));
+    }
+
+    @Test
+    void tamperedEnvelopeMetaSealReportsGap() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan sealed = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "建造一座高度50格的宝塔。");
+        assertFalse(sealed.hasCapabilityGap());
+        // Break meta seal and strip component seals, leave envelope keys → authority destroyed.
+        Map<String, Object> meta = new HashMap<>(sealed.planMeta());
+        meta.put(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_SEAL_META, "formacraft.forged");
+        List<Component> stripped = new ArrayList<>();
+        for (Component c : sealed.components()) {
+            if (c == null || c.params() == null) {
+                stripped.add(c);
+                continue;
+            }
+            Map<String, Object> p = new HashMap<>(c.params());
+            UserConstraintContract.stripUntrustedMarkers(p);
+            stripped.add(new Component(c.componentType(), c.slotId(), c.relativePosition(),
+                    c.dimensions(), c.features(), p));
+        }
+        LlmPlan broken = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(stripped)
+                .planMeta(meta)
+                .build();
+        var gap = StackedEnvelopeIntegrityValidator.check(broken, stripped);
+        assertTrue(gap.isPresent());
+        assertEquals("E_STACKED_ENVELOPE_SEAL_INVALID", gap.orElseThrow().code());
+    }
+
     private static int buildingEnvelope(List<Component> comps) {
         int minY = Integer.MAX_VALUE;
         int maxTop = Integer.MIN_VALUE;

@@ -106,6 +106,10 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | near-top window top-stick | `abs(offsetFromTop)<=1` treated openings as crowns | **Fixed (2026-11-19):** openings/stairs never top-stick |
 | whole-request building mode | `wantsBuildingEnvelope(fullText)` flipped every tower | **Fixed (2026-11-19):** per-binding `HeightBinding.envelopeMode` from local clause |
 | forged envelope meta | `trusted=true` / unsigned plan_meta accepted | **Fixed (2026-11-19):** `stacked_envelope_targets_seal` + sealed envelope param keys |
+| envelope seal stripped in final pass | `stripUntrustedMarkers` + height-only restamp dropped envelope verified keys | **Fixed (2026-11-19):** capture priorVerified always; `restampPreserved` after height/omit |
+| speculative inferred roof rise | budgeted roof even when `allowCompilerSatellites=false`; mid-tier roof zeroed top budget; rise≠net after −1 overlap | **Fixed (2026-11-19):** `estimatedInferredRoofNetRise` via `makeRoofComponent`; top-host only; no satellites → 0 |
+| DECOR_DETAIL crown split | injector treated all DECOR as crown; integrity ignored unnamed DECOR | **Fixed (2026-11-19):** shared `classifyCrownAttachment` — facade decor NONE; banner/flagpole TOP_PROTRUSION |
+| same-height shaft vs building | auto-upgraded shaft→building | **Fixed (2026-11-19):** both-explicit mode conflict → `E_HEIGHT_HOST_CONFLICT`; default may yield to explicit |
 | `_named_scope_mass_hits` omitted `named_key` | plural wing collapsed to None → `E_OMIT_SCOPE_AMBIGUOUS` after contract bound both wings | **Fixed (2026-11-19):** pass `named_key=wing`; clause-window side filter for 西/东厢房 |
 | `double_eave_xieshan` capability vs generator | capability allowed token; `ChineseHallRoofGenerator.normalize` rejected it | **Fixed (2026-11-19):** `TypologyParamResolver.syncRoofAliases` decomposes to `xie_shan`+`doubleEave`; plan `roof_type` beats typology soft `roofType` |
 | `llm_plan_normalization` omit/roof stamp path | matched typology STRUCTURE but `_is_mass_like` skipped writes | **Fixed (2026-11-19):** write roof/window/entrance onto `_is_design_constraint_host` targets only (not all STRUCTURE) |

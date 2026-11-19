@@ -1591,6 +1591,32 @@ final class ComponentSatelliteInference {
         return roofTypeHintFromProportionHints(plan) != null;
     }
 
+    /**
+     * Net blocks a compiler-inferred roof would add above the host top plane.
+     * Returns 0 when satellites are disabled, roof is omitted, or non-residential
+     * autofill would skip roof creation. Accounts for enclosed top overlap (−1).
+     * Classification: GEOMETRY — mirrors {@link #makeRoofComponent} attachment rules.
+     */
+    static int estimatedInferredRoofNetRise(LlmPlan plan, Component base) {
+        if (plan == null || base == null || !plan.allowCompilerSatellites()) return 0;
+        if (com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(base)) return 0;
+        if (PlanSemanticValidator.refusesResidentialAutofill(plan)
+                && !hasExplicitRoofTypeHint(plan, base)) {
+            return 0;
+        }
+        Component roof = makeRoofComponent(plan, base, base.slotId());
+        if (roof == null) return 0;
+        roof = StyleIntentResolver.apply(plan, roof);
+        roof = RoofGrammarResolver.apply(plan, roof);
+        if (roof == null || roof.dimensions() == null || roof.relativePosition() == null
+                || base.relativePosition() == null || base.dimensions() == null) {
+            return 0;
+        }
+        int hostTop = base.relativePosition().y() + Math.max(1, base.dimensions().height());
+        int roofTop = roof.relativePosition().y() + Math.max(1, roof.dimensions().height());
+        return Math.max(0, roofTop - hostTop);
+    }
+
     private static String resolveDefaultRoofType(LlmPlan plan, Component base) {
         String fromParams = roofTypeHintFromParams(base);
         if (fromParams != null) {

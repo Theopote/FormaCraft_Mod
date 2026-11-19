@@ -42,24 +42,49 @@ public final class UserConstraintContract {
      * inferred only from this clause — never from another building's wording in the same request.
      */
     public record HeightBinding(
-            int blocks, String roleHint, String sourceText, List<String> namedKeys, String envelopeMode) {
+            int blocks,
+            String roleHint,
+            String sourceText,
+            List<String> namedKeys,
+            String envelopeMode,
+            boolean modeExplicit) {
         public HeightBinding {
             namedKeys = namedKeys == null ? List.of() : List.copyOf(namedKeys);
             envelopeMode = normalizeEnvelopeMode(envelopeMode);
         }
 
         public HeightBinding(int blocks, String roleHint) {
-            this(blocks, roleHint, null, List.of(), "shaft");
+            this(blocks, roleHint, null, List.of(), "shaft", false);
         }
 
         public HeightBinding(int blocks, String roleHint, String sourceText, List<String> namedKeys) {
-            this(blocks, roleHint, sourceText, namedKeys, "shaft");
+            this(blocks, roleHint, sourceText, namedKeys, "shaft", false);
+        }
+
+        public HeightBinding(
+                int blocks, String roleHint, String sourceText, List<String> namedKeys, String envelopeMode) {
+            this(blocks, roleHint, sourceText, namedKeys, envelopeMode, isEnvelopeModeExplicit(sourceText));
         }
     }
 
     /** Normalize to {@code shaft} or {@code building}. */
     public static String normalizeEnvelopeMode(String mode) {
         return "building".equals(mode) ? "building" : "shaft";
+    }
+
+    /**
+     * True when the local clause explicitly names shaft or whole-building semantics.
+     * Bare 「高度 N 格」is a default shaft inference — not an explicit mode declaration.
+     */
+    public static boolean isEnvelopeModeExplicit(String clause) {
+        if (clause == null || clause.isBlank()) return false;
+        String t = clause.toLowerCase(Locale.ROOT);
+        return clause.contains("主体高度") || clause.contains("塔身高度") || clause.contains("塔身")
+                || t.contains("shaft height") || t.contains("shaft only")
+                || clause.contains("整座") || clause.contains("整栋") || clause.contains("整体高度")
+                || clause.contains("含屋顶")
+                || t.contains("whole-building") || t.contains("whole building")
+                || t.contains("including the roof") || t.contains("including roof");
     }
 
     /**
@@ -212,7 +237,7 @@ public final class UserConstraintContract {
                 String clause = omitClauseWindow(userText, m.start(), m.end());
                 List<String> keys = namedKeysForConstraintWindow(userText, m.start(), m.end());
                 String mode = inferEnvelopeMode(clause);
-                out.add(new HeightBinding(n, hint, clause, keys, mode));
+                out.add(new HeightBinding(n, hint, clause, keys, mode, isEnvelopeModeExplicit(clause)));
             } catch (NumberFormatException ignored) {
                 // continue
             }

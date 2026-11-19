@@ -34,6 +34,8 @@ final class StackedEnvelopeIntegrityValidator {
         if (plan == null || components == null || components.isEmpty()) return Optional.empty();
 
         Map<String, FamilyTarget> targets = mergeTargets(plan, components);
+        Optional<CapabilityGap> sealGap = diagnoseBrokenEnvelopeAuthority(plan, components, targets);
+        if (sealGap.isPresent()) return sealGap;
         if (targets.isEmpty()) return Optional.empty();
 
         Map<String, List<Component>> shaftByFamily = new HashMap<>();
@@ -49,7 +51,7 @@ final class StackedEnvelopeIntegrityValidator {
                 if (mid != null) {
                     presentMassIds.computeIfAbsent(family, k -> new ArrayList<>()).add(mid);
                 }
-            } else if (isCrownLike(c)) {
+            } else if (RequestIntentInjector.countsTowardBuildingEnvelope(c)) {
                 crownByFamily.computeIfAbsent(family, k -> new ArrayList<>()).add(c);
             }
         }
@@ -269,16 +271,51 @@ final class StackedEnvelopeIntegrityValidator {
         return false;
     }
 
-    private static boolean isCrownLike(Component c) {
-        String type = c.componentType() == null ? "" : c.componentType().toUpperCase();
-        if (type.startsWith("ROOF") || type.contains("CROWN") || "FINIAL".equals(type)) {
-            return true;
+    /**
+     * Envelope keys without any trusted meta or component seal are a hard failure —
+     * never silently skip height integrity when authority was expected.
+     */
+    private static Optional<CapabilityGap> diagnoseBrokenEnvelopeAuthority(
+            LlmPlan plan, List<Component> components, Map<String, FamilyTarget> targets) {
+        boolean hasEnvelopeKeys = false;
+        for (Component c : components) {
+            if (c == null || c.params() == null) continue;
+            if (c.params().containsKey(RequestIntentInjector.SHAFT_ENVELOPE_TARGET_KEY)
+                    || c.params().containsKey(RequestIntentInjector.ENVELOPE_MODE_KEY)) {
+                hasEnvelopeKeys = true;
+                break;
+            }
         }
-        String mid = BuildingHostResolver.massId(c);
-        if (mid == null) return false;
-        String lower = mid.toLowerCase();
-        return lower.contains("roof") || lower.contains("finial") || lower.contains("crown")
-                || lower.contains("spire");
+        boolean metaSealPresent = false;
+        boolean metaSealOk = false;
+        if (plan.planMeta() != null) {
+            Object raw = plan.planMeta().get(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_META);
+            Object seal = plan.planMeta().get(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_SEAL_META);
+            if (raw instanceof List<?> list && !list.isEmpty() && seal != null) {
+                metaSealPresent = true;
+                metaSealOk = UserConstraintContract.verifyStackedEnvelopeTargets(list, seal);
+            }
+        }
+        // Trusted targets from either side already available — cross-check succeeded.
+        if (!targets.isEmpty()) return Optional.empty();
+        // Seal present but digest mismatch = tampered server record (not a bare unsigned forge).
+        if (metaSealPresent && !metaSealOk) {
+            return Optional.of(new CapabilityGap(
+                    "E_STACKED_ENVELOPE_SEAL_INVALID",
+                    "堆叠高度包络 plan_meta 签章被破坏且组件侧无可用备用签章",
+                    "StackedEnvelopeIntegrityValidator",
+                    List.of("Re-run RequestIntentInjector with FormaRequest text")));
+        }
+        if (hasEnvelopeKeys) {
+            // Component-side envelope fields present but none sealed and no trusted meta.
+            return Optional.of(new CapabilityGap(
+                    "E_STACKED_ENVELOPE_SEAL_INVALID",
+                    "堆叠高度包络字段存在但缺少服务器签章，已拒绝静默跳过完整性检查",
+                    "StackedEnvelopeIntegrityValidator",
+                    List.of("Re-run RequestIntentInjector with FormaRequest text")));
+        }
+        // Unsigned meta rows alone are ignored as external forgeries (no enforcement, no gap).
+        return Optional.empty();
     }
 
     private static String hostId(Component c) {
