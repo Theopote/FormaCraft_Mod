@@ -1,6 +1,7 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.component.util.MassComponentKinds;
 import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
@@ -53,8 +54,9 @@ final class ExplicitDesignConflictRepair {
         var roofHosts = new java.util.HashSet<String>();
         for (var c : components) {
             if (c == null || c.params() == null) continue;
-            if ("MASS_MAIN".equals(c.componentType()) || "MASS_ANCILLARY".equals(c.componentType())
-                    || "GATE".equals(c.componentType())) {
+            // Index all host masses (incl. MASS_SECONDARY / TOWER / STRUCTURE / GATE) so
+            // window/entrance opt-outs on annexes are not invisible to conflict repair.
+            if (isConflictBodyHost(c)) {
                 Object id = c.params().get("component_id");
                 if (id != null) bodies.put(id, c);
             }
@@ -72,7 +74,9 @@ final class ExplicitDesignConflictRepair {
                 out.add(c);
                 continue;
             }
-            var body = bodies.get(c.params().get("host_id"));
+            Object hostRef = c.params().get("host_id");
+            if (hostRef == null) hostRef = c.params().get("hostId");
+            var body = bodies.get(hostRef);
             if (body != null
                     && "FACADE_WINDOWS".equals(c.componentType())
                     && ExplicitDesignPolicy.windowsDisabled(body)
@@ -139,6 +143,15 @@ final class ExplicitDesignConflictRepair {
     }
 
     record Result(List<Component> components, CapabilityGap gap) {}
+
+    /** Host masses that may carry explicit window/entrance/roof opt-outs for satellites. */
+    private static boolean isConflictBodyHost(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        if (MassComponentKinds.isHostMass(c)) return true;
+        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        return "GATE".equals(t) || "GATE_STRUCTURE".equals(t)
+                || "STRUCTURE".equals(t) || t.startsWith("TOWER");
+    }
 
     /** Classical cupola / dome / pilaster revolve crowns — conflict with pitched ROOF tiles. */
     static boolean isClassicalRevolveCrown(Component c) {

@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.generation.component.util.MassComponentKinds;
 import com.formacraft.common.llm.dto.*;
 import com.formacraft.common.style.ExplicitDesignPolicy;
 import java.util.*;
@@ -8,11 +9,16 @@ import java.util.*;
 final class ExplicitDesignConflictValidator {
     static Optional<CapabilityGap> check(LlmPlan plan, List<Component> components) {
         var bodies = new HashMap<Object, Component>();
-        for (var c : components) if (c != null && "MASS_MAIN".equals(c.componentType()) && c.params() != null)
-            bodies.put(c.params().get("component_id"), c);
+        for (var c : components) {
+            if (c == null || c.params() == null || !isConflictBodyHost(c)) continue;
+            Object id = c.params().get("component_id");
+            if (id != null) bodies.put(id, c);
+        }
         for (var c : components) {
             if (c == null || c.params() == null) continue;
-            var body = bodies.get(c.params().get("host_id"));
+            Object hostRef = c.params().get("host_id");
+            if (hostRef == null) hostRef = c.params().get("hostId");
+            var body = bodies.get(hostRef);
             String disabled = null;
             if (body != null) {
                 // Mass roof_type=none + separate ROOF is the delegated-roof pattern unless the
@@ -32,11 +38,20 @@ final class ExplicitDesignConflictValidator {
                             || ExplicitDesignPolicy.none(body.params(), "crown_type", "crownType", "crown_template", "crownTemplate"))))
                 disabled = "crown / complex decoration";
             if (disabled != null) return Optional.of(new CapabilityGap("E_EXPLICIT_DESIGN_CONFLICT",
-                    "构件与明确禁用要求冲突：" + c.componentType() + ", host=" + c.params().get("host_id")
+                    "构件与明确禁用要求冲突：" + c.componentType() + ", host=" + hostRef
                             + ", disabled=" + disabled, "components[]",
                     List.of("Remove the conflicting component or revise the explicit opt-out.")));
         }
         return Optional.empty();
+    }
+
+    /** Same host inventory as {@link ExplicitDesignConflictRepair} (MASS_SECONDARY included). */
+    private static boolean isConflictBodyHost(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        if (MassComponentKinds.isHostMass(c)) return true;
+        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        return "GATE".equals(t) || "GATE_STRUCTURE".equals(t)
+                || "STRUCTURE".equals(t) || t.startsWith("TOWER");
     }
 
     // Disabling an external entrance does not cancel an explicitly declared internal passage.

@@ -7,6 +7,7 @@ import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -69,5 +70,50 @@ class StadiumMisrouteRepairTest {
         LlmPlan out = StadiumMisrouteRepair.apply(plan);
         assertEquals("STRUCTURE", out.components().get(0).componentType());
         assertEquals("stadium_bowl", out.components().get(0).params().get("typology_id"));
+    }
+
+    @Test
+    void foreignAnnexRoofIsNotForcedToMansard() {
+        Map<String, Object> mansionParams = new HashMap<>();
+        mansionParams.put("component_id", "mansion");
+        mansionParams.put("typology_id", "stadium_bowl");
+        mansionParams.put("elliptical", true);
+        Component mansion = new Component(
+                "STRUCTURE", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("typology:stadium_bowl", "ribbon_glazing"),
+                mansionParams);
+        Component annex = new Component(
+                "MASS_SECONDARY", "annex",
+                new Vec3i(30, 0, 0),
+                new Dimensions(8, 8, 6),
+                List.of("garden_pavilion"),
+                Map.of("component_id", "pavilion", "roof_type", "gable"));
+        Component annexRoof = new Component(
+                "ROOF", "annex",
+                new Vec3i(30, 6, 0),
+                new Dimensions(8, 8, 3),
+                List.of(),
+                Map.of("component_id", "pav_roof", "host_id", "pavilion", "roof_type", "gable"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion, annex, annexRoof))
+                .planMeta(Map.of(
+                        "request_intent_text",
+                        "巴洛克大宅带马萨屋顶，旁附一座双坡园亭"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        Component outAnnexRoof = out.components().stream()
+                .filter(c -> "pav_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("gable", outAnnexRoof.params().get("roof_type"));
+        assertEquals("MASS_SECONDARY", out.components().stream()
+                .filter(c -> "pavilion".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertTrue(out.components().stream().anyMatch(c ->
+                c.componentType() != null && c.componentType().toUpperCase().startsWith("ROOF")
+                        && "mansard".equals(String.valueOf(c.params().get("roof_type")))));
     }
 }

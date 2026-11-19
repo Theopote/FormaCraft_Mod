@@ -57,7 +57,7 @@ class StiltShelterMisrouteRepairTest {
     }
 
     @Test
-    void existingStiltCompositionIsLeftAlone() {
+    void residualSuspensionBridgeBesideStiltsStillEmitsGap() {
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 4, 0),
                 new Dimensions(10, 9, 6), List.of("stilt_shelter"),
@@ -78,7 +78,30 @@ class StiltShelterMisrouteRepairTest {
                 .build();
 
         LlmPlan out = StiltShelterMisrouteRepair.apply(plan);
-        assertFalse(out.hasCapabilityGap());
+        assertTrue(out.hasCapabilityGap());
+        assertEquals("E_STILT_SHELTER_ROUTE_UNSUPPORTED", out.capabilityGap().code());
         assertEquals(3, out.components().size());
+    }
+
+    @Test
+    void stiltsCompositionWithoutBridgeExecutorIsLeftAlone() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 4, 0),
+                new Dimensions(10, 9, 6), List.of("stilt_shelter"),
+                Map.of("component_id", "stilt_main", "foundation_type", "stilts"));
+        Component posts = new Component(
+                "FOUNDATION", "main", new Vec3i(0, 0, 0),
+                new Dimensions(10, 9, 4), List.of(),
+                Map.of("component_id", "posts", "foundation_type", "stilts"));
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("request_intent_text", "吊脚楼");
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(mass, posts))
+                .planMeta(meta)
+                .build();
+
+        LlmPlan out = StiltShelterMisrouteRepair.apply(plan);
+        assertFalse(out.hasCapabilityGap());
+        assertEquals(2, out.components().size());
     }
 }
