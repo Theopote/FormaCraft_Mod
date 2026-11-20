@@ -151,6 +151,11 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `BaroqueMansionStyleRepair` storey lift | floor_height/height raised without provenance | **Fixed (2026-11-20):** putIfAllowed / canMutateParam gates |
 | `StadiumMisrouteRepair` rewriteProportionHints | baroque alone injected mansard specialty | **Fixed (2026-11-20):** sync wantsMansardRoof/dormer affirmative cues |
 | `StadiumMisrouteRepair` looksResidentialHost names | mixed arena preserved only via mansion id tags | **Fixed (2026-11-20):** multi stadium-host; preserve only arena role/slot/bowl-scale (`looksDedicatedArenaHost`); MASS_MAIN always demotes |
+| `BaroqueMansionStyleRepair` planHasMansard broadcast | any mansard forced every unlocked roof | **Fixed (2026-11-20):** `hostHasMansard` / primary corpus ask only |
+| `BaroqueMansionStyleRepair` dormer broadcast | any roof_dormers=true → all mansards | **Fixed (2026-11-20):** `hostWantsDormers` per host_id |
+| `StadiumMisrouteRepair` stadiumHosts&lt;2 demote | sole real arena beside MASS_MAIN demoted | **Fixed (2026-11-20):** preserve when `hasSeparateNonStadiumHost`; MODULE counted |
+| `BaroqueMansionStyleRepair` skinny balcony drop | BALCONY/TERRACE deleted by aspect ratio | **Fixed (2026-11-20):** keep authored outdoor volumes; only attic DECOR spikes |
+| `BaroqueMansionStyleRepair` gate/gothic abort | companion gate/gothic aborted whole repair | **Fixed (2026-11-20):** host-scoped foreign skip; baroque primary still repaired |
 | `DenseEavesPagodaMisrouteRepair` strip floor_count=3 | putIfAllowed rewrote authored 5-storey louge to 3 | **Fixed (2026-11-20):** preserve existing floors; missing-only default; locked features block STRUCTURE demote |
 | `AssemblyCompileDiagnostics` test leakage | gap-emitting misroute tests polluted prepareComponents | **Fixed (2026-11-20):** BeforeEach/AfterEach clear on ExplicitOmission + misroute/conflict tests |
 | `DenseEavesPagodaMisrouteRepair` typology inject | house primary → dense_eaves_pagoda STRUCTURE + drop satellites | **Fixed (2026-11-20):** open/multi-mass pagoda misroute → `E_DENSE_EAVES_PAGODA_ROUTE_UNSUPPORTED`; square force host-scoped to dense_eaves/tower only |

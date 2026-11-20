@@ -77,8 +77,9 @@ class BaroqueMansionStyleRepairTest {
         assertTrue(out.components().stream().noneMatch(c ->
                 c.params() != null && "oval_pediment_dormers".equals(c.params().get("component_id"))),
                 "oversized roof decor rings must be dropped");
-        assertTrue(out.components().stream().noneMatch(c ->
-                c.params() != null && "wall_beam_noise".equals(c.params().get("component_id"))));
+        assertTrue(out.components().stream().anyMatch(c ->
+                c.params() != null && "wall_beam_noise".equals(c.params().get("component_id"))),
+                "authored balcony/terrace volumes must not be dropped by aspect ratio");
         assertTrue(out.components().stream().noneMatch(c ->
                 c.params() != null && "pediment_column".equals(c.params().get("component_id"))));
         assertEquals(2, out.components().stream().filter(c -> "CHIMNEY".equals(c.componentType())).count());
@@ -140,6 +141,127 @@ class BaroqueMansionStyleRepairTest {
         assertNotEquals(true, sideRoof.params().get("roof_dormers"));
         assertFalse(String.valueOf(sideRoof.params().getOrDefault("roof_specialty", ""))
                 .toLowerCase().contains("dormer"));
+    }
+
+    @Test
+    void siblingMansardDoesNotRewriteUnlockedGableOrHipRoofs() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 12), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 5));
+        Component mainRoof = new Component(
+                "ROOF", "main", new Vec3i(0, 12, 0),
+                new Dimensions(15, 25, 5), List.of(),
+                Map.of("component_id", "main_roof", "host_id", "main_house", "roof_type", "mansard"));
+        Component wing = new Component(
+                "MASS_SECONDARY", "wing", new Vec3i(30, 0, 0),
+                new Dimensions(10, 8, 6), List.of(),
+                Map.of("component_id", "west_wing"));
+        Component wingRoof = new Component(
+                "ROOF", "wing", new Vec3i(30, 6, 0),
+                new Dimensions(10, 8, 3), List.of(),
+                Map.of("component_id", "west_roof", "host_id", "west_wing", "roof_type", "gable"));
+        Component tower = new Component(
+                "STRUCTURE", "tower", new Vec3i(50, 0, 0),
+                new Dimensions(6, 6, 18), List.of("bell_tower", "gothic"),
+                Map.of("component_id", "bell_tower"));
+        Component towerRoof = new Component(
+                "ROOF", "tower", new Vec3i(50, 18, 0),
+                new Dimensions(6, 6, 4), List.of(),
+                Map.of("component_id", "bell_roof", "host_id", "bell_tower", "roof_type", "hip"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(main, mainRoof, wing, wingRoof, tower, towerRoof))
+                .planMeta(Map.of("request_intent_text",
+                        "巴洛克大宅用马萨屋顶，西侧附属住宅用人字屋顶，东侧哥特钟楼用四坡屋顶"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        assertEquals("mansard", out.components().stream()
+                .filter(c -> "main_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+        assertEquals("gable", out.components().stream()
+                .filter(c -> "west_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+        assertEquals("hip", out.components().stream()
+                .filter(c -> "bell_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+    }
+
+    @Test
+    void dormersDoNotPropagateAcrossMansardHosts() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 12), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 5));
+        Component mainRoof = new Component(
+                "ROOF", "main", new Vec3i(0, 12, 0),
+                new Dimensions(15, 25, 5), List.of(),
+                Map.of("component_id", "main_roof", "host_id", "main_house",
+                        "roof_type", "mansard", "roof_dormers", true));
+        Component annex = new Component(
+                "MASS_SECONDARY", "annex", new Vec3i(30, 0, 0),
+                new Dimensions(10, 10, 8), List.of(),
+                Map.of("component_id", "french_wing"));
+        Component annexRoof = new Component(
+                "ROOF", "annex", new Vec3i(30, 8, 0),
+                new Dimensions(10, 10, 4), List.of(),
+                Map.of("component_id", "annex_roof", "host_id", "french_wing", "roof_type", "mansard"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(main, mainRoof, annex, annexRoof))
+                .planMeta(Map.of("request_intent_text",
+                        "巴洛克主楼马萨屋顶带老虎窗，法式附属楼也用马萨屋顶但不要老虎窗"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        assertEquals(true, out.components().stream()
+                .filter(c -> "main_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_dormers"));
+        Component annexOut = out.components().stream()
+                .filter(c -> "annex_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertNotEquals(true, annexOut.params().get("roof_dormers"));
+        assertFalse(String.valueOf(annexOut.params().getOrDefault("roof_specialty", ""))
+                .toLowerCase().contains("dormer"));
+    }
+
+    @Test
+    void baroqueWithGateAndGothicTowerStillRepairsPrimaryMansard() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 8), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 2));
+        Component roof = new Component(
+                "ROOF", "main", new Vec3i(0, 8, 0),
+                new Dimensions(15, 25, 5), List.of(),
+                Map.of("component_id", "main_roof", "host_id", "main_house", "roof_type", "mansard"));
+        Component gate = new Component(
+                "STRUCTURE", "gate", new Vec3i(-20, 0, 0),
+                new Dimensions(8, 4, 10), List.of("gate"),
+                Map.of("component_id", "entry_gate"));
+        Component bell = new Component(
+                "STRUCTURE", "tower", new Vec3i(40, 0, 0),
+                new Dimensions(6, 6, 20), List.of("gothic", "bell_tower"),
+                Map.of("component_id", "gothic_bell"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(main, roof, gate, bell))
+                .planMeta(Map.of("request_intent_text",
+                        "建造一座巴洛克大宅，前方独立门楼，旁侧哥特钟楼"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        Component fixedMass = out.components().stream()
+                .filter(c -> "main_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertTrue(((Number) fixedMass.params().get("floor_height")).intValue() >= 4);
+        assertEquals("STRUCTURE", out.components().stream()
+                .filter(c -> "entry_gate".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertEquals("STRUCTURE", out.components().stream()
+                .filter(c -> "gothic_bell".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
     }
 
     @Test

@@ -493,4 +493,79 @@ class StadiumMisrouteRepairTest {
                 c.componentType() != null && c.componentType().toUpperCase().startsWith("ROOF")));
         assertNull(out.components().getFirst().params().get("roof_specialty"));
     }
+
+    @Test
+    void soleRealStadiumBesideCleanResidentialIsPreserved() {
+        Component mansion = new Component(
+                "MASS_MAIN", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2));
+        Component arena = new Component(
+                "STRUCTURE", "arena",
+                new Vec3i(60, 0, 0),
+                new Dimensions(40, 60, 20),
+                List.of("typology:stadium_bowl"),
+                Map.of(
+                        "component_id", "east_stadium",
+                        "typology_id", "stadium_bowl",
+                        "bowl_steepness", 0.6));
+        Map<String, Object> hints = new HashMap<>();
+        hints.put("field_to_bowl", 0.45);
+        hints.put("bowl_depth_to_width", 0.3);
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(mansion, arena))
+                .proportionHints(hints)
+                .planMeta(Map.of("request_intent_text", "建造一座巴洛克大宅，并在东侧建一座体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("MASS_MAIN", out.components().stream()
+                .filter(c -> "main_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        Component east = out.components().stream()
+                .filter(c -> "east_stadium".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("STRUCTURE", east.componentType());
+        assertEquals("stadium_bowl", east.params().get("typology_id"));
+        assertEquals(0.45, ((Number) out.proportionHints().get("field_to_bowl")).doubleValue(), 1e-6);
+        assertEquals(0.3, ((Number) out.proportionHints().get("bowl_depth_to_width")).doubleValue(), 1e-6);
+    }
+
+    @Test
+    void misroutedResidentialStructureDemotesWhileModuleArenaPreserved() {
+        Component misrouted = new Component(
+                "STRUCTURE", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "main", "typology_id", "stadium_bowl"));
+        Component arena = new Component(
+                "MODULE", "arena",
+                new Vec3i(60, 0, 0),
+                new Dimensions(42, 64, 22),
+                List.of("typology:stadium_bowl"),
+                Map.of(
+                        "component_id", "east_arena",
+                        "module_id", "stadium_bowl",
+                        "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(misrouted, arena))
+                .planMeta(Map.of("request_intent_text",
+                        "主楼是巴洛克大宅，东侧另外建一座体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("MASS_MAIN", out.components().stream()
+                .filter(c -> "main".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        Component east = out.components().stream()
+                .filter(c -> "east_arena".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("MODULE", east.componentType());
+        assertEquals("stadium_bowl", east.params().get("typology_id"));
+    }
 }

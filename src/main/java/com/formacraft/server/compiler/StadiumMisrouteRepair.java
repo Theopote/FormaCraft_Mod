@@ -189,7 +189,8 @@ final class StadiumMisrouteRepair {
             }
         }
 
-        Map<String, Object> hints = rewriteProportionHints(plan.proportionHints(), requestCorpus);
+        Map<String, Object> hints = rewriteProportionHints(
+                plan.proportionHints(), requestCorpus, preservedStadium);
         if (hints != plan.proportionHints()) {
             changed = true;
         }
@@ -225,9 +226,13 @@ final class StadiumMisrouteRepair {
     }
 
     /**
-     * Mixed residential+stadium: keep a dedicated arena host when another stadium-marked host
-     * also exists (misrouted shell beside a true arena). Identity uses arena/stadium role cues or
-     * bowl-scale footprint — never mansion/villa name tags to guess the residential shell.
+     * Mixed residential+stadium: preserve STRUCTURE/MODULE/TOWER arena executors by role — never by
+     * "how many stadium markers exist". MASS_MAIN shells never stay as stadium.
+     * <ul>
+     *   <li>Clean residential host beside this stadium → preserve (sole real arena is valid).</li>
+     *   <li>Several stadium-marked hosts → preserve only dedicated arena cues / bowl scale.</li>
+     *   <li>Sole stadium-marked host under a residential ask → demote (classic misroute).</li>
+     * </ul>
      */
     private static boolean shouldPreserveStadiumExecutor(
             Component c, boolean affirmativeStadiumAsk, LlmPlan plan) {
@@ -235,20 +240,56 @@ final class StadiumMisrouteRepair {
             return false;
         }
         if (!carriesStadiumRouteMarkers(c)) return false;
-        int stadiumHosts = 0;
-        for (Component other : plan.components()) {
-            if (other != null && isDemotableHost(other) && carriesStadiumRouteMarkers(other)) {
-                stadiumHosts++;
-            }
-        }
-        // Single stadium host under a residential ask is the misroute — demote it.
-        if (stadiumHosts < 2) return false;
         String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
         if ("MASS_MAIN".equals(t) || "MAIN_MASS".equals(t)) return false;
         if (!("STRUCTURE".equals(t) || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER"))) {
             return false;
         }
-        return looksDedicatedArenaHost(c);
+        // Legitimate: clean MASS_MAIN residential + this STRUCTURE/MODULE arena (even if sole stadium marker).
+        if (hasSeparateNonStadiumPrimaryMass(plan, c)) {
+            return true;
+        }
+        int stadiumHosts = countStadiumMarkedHosts(plan);
+        if (stadiumHosts >= 2) {
+            return looksDedicatedArenaHost(c);
+        }
+        return false;
+    }
+
+    /** Mass/STRUCTURE/MODULE hosts that can own stadium route markers (includes MODULE). */
+    private static int countStadiumMarkedHosts(LlmPlan plan) {
+        int n = 0;
+        for (Component other : plan.components()) {
+            if (other == null || !isStadiumCapableHost(other)) continue;
+            if (carriesStadiumRouteMarkers(other)) n++;
+        }
+        return n;
+    }
+
+    private static boolean isStadiumCapableHost(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        return t.startsWith("MASS") || "MAIN_MASS".equals(t) || "STRUCTURE".equals(t)
+                || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER");
+    }
+
+    /**
+     * A clean primary residential mass (MASS_MAIN) without stadium markers means this stadium
+     * executor is the real arena — not a misrouted shell. Wings alone do not qualify (avoids
+     * preserving a misrouted STRUCTURE just because an annex exists).
+     */
+    private static boolean hasSeparateNonStadiumPrimaryMass(LlmPlan plan, Component stadium) {
+        String stadiumId = componentId(stadium);
+        for (Component other : plan.components()) {
+            if (other == null || other == stadium || other.componentType() == null) continue;
+            String t = other.componentType().trim().toUpperCase(Locale.ROOT);
+            if (!("MASS_MAIN".equals(t) || "MAIN_MASS".equals(t))) continue;
+            String otherId = componentId(other);
+            if (!stadiumId.isBlank() && stadiumId.equals(otherId)) continue;
+            if (carriesStadiumRouteMarkers(other)) continue;
+            return true;
+        }
+        return false;
     }
 
     /** Arena role via slot/id cues or bowl-scale mass — not residential name guessing. */
@@ -317,12 +358,13 @@ final class StadiumMisrouteRepair {
                 gc.useBuildingMass());
     }
 
-    private static Map<String, Object> rewriteProportionHints(Map<String, Object> hints, String corpus) {
+    private static Map<String, Object> rewriteProportionHints(
+            Map<String, Object> hints, String corpus, boolean preservedStadium) {
         boolean wantsMansard = wantsMansardRoof(corpus);
         boolean wantsDormers = hasAffirmativeCue(corpus, DORMER_CUES);
         boolean baroqueAsk = containsAny(corpus, List.of("巴洛克", "baroque"));
         if (hints == null || hints.isEmpty()) {
-            if (!baroqueAsk && !wantsMansard) {
+            if (preservedStadium || (!baroqueAsk && !wantsMansard)) {
                 return hints;
             }
             Map<String, Object> next = new HashMap<>();
@@ -338,21 +380,21 @@ final class StadiumMisrouteRepair {
         boolean dirty = false;
         Map<String, Object> next = new HashMap<>(hints);
         Object typology = next.get("typology");
-        if (typology != null) {
+        if (typology != null && !preservedStadium) {
             String t = String.valueOf(typology).toLowerCase(Locale.ROOT);
             if (t.contains("stadium") || t.contains("birds_nest")) {
                 next.put("typology", "baroque_mansion");
                 dirty = true;
             }
         }
-        if (wantsMansard) {
+        if (wantsMansard && !preservedStadium) {
             Object specialty = next.get("roof_specialty");
             if (specialty == null || String.valueOf(specialty).isBlank()
                     || String.valueOf(specialty).toLowerCase(Locale.ROOT).contains("stadium")) {
                 next.put("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
                 dirty = true;
             }
-        } else {
+        } else if (!wantsMansard) {
             Object specialty = next.get("roof_specialty");
             if (specialty != null) {
                 String s = String.valueOf(specialty).toLowerCase(Locale.ROOT);
@@ -362,21 +404,24 @@ final class StadiumMisrouteRepair {
                 }
             }
         }
-        for (String key : List.of(
-                "bowl_depth_to_width", "height_to_major_axis", "field_to_bowl", "void_ratio")) {
-            if (next.remove(key) != null) {
-                dirty = true;
+        // Keep bowl/field ratios when a real arena executor was preserved.
+        if (!preservedStadium) {
+            for (String key : List.of(
+                    "bowl_depth_to_width", "height_to_major_axis", "field_to_bowl", "void_ratio")) {
+                if (next.remove(key) != null) {
+                    dirty = true;
+                }
             }
-        }
-        Object opening = next.get("opening_grammar");
-        if (opening instanceof Map<?, ?> raw) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> og = new HashMap<>((Map<String, Object>) raw);
-            Object aspect = og.get("window_aspect");
-            if (aspect != null && String.valueOf(aspect).toLowerCase(Locale.ROOT).contains("ribbon")) {
-                og.put("window_aspect", List.of("arched", "vertical"));
-                next.put("opening_grammar", og);
-                dirty = true;
+            Object opening = next.get("opening_grammar");
+            if (opening instanceof Map<?, ?> raw) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> og = new HashMap<>((Map<String, Object>) raw);
+                Object aspect = og.get("window_aspect");
+                if (aspect != null && String.valueOf(aspect).toLowerCase(Locale.ROOT).contains("ribbon")) {
+                    og.put("window_aspect", List.of("arched", "vertical"));
+                    next.put("opening_grammar", og);
+                    dirty = true;
+                }
             }
         }
         return dirty ? next : hints;
