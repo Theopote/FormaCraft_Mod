@@ -976,6 +976,164 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(stripped, 0)
         self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_AMBIGUOUS")
 
+    def test_distinct_building_id_hosted_on_exclusive_shell_is_conflict(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {
+                        "component_id": "pagoda",
+                        "building_id": "temple_A",
+                        "typology_id": "dense_eaves_pagoda",
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "pagoda_shell", "building_id": "temple_A"},
+                },
+                {
+                    "component_type": "MASS_SECONDARY",
+                    "relative_position": {"x": 20, "y": 10, "z": 0},
+                    "dimensions": {"width": 8, "depth": 8, "height": 4},
+                    "features": [],
+                    "params": {
+                        "component_id": "view_platform",
+                        "building_id": "platform_B",
+                        "host_id": "pagoda_shell",
+                    },
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        ids = {c["params"]["component_id"] for c in out["components"]}
+        self.assertEqual(stripped, 1)
+        self.assertIn("view_platform", ids)
+        self.assertNotIn("pagoda_shell", ids)
+        self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_CONFLICT")
+
+    def test_hosted_nested_structure_and_paving_strip_with_shell(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "pagoda_shell"},
+                },
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 2, "y": 0, "z": 2},
+                    "dimensions": {"width": 4, "depth": 4, "height": 10},
+                    "features": ["typology:spiral_stair_tower"],
+                    "params": {
+                        "component_id": "inner_structure",
+                        "typology_id": "spiral_stair_tower",
+                        "host_id": "pagoda_shell",
+                    },
+                },
+                {
+                    "component_type": "PAVING",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 14, "depth": 14, "height": 1},
+                    "features": [],
+                    "params": {"component_id": "shell_paving", "host_id": "pagoda_shell"},
+                },
+                {
+                    "component_type": "PATH",
+                    "relative_position": {"x": 40, "y": 0, "z": 0},
+                    "dimensions": {"width": 4, "depth": 20, "height": 1},
+                    "features": [],
+                    "params": {"component_id": "site_path"},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        ids = {c["params"]["component_id"] for c in out["components"]}
+        self.assertEqual(stripped, 3)
+        self.assertEqual(ids, {"pagoda", "site_path"})
+
+    def test_duplicate_satellite_ids_order_independent(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        def plan_with_order(order_keys):
+            comps = {
+                "pagoda": {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                "shell": {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "pagoda_shell"},
+                },
+                "roof_a": {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 0, "y": 40, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 4},
+                    "features": [],
+                    "params": {"component_id": "shared_roof", "host_id": "pagoda_shell"},
+                },
+                "mansion": {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 100, "y": 0, "z": 0},
+                    "dimensions": {"width": 18, "depth": 28, "height": 12},
+                    "features": [],
+                    "params": {"component_id": "mansion", "building_id": "mansion"},
+                },
+                "roof_b": {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 100, "y": 12, "z": 0},
+                    "dimensions": {"width": 18, "depth": 28, "height": 6},
+                    "features": [],
+                    "params": {
+                        "component_id": "shared_roof",
+                        "host_id": "mansion",
+                        "building_id": "mansion",
+                    },
+                },
+                "chimney": {
+                    "component_type": "CROWN",
+                    "relative_position": {"x": 100, "y": 18, "z": 0},
+                    "dimensions": {"width": 2, "depth": 2, "height": 4},
+                    "features": [],
+                    "params": {"component_id": "chimney", "host_id": "shared_roof"},
+                },
+            }
+            return {"components": [comps[k] for k in order_keys]}
+
+        order_a = ["pagoda", "shell", "roof_a", "mansion", "roof_b", "chimney"]
+        order_b = ["pagoda", "mansion", "roof_b", "shell", "roof_a", "chimney"]
+        out_a, _ = strip_typology_exclusive_compositionals(plan_with_order(order_a))
+        out_b, _ = strip_typology_exclusive_compositionals(plan_with_order(order_b))
+        ids_a = sorted(c["params"]["component_id"] for c in out_a["components"])
+        ids_b = sorted(c["params"]["component_id"] for c in out_b["components"])
+        self.assertEqual(ids_a, ids_b)
+        self.assertIn("chimney", ids_a)
+        self.assertEqual(out_b["capability_gap"]["code"], "E_DUPLICATE_COMPONENT_ID")
+
     def test_typology_exclusive_keeps_paving_peripheral(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
 

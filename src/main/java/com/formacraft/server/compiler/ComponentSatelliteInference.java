@@ -90,13 +90,19 @@ final class ComponentSatelliteInference {
             if (normalizedComponent == null) {
                 continue;
             }
-            // Normalize authored slot identity once: component.slotId ← params.slot_id | params.slotId
+            // Normalize authored slot identity once: blank/null slotId ← params.slot_id | params.slotId
             // so ownership footprints and ComponentEmitPass share the same Slot.
-            if (normalizedComponent.slotId() == null) {
+            String currentSlot = normalizedComponent.slotId();
+            if (currentSlot == null || currentSlot.isBlank()) {
                 String authoredSlot = ComponentPlanTypes.getParamString(
                         normalizedComponent.params(), "slot_id", "slotId");
-                if (authoredSlot != null) {
-                    normalizedComponent = new Component(normalizedComponent.componentType(), authoredSlot,
+                if (authoredSlot != null && !authoredSlot.isBlank()) {
+                    normalizedComponent = new Component(normalizedComponent.componentType(), authoredSlot.trim(),
+                            normalizedComponent.relativePosition(), normalizedComponent.dimensions(),
+                            normalizedComponent.features(), normalizedComponent.params());
+                } else if (currentSlot != null) {
+                    // Blank top-level slotId → null so emit does not treat "" as a real key.
+                    normalizedComponent = new Component(normalizedComponent.componentType(), null,
                             normalizedComponent.relativePosition(), normalizedComponent.dimensions(),
                             normalizedComponent.features(), normalizedComponent.params());
                 }
@@ -582,6 +588,8 @@ final class ComponentSatelliteInference {
         Map<String, String> parentById = typologyHostParentMap(components);
         boolean multiBuilding = GenerationCompileContext.hasIndependentBuildingBesideTypology(
                 components, exclusiveRoots, exclusiveBuildingIds, slotMap);
+        GenerationCompileContext.ComponentIdIndex idIndex =
+                GenerationCompileContext.indexComponentsById(components);
         Map<Component, GenerationCompileContext.ComponentOwnership> ownershipByComponent =
                 GenerationCompileContext.resolveAllCompositionalOwnership(
                         components, exclusiveRoots, exclusiveIds, exclusiveBuildingIds,
@@ -590,35 +598,69 @@ final class ComponentSatelliteInference {
         List<Component> kept = new ArrayList<>();
         int stripped = 0;
         List<String> ambiguousIds = new ArrayList<>();
+        List<String> conflictIds = new ArrayList<>();
         for (Component c : components) {
             if (c == null) {
                 continue;
             }
             String type = ComponentPlanTypes.normalizeType(c.componentType());
-            if ("STRUCTURE".equals(type) && TypologyComponentRouter.hasTypologyHint(c)) {
+            String hostId = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
+            boolean hosted = hostId != null && !hostId.isBlank();
+            // Unhosted typology STRUCTURE roots and unhosted site peripherals keep without strip.
+            // Hosted STRUCTURE / PATH / PAVING must still obey host-tree ownership.
+            if ("STRUCTURE".equals(type) && TypologyComponentRouter.hasTypologyHint(c) && !hosted) {
                 kept.add(c);
                 continue;
             }
-            if (isTypologyExclusivePeripheral(type)) {
+            if (isTypologyExclusivePeripheral(type) && !hosted) {
                 kept.add(c);
                 continue;
             }
             // Per-component ownership always — never gate on multiBuilding.
-            // Host-tree inheritance: satellites of exclusive shells strip with their host.
             GenerationCompileContext.ComponentOwnership ownership = ownershipByComponent.getOrDefault(
                     c, GenerationCompileContext.ComponentOwnership.AMBIGUOUS);
             if (ownership == GenerationCompileContext.ComponentOwnership.EXCLUSIVE_HOST) {
                 stripped++;
             } else {
                 kept.add(c);
-                if (ownership == GenerationCompileContext.ComponentOwnership.AMBIGUOUS) {
-                    String cid = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
-                    ambiguousIds.add(cid != null ? cid : type);
+                String cid = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
+                String label = cid != null ? cid : type;
+                if (ownership == GenerationCompileContext.ComponentOwnership.OWNERSHIP_CONFLICT) {
+                    conflictIds.add(label);
+                } else if (ownership == GenerationCompileContext.ComponentOwnership.AMBIGUOUS) {
+                    ambiguousIds.add(label);
                 }
             }
         }
 
-        if (!ambiguousIds.isEmpty() && !AssemblyCompileDiagnostics.hasGap()) {
+        if (!idIndex.duplicateIds().isEmpty() && !AssemblyCompileDiagnostics.hasGap()) {
+            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                    "E_DUPLICATE_COMPONENT_ID",
+                    "存在重复的 params.component_id，宿主引用无法唯一解析；请为每个可被 host_id 引用的构件分配唯一 ID。",
+                    "components[].params.component_id",
+                    List.of(
+                            "Give every hostable / referenceable component a unique component_id.",
+                            "Do not rely on list order to disambiguate duplicate ids."),
+                    Map.of("duplicate_component_ids", List.copyOf(idIndex.duplicateIds()))));
+            FormacraftMod.LOGGER.info(
+                    "ComponentPlanCompiler: duplicate component_id(s) for host resolution: {}",
+                    idIndex.duplicateIds());
+        } else if (!conflictIds.isEmpty() && !AssemblyCompileDiagnostics.hasGap()) {
+            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                    "E_COMPONENT_OWNERSHIP_CONFLICT",
+                    "构件的 building_id 与 host_id 宿主链建筑身份冲突；请修正绑定或改用显式连接关系，勿静默删除。",
+                    "components",
+                    List.of(
+                            "Align building_id with the host building, or clear the mistaken host_id.",
+                            "Cross-building links need an explicit connection, not a conflicting host_id.",
+                            "Do not strip conflicted independent buildings silently."),
+                    Map.of(
+                            "conflict_component_ids", List.copyOf(conflictIds),
+                            "exclusive_host_ids", List.copyOf(exclusiveIds))));
+            FormacraftMod.LOGGER.info(
+                    "ComponentPlanCompiler: typology-exclusive ownership conflict for {} component(s): {}",
+                    conflictIds.size(), conflictIds);
+        } else if (!ambiguousIds.isEmpty() && !AssemblyCompileDiagnostics.hasGap()) {
             AssemblyCompileDiagnostics.set(new CapabilityGap(
                     "E_COMPONENT_OWNERSHIP_AMBIGUOUS",
                     "存在归属不明的构件（缺少可判定的 building_id / 有效 host_id / 几何），无法安全确认是否为独占执行器的重复体量；请补全身份与尺寸后重试。",

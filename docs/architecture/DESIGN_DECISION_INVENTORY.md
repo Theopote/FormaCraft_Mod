@@ -196,6 +196,10 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `host_id` exists ⇒ INDEPENDENT | orphan `shell_roof` kept after exclusive shell strip | **Fixed (2026-11-20):** host-tree inheritance; satellites follow host effective ownership |
 | spatial sep vs partial exclusive geom | distant mass proven independent while another exclusive root lacks dims | **Fixed (2026-11-20):** all exclusive roots must be comparable |
 | `prepareComponents` only lifts `params.slot_id` | `params.slotId` ownership≠emit origin | **Fixed (2026-11-20):** lift `slot_id`/`slotId` onto `Component.slotId` before emit |
+| host inherit overrides distinct `building_id` | `platform_B` hosted on exclusive shell silently stripped | **Fixed (2026-11-20):** `OWNERSHIP_CONFLICT` + `E_COMPONENT_OWNERSHIP_CONFLICT` keep |
+| unhosted-only STRUCTURE/PATH keep | hosted nested typology STRUCTURE / PAVING orphans | **Fixed (2026-11-20):** hosted peripherals run host-tree ownership |
+| `componentById` last-writer | duplicate satellite ids order-dependent ownership | **Fixed (2026-11-20):** unique index + `E_DUPLICATE_COMPONENT_ID` |
+| blank `Component.slotId` skip lift | `slotId=""` ownership uses params, emit uses default | **Fixed (2026-11-20):** treat blank as missing; lift params slot |
 | `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |
 | `StyleIntentResolver.detectFlavor` plan-only | local Huizhou under plan Modern got flat/glass | **Fixed (2026-11-20):** `EffectiveBuildingStyleResolver`; local/host chain first; entrance `bindDerived` inherits |
 | `EffectiveBuildingStyleResolver` local-only | authored FACADE with host_id lacked style inheritance | **Fixed (2026-11-20):** resolve via host_id chain before plan style |

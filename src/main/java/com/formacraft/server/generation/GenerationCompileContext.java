@@ -41,7 +41,31 @@ public final class GenerationCompileContext {
         /** Proven independent building (distinct building_id or separated plan-space footprint). */
         INDEPENDENT_BUILDING,
         /** Cannot prove exclusive or independent — keep component and emit capability_gap. */
-        AMBIGUOUS
+        AMBIGUOUS,
+        /**
+         * Authored {@code building_id} contradicts host-tree identity — keep +
+         * {@code E_COMPONENT_OWNERSHIP_CONFLICT}; never silently strip.
+         */
+        OWNERSHIP_CONFLICT
+    }
+
+    /** Unique component_id → component; duplicate ids are tracked separately (no last-writer). */
+    public record ComponentIdIndex(Map<String, Component> byId, Set<String> duplicateIds) {
+        public ComponentIdIndex {
+            byId = byId == null ? Map.of() : Map.copyOf(byId);
+            duplicateIds = duplicateIds == null ? Set.of() : Set.copyOf(duplicateIds);
+        }
+
+        public boolean isAmbiguous(String id) {
+            return id != null && duplicateIds.contains(id);
+        }
+
+        public Component getUnique(String id) {
+            if (id == null || duplicateIds.contains(id)) {
+                return null;
+            }
+            return byId.get(id);
+        }
     }
 
     private final GenerationAuthority authority;
@@ -271,15 +295,14 @@ public final class GenerationCompileContext {
         if (components == null) {
             return out;
         }
-        Map<String, Component> byId = componentById(components);
-        Set<String> known = byId.keySet();
+        ComponentIdIndex index = indexComponentsById(components);
         Map<Component, ComponentOwnership> memo = new HashMap<>();
         Set<Component> visiting = new HashSet<>();
         for (Component c : components) {
             if (c == null) continue;
             out.put(c, resolveEffectiveOwnership(
                     c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById,
-                    known, byId, slotMap, memo, visiting));
+                    index, slotMap, memo, visiting));
         }
         return out;
     }
@@ -295,12 +318,12 @@ public final class GenerationCompileContext {
             Set<String> exclusiveIds,
             Set<String> exclusiveBuildingIds,
             Map<String, String> parentById,
-            Map<String, Component> componentById,
+            ComponentIdIndex index,
             Map<String, Slot> slotMap) {
-        Map<String, Component> byId = componentById == null ? Map.of() : componentById;
+        ComponentIdIndex idIndex = index == null ? new ComponentIdIndex(Map.of(), Set.of()) : index;
         return resolveEffectiveOwnership(
                 c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById,
-                byId.keySet(), byId, slotMap, new HashMap<>(), new HashSet<>());
+                idIndex, slotMap, new HashMap<>(), new HashSet<>());
     }
 
     private static ComponentOwnership resolveEffectiveOwnership(
@@ -309,8 +332,7 @@ public final class GenerationCompileContext {
             Set<String> exclusiveIds,
             Set<String> exclusiveBuildingIds,
             Map<String, String> parentById,
-            Set<String> known,
-            Map<String, Component> byId,
+            ComponentIdIndex index,
             Map<String, Slot> slotMap,
             Map<Component, ComponentOwnership> memo,
             Set<Component> visiting) {
@@ -329,27 +351,59 @@ public final class GenerationCompileContext {
         String host = param(c, "host_id", "hostId");
         ComponentOwnership result = base;
         if (host != null) {
-            if (exclusiveIds != null && exclusiveIds.contains(host)) {
-                result = ComponentOwnership.EXCLUSIVE_HOST;
-            } else if (known == null || !known.contains(host)) {
-                // Unresolvable host — keep base (overlap/spatial/ambiguous), never invent independence.
-                result = base;
+            if (index != null && index.isAmbiguous(host)) {
+                // Duplicate host target — cannot uniquely inherit.
+                result = ComponentOwnership.AMBIGUOUS;
+            } else if (exclusiveIds != null && exclusiveIds.contains(host)) {
+                result = reconcileHostInheritance(
+                        c, ComponentOwnership.EXCLUSIVE_HOST, exclusiveBuildingIds, null);
             } else {
-                Component hostComp = byId.get(host);
+                Component hostComp = index == null ? null : index.getUnique(host);
                 if (hostComp == null) {
+                    // Unresolvable / non-unique host — keep base, never invent independence.
                     result = base;
                 } else {
                     ComponentOwnership hostOwn = resolveEffectiveOwnership(
                             hostComp, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById,
-                            known, byId, slotMap, memo, visiting);
-                    // Satellite follows host tree identity.
-                    result = hostOwn;
+                            index, slotMap, memo, visiting);
+                    result = reconcileHostInheritance(c, hostOwn, exclusiveBuildingIds, hostComp);
                 }
             }
         }
         visiting.remove(c);
         memo.put(c, result);
         return result;
+    }
+
+    /**
+     * Host-tree inheritance must not silently override a distinct authored {@code building_id}.
+     * Cross-building host bindings are OWNERSHIP_CONFLICT (keep + gap), not strip.
+     */
+    private static ComponentOwnership reconcileHostInheritance(
+            Component child,
+            ComponentOwnership hostOwn,
+            Set<String> exclusiveBuildingIds,
+            Component hostComp) {
+        String childBid = param(child, "building_id", "buildingId");
+        boolean childIndependentBid = childBid != null
+                && (exclusiveBuildingIds == null || exclusiveBuildingIds.isEmpty()
+                || !exclusiveBuildingIds.contains(childBid));
+        if (!childIndependentBid) {
+            return hostOwn;
+        }
+        if (hostOwn == ComponentOwnership.EXCLUSIVE_HOST
+                || hostOwn == ComponentOwnership.OWNERSHIP_CONFLICT) {
+            return ComponentOwnership.OWNERSHIP_CONFLICT;
+        }
+        String hostBid = hostComp == null ? null : param(hostComp, "building_id", "buildingId");
+        if (hostBid != null && !hostBid.equals(childBid)) {
+            return ComponentOwnership.OWNERSHIP_CONFLICT;
+        }
+        if (hostOwn == ComponentOwnership.AMBIGUOUS) {
+            return ComponentOwnership.OWNERSHIP_CONFLICT;
+        }
+        // Same building_id (or host lacks bid) under an independent host tree.
+        return ComponentOwnership.INDEPENDENT_BUILDING;
     }
 
     /**
@@ -382,18 +436,34 @@ public final class GenerationCompileContext {
     }
 
     public static Set<String> knownComponentIds(List<Component> components) {
-        return componentById(components).keySet();
+        return indexComponentsById(components).byId().keySet();
     }
 
+    /** Unique ids only — duplicates are omitted from the map and listed in {@link ComponentIdIndex#duplicateIds()}. */
     public static Map<String, Component> componentById(List<Component> components) {
+        return new HashMap<>(indexComponentsById(components).byId());
+    }
+
+    public static ComponentIdIndex indexComponentsById(List<Component> components) {
         Map<String, Component> byId = new HashMap<>();
-        if (components == null) return byId;
+        Set<String> duplicates = new HashSet<>();
+        if (components == null) {
+            return new ComponentIdIndex(byId, duplicates);
+        }
         for (Component c : components) {
             if (c == null) continue;
             String id = param(c, "component_id", "componentId");
-            if (id != null) byId.put(id, c);
+            if (id == null) continue;
+            if (duplicates.contains(id)) {
+                continue;
+            }
+            Component prior = byId.putIfAbsent(id, c);
+            if (prior != null && prior != c) {
+                byId.remove(id);
+                duplicates.add(id);
+            }
         }
-        return byId;
+        return new ComponentIdIndex(byId, duplicates);
     }
 
     public static boolean belongsToTypologyExclusiveScope(

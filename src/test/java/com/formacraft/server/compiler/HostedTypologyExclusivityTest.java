@@ -468,4 +468,122 @@ class HostedTypologyExclusivityTest {
                 com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
         com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
     }
+
+    @Test void distinctBuildingIdHostedOnExclusiveShellIsConflictNotStrip() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "building_id", "temple_A",
+                        "typology_id", "dense_eaves_pagoda"));
+        var shell = new Component("MASS_MAIN", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "pagoda_shell", "building_id", "temple_A"));
+        var platform = new Component("MASS_SECONDARY", "pagoda", new Vec3i(20, 10, 0),
+                new Dimensions(8, 8, 4), List.of(),
+                Map.of("component_id", "view_platform", "building_id", "platform_B",
+                        "host_id", "pagoda_shell"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, shell, platform));
+        assertTrue(filtered.stream().noneMatch(c ->
+                "pagoda_shell".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().anyMatch(c ->
+                "view_platform".equals(String.valueOf(c.params().get("component_id")))),
+                "independent building_id must not be silently stripped via exclusive host");
+        assertEquals("E_COMPONENT_OWNERSHIP_CONFLICT",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
+    @Test void hostedNestedStructureAndPavingFollowExclusiveShellStrip() {
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var shell = new Component("MASS_MAIN", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "pagoda_shell"));
+        var inner = new Component("STRUCTURE", "pagoda", new Vec3i(2, 0, 2),
+                new Dimensions(4, 4, 10), List.of("typology:spiral_stair_tower"),
+                Map.of("component_id", "inner_structure", "typology_id", "spiral_stair_tower",
+                        "host_id", "pagoda_shell"));
+        var paving = new Component("PAVING", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(14, 14, 1), List.of(),
+                Map.of("component_id", "shell_paving", "host_id", "pagoda_shell"));
+        var sitePath = new Component("PATH", "site", new Vec3i(40, 0, 0),
+                new Dimensions(4, 20, 1), List.of(), Map.of("component_id", "site_path"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, shell, inner, paving, sitePath));
+        assertEquals(2, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "pagoda".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().anyMatch(c -> "site_path".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().noneMatch(c ->
+                Set.of("pagoda_shell", "inner_structure", "shell_paving")
+                        .contains(String.valueOf(c.params().get("component_id")))));
+    }
+
+    @Test void duplicateSatelliteIdsMakeHostResolutionOrderIndependent() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var shell = new Component("MASS_MAIN", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "pagoda_shell"));
+        var roofA = new Component("ROOF", "pagoda", new Vec3i(0, 40, 0),
+                new Dimensions(12, 12, 4), List.of(),
+                Map.of("component_id", "shared_roof", "host_id", "pagoda_shell"));
+        var mansion = new Component("MASS_MAIN", "mansion", new Vec3i(100, 0, 0),
+                new Dimensions(18, 28, 12), List.of(),
+                Map.of("component_id", "mansion", "building_id", "mansion"));
+        var roofB = new Component("ROOF", "mansion", new Vec3i(100, 12, 0),
+                new Dimensions(18, 28, 6), List.of(),
+                Map.of("component_id", "shared_roof", "host_id", "mansion", "building_id", "mansion"));
+        var chimney = new Component("CROWN", "mansion", new Vec3i(100, 18, 0),
+                new Dimensions(2, 2, 4), List.of(),
+                Map.of("component_id", "chimney", "host_id", "shared_roof"));
+        var orderA = List.of(pagoda, shell, roofA, mansion, roofB, chimney);
+        var orderB = List.of(pagoda, mansion, roofB, shell, roofA, chimney);
+        var filteredA = ComponentSatelliteInference.applyTypologyExclusiveFilter(orderA);
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var filteredB = ComponentSatelliteInference.applyTypologyExclusiveFilter(orderB);
+        assertEquals(filteredA.stream().map(c -> String.valueOf(c.params().get("component_id"))).sorted().toList(),
+                filteredB.stream().map(c -> String.valueOf(c.params().get("component_id"))).sorted().toList());
+        assertTrue(filteredA.stream().anyMatch(c -> "chimney".equals(String.valueOf(c.params().get("component_id")))));
+        assertEquals("E_DUPLICATE_COMPONENT_ID",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
+    @Test void blankTopLevelSlotIdLiftsParamsSlotId() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var hall = new Component("MASS_MAIN", "   ", new Vec3i(0, 0, 0),
+                new Dimensions(20, 20, 12), List.of(),
+                Map.of("component_id", "east_hall", "slotId", "east_slot",
+                        "suppress_windows", true, "suppress_doors", true));
+        Map<String, Slot> slots = Map.of(
+                "east_slot", new Slot("east_slot", new Vec3i(100, 0, 0), null, null, null, null));
+        int[] ownershipBox = com.formacraft.common.generation.component.util.ComponentFootprintUtil
+                .planSpaceFootprintXz(hall, slots);
+        assertNotNull(ownershipBox);
+        assertTrue(ownershipBox[0] >= 90);
+
+        var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .styleProfile("DEFAULT")
+                .mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
+                .components(List.of(hall))
+                .layout(new Layout(null, false, List.copyOf(slots.values())))
+                .planMeta(Map.of(
+                        "allow_compiler_satellites", false,
+                        "design_requirements", Map.of(
+                                "roof", "OMITTED", "facade", "OMITTED",
+                                "entrance", "OMITTED", "crown", "OMITTED")))
+                .build();
+        var prepared = ComponentSatelliteInference.prepareComponents(plan, slots, false);
+        Component preparedHall = prepared.components().stream()
+                .filter(c -> "east_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("east_slot", preparedHall.slotId());
+        assertEquals(100, slots.get(preparedHall.slotId()).anchor().x());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
 }

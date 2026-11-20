@@ -343,16 +343,32 @@ def _is_spatially_separated_from_exclusive_roots(
 _OWNERSHIP_EXCLUSIVE = "EXCLUSIVE_HOST"
 _OWNERSHIP_INDEPENDENT = "INDEPENDENT_BUILDING"
 _OWNERSHIP_AMBIGUOUS = "AMBIGUOUS"
+_OWNERSHIP_CONFLICT = "OWNERSHIP_CONFLICT"
 
 
-def _component_by_id(components: List[Any]) -> Dict[str, Dict[str, Any]]:
+def _index_components_by_id(
+    components: List[Any],
+) -> tuple[Dict[str, Dict[str, Any]], set[str]]:
+    """Unique component_id → component; duplicates omitted (no last-writer)."""
     by_id: Dict[str, Dict[str, Any]] = {}
+    duplicates: set[str] = set()
     for comp in components:
         if not isinstance(comp, dict):
             continue
         cid = _param_str(comp, "component_id", "componentId")
-        if cid:
+        if not cid or cid in duplicates:
+            continue
+        prior = by_id.get(cid)
+        if prior is not None and prior is not comp:
+            by_id.pop(cid, None)
+            duplicates.add(cid)
+        else:
             by_id[cid] = comp
+    return by_id, duplicates
+
+
+def _component_by_id(components: List[Any]) -> Dict[str, Dict[str, Any]]:
+    by_id, _ = _index_components_by_id(components)
     return by_id
 
 
@@ -383,6 +399,29 @@ def _resolve_base_ownership(
     return _OWNERSHIP_AMBIGUOUS
 
 
+def _reconcile_host_inheritance(
+    child: Dict[str, Any],
+    host_own: str,
+    exclusive_building_ids: set[str],
+    host_comp: Optional[Dict[str, Any]],
+) -> str:
+    """Host inheritance must not silently override a distinct authored building_id."""
+    child_bid = _param_str(child, "building_id", "buildingId")
+    child_independent_bid = bool(
+        child_bid and (not exclusive_building_ids or child_bid not in exclusive_building_ids)
+    )
+    if not child_independent_bid:
+        return host_own
+    if host_own in (_OWNERSHIP_EXCLUSIVE, _OWNERSHIP_CONFLICT):
+        return _OWNERSHIP_CONFLICT
+    host_bid = _param_str(host_comp, "building_id", "buildingId") if host_comp else None
+    if host_bid and host_bid != child_bid:
+        return _OWNERSHIP_CONFLICT
+    if host_own == _OWNERSHIP_AMBIGUOUS:
+        return _OWNERSHIP_CONFLICT
+    return _OWNERSHIP_INDEPENDENT
+
+
 def _resolve_effective_ownership(
     comp: Dict[str, Any],
     exclusive_roots: List[Dict[str, Any]],
@@ -390,6 +429,7 @@ def _resolve_effective_ownership(
     exclusive_building_ids: set[str],
     parent_by_id: Dict[str, str],
     by_id: Dict[str, Dict[str, Any]],
+    duplicate_ids: set[str],
     slot_anchors: Optional[Dict[str, Dict[str, int]]],
     memo: Dict[int, str],
     visiting: set[int],
@@ -407,21 +447,30 @@ def _resolve_effective_ownership(
     host = _param_str(comp, "host_id", "hostId")
     result = base
     if host:
-        if host in exclusive_ids:
-            result = _OWNERSHIP_EXCLUSIVE
+        if host in duplicate_ids:
+            result = _OWNERSHIP_AMBIGUOUS
+        elif host in exclusive_ids:
+            result = _reconcile_host_inheritance(
+                comp, _OWNERSHIP_EXCLUSIVE, exclusive_building_ids, None
+            )
         elif host not in by_id:
             result = base
         else:
-            result = _resolve_effective_ownership(
-                by_id[host],
+            host_comp = by_id[host]
+            host_own = _resolve_effective_ownership(
+                host_comp,
                 exclusive_roots,
                 exclusive_ids,
                 exclusive_building_ids,
                 parent_by_id,
                 by_id,
+                duplicate_ids,
                 slot_anchors,
                 memo,
                 visiting,
+            )
+            result = _reconcile_host_inheritance(
+                comp, host_own, exclusive_building_ids, host_comp
             )
     visiting.discard(key)
     memo[key] = result
@@ -436,7 +485,7 @@ def _resolve_all_compositional_ownership(
     parent_by_id: Dict[str, str],
     slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
 ) -> Dict[int, str]:
-    by_id = _component_by_id(components)
+    by_id, duplicate_ids = _index_components_by_id(components)
     memo: Dict[int, str] = {}
     visiting: set[int] = set()
     out: Dict[int, str] = {}
@@ -450,6 +499,7 @@ def _resolve_all_compositional_ownership(
             exclusive_building_ids,
             parent_by_id,
             by_id,
+            duplicate_ids,
             slot_anchors,
             memo,
             visiting,
@@ -465,9 +515,11 @@ def _resolve_compositional_ownership(
     parent_by_id: Dict[str, str],
     slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
     component_by_id: Optional[Dict[str, Dict[str, Any]]] = None,
+    duplicate_ids: Optional[set[str]] = None,
 ) -> str:
     """Building identity first; satellites inherit host-tree ownership (not host-id existence)."""
     by_id = component_by_id if component_by_id is not None else {}
+    dups = duplicate_ids if duplicate_ids is not None else set()
     return _resolve_effective_ownership(
         comp,
         exclusive_roots,
@@ -475,6 +527,7 @@ def _resolve_compositional_ownership(
         exclusive_building_ids,
         parent_by_id,
         by_id,
+        dups,
         slot_anchors,
         {},
         set(),
@@ -585,36 +638,85 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
         parent_by_id,
         slot_anchors,
     )
+    _, duplicate_ids = _index_components_by_id(components)
 
     kept: List[Dict[str, Any]] = []
     stripped = 0
     ambiguous_ids: List[str] = []
+    conflict_ids: List[str] = []
     for comp in components:
         if not isinstance(comp, dict):
             continue
         ctype = str(comp.get("component_type") or "").upper()
-        if ctype == "STRUCTURE" and _has_typology_hint(comp):
+        hosted = _param_str(comp, "host_id", "hostId") is not None
+        # Unhosted typology STRUCTURE / site peripherals keep; hosted ones obey ownership.
+        if ctype == "STRUCTURE" and _has_typology_hint(comp) and not hosted:
             kept.append(comp)
             continue
-        if ctype in _TYPOLOGY_EXCLUSIVE_PERIPHERALS:
+        if ctype in _TYPOLOGY_EXCLUSIVE_PERIPHERALS and not hosted:
             kept.append(comp)
             continue
-        # Per-component ownership always — never gate on multi_building.
-        # Host-tree inheritance: satellites of exclusive shells strip with their host.
         ownership = ownership_by_id.get(id(comp), _OWNERSHIP_AMBIGUOUS)
         if ownership == _OWNERSHIP_EXCLUSIVE:
             stripped += 1
         else:
             kept.append(comp)
-            if ownership == _OWNERSHIP_AMBIGUOUS:
-                cid = _param_str(comp, "component_id", "componentId") or ctype
+            cid = _param_str(comp, "component_id", "componentId") or ctype
+            if ownership == _OWNERSHIP_CONFLICT:
+                conflict_ids.append(cid)
+            elif ownership == _OWNERSHIP_AMBIGUOUS:
                 ambiguous_ids.append(cid)
 
-    changed = stripped > 0 or bool(ambiguous_ids)
+    changed = stripped > 0 or bool(ambiguous_ids) or bool(conflict_ids) or bool(duplicate_ids)
     if changed:
         plan = dict(plan)
         plan["components"] = kept
-    if ambiguous_ids and not plan.get("capability_gap"):
+    if duplicate_ids and not plan.get("capability_gap"):
+        plan = dict(plan)
+        plan["plan_status"] = "capability_gap"
+        plan["capability_gap"] = {
+            "code": "E_DUPLICATE_COMPONENT_ID",
+            "message": (
+                "存在重复的 params.component_id，宿主引用无法唯一解析；"
+                "请为每个可被 host_id 引用的构件分配唯一 ID。"
+            ),
+            "path": "components[].params.component_id",
+            "suggestions": [
+                "Give every hostable / referenceable component a unique component_id.",
+                "Do not rely on list order to disambiguate duplicate ids.",
+            ],
+            "details": {"duplicate_component_ids": sorted(duplicate_ids)},
+        }
+        logger.info(
+            "TypologyPlanRepair: duplicate component_id(s) for host resolution: %s",
+            sorted(duplicate_ids),
+        )
+    elif conflict_ids and not plan.get("capability_gap"):
+        plan = dict(plan)
+        plan["plan_status"] = "capability_gap"
+        plan["capability_gap"] = {
+            "code": "E_COMPONENT_OWNERSHIP_CONFLICT",
+            "message": (
+                "构件的 building_id 与 host_id 宿主链建筑身份冲突；"
+                "请修正绑定或改用显式连接关系，勿静默删除。"
+            ),
+            "path": "components",
+            "suggestions": [
+                "Align building_id with the host building, or clear the mistaken host_id.",
+                "Cross-building links need an explicit connection, not a conflicting host_id.",
+                "Do not strip conflicted independent buildings silently.",
+            ],
+            "details": {
+                "conflict_component_ids": list(conflict_ids),
+                "exclusive_host_ids": sorted(exclusive_ids),
+            },
+        }
+        logger.info(
+            "TypologyPlanRepair: typology-exclusive ownership conflict for %d component(s): %s",
+            len(conflict_ids),
+            conflict_ids,
+        )
+    elif ambiguous_ids and not plan.get("capability_gap"):
         plan = dict(plan)
         plan["plan_status"] = "capability_gap"
         plan["capability_gap"] = {
