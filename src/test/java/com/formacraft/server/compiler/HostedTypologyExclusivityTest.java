@@ -328,4 +328,144 @@ class HostedTypologyExclusivityTest {
         assertEquals("Chinese_Vernacular_Huizhou",
                 com.formacraft.common.style.EffectiveBuildingStyleResolver.resolve(plan, entrance));
     }
+
+    @Test void exclusiveShellStripsHostedRoofAndOpeningsTree() {
+        // P0: deleting overlapping shell must strip satellites that host onto the shell — not leave orphans.
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var shell = new Component("MASS_MAIN", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "pagoda_shell"));
+        var shellRoof = new Component("ROOF", "pagoda", new Vec3i(0, 40, 0),
+                new Dimensions(12, 12, 4), List.of(),
+                Map.of("component_id", "shell_roof", "host_id", "pagoda_shell", "roof_type", "hip"));
+        var shellWindow = new Component("FACADE_WINDOWS", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "shell_window", "host_id", "pagoda_shell"));
+        var shellDoor = new Component("ENTRANCE", "pagoda", new Vec3i(0, 0, -1),
+                new Dimensions(3, 2, 3), List.of(),
+                Map.of("component_id", "shell_door", "host_id", "shell_roof"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, shell, shellRoof, shellWindow, shellDoor));
+        assertEquals(1, filtered.size());
+        assertEquals("pagoda", filtered.get(0).params().get("component_id"));
+        assertTrue(filtered.stream().noneMatch(c ->
+                Set.of("pagoda_shell", "shell_roof", "shell_window", "shell_door")
+                        .contains(String.valueOf(c.params().get("component_id")))));
+    }
+
+    @Test void exclusiveShellStripDoesNotOrphanIndependentBuildingSatellites() {
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var shell = new Component("MASS_MAIN", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "pagoda_shell"));
+        var shellRoof = new Component("ROOF", "pagoda", new Vec3i(0, 40, 0),
+                new Dimensions(12, 12, 4), List.of(),
+                Map.of("component_id", "shell_roof", "host_id", "pagoda_shell"));
+        var mansion = new Component("MASS_MAIN", "mansion", new Vec3i(100, 0, 0),
+                new Dimensions(18, 28, 12), List.of(),
+                Map.of("component_id", "mansion", "building_id", "mansion"));
+        var mansionRoof = new Component("ROOF", "mansion", new Vec3i(100, 12, 0),
+                new Dimensions(18, 28, 6), List.of(),
+                Map.of("component_id", "mansion_roof", "host_id", "mansion", "building_id", "mansion"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, shell, shellRoof, mansion, mansionRoof));
+        assertEquals(3, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "pagoda".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().anyMatch(c -> "mansion".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().anyMatch(c -> "mansion_roof".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().noneMatch(c ->
+                "pagoda_shell".equals(String.valueOf(c.params().get("component_id")))
+                        || "shell_roof".equals(String.valueOf(c.params().get("component_id")))));
+    }
+
+    @Test void incompleteExclusiveRootBlocksSpatialIndependenceProof() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var pagodaA = new Component("STRUCTURE", "a", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda_a", "typology_id", "dense_eaves_pagoda"));
+        // Second exclusive root without dimensions — cannot compare C against it.
+        var pagodaB = new Component("STRUCTURE", "b", null, null,
+                List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda_b", "typology_id", "dense_eaves_pagoda"));
+        var distant = new Component("MASS_MAIN", "c", new Vec3i(100, 0, 0),
+                new Dimensions(20, 20, 12), List.of(),
+                Map.of("component_id", "maybe_shell_of_b"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagodaA, pagodaB, distant));
+        assertEquals(3, filtered.size());
+        assertEquals("E_COMPONENT_OWNERSHIP_AMBIGUOUS",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        // Separation from A alone must not invent independence while B is incomparable.
+        assertFalse(com.formacraft.server.generation.GenerationCompileContext
+                .hasIndependentCompositionalBuilding(List.of(pagodaA, pagodaB, distant), Map.of()));
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
+    @Test void paramsCamelSlotIdLiftedForOwnershipAndEmit() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var hall = new Component("MASS_MAIN", null, new Vec3i(0, 0, 0),
+                new Dimensions(20, 20, 12), List.of(),
+                Map.of("component_id", "east_hall", "slotId", "east_slot",
+                        "suppress_windows", true, "suppress_doors", true));
+        Map<String, Slot> slots = Map.of(
+                "east_slot", new Slot("east_slot", new Vec3i(100, 0, 0), null, null, null, null));
+        int[] box = com.formacraft.common.generation.component.util.ComponentFootprintUtil
+                .planSpaceFootprintXz(hall, slots);
+        assertNotNull(box);
+        assertTrue(box[0] >= 90 && box[0] <= 100, "ownership footprint must use params.slotId anchor");
+
+        var plan = com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .styleProfile("DEFAULT")
+                .mode(com.formacraft.common.llm.dto.LlmPlan.Mode.build)
+                .components(List.of(hall))
+                .layout(new Layout(null, false, List.copyOf(slots.values())))
+                .planMeta(Map.of(
+                        "allow_compiler_satellites", false,
+                        "design_requirements", Map.of(
+                                "roof", "OMITTED",
+                                "facade", "OMITTED",
+                                "entrance", "OMITTED",
+                                "crown", "OMITTED")))
+                .build();
+        var prepared = ComponentSatelliteInference.prepareComponents(plan, slots, false);
+        assertFalse(prepared.components().isEmpty(),
+                "prepare emptied components; gap=" + com.formacraft.server.assembly.AssemblyCompileDiagnostics.get());
+        Component preparedHall = prepared.components().stream()
+                .filter(c -> "east_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("east_slot", preparedHall.slotId(), "prepare must lift params.slotId onto Component.slotId");
+        // EmitPass resolves Slot via Component.slotId() only — same identity as ownership footprint.
+        Slot emitSlot = slots.get(preparedHall.slotId());
+        assertNotNull(emitSlot);
+        assertEquals(100, emitSlot.anchor().x(), "emit Slot anchor must match ownership params.slotId footprint");
+        int[] preparedBox = com.formacraft.common.generation.component.util.ComponentFootprintUtil
+                .planSpaceFootprintXz(preparedHall, slots);
+        assertNotNull(preparedBox);
+        assertEquals(box[0], preparedBox[0], "prepare must not move plan-space ownership footprint");
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
+    @Test void hostCycleIsAmbiguousNotIndependent() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var a = new Component("MASS_MAIN", "a", new Vec3i(100, 0, 0),
+                new Dimensions(10, 10, 8), List.of(),
+                Map.of("component_id", "cycle_a", "host_id", "cycle_b"));
+        var b = new Component("ROOF", "a", new Vec3i(100, 8, 0),
+                new Dimensions(10, 10, 3), List.of(),
+                Map.of("component_id", "cycle_b", "host_id", "cycle_a"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(List.of(pagoda, a, b));
+        assertTrue(filtered.stream().anyMatch(c -> "cycle_a".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().anyMatch(c -> "cycle_b".equals(String.valueOf(c.params().get("component_id")))));
+        assertEquals("E_COMPONENT_OWNERSHIP_AMBIGUOUS",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
 }

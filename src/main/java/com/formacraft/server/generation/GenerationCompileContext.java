@@ -40,7 +40,7 @@ public final class GenerationCompileContext {
         EXCLUSIVE_HOST,
         /** Proven independent building (distinct building_id or separated plan-space footprint). */
         INDEPENDENT_BUILDING,
-        /** Cannot prove exclusive or independent — fail closed toward exclusive strip. */
+        /** Cannot prove exclusive or independent — keep component and emit capability_gap. */
         AMBIGUOUS
     }
 
@@ -200,6 +200,8 @@ public final class GenerationCompileContext {
             if (id != null) exclusiveIds.add(id);
         }
         Map<String, String> parentById = hostParentMap(components);
+        Map<Component, ComponentOwnership> ownershipByComponent = resolveAllCompositionalOwnership(
+                components, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById, slotMap);
         Set<Component> exclusiveSet = new HashSet<>(exclusiveRoots);
         for (Component c : components) {
             if (c == null || exclusiveSet.contains(c) || isWholeBuildingTypologyRoot(c)) {
@@ -211,10 +213,7 @@ public final class GenerationCompileContext {
             if (!isTypologyExclusiveBuildingRootType(c)) {
                 continue;
             }
-            if (resolveCompositionalOwnership(
-                    c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById,
-                    knownComponentIds(components), slotMap)
-                    == ComponentOwnership.INDEPENDENT_BUILDING) {
+            if (ownershipByComponent.get(c) == ComponentOwnership.INDEPENDENT_BUILDING) {
                 return true;
             }
         }
@@ -258,11 +257,37 @@ public final class GenerationCompileContext {
     }
 
     /**
-     * Per-component ownership vs exclusive typology roots.
-     * <p>
-     * Building identity first (host chain / building_id), then geometry:
-     * overlap alone never overrides a distinct {@code building_id}.
-     * Unknown {@code host_id} is not independence evidence.
+     * Resolve ownership for every compositional component with host-tree inheritance.
+     * Satellites inherit the effective ownership of their host root — never "host id exists".
+     */
+    public static Map<Component, ComponentOwnership> resolveAllCompositionalOwnership(
+            List<Component> components,
+            List<Component> exclusiveRoots,
+            Set<String> exclusiveIds,
+            Set<String> exclusiveBuildingIds,
+            Map<String, String> parentById,
+            Map<String, Slot> slotMap) {
+        Map<Component, ComponentOwnership> out = new HashMap<>();
+        if (components == null) {
+            return out;
+        }
+        Map<String, Component> byId = componentById(components);
+        Set<String> known = byId.keySet();
+        Map<Component, ComponentOwnership> memo = new HashMap<>();
+        Set<Component> visiting = new HashSet<>();
+        for (Component c : components) {
+            if (c == null) continue;
+            out.put(c, resolveEffectiveOwnership(
+                    c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById,
+                    known, byId, slotMap, memo, visiting));
+        }
+        return out;
+    }
+
+    /**
+     * Per-component ownership vs exclusive typology roots (with host-tree inheritance).
+     * Prefer {@link #resolveAllCompositionalOwnership} when classifying a full plan so
+     * host targets are available for transitive ownership.
      */
     public static ComponentOwnership resolveCompositionalOwnership(
             Component c,
@@ -270,36 +295,86 @@ public final class GenerationCompileContext {
             Set<String> exclusiveIds,
             Set<String> exclusiveBuildingIds,
             Map<String, String> parentById,
-            Set<String> knownComponentIds,
+            Map<String, Component> componentById,
             Map<String, Slot> slotMap) {
+        Map<String, Component> byId = componentById == null ? Map.of() : componentById;
+        return resolveEffectiveOwnership(
+                c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById,
+                byId.keySet(), byId, slotMap, new HashMap<>(), new HashSet<>());
+    }
+
+    private static ComponentOwnership resolveEffectiveOwnership(
+            Component c,
+            List<Component> exclusiveRoots,
+            Set<String> exclusiveIds,
+            Set<String> exclusiveBuildingIds,
+            Map<String, String> parentById,
+            Set<String> known,
+            Map<String, Component> byId,
+            Map<String, Slot> slotMap,
+            Map<Component, ComponentOwnership> memo,
+            Set<Component> visiting) {
         if (c == null) {
             return ComponentOwnership.AMBIGUOUS;
         }
-        Set<String> known = knownComponentIds == null ? Set.of() : knownComponentIds;
-        // 1) Explicit exclusive scope (same building_id / host chain / exclusive component_id).
+        ComponentOwnership cached = memo.get(c);
+        if (cached != null) {
+            return cached;
+        }
+        if (!visiting.add(c)) {
+            return ComponentOwnership.AMBIGUOUS; // host cycle
+        }
+        ComponentOwnership base = resolveBaseOwnership(
+                c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById, slotMap);
+        String host = param(c, "host_id", "hostId");
+        ComponentOwnership result = base;
+        if (host != null) {
+            if (exclusiveIds != null && exclusiveIds.contains(host)) {
+                result = ComponentOwnership.EXCLUSIVE_HOST;
+            } else if (known == null || !known.contains(host)) {
+                // Unresolvable host — keep base (overlap/spatial/ambiguous), never invent independence.
+                result = base;
+            } else {
+                Component hostComp = byId.get(host);
+                if (hostComp == null) {
+                    result = base;
+                } else {
+                    ComponentOwnership hostOwn = resolveEffectiveOwnership(
+                            hostComp, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById,
+                            known, byId, slotMap, memo, visiting);
+                    // Satellite follows host tree identity.
+                    result = hostOwn;
+                }
+            }
+        }
+        visiting.remove(c);
+        memo.put(c, result);
+        return result;
+    }
+
+    /**
+     * Local ownership without the obsolete "host id exists ⇒ independent" shortcut.
+     * Host inheritance is applied by {@link #resolveEffectiveOwnership}.
+     */
+    private static ComponentOwnership resolveBaseOwnership(
+            Component c,
+            List<Component> exclusiveRoots,
+            Set<String> exclusiveIds,
+            Set<String> exclusiveBuildingIds,
+            Map<String, String> parentById,
+            Map<String, Slot> slotMap) {
         if (belongsToTypologyExclusiveScope(c, exclusiveIds, exclusiveBuildingIds, parentById)) {
             return ComponentOwnership.EXCLUSIVE_HOST;
         }
-        // 2) Distinct building identity — before any XZ overlap heuristic.
         String bid = param(c, "building_id", "buildingId");
         if (bid != null
                 && (exclusiveBuildingIds == null || exclusiveBuildingIds.isEmpty()
                 || !exclusiveBuildingIds.contains(bid))) {
             return ComponentOwnership.INDEPENDENT_BUILDING;
         }
-        // Satellite of a resolvable non-exclusive host travels with that building tree.
-        String host = param(c, "host_id", "hostId");
-        if (host != null && (exclusiveIds == null || !exclusiveIds.contains(host))) {
-            if (known.contains(host)) {
-                return ComponentOwnership.INDEPENDENT_BUILDING;
-            }
-            // Unresolvable host_id is not independence evidence — fall through.
-        }
-        // 3) Same-building redundant envelope: overlap without independent identity.
         if (overlapsAnyExclusiveRoot(c, exclusiveRoots, slotMap)) {
             return ComponentOwnership.EXCLUSIVE_HOST;
         }
-        // 4) Proven spatial separation.
         if (isSpatiallySeparatedFromExclusiveRoots(c, exclusiveRoots, slotMap)) {
             return ComponentOwnership.INDEPENDENT_BUILDING;
         }
@@ -307,14 +382,18 @@ public final class GenerationCompileContext {
     }
 
     public static Set<String> knownComponentIds(List<Component> components) {
-        Set<String> ids = new HashSet<>();
-        if (components == null) return ids;
+        return componentById(components).keySet();
+    }
+
+    public static Map<String, Component> componentById(List<Component> components) {
+        Map<String, Component> byId = new HashMap<>();
+        if (components == null) return byId;
         for (Component c : components) {
             if (c == null) continue;
             String id = param(c, "component_id", "componentId");
-            if (id != null) ids.add(id);
+            if (id != null) byId.put(id, c);
         }
-        return ids;
+        return byId;
     }
 
     public static boolean belongsToTypologyExclusiveScope(
@@ -395,8 +474,8 @@ public final class GenerationCompileContext {
     }
 
     /**
-     * Proven plan-space separation only. Missing geometry (even with distinct slot ids) is NOT
-     * independent — unknown location ≠ proven different location.
+     * Proven plan-space separation only when comparable against <em>every</em> exclusive root.
+     * Any root missing geometry → cannot prove independence (→ AMBIGUOUS upstream).
      */
     private static boolean isSpatiallySeparatedFromExclusiveRoots(
             Component candidate, List<Component> exclusiveRoots, Map<String, Slot> slotMap) {
@@ -407,19 +486,17 @@ public final class GenerationCompileContext {
         if (cand == null) {
             return false;
         }
-        boolean sawRootGeom = false;
         for (Component root : exclusiveRoots) {
             if (root == null) continue;
             int[] rootBox = ComponentFootprintUtil.planSpaceFootprintXz(root, slotMap);
             if (rootBox == null) {
-                continue;
+                return false; // incomplete exclusive root — not proven independent
             }
-            sawRootGeom = true;
             if (ComponentFootprintUtil.xzFootprintsOverlap(cand, rootBox)) {
                 return false;
             }
         }
-        return sawRootGeom;
+        return true;
     }
 
     private static String param(Component c, String... keys) {

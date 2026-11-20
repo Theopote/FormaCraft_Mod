@@ -814,6 +814,168 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(stripped, 0)
         self.assertEqual(len(out["components"]), 2)
 
+    def test_exclusive_shell_strips_hosted_roof_and_openings_tree(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "pagoda_shell"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 0, "y": 40, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 4},
+                    "features": [],
+                    "params": {"component_id": "shell_roof", "host_id": "pagoda_shell"},
+                },
+                {
+                    "component_type": "FACADE_WINDOWS",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "shell_window", "host_id": "pagoda_shell"},
+                },
+                {
+                    "component_type": "ENTRANCE",
+                    "relative_position": {"x": 0, "y": 0, "z": -1},
+                    "dimensions": {"width": 3, "depth": 2, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "shell_door", "host_id": "shell_roof"},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 4)
+        self.assertEqual(len(out["components"]), 1)
+        self.assertEqual(out["components"][0]["params"]["component_id"], "pagoda")
+
+    def test_exclusive_shell_strip_keeps_independent_building_satellites(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "pagoda_shell"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 0, "y": 40, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 4},
+                    "features": [],
+                    "params": {"component_id": "shell_roof", "host_id": "pagoda_shell"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 100, "y": 0, "z": 0},
+                    "dimensions": {"width": 18, "depth": 28, "height": 12},
+                    "features": [],
+                    "params": {"component_id": "mansion", "building_id": "mansion"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 100, "y": 12, "z": 0},
+                    "dimensions": {"width": 18, "depth": 28, "height": 6},
+                    "features": [],
+                    "params": {
+                        "component_id": "mansion_roof",
+                        "host_id": "mansion",
+                        "building_id": "mansion",
+                    },
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        ids = {c["params"]["component_id"] for c in out["components"]}
+        self.assertEqual(stripped, 2)
+        self.assertEqual(ids, {"pagoda", "mansion", "mansion_roof"})
+
+    def test_incomplete_exclusive_root_blocks_spatial_independence(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda_a", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "STRUCTURE",
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda_b", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 100, "y": 0, "z": 0},
+                    "dimensions": {"width": 20, "depth": 20, "height": 12},
+                    "features": [],
+                    "params": {"component_id": "maybe_shell_of_b"},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 0)
+        self.assertEqual(len(out["components"]), 3)
+        self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_AMBIGUOUS")
+        self.assertIn("maybe_shell_of_b", out["capability_gap"]["details"]["ambiguous_component_ids"])
+
+    def test_host_cycle_is_ambiguous_not_independent(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 100, "y": 0, "z": 0},
+                    "dimensions": {"width": 10, "depth": 10, "height": 8},
+                    "features": [],
+                    "params": {"component_id": "cycle_a", "host_id": "cycle_b"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 100, "y": 8, "z": 0},
+                    "dimensions": {"width": 10, "depth": 10, "height": 3},
+                    "features": [],
+                    "params": {"component_id": "cycle_b", "host_id": "cycle_a"},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 0)
+        self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_AMBIGUOUS")
+
     def test_typology_exclusive_keeps_paving_peripheral(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
 

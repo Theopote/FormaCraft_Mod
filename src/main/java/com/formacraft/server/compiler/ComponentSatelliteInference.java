@@ -90,9 +90,16 @@ final class ComponentSatelliteInference {
             if (normalizedComponent == null) {
                 continue;
             }
-            if (normalizedComponent.slotId() == null && ComponentPlanTypes.getParamString(normalizedComponent.params(), "slot_id") != null) {
-                normalizedComponent = new Component(normalizedComponent.componentType(), ComponentPlanTypes.getParamString(normalizedComponent.params(), "slot_id"),
-                        normalizedComponent.relativePosition(), normalizedComponent.dimensions(), normalizedComponent.features(), normalizedComponent.params());
+            // Normalize authored slot identity once: component.slotId ← params.slot_id | params.slotId
+            // so ownership footprints and ComponentEmitPass share the same Slot.
+            if (normalizedComponent.slotId() == null) {
+                String authoredSlot = ComponentPlanTypes.getParamString(
+                        normalizedComponent.params(), "slot_id", "slotId");
+                if (authoredSlot != null) {
+                    normalizedComponent = new Component(normalizedComponent.componentType(), authoredSlot,
+                            normalizedComponent.relativePosition(), normalizedComponent.dimensions(),
+                            normalizedComponent.features(), normalizedComponent.params());
+                }
             }
             if (normalizedComponent.params() != null && normalizedComponent.params().containsKey("compiler_suppressed_roof")) {
                 var params = new HashMap<String, Object>(normalizedComponent.params());
@@ -573,9 +580,12 @@ final class ComponentSatelliteInference {
         }
 
         Map<String, String> parentById = typologyHostParentMap(components);
-        Set<String> knownComponentIds = knownComponentIds(components);
         boolean multiBuilding = GenerationCompileContext.hasIndependentBuildingBesideTypology(
                 components, exclusiveRoots, exclusiveBuildingIds, slotMap);
+        Map<Component, GenerationCompileContext.ComponentOwnership> ownershipByComponent =
+                GenerationCompileContext.resolveAllCompositionalOwnership(
+                        components, exclusiveRoots, exclusiveIds, exclusiveBuildingIds,
+                        parentById, slotMap);
 
         List<Component> kept = new ArrayList<>();
         int stripped = 0;
@@ -594,10 +604,9 @@ final class ComponentSatelliteInference {
                 continue;
             }
             // Per-component ownership always — never gate on multiBuilding.
-            GenerationCompileContext.ComponentOwnership ownership =
-                    GenerationCompileContext.resolveCompositionalOwnership(
-                            c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds,
-                            parentById, knownComponentIds, slotMap);
+            // Host-tree inheritance: satellites of exclusive shells strip with their host.
+            GenerationCompileContext.ComponentOwnership ownership = ownershipByComponent.getOrDefault(
+                    c, GenerationCompileContext.ComponentOwnership.AMBIGUOUS);
             if (ownership == GenerationCompileContext.ComponentOwnership.EXCLUSIVE_HOST) {
                 stripped++;
             } else {
@@ -632,19 +641,6 @@ final class ComponentSatelliteInference {
                     stripped, kept.size(), multiBuilding);
         }
         return kept;
-    }
-
-    private static Set<String> knownComponentIds(List<Component> components) {
-        Set<String> ids = new HashSet<>();
-        if (components == null) return ids;
-        for (Component c : components) {
-            if (c == null) continue;
-            String id = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
-            if (id != null && !id.isBlank()) {
-                ids.add(id.trim());
-            }
-        }
-        return ids;
     }
 
     private static boolean isTypologyExclusivePeripheral(String type) {
