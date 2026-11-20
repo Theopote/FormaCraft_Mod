@@ -88,12 +88,24 @@ final class StadiumMisrouteRepair {
         boolean wantsMansard = wantsMansardRoof(requestCorpus);
         boolean wantsDormers = hasAffirmativeCue(requestCorpus, DORMER_CUES);
 
+        // Preserve arena executors AND their satellites (facade ribbon, arch ribs, etc.).
+        Set<String> preservedStadiumHosts = new HashSet<>();
+        for (Component c : plan.components()) {
+            if (shouldPreserveStadiumExecutor(c, affirmativeStadiumAsk, plan)) {
+                String id = componentId(c);
+                if (!id.isBlank()) {
+                    preservedStadiumHosts.add(id);
+                }
+            }
+        }
+
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         Set<String> demotedHosts = new HashSet<>();
         Component primaryDemotedMass = null;
         for (Component c : plan.components()) {
-            if (shouldPreserveStadiumExecutor(c, affirmativeStadiumAsk, plan)) {
+            if (shouldPreserveStadiumExecutor(c, affirmativeStadiumAsk, plan)
+                    || belongsToPreservedStadiumHost(c, preservedStadiumHosts, plan.components())) {
                 out.add(c);
                 continue;
             }
@@ -169,13 +181,7 @@ final class StadiumMisrouteRepair {
         }
 
         // Do not collapse RADIAL_RING when a true arena STRUCTURE/MODULE was preserved.
-        boolean preservedStadium = false;
-        for (Component c : out) {
-            if (shouldPreserveStadiumExecutor(c, affirmativeStadiumAsk, plan)) {
-                preservedStadium = true;
-                break;
-            }
-        }
+        boolean preservedStadium = !preservedStadiumHosts.isEmpty();
         Layout layout = plan.layout();
         GlobalConstraints constraints = plan.globalConstraints();
         if (!preservedStadium) {
@@ -271,6 +277,36 @@ final class StadiumMisrouteRepair {
         String t = c.componentType().trim().toUpperCase(Locale.ROOT);
         return t.startsWith("MASS") || "MAIN_MASS".equals(t) || "STRUCTURE".equals(t)
                 || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER");
+    }
+
+    /**
+     * Satellites of a preserved arena (host_id → arena, or host → roof → arena) must not lose
+     * ribbon_glazing / arch_ribs during residential demotion cleanup.
+     */
+    private static boolean belongsToPreservedStadiumHost(
+            Component c, Set<String> preservedHosts, List<Component> all) {
+        if (c == null || preservedHosts == null || preservedHosts.isEmpty()) {
+            return false;
+        }
+        String id = componentId(c);
+        if (!id.isBlank() && preservedHosts.contains(id)) {
+            return true;
+        }
+        String host = hostIdOf(c);
+        if (host != null && preservedHosts.contains(host)) {
+            return true;
+        }
+        // decor → roof/facade → arena: host_id may point at a satellite owned by the arena.
+        if (host != null && all != null) {
+            for (Component other : all) {
+                if (other == null || !host.equals(componentId(other))) continue;
+                String parent = hostIdOf(other);
+                if (parent != null && preservedHosts.contains(parent)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

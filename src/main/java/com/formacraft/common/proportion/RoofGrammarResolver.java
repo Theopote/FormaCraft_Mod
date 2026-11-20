@@ -60,14 +60,27 @@ public final class RoofGrammarResolver {
             }
         }
 
+        // Inject plan hint specialty only as mansard silhouette — never copy mansard_dormer onto
+        // roofs that did not locally authorize dormers (multi-host compounds).
         if (isBlank(getParamString(params, "roof_specialty", "roofSpecialty"))) {
             Object hint = hints.get("roof_specialty");
             if (hint == null) {
                 hint = hints.get("roofSpecialty");
             }
             if (hint != null && !String.valueOf(hint).isBlank()) {
-                changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty",
-                        String.valueOf(hint).trim());
+                String hintStr = String.valueOf(hint).trim();
+                String lower = hintStr.toLowerCase(Locale.ROOT);
+                if (lower.contains("dormer")) {
+                    if (ComponentRoofSpecialtyDecorator.shouldApplyDormers(plan, params, component)
+                            && ComponentRoofSpecialtyDecorator.isMansardRoofType(params, component)) {
+                        changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty", "mansard_dormer");
+                    } else if (ComponentRoofSpecialtyDecorator.isMansardRoofType(params, component)
+                            || level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD) {
+                        changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty", "mansard");
+                    }
+                } else {
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty", hintStr);
+                }
             }
         }
 

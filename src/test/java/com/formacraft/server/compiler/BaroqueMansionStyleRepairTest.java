@@ -95,10 +95,16 @@ class BaroqueMansionStyleRepairTest {
                 .filter(c -> c.params() != null && "floor_plate_1".equals(c.params().get("component_id")))
                 .findFirst().orElseThrow();
         assertEquals(1, fixedPlate.dimensions().height());
+        assertNull(fixedPlate.params().get("roof_type"), "floor plates must not inherit mansard roof_type");
+        assertNull(fixedPlate.params().get("preferred_roof_type"));
 
         Component fixedRoof = out.components().stream()
                 .filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();
         assertEquals(true, fixedRoof.params().get("roof_dormers"));
+        Object specialtyHint = out.proportionHints() == null ? null : out.proportionHints().get("roof_specialty");
+        assertTrue(specialtyHint == null
+                || !String.valueOf(specialtyHint).toLowerCase().contains("dormer"),
+                "global proportionHints must not broadcast mansard_dormer");
     }
 
     @Test
@@ -262,6 +268,116 @@ class BaroqueMansionStyleRepairTest {
         assertEquals("STRUCTURE", out.components().stream()
                 .filter(c -> "gothic_bell".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow().componentType());
+    }
+
+    @Test
+    void firstMassMainIsNotAssumedBaroqueTargetForMansardCorpus() {
+        Component ordinary = new Component(
+                "MASS_MAIN", "west", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "west_house", "floor_count", 2, "floor_height", 4));
+        Component ordinaryRoof = new Component(
+                "ROOF", "west", new Vec3i(0, 8, 0),
+                new Dimensions(12, 10, 3), List.of(),
+                Map.of("component_id", "west_roof", "host_id", "west_house", "roof_type", "gable"));
+        Component baroque = new Component(
+                "MASS_MAIN", "east", new Vec3i(40, 0, 0),
+                new Dimensions(15, 25, 12), List.of("baroque"),
+                Map.of("component_id", "east_mansion", "floor_count", 2, "floor_height", 5));
+        Component baroqueRoof = new Component(
+                "ROOF", "east", new Vec3i(40, 12, 0),
+                new Dimensions(15, 25, 5), List.of(),
+                Map.of("component_id", "east_roof", "host_id", "east_mansion", "roof_type", "hip"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(ordinary, ordinaryRoof, baroque, baroqueRoof))
+                .planMeta(Map.of("request_intent_text",
+                        "西侧普通住宅用人字屋顶，东侧巴洛克大宅采用马萨屋顶"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        assertEquals("gable", out.components().stream()
+                .filter(c -> "west_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+        assertEquals("mansard", out.components().stream()
+                .filter(c -> "east_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+    }
+
+    @Test
+    void dormersSurviveRoofGrammarOnlyOnAuthorizedHost() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 12), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 5));
+        Component mainRoof = new Component(
+                "ROOF", "main", new Vec3i(0, 12, 0),
+                new Dimensions(15, 25, 5), List.of(),
+                Map.of("component_id", "main_roof", "host_id", "main_house",
+                        "roof_type", "mansard", "roof_dormers", true));
+        Component annex = new Component(
+                "MASS_SECONDARY", "annex", new Vec3i(30, 0, 0),
+                new Dimensions(10, 10, 8), List.of(),
+                Map.of("component_id", "french_wing"));
+        Component annexRoof = new Component(
+                "ROOF", "annex", new Vec3i(30, 8, 0),
+                new Dimensions(10, 10, 4), List.of(),
+                Map.of("component_id", "annex_roof", "host_id", "french_wing", "roof_type", "mansard"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(main, mainRoof, annex, annexRoof))
+                .planMeta(Map.of("request_intent_text",
+                        "巴洛克主楼马萨屋顶带老虎窗，法式附属楼也用马萨屋顶但不要老虎窗"))
+                .build();
+
+        LlmPlan afterBaroque = BaroqueMansionStyleRepair.apply(plan);
+        Component annexAfterRepair = afterBaroque.components().stream()
+                .filter(c -> "annex_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        Component annexAfterGrammar = com.formacraft.common.proportion.RoofGrammarResolver.apply(
+                afterBaroque, annexAfterRepair);
+        assertNotEquals(true, annexAfterGrammar.params().get("roof_dormers"));
+        assertFalse(String.valueOf(annexAfterGrammar.params().getOrDefault("roof_specialty", ""))
+                .toLowerCase().contains("dormer"));
+        Component mainAfterGrammar = com.formacraft.common.proportion.RoofGrammarResolver.apply(
+                afterBaroque,
+                afterBaroque.components().stream()
+                        .filter(c -> "main_roof".equals(String.valueOf(c.params().get("component_id"))))
+                        .findFirst().orElseThrow());
+        assertEquals(true, mainAfterGrammar.params().get("roof_dormers"));
+    }
+
+    @Test
+    void stadiumPavingAndGateEntranceAreNotRewrittenAsMainPlaza() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 12), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 5));
+        Component stadiumPaving = new Component(
+                "PAVING", "arena", new Vec3i(60, 0, 0),
+                new Dimensions(20, 20, 1), List.of(),
+                Map.of("component_id", "arena_plaza", "host_id", "east_stadium"));
+        Component gateEntrance = new Component(
+                "ENTRANCE", "gate", new Vec3i(-12, 0, 0),
+                new Dimensions(3, 1, 4), List.of("gate"),
+                Map.of("component_id", "gate_door", "host_id", "entry_gate"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(main, stadiumPaving, gateEntrance))
+                .planMeta(Map.of("request_intent_text",
+                        "建造一座巴洛克大宅，前方独立门楼，东侧体育场铺地"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        Component paving = out.components().stream()
+                .filter(c -> "arena_plaza".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertNull(paving.params().get("role"));
+        assertNull(paving.params().get("entrance_id"));
+        Component gateDoor = out.components().stream()
+                .filter(c -> "gate_door".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(0, gateDoor.relativePosition().y());
     }
 
     @Test

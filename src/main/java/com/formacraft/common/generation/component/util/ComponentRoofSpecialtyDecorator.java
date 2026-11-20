@@ -52,12 +52,15 @@ public final class ComponentRoofSpecialtyDecorator {
             if (hint != null) {
                 SpecialtyLevel parsed = parseLevel(String.valueOf(hint));
                 if (parsed != SpecialtyLevel.OFF) {
-                    // Typology/hint mansard_dormer only applies when the roof itself is mansard
-                    // or the component/params explicitly request dormers — never every pitched roof.
-                    if (parsed == SpecialtyLevel.MANSARD_DORMER
-                            && !isMansardRoofType(params, component)
-                            && !shouldApplyDormers(plan, params, component)) {
-                        return SpecialtyLevel.MANSARD;
+                    // Global proportionHints may name mansard silhouette for typology — never broadcast
+                    // mansard_dormer onto sibling roofs. Dormers require component/host-local cues.
+                    if (parsed == SpecialtyLevel.MANSARD_DORMER) {
+                        if (!isMansardRoofType(params, component)) {
+                            return SpecialtyLevel.MANSARD;
+                        }
+                        return shouldApplyDormers(plan, params, component)
+                                ? SpecialtyLevel.MANSARD_DORMER
+                                : SpecialtyLevel.MANSARD;
                     }
                     return parsed;
                 }
@@ -115,14 +118,8 @@ public final class ComponentRoofSpecialtyDecorator {
                 }
             }
         }
-        if (plan != null && plan.proportionHints() != null) {
-            Map<String, Object> hints = plan.proportionHints();
-            if (isEnabled(hints.get("roof_dormers")) || isEnabled(hints.get("roofDormers"))) {
-                return true;
-            }
-            String specialty = String.valueOf(hints.getOrDefault("roof_specialty", "")).toLowerCase(Locale.ROOT);
-            return specialty.contains("dormer");
-        }
+        // Plan-level proportionHints.roof_specialty / roof_dormers must not authorize dormers on
+        // every mansard in a compound — host-local params/features only.
         return false;
     }
 

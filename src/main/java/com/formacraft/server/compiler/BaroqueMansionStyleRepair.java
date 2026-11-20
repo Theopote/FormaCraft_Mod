@@ -110,9 +110,10 @@ final class BaroqueMansionStyleRepair {
             hints.put("typology", "baroque_mansion");
             changed = true;
         }
+        // Silhouette hint only — never global mansard_dormer (RoofGrammarResolver would broadcast).
         if (!hints.containsKey("roof_specialty") && corpusWantsMansard
-                && primaryHostHasMansard(plan, out)) {
-            hints.put("roof_specialty", corpusWantsDormers ? "mansard_dormer" : "mansard");
+                && baroqueTargetHasMansard(plan, out)) {
+            hints.put("roof_specialty", "mansard");
             changed = true;
         }
 
@@ -130,24 +131,40 @@ final class BaroqueMansionStyleRepair {
                 plan.enrichmentGuard(), plan.planMeta(), plan.designSources());
     }
 
-    /** Footprint of the mass/structure owning {@code hostId}; falls back to primary mass. */
+    /**
+     * Footprint for oversized-decor checks: resolve {@code hostId} as mass, or decor→roof→mass.
+     * Never fall back to an unrelated primary mass — ambiguous ownership means keep the decor.
+     */
     private static Dimensions hostMassFootprint(List<Component> components, String hostId) {
-        if (hostId != null && !hostId.isBlank()) {
-            for (Component c : components) {
-                if (c == null || c.dimensions() == null || c.componentType() == null) continue;
-                String type = c.componentType().trim().toUpperCase(Locale.ROOT);
-                if (!(type.startsWith("MASS") || "MAIN_MASS".equals(type) || "STRUCTURE".equals(type))) {
-                    continue;
-                }
-                if (hostId.equals(componentId(c)) || hostId.equals(hostIdOf(c))) {
-                    return c.dimensions();
+        if (hostId == null || hostId.isBlank() || components == null) {
+            return null;
+        }
+        Dimensions direct = massFootprintById(components, hostId);
+        if (direct != null) {
+            return direct;
+        }
+        // host_id may point at a ROOF / satellite — walk one hop to its mass host.
+        for (Component c : components) {
+            if (c == null || !hostId.equals(componentId(c))) continue;
+            String parent = hostIdOf(c);
+            if (parent != null && !parent.isBlank()) {
+                Dimensions viaParent = massFootprintById(components, parent);
+                if (viaParent != null) {
+                    return viaParent;
                 }
             }
         }
+        return null;
+    }
+
+    private static Dimensions massFootprintById(List<Component> components, String id) {
         for (Component c : components) {
-            if (c == null || c.componentType() == null || c.dimensions() == null) continue;
+            if (c == null || c.dimensions() == null || c.componentType() == null) continue;
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
-            if (type.startsWith("MASS") || "MAIN_MASS".equals(type)) {
+            if (!(type.startsWith("MASS") || "MAIN_MASS".equals(type) || "STRUCTURE".equals(type))) {
+                continue;
+            }
+            if (id.equals(componentId(c)) || id.equals(hostIdOf(c))) {
                 return c.dimensions();
             }
         }
@@ -332,35 +349,88 @@ final class BaroqueMansionStyleRepair {
         return false;
     }
 
-    private static boolean primaryHostHasMansard(LlmPlan plan, List<Component> components) {
-        String primary = primaryHostId(plan, components);
-        return hostHasMansard(plan, components, primary);
+    private static boolean baroqueTargetHasMansard(LlmPlan plan, List<Component> components) {
+        String target = baroqueTargetHostId(plan, components);
+        return !target.isBlank() && hostHasMansard(plan, components, target);
     }
 
-    private static String primaryHostId(LlmPlan plan, List<Component> components) {
+    /**
+     * Unique baroque-design host for corpus roof intents. Never “first MASS_MAIN by list order”.
+     * Ambiguous multi-baroque compounds return blank → no cross-building roof force.
+     */
+    private static String baroqueTargetHostId(LlmPlan plan, List<Component> components) {
         List<Component> src = components != null ? components : plan.components();
+        List<String> marked = new ArrayList<>();
         for (Component c : src) {
             if (c == null || c.componentType() == null) continue;
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
-            if ("MASS_MAIN".equals(type) || "MAIN_MASS".equals(type)) {
-                String id = componentId(c);
-                if (!id.isBlank()) return id;
+            if (!(type.startsWith("MASS") || "MAIN_MASS".equals(type) || "STRUCTURE".equals(type))) {
+                continue;
+            }
+            if (isForeignStyleHost(c) || isFloorPlate(c)) continue;
+            String id = componentId(c);
+            if (id.isBlank()) continue;
+            if (hostLooksBaroque(plan, c) || hostHasMansard(plan, src, id)) {
+                if (!marked.contains(id)) {
+                    marked.add(id);
+                }
             }
         }
+        if (marked.size() == 1) {
+            return marked.getFirst();
+        }
+        if (marked.size() > 1) {
+            return "";
+        }
+        // Sole ordinary MASS_MAIN under an already-baroque plan style — only when unique.
+        String style = plan.styleProfile() == null ? "" : plan.styleProfile().toLowerCase(Locale.ROOT);
+        if (!style.contains("baroque")) {
+            return "";
+        }
+        List<String> mains = new ArrayList<>();
         for (Component c : src) {
             if (c == null || c.componentType() == null) continue;
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
-            if (type.startsWith("MASS") || "STRUCTURE".equals(type)) {
-                String id = componentId(c);
-                if (!id.isBlank()) return id;
+            if (!("MASS_MAIN".equals(type) || "MAIN_MASS".equals(type))) continue;
+            if (isForeignStyleHost(c) || isFloorPlate(c)) continue;
+            String id = componentId(c);
+            if (!id.isBlank()) mains.add(id);
+        }
+        return mains.size() == 1 ? mains.getFirst() : "";
+    }
+
+    /** Per-host markers only — plan styleProfile must not mark every mass as the baroque target. */
+    private static boolean hostLooksBaroque(LlmPlan plan, Component c) {
+        if (c == null) return false;
+        String id = componentId(c).toLowerCase(Locale.ROOT);
+        if (id.contains("baroque") || id.contains("mansard")) return true;
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null && (f.toLowerCase(Locale.ROOT).contains("baroque")
+                        || f.contains("巴洛克") || f.toLowerCase(Locale.ROOT).contains("mansard"))) {
+                    return true;
+                }
             }
         }
-        return "";
+        return false;
+    }
+
+    private static boolean isFloorPlate(Component c) {
+        return c != null && isFloorPlateParams(c.params());
+    }
+
+    private static boolean isFloorPlateParams(Map<String, Object> params) {
+        if (params == null) return false;
+        Object extrude = params.get("extrude_mode");
+        if (extrude == null) extrude = params.get("extrudeMode");
+        String id = String.valueOf(params.getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
+        return (extrude != null && String.valueOf(extrude).toLowerCase(Locale.ROOT).contains("plate"))
+                || id.contains("floor_plate") || id.contains("floorplate") || id.endsWith("_plate");
     }
 
     /**
      * Dormers authorized for this host: own roof params/features, or corpus ask limited to the
-     * primary baroque mass — never copy from a sibling mansard's roof_dormers=true.
+     * unique baroque target — never copy from a sibling mansard's roof_dormers=true.
      */
     private static boolean hostWantsDormers(
             LlmPlan plan, List<Component> components, String hostId, boolean corpusWantsDormers) {
@@ -381,7 +451,8 @@ final class BaroqueMansionStyleRepair {
                 return true;
             }
         }
-        return corpusWantsDormers && hostId.equals(primaryHostId(plan, src));
+        String target = baroqueTargetHostId(plan, src);
+        return corpusWantsDormers && !target.isBlank() && hostId.equals(target);
     }
 
     /** Explicit mansard ask in request text — baroque style or sibling roofs are not enough. */
@@ -451,18 +522,15 @@ final class BaroqueMansionStyleRepair {
             hostId = componentId(c);
         }
         boolean foreignHost = isForeignStyleHost(c);
+        String baroqueTarget = baroqueTargetHostId(plan, plan.components());
         boolean hostMansard = hostHasMansard(plan, plan.components(), hostId);
         boolean hostDormers = hostWantsDormers(plan, plan.components(), hostId, corpusWantsDormers);
-        // Force mansard only when THIS host already authored mansard / features, or corpus ask on primary.
+        // Force mansard only when THIS host already authored mansard / features, or unique baroque target.
         boolean mayForceMansard = !foreignHost && (hostMansard || featuresSayMansard(features)
-                || (corpusWantsMansard && hostId.equals(primaryHostId(plan, plan.components()))));
+                || (corpusWantsMansard && !baroqueTarget.isBlank() && hostId.equals(baroqueTarget)));
 
         if ((type.startsWith("MASS") || "STRUCTURE".equals(type)) && !foreignHost) {
-            Object extrude = params.get("extrude_mode");
-            if (extrude == null) extrude = params.get("extrudeMode");
-            String id = String.valueOf(params.getOrDefault("component_id", "")).toLowerCase(Locale.ROOT);
-            boolean plate = (extrude != null && String.valueOf(extrude).toLowerCase(Locale.ROOT).contains("plate"))
-                    || id.contains("floor_plate") || id.contains("floorplate") || id.endsWith("_plate");
+            boolean plate = isFloorPlate(c) || isFloorPlateParams(params);
             if (plate && dims != null && dims.height() > 1) {
                 dims = new Dimensions(dims.width(), dims.depth(), 1);
                 changed = true;
@@ -494,34 +562,35 @@ final class BaroqueMansionStyleRepair {
                         changed = true;
                     }
                 }
-            }
-            if (DesignProvenance.canEnrichFeatures(plan, params)
-                    && features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("base_plinth"))) {
-                features.add("base_plinth");
-                changed = true;
-            }
-            if (!params.containsKey("facade_profile") && !params.containsKey("facadeProfile")) {
-                params.put("facade_profile", "base_plinth");
-                changed = true;
-            }
-            String plinth = resolvePlinthBlock(plan);
-            if (plinth != null) {
-                if (params.putIfAbsent("foundation_block", plinth) == null) changed = true;
-                if (params.putIfAbsent("plinth_block", plinth) == null) changed = true;
-                if (params.putIfAbsent("base_block", plinth) == null) changed = true;
-            }
-            String wall = resolveUpperWall(plan);
-            if (wall != null && params.putIfAbsent("wall_block", wall) == null) {
-                changed = true;
-            }
-            // Mass-embedded roof_type: only for this host's mansard intent — never sibling roofs.
-            if (mayForceMansard) {
-                Object rt = params.get("roof_type");
-                if (rt == null) rt = params.get("roofType");
-                if (rt == null || !String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard")) {
-                    if (DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard")) {
-                        params.put("preferred_roof_type", "mansard");
-                        changed = true;
+                if (DesignProvenance.canEnrichFeatures(plan, params)
+                        && features.stream().noneMatch(f -> f != null
+                        && f.toLowerCase(Locale.ROOT).contains("base_plinth"))) {
+                    features.add("base_plinth");
+                    changed = true;
+                }
+                if (!params.containsKey("facade_profile") && !params.containsKey("facadeProfile")) {
+                    params.put("facade_profile", "base_plinth");
+                    changed = true;
+                }
+                String plinth = resolvePlinthBlock(plan);
+                if (plinth != null) {
+                    if (params.putIfAbsent("foundation_block", plinth) == null) changed = true;
+                    if (params.putIfAbsent("plinth_block", plinth) == null) changed = true;
+                    if (params.putIfAbsent("base_block", plinth) == null) changed = true;
+                }
+                String wall = resolveUpperWall(plan);
+                if (wall != null && params.putIfAbsent("wall_block", wall) == null) {
+                    changed = true;
+                }
+                // Mass-embedded roof_type: never on floor plates / terraces — roof components only.
+                if (mayForceMansard) {
+                    Object rt = params.get("roof_type");
+                    if (rt == null) rt = params.get("roofType");
+                    if (rt == null || !String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard")) {
+                        if (DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard")) {
+                            params.put("preferred_roof_type", "mansard");
+                            changed = true;
+                        }
                     }
                 }
             }
@@ -532,7 +601,7 @@ final class BaroqueMansionStyleRepair {
             boolean mansard = rt != null && String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard");
             // Host-scoped: sibling mansard must not rewrite this roof's type.
             if (!mansard && mayForceMansard && (hostMansard || featuresSayMansard(features)
-                    || (corpusWantsMansard && hostId.equals(primaryHostId(plan, plan.components()))))) {
+                    || (corpusWantsMansard && !baroqueTarget.isBlank() && hostId.equals(baroqueTarget)))) {
                 if (DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard")) {
                     DesignProvenance.putIfAllowed(plan, params, "roof_specialty",
                             hostDormers ? "mansard_dormer" : "mansard");
@@ -567,7 +636,11 @@ final class BaroqueMansionStyleRepair {
                 changed = true;
             }
         }
-        if ("PAVING".equals(type) || "PLAZA".equals(type)) {
+        // Only rewrite plaza/entrance for the unique baroque target — never stadium/gate paving.
+        boolean baroqueOwned = !foreignHost && !baroqueTarget.isBlank()
+                && (hostId.equals(baroqueTarget) || hostOwnsComponent(c, baroqueTarget));
+        Vec3i position = c.relativePosition();
+        if (baroqueOwned && ("PAVING".equals(type) || "PLAZA".equals(type))) {
             if (!params.containsKey("role")) {
                 params.put("role", "entry_plaza");
                 changed = true;
@@ -577,8 +650,7 @@ final class BaroqueMansionStyleRepair {
                 changed = true;
             }
         }
-        Vec3i position = c.relativePosition();
-        if ("ENTRANCE".equals(type) && position != null && position.y() <= 0) {
+        if (baroqueOwned && "ENTRANCE".equals(type) && position != null && position.y() <= 0) {
             position = new Vec3i(position.x(), 1, position.z());
             changed = true;
         }

@@ -156,6 +156,12 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `StadiumMisrouteRepair` stadiumHosts&lt;2 demote | sole real arena beside MASS_MAIN demoted | **Fixed (2026-11-20):** preserve when `hasSeparateNonStadiumHost`; MODULE counted |
 | `BaroqueMansionStyleRepair` skinny balcony drop | BALCONY/TERRACE deleted by aspect ratio | **Fixed (2026-11-20):** keep authored outdoor volumes; only attic DECOR spikes |
 | `BaroqueMansionStyleRepair` gate/gothic abort | companion gate/gothic aborted whole repair | **Fixed (2026-11-20):** host-scoped foreign skip; baroque primary still repaired |
+| `StadiumMisrouteRepair` strips arena satellites | preserved STRUCTURE kept but ribbon/arch_ribs stripped | **Fixed (2026-11-20):** `preservedStadiumHosts` + `belongsToPreservedStadiumHost` |
+| `BaroqueMansionStyleRepair` plate roof_type | floor_plate inherited mansard via host_id | **Fixed (2026-11-20):** plate skip; roof params only on non-plate masses / ROOF |
+| `proportionHints` mansard_dormer broadcast | RoofGrammarResolver copied dormers to all mansards | **Fixed (2026-11-20):** no global dormer auth; specialty hint silhouette-only |
+| `BaroqueMansionStyleRepair` primaryHostId order | first MASS_MAIN got corpus mansard | **Fixed (2026-11-20):** unique `baroqueTargetHostId` markers; ambiguous → no force |
+| `BaroqueMansionStyleRepair` paving/entrance global | plaza/entrance rewritten for every host | **Fixed (2026-11-20):** baroque-target-owned only |
+| `hostMassFootprint` primary fallback | decor host→roof fell back to first mass | **Fixed (2026-11-20):** decor→roof→mass chain; null if unresolved |
 | `DenseEavesPagodaMisrouteRepair` strip floor_count=3 | putIfAllowed rewrote authored 5-storey louge to 3 | **Fixed (2026-11-20):** preserve existing floors; missing-only default; locked features block STRUCTURE demote |
 | `AssemblyCompileDiagnostics` test leakage | gap-emitting misroute tests polluted prepareComponents | **Fixed (2026-11-20):** BeforeEach/AfterEach clear on ExplicitOmission + misroute/conflict tests |
 | `DenseEavesPagodaMisrouteRepair` typology inject | house primary → dense_eaves_pagoda STRUCTURE + drop satellites | **Fixed (2026-11-20):** open/multi-mass pagoda misroute → `E_DENSE_EAVES_PAGODA_ROUTE_UNSUPPORTED`; square force host-scoped to dense_eaves/tower only |
