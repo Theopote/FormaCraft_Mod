@@ -469,6 +469,28 @@ class HostedTypologyExclusivityTest {
         com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
     }
 
+    @Test void exclusiveBuildingIdHostedOnIndependentMassIsConflict() {
+        // Reverse direction: pagoda_roof (temple_A) bound to mansion must not inherit mansion ownership.
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "building_id", "temple_A",
+                        "typology_id", "dense_eaves_pagoda"));
+        var mansion = new Component("MASS_MAIN", "mansion", new Vec3i(100, 0, 0),
+                new Dimensions(18, 28, 12), List.of(),
+                Map.of("component_id", "mansion", "building_id", "mansion_B"));
+        var roof = new Component("ROOF", "mansion", new Vec3i(100, 12, 0),
+                new Dimensions(12, 12, 4), List.of(),
+                Map.of("component_id", "pagoda_roof", "building_id", "temple_A", "host_id", "mansion"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, mansion, roof));
+        assertTrue(filtered.stream().anyMatch(c ->
+                "pagoda_roof".equals(String.valueOf(c.params().get("component_id")))));
+        assertEquals("E_COMPONENT_OWNERSHIP_CONFLICT",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
     @Test void distinctBuildingIdHostedOnExclusiveShellIsConflictNotStrip() {
         com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
         var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),

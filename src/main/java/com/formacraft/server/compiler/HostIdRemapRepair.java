@@ -1,8 +1,10 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +38,7 @@ public final class HostIdRemapRepair {
 
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
+        List<String> ambiguousHosts = new ArrayList<>();
         for (Component c : plan.components()) {
             if (c == null || c.params() == null || c.params().get("host_id") == null) {
                 out.add(c);
@@ -48,27 +51,51 @@ public final class HostIdRemapRepair {
                 out.add(c);
                 continue;
             }
-            String remapped = pick(host, byId);
-            if (remapped == null || remapped.equals(host)) {
+            RemapPick remapped = pick(host, byId);
+            if (remapped.status() == RemapStatus.AMBIGUOUS) {
+                ambiguousHosts.add(host);
+                out.add(c); // keep original — never guess among multiple courtyards
+                continue;
+            }
+            if (remapped.hostId() == null || remapped.hostId().equals(host)) {
                 out.add(c);
                 continue;
             }
             Map<String, Object> params = new HashMap<>(c.params());
             params.put("host_id_mapped_from", host);
-            params.put("host_id", remapped);
+            params.put("host_id", remapped.hostId());
             FormacraftMod.LOGGER.info(
                     "HostIdRemapRepair: {} host_id {} → {}",
-                    c.params().get("component_id"), host, remapped);
+                    c.params().get("component_id"), host, remapped.hostId());
             out.add(new Component(c.componentType(), c.slotId(), c.relativePosition(),
                     c.dimensions(), c.features(), params));
             changed = true;
         }
+        if (!ambiguousHosts.isEmpty() && !AssemblyCompileDiagnostics.hasGap() && !plan.hasCapabilityGap()) {
+            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                    "E_HOST_ID_AMBIGUOUS",
+                    "host_id 模糊匹配到多个宿主，无法安全自动重绑定；请使用唯一 component_id。",
+                    "components[].params.host_id",
+                    List.of(
+                            "Use an exact hostable component_id.",
+                            "Do not rely on substring host remapping when multiple courtyards/masses match."),
+                    Map.of("ambiguous_host_ids", List.copyOf(ambiguousHosts))));
+        }
         LlmPlan rewritten = changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
-        if (plan.hasCapabilityGap() && isUnknownHostGap(plan) && allHostsHostable(rewritten)) {
+        if (plan.hasCapabilityGap() && isUnknownHostGap(plan) && allHostsHostable(rewritten)
+                && ambiguousHosts.isEmpty()) {
             FormacraftMod.LOGGER.info("HostIdRemapRepair: clearing remapped host capability_gap");
             return clearCapabilityGap(rewritten);
         }
         return rewritten;
+    }
+
+    private enum RemapStatus { NONE, UNIQUE, AMBIGUOUS }
+
+    private record RemapPick(RemapStatus status, String hostId) {
+        static RemapPick none() { return new RemapPick(RemapStatus.NONE, null); }
+        static RemapPick unique(String id) { return new RemapPick(RemapStatus.UNIQUE, id); }
+        static RemapPick ambiguous() { return new RemapPick(RemapStatus.AMBIGUOUS, null); }
     }
 
     private static boolean allHostsHostable(LlmPlan plan) {
@@ -128,31 +155,47 @@ public final class HostIdRemapRepair {
                 plan.designSources());
     }
 
-    private static String pick(String wanted, Map<String, Component> byId) {
+    /**
+     * Exact / case-insensitive id, or a <em>unique</em> substring / courtyard-type candidate.
+     * Multiple matches → AMBIGUOUS (keep original host_id); never shortest-id or Map order.
+     */
+    private static RemapPick pick(String wanted, Map<String, Component> byId) {
         String key = wanted == null ? "" : wanted.trim().toLowerCase(Locale.ROOT);
-        if (key.isEmpty()) return null;
+        if (key.isEmpty()) return RemapPick.none();
+        List<String> caseHits = new ArrayList<>();
         for (String cid : byId.keySet()) {
-            if (cid.equalsIgnoreCase(key) && isHostable(byId.get(cid))) return cid;
+            if (cid.equalsIgnoreCase(key) && isHostable(byId.get(cid))) {
+                caseHits.add(cid);
+            }
         }
-        String best = null;
+        if (caseHits.size() == 1) return RemapPick.unique(caseHits.get(0));
+        if (caseHits.size() > 1) return RemapPick.ambiguous();
+
+        List<String> containsHits = new ArrayList<>();
         for (Map.Entry<String, Component> e : byId.entrySet()) {
             if (!isHostable(e.getValue())) continue;
             if (e.getKey().toLowerCase(Locale.ROOT).contains(key)) {
-                if (best == null || e.getKey().length() < best.length()) best = e.getKey();
+                containsHits.add(e.getKey());
             }
         }
-        if (best != null) return best;
-        // Semantic aliases only — never invent a host for an arbitrary missing id
-        // (e.g. host_id=missing_host must stay unresolved for E_HOST_ID_UNRESOLVED).
+        if (containsHits.size() == 1) return RemapPick.unique(containsHits.get(0));
+        if (containsHits.size() > 1) return RemapPick.ambiguous();
+
+        // Semantic type aliases only when exactly one hostable match exists.
         if (key.contains("court") || key.contains("yard") || key.contains("庭") || key.contains("院")) {
             for (String prefer : List.of("COURTYARD", "COURTYARD_SPACE", "PATH", "PLAZA",
                     "MASS_MAIN", "MASS_ANCILLARY")) {
+                List<String> typeHits = new ArrayList<>();
                 for (Map.Entry<String, Component> e : byId.entrySet()) {
-                    if (prefer.equalsIgnoreCase(e.getValue().componentType())) return e.getKey();
+                    if (prefer.equalsIgnoreCase(e.getValue().componentType())) {
+                        typeHits.add(e.getKey());
+                    }
                 }
+                if (typeHits.size() == 1) return RemapPick.unique(typeHits.get(0));
+                if (typeHits.size() > 1) return RemapPick.ambiguous();
             }
         }
-        return null;
+        return RemapPick.none();
     }
 
     private static boolean isHostable(Component c) {

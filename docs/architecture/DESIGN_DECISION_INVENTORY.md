@@ -200,6 +200,10 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | unhosted-only STRUCTURE/PATH keep | hosted nested typology STRUCTURE / PAVING orphans | **Fixed (2026-11-20):** hosted peripherals run host-tree ownership |
 | `componentById` last-writer | duplicate satellite ids order-dependent ownership | **Fixed (2026-11-20):** unique index + `E_DUPLICATE_COMPONENT_ID` |
 | blank `Component.slotId` skip lift | `slotId=""` ownership uses params, emit uses default | **Fixed (2026-11-20):** treat blank as missing; lift params slot |
+| reconcile only when child bid outside exclusive set | `temple_A` roof hosted on `mansion_B` inherited independent | **Fixed (2026-11-20):** compare child vs resolved host building_id both ways |
+| `HostedPlateDesignValidator` mass-only dup ids | residential duplicate roofs escaped | **Fixed (2026-11-20):** all non-plate `component_id`s unique |
+| `EffectiveBuildingStyleResolver` last-writer byId | chimney style order-dependent on shared roof id | **Fixed (2026-11-20):** unique index; ambiguous host → no inherit |
+| `HostIdRemapRepair.pick` shortest/Map-order | `courtyard` → east vs west courtyard | **Fixed (2026-11-20):** unique candidate only; else `E_HOST_ID_AMBIGUOUS` |
 | `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |
 | `StyleIntentResolver.detectFlavor` plan-only | local Huizhou under plan Modern got flat/glass | **Fixed (2026-11-20):** `EffectiveBuildingStyleResolver`; local/host chain first; entrance `bindDerived` inherits |
 | `EffectiveBuildingStyleResolver` local-only | authored FACADE with host_id lacked style inheritance | **Fixed (2026-11-20):** resolve via host_id chain before plan style |

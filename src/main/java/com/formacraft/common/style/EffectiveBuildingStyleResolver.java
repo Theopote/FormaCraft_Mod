@@ -70,12 +70,23 @@ public final class EffectiveBuildingStyleResolver {
         if (component == null || all == null || all.isEmpty()) {
             return null;
         }
+        // Unique component_id only — duplicate ids must not last-writer-win across buildings.
         Map<String, Component> byId = new HashMap<>();
+        Set<String> duplicateIds = new HashSet<>();
         Map<String, String> parentById = new HashMap<>();
         for (Component c : all) {
             if (c == null || c.params() == null) continue;
             String id = firstNonBlank(c.params(), "component_id", "componentId");
             if (id == null) continue;
+            if (duplicateIds.contains(id)) {
+                continue;
+            }
+            if (byId.containsKey(id)) {
+                byId.remove(id);
+                parentById.remove(id);
+                duplicateIds.add(id);
+                continue;
+            }
             byId.put(id, c);
             String host = firstNonBlank(c.params(), "host_id", "hostId");
             if (host != null) {
@@ -87,6 +98,9 @@ public final class EffectiveBuildingStyleResolver {
                 : firstNonBlank(component.params(), "host_id", "hostId");
         Set<String> seen = new HashSet<>();
         while (cursor != null && seen.add(cursor)) {
+            if (duplicateIds.contains(cursor)) {
+                return null; // ambiguous host target — do not invent style inheritance
+            }
             Component host = byId.get(cursor);
             if (host != null) {
                 String style = localStyleProfile(host);

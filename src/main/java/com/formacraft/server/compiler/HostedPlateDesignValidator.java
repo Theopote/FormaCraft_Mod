@@ -58,8 +58,10 @@ final class HostedPlateDesignValidator {
         if (components == null) {
             return Optional.empty();
         }
-        // Only hostable masses: satellites may legitimately reuse a display id in some fixtures.
+        // Any component_id that can be referenced by host_id / target_host_id must be unique
+        // (roofs, crowns, decorations included). Floor plates may still share display labels.
         java.util.HashSet<String> seen = new java.util.HashSet<>();
+        java.util.HashSet<String> duplicates = new java.util.HashSet<>();
         for (Component c : components) {
             if (c == null || c.params() == null) {
                 continue;
@@ -67,22 +69,23 @@ final class HostedPlateDesignValidator {
             if ("plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
                 continue;
             }
-            String type = c.componentType() == null ? "" : c.componentType().toUpperCase(Locale.ROOT);
-            if (!isMassType(type)) {
-                continue;
-            }
-            String id = paramString(c.params(), "component_id");
+            String id = paramString(c.params(), "component_id", "componentId");
             if (id == null) {
                 continue;
             }
             if (!seen.add(id)) {
-                return Optional.of(new CapabilityGap(
-                        "E_DUPLICATE_COMPONENT_ID",
-                        "Duplicate params.component_id: " + id,
-                        "components[].params.component_id",
-                        List.of("Give every hostable mass a unique component_id.",
-                                "host_id / attachments require unique mass ids.")));
+                duplicates.add(id);
             }
+        }
+        if (!duplicates.isEmpty()) {
+            return Optional.of(new CapabilityGap(
+                    "E_DUPLICATE_COMPONENT_ID",
+                    "Duplicate params.component_id: " + String.join(", ", duplicates),
+                    "components[].params.component_id",
+                    List.of(
+                            "Give every host-referenceable component a unique component_id.",
+                            "host_id / attachments require unique ids — not list-order disambiguation."),
+                    java.util.Map.of("duplicate_component_ids", List.copyOf(duplicates))));
         }
         return Optional.empty();
     }

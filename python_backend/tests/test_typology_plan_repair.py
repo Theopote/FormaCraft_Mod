@@ -1019,6 +1019,48 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertNotIn("pagoda_shell", ids)
         self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_CONFLICT")
 
+    def test_exclusive_building_id_hosted_on_independent_mass_is_conflict(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {
+                        "component_id": "pagoda",
+                        "building_id": "temple_A",
+                        "typology_id": "dense_eaves_pagoda",
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 100, "y": 0, "z": 0},
+                    "dimensions": {"width": 18, "depth": 28, "height": 12},
+                    "features": [],
+                    "params": {"component_id": "mansion", "building_id": "mansion_B"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 100, "y": 12, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 4},
+                    "features": [],
+                    "params": {
+                        "component_id": "pagoda_roof",
+                        "building_id": "temple_A",
+                        "host_id": "mansion",
+                    },
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        ids = {c["params"]["component_id"] for c in out["components"]}
+        self.assertEqual(stripped, 0)
+        self.assertIn("pagoda_roof", ids)
+        self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_CONFLICT")
+
     def test_hosted_nested_structure_and_paving_strip_with_shell(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
 

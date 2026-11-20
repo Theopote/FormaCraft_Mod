@@ -399,27 +399,69 @@ def _resolve_base_ownership(
     return _OWNERSHIP_AMBIGUOUS
 
 
+def _building_id_of_exclusive_root(
+    exclusive_component_id: str,
+    exclusive_roots: List[Dict[str, Any]],
+) -> Optional[str]:
+    for root in exclusive_roots:
+        if _param_str(root, "component_id", "componentId") == exclusive_component_id:
+            return _param_str(root, "building_id", "buildingId")
+    return None
+
+
+def _resolve_host_building_id(
+    host_comp: Optional[Dict[str, Any]],
+    exclusive_roots: List[Dict[str, Any]],
+    exclusive_ids: set[str],
+    by_id: Dict[str, Dict[str, Any]],
+    duplicate_ids: set[str],
+) -> Optional[str]:
+    if not host_comp:
+        return None
+    bid = _param_str(host_comp, "building_id", "buildingId")
+    if bid:
+        return bid
+    host_id = _param_str(host_comp, "component_id", "componentId")
+    if host_id and host_id in exclusive_ids:
+        return _building_id_of_exclusive_root(host_id, exclusive_roots)
+    parent = _param_str(host_comp, "host_id", "hostId")
+    if not parent or parent in duplicate_ids:
+        return None
+    if parent in exclusive_ids:
+        return _building_id_of_exclusive_root(parent, exclusive_roots)
+    parent_comp = by_id.get(parent)
+    if not parent_comp:
+        return None
+    parent_bid = _param_str(parent_comp, "building_id", "buildingId")
+    if parent_bid:
+        return parent_bid
+    parent_id = _param_str(parent_comp, "component_id", "componentId")
+    if parent_id and parent_id in exclusive_ids:
+        return _building_id_of_exclusive_root(parent_id, exclusive_roots)
+    return None
+
+
 def _reconcile_host_inheritance(
     child: Dict[str, Any],
     host_own: str,
     exclusive_building_ids: set[str],
-    host_comp: Optional[Dict[str, Any]],
+    resolved_host_building_id: Optional[str],
 ) -> str:
-    """Host inheritance must not silently override a distinct authored building_id."""
+    """Compare child.building_id with resolved host building identity before classifying."""
     child_bid = _param_str(child, "building_id", "buildingId")
-    child_independent_bid = bool(
-        child_bid and (not exclusive_building_ids or child_bid not in exclusive_building_ids)
-    )
-    if not child_independent_bid:
-        return host_own
-    if host_own in (_OWNERSHIP_EXCLUSIVE, _OWNERSHIP_CONFLICT):
+    if child_bid and resolved_host_building_id and child_bid != resolved_host_building_id:
         return _OWNERSHIP_CONFLICT
-    host_bid = _param_str(host_comp, "building_id", "buildingId") if host_comp else None
-    if host_bid and host_bid != child_bid:
-        return _OWNERSHIP_CONFLICT
-    if host_own == _OWNERSHIP_AMBIGUOUS:
-        return _OWNERSHIP_CONFLICT
-    return _OWNERSHIP_INDEPENDENT
+    if child_bid:
+        child_exclusive_bid = bool(exclusive_building_ids and child_bid in exclusive_building_ids)
+        if child_exclusive_bid and host_own == _OWNERSHIP_INDEPENDENT:
+            return _OWNERSHIP_CONFLICT
+        if not child_exclusive_bid and host_own == _OWNERSHIP_EXCLUSIVE:
+            return _OWNERSHIP_CONFLICT
+        if not child_exclusive_bid and host_own == _OWNERSHIP_AMBIGUOUS:
+            return _OWNERSHIP_CONFLICT
+        if host_own == _OWNERSHIP_CONFLICT:
+            return _OWNERSHIP_CONFLICT
+    return host_own
 
 
 def _resolve_effective_ownership(
@@ -450,8 +492,9 @@ def _resolve_effective_ownership(
         if host in duplicate_ids:
             result = _OWNERSHIP_AMBIGUOUS
         elif host in exclusive_ids:
+            host_bid = _building_id_of_exclusive_root(host, exclusive_roots)
             result = _reconcile_host_inheritance(
-                comp, _OWNERSHIP_EXCLUSIVE, exclusive_building_ids, None
+                comp, _OWNERSHIP_EXCLUSIVE, exclusive_building_ids, host_bid
             )
         elif host not in by_id:
             result = base
@@ -469,8 +512,11 @@ def _resolve_effective_ownership(
                 memo,
                 visiting,
             )
+            host_bid = _resolve_host_building_id(
+                host_comp, exclusive_roots, exclusive_ids, by_id, duplicate_ids
+            )
             result = _reconcile_host_inheritance(
-                comp, host_own, exclusive_building_ids, host_comp
+                comp, host_own, exclusive_building_ids, host_bid
             )
     visiting.discard(key)
     memo[key] = result

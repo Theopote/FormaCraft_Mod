@@ -355,8 +355,9 @@ public final class GenerationCompileContext {
                 // Duplicate host target — cannot uniquely inherit.
                 result = ComponentOwnership.AMBIGUOUS;
             } else if (exclusiveIds != null && exclusiveIds.contains(host)) {
+                String hostBid = buildingIdOfExclusiveRoot(host, exclusiveRoots);
                 result = reconcileHostInheritance(
-                        c, ComponentOwnership.EXCLUSIVE_HOST, exclusiveBuildingIds, null);
+                        c, ComponentOwnership.EXCLUSIVE_HOST, exclusiveBuildingIds, hostBid);
             } else {
                 Component hostComp = index == null ? null : index.getUnique(host);
                 if (hostComp == null) {
@@ -366,7 +367,8 @@ public final class GenerationCompileContext {
                     ComponentOwnership hostOwn = resolveEffectiveOwnership(
                             hostComp, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById,
                             index, slotMap, memo, visiting);
-                    result = reconcileHostInheritance(c, hostOwn, exclusiveBuildingIds, hostComp);
+                    String hostBid = resolveHostBuildingId(hostComp, exclusiveRoots, exclusiveIds, index);
+                    result = reconcileHostInheritance(c, hostOwn, exclusiveBuildingIds, hostBid);
                 }
             }
         }
@@ -376,34 +378,86 @@ public final class GenerationCompileContext {
     }
 
     /**
-     * Host-tree inheritance must not silently override a distinct authored {@code building_id}.
-     * Cross-building host bindings are OWNERSHIP_CONFLICT (keep + gap), not strip.
+     * Compare authored {@code building_id} with the host tree's resolved building identity first.
+     * Mismatch → OWNERSHIP_CONFLICT (keep + gap). Classification only after identities agree.
      */
     private static ComponentOwnership reconcileHostInheritance(
             Component child,
             ComponentOwnership hostOwn,
             Set<String> exclusiveBuildingIds,
-            Component hostComp) {
+            String resolvedHostBuildingId) {
         String childBid = param(child, "building_id", "buildingId");
-        boolean childIndependentBid = childBid != null
-                && (exclusiveBuildingIds == null || exclusiveBuildingIds.isEmpty()
-                || !exclusiveBuildingIds.contains(childBid));
-        if (!childIndependentBid) {
-            return hostOwn;
-        }
-        if (hostOwn == ComponentOwnership.EXCLUSIVE_HOST
-                || hostOwn == ComponentOwnership.OWNERSHIP_CONFLICT) {
+        if (childBid != null && resolvedHostBuildingId != null
+                && !childBid.equals(resolvedHostBuildingId)) {
             return ComponentOwnership.OWNERSHIP_CONFLICT;
         }
-        String hostBid = hostComp == null ? null : param(hostComp, "building_id", "buildingId");
-        if (hostBid != null && !hostBid.equals(childBid)) {
-            return ComponentOwnership.OWNERSHIP_CONFLICT;
+        if (childBid != null) {
+            boolean childExclusiveBid = exclusiveBuildingIds != null
+                    && exclusiveBuildingIds.contains(childBid);
+            if (childExclusiveBid && hostOwn == ComponentOwnership.INDEPENDENT_BUILDING) {
+                return ComponentOwnership.OWNERSHIP_CONFLICT;
+            }
+            if (!childExclusiveBid && hostOwn == ComponentOwnership.EXCLUSIVE_HOST) {
+                return ComponentOwnership.OWNERSHIP_CONFLICT;
+            }
+            if (!childExclusiveBid && hostOwn == ComponentOwnership.AMBIGUOUS) {
+                return ComponentOwnership.OWNERSHIP_CONFLICT;
+            }
+            if (hostOwn == ComponentOwnership.OWNERSHIP_CONFLICT) {
+                return ComponentOwnership.OWNERSHIP_CONFLICT;
+            }
         }
-        if (hostOwn == ComponentOwnership.AMBIGUOUS) {
-            return ComponentOwnership.OWNERSHIP_CONFLICT;
+        return hostOwn;
+    }
+
+    private static String resolveHostBuildingId(
+            Component hostComp,
+            List<Component> exclusiveRoots,
+            Set<String> exclusiveIds,
+            ComponentIdIndex index) {
+        if (hostComp == null) {
+            return null;
         }
-        // Same building_id (or host lacks bid) under an independent host tree.
-        return ComponentOwnership.INDEPENDENT_BUILDING;
+        String bid = param(hostComp, "building_id", "buildingId");
+        if (bid != null) {
+            return bid;
+        }
+        String hostId = param(hostComp, "component_id", "componentId");
+        if (hostId != null && exclusiveIds != null && exclusiveIds.contains(hostId)) {
+            return buildingIdOfExclusiveRoot(hostId, exclusiveRoots);
+        }
+        // Walk one hop of host_id for building_id when the direct host is a shell without bid.
+        String parent = param(hostComp, "host_id", "hostId");
+        if (parent != null && index != null && !index.isAmbiguous(parent)) {
+            Component parentComp = index.getUnique(parent);
+            if (parentComp != null) {
+                String parentBid = param(parentComp, "building_id", "buildingId");
+                if (parentBid != null) {
+                    return parentBid;
+                }
+                String parentId = param(parentComp, "component_id", "componentId");
+                if (parentId != null && exclusiveIds != null && exclusiveIds.contains(parentId)) {
+                    return buildingIdOfExclusiveRoot(parentId, exclusiveRoots);
+                }
+            } else if (exclusiveIds != null && exclusiveIds.contains(parent)) {
+                return buildingIdOfExclusiveRoot(parent, exclusiveRoots);
+            }
+        }
+        return null;
+    }
+
+    private static String buildingIdOfExclusiveRoot(String exclusiveComponentId, List<Component> exclusiveRoots) {
+        if (exclusiveComponentId == null || exclusiveRoots == null) {
+            return null;
+        }
+        for (Component root : exclusiveRoots) {
+            if (root == null) continue;
+            String id = param(root, "component_id", "componentId");
+            if (exclusiveComponentId.equals(id)) {
+                return param(root, "building_id", "buildingId");
+            }
+        }
+        return null;
     }
 
     /**
