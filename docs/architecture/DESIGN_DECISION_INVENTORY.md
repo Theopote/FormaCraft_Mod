@@ -146,6 +146,11 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `StadiumMisrouteRepair` style-only demotePrimary | first STRUCTURE by list order demoted | **Fixed (2026-11-20):** demote only stadium-marker hosts; style rewrite alone |
 | `StadiumMisrouteRepair` stadium cue early-return | 「不要体育场」/混合体育场跳过整修 | **Fixed (2026-11-20):** affirmative cue via `isNegatedAt`; mixed preserves non-residential stadium executors |
 | `StadiumMisrouteRepair` baroque⇒mansard | style alone invented mansard+dormers | **Fixed (2026-11-20):** explicit mansard/dormer cues only; flat-roof ask blocks |
+| `BaroqueMansionStyleRepair` undoes stadium roof lock | looksBaroqueMansion forced every ROOF→mansard; dormers on all roofs | **Fixed (2026-11-20):** provenance putIfAllowed; mansard only if planned/asked; dormers mansard-host only + negation |
+| `BaroqueMansionStyleRepair` global chimney cap | keptChimneys>1 dropped symmetric/annex chimneys | **Fixed (2026-11-20):** keep authored chimneys |
+| `BaroqueMansionStyleRepair` storey lift | floor_height/height raised without provenance | **Fixed (2026-11-20):** putIfAllowed / canMutateParam gates |
+| `StadiumMisrouteRepair` rewriteProportionHints | baroque alone injected mansard specialty | **Fixed (2026-11-20):** sync wantsMansardRoof/dormer affirmative cues |
+| `StadiumMisrouteRepair` looksResidentialHost names | mixed arena preserved only via mansion id tags | **Fixed (2026-11-20):** multi stadium-host; preserve only arena role/slot/bowl-scale (`looksDedicatedArenaHost`); MASS_MAIN always demotes |
 | `DenseEavesPagodaMisrouteRepair` strip floor_count=3 | putIfAllowed rewrote authored 5-storey louge to 3 | **Fixed (2026-11-20):** preserve existing floors; missing-only default; locked features block STRUCTURE demote |
 | `AssemblyCompileDiagnostics` test leakage | gap-emitting misroute tests polluted prepareComponents | **Fixed (2026-11-20):** BeforeEach/AfterEach clear on ExplicitOmission + misroute/conflict tests |
 | `DenseEavesPagodaMisrouteRepair` typology inject | house primary → dense_eaves_pagoda STRUCTURE + drop satellites | **Fixed (2026-11-20):** open/multi-mass pagoda misroute → `E_DENSE_EAVES_PAGODA_ROUTE_UNSUPPORTED`; square force host-scoped to dense_eaves/tower only |

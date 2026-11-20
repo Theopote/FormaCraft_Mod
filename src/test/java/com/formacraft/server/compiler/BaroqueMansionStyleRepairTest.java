@@ -5,6 +5,9 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -15,8 +18,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BaroqueMansionStyleRepairTest {
 
+    @BeforeEach
+    void clearBefore() {
+        AssemblyCompileDiagnostics.clear();
+    }
+
+    @AfterEach
+    void clearAfter() {
+        AssemblyCompileDiagnostics.clear();
+    }
+
     @Test
-    void dropsOversizedRoofDormerDecorCapsChimneysAndRaisesFloorHeight() {
+    void dropsOversizedRoofDormerDecorKeepsSymmetricChimneysAndRaisesFloorHeight() {
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(15, 25, 6), List.of(),
@@ -68,11 +81,10 @@ class BaroqueMansionStyleRepairTest {
                 c.params() != null && "wall_beam_noise".equals(c.params().get("component_id"))));
         assertTrue(out.components().stream().noneMatch(c ->
                 c.params() != null && "pediment_column".equals(c.params().get("component_id"))));
-        assertEquals(1, out.components().stream().filter(c -> "CHIMNEY".equals(c.componentType())).count());
+        assertEquals(2, out.components().stream().filter(c -> "CHIMNEY".equals(c.componentType())).count());
 
         Component fixedMass = out.components().stream()
                 .filter(c -> "MASS_MAIN".equals(c.componentType())).findFirst().orElseThrow();
-        // Soft floor: only lift unusable authored bands; keep LLM footprint (15×25 here is the prompt).
         assertTrue(((Number) fixedMass.params().get("floor_height")).intValue() >= 4);
         assertEquals(15, fixedMass.dimensions().width());
         assertEquals(25, fixedMass.dimensions().depth());
@@ -86,5 +98,70 @@ class BaroqueMansionStyleRepairTest {
         Component fixedRoof = out.components().stream()
                 .filter(c -> "ROOF".equals(c.componentType())).findFirst().orElseThrow();
         assertEquals(true, fixedRoof.params().get("roof_dormers"));
+    }
+
+    @Test
+    void lockedHipRoofIsNotForcedToMansardAndAnnexGableKeepsNoDormers() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 12), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 5));
+        Map<String, Object> hipParams = new HashMap<>();
+        hipParams.put("component_id", "main_roof");
+        hipParams.put("host_id", "main_house");
+        hipParams.put("roof_type", "hip");
+        hipParams.put("design_sources", Map.of("roof_type", "USER_EXPLICIT"));
+        Component hipRoof = new Component(
+                "ROOF", "main", new Vec3i(0, 12, 0),
+                new Dimensions(15, 25, 5), List.of(), hipParams);
+        Component annex = new Component(
+                "MASS_SECONDARY", "annex", new Vec3i(30, 0, 0),
+                new Dimensions(8, 8, 6), List.of(),
+                Map.of("component_id", "side_hall"));
+        Component annexRoof = new Component(
+                "ROOF", "annex", new Vec3i(30, 6, 0),
+                new Dimensions(8, 8, 3), List.of(),
+                Map.of("component_id", "side_roof", "host_id", "side_hall", "roof_type", "xieshan"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(mass, hipRoof, annex, annexRoof))
+                .planMeta(Map.of("request_intent_text",
+                        "建造一座巴洛克风格大宅，屋顶使用四坡屋顶，不要老虎窗；旁附歇山配殿"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        assertEquals("hip", out.components().stream()
+                .filter(c -> "main_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+        Component sideRoof = out.components().stream()
+                .filter(c -> "side_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("xieshan", sideRoof.params().get("roof_type"));
+        assertNotEquals(true, sideRoof.params().get("roof_dormers"));
+        assertFalse(String.valueOf(sideRoof.params().getOrDefault("roof_specialty", ""))
+                .toLowerCase().contains("dormer"));
+    }
+
+    @Test
+    void lockedStoreyHeightIsNotRaised() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "main_house");
+        params.put("floor_count", 2);
+        params.put("floor_height", 2);
+        params.put("storey_height", 2);
+        params.put("design_sources", Map.of("storey_height", "USER_EXPLICIT", "floor_height", "USER_EXPLICIT"));
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 16, 6), List.of("baroque"), params);
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(mass))
+                .planMeta(Map.of("request_intent_text", "巴洛克大宅，层高两格"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        Component fixed = out.components().getFirst();
+        assertEquals(2, ((Number) fixed.params().get("floor_height")).intValue());
+        assertEquals(2, ((Number) fixed.params().get("storey_height")).intValue());
     }
 }

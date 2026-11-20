@@ -93,7 +93,7 @@ final class StadiumMisrouteRepair {
         Set<String> demotedHosts = new HashSet<>();
         Component primaryDemotedMass = null;
         for (Component c : plan.components()) {
-            if (shouldPreserveStadiumExecutor(c, affirmativeStadiumAsk)) {
+            if (shouldPreserveStadiumExecutor(c, affirmativeStadiumAsk, plan)) {
                 out.add(c);
                 continue;
             }
@@ -168,14 +168,25 @@ final class StadiumMisrouteRepair {
             changed = true;
         }
 
-        Layout layout = rewriteLayout(plan.layout());
-        if (layout != plan.layout()) {
-            changed = true;
+        // Do not collapse RADIAL_RING when a true arena STRUCTURE/MODULE was preserved.
+        boolean preservedStadium = false;
+        for (Component c : out) {
+            if (shouldPreserveStadiumExecutor(c, affirmativeStadiumAsk, plan)) {
+                preservedStadium = true;
+                break;
+            }
         }
-
-        GlobalConstraints constraints = rewriteConstraints(plan.globalConstraints());
-        if (constraints != plan.globalConstraints()) {
-            changed = true;
+        Layout layout = plan.layout();
+        GlobalConstraints constraints = plan.globalConstraints();
+        if (!preservedStadium) {
+            layout = rewriteLayout(plan.layout());
+            if (layout != plan.layout()) {
+                changed = true;
+            }
+            constraints = rewriteConstraints(plan.globalConstraints());
+            if (constraints != plan.globalConstraints()) {
+                changed = true;
+            }
         }
 
         Map<String, Object> hints = rewriteProportionHints(plan.proportionHints(), requestCorpus);
@@ -214,30 +225,44 @@ final class StadiumMisrouteRepair {
     }
 
     /**
-     * In mixed residential+stadium compounds, keep a stadium executor that is not the
-     * residential misroute host (arena STRUCTURE/MODULE stays when the user also asked for a stadium).
+     * Mixed residential+stadium: keep a dedicated arena host when another stadium-marked host
+     * also exists (misrouted shell beside a true arena). Identity uses arena/stadium role cues or
+     * bowl-scale footprint — never mansion/villa name tags to guess the residential shell.
      */
-    private static boolean shouldPreserveStadiumExecutor(Component c, boolean affirmativeStadiumAsk) {
-        if (!affirmativeStadiumAsk || c == null) return false;
+    private static boolean shouldPreserveStadiumExecutor(
+            Component c, boolean affirmativeStadiumAsk, LlmPlan plan) {
+        if (!affirmativeStadiumAsk || c == null || plan == null || plan.components() == null) {
+            return false;
+        }
         if (!carriesStadiumRouteMarkers(c)) return false;
-        return !looksResidentialHost(c);
+        int stadiumHosts = 0;
+        for (Component other : plan.components()) {
+            if (other != null && isDemotableHost(other) && carriesStadiumRouteMarkers(other)) {
+                stadiumHosts++;
+            }
+        }
+        // Single stadium host under a residential ask is the misroute — demote it.
+        if (stadiumHosts < 2) return false;
+        String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        if ("MASS_MAIN".equals(t) || "MAIN_MASS".equals(t)) return false;
+        if (!("STRUCTURE".equals(t) || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER"))) {
+            return false;
+        }
+        return looksDedicatedArenaHost(c);
     }
 
-    private static boolean looksResidentialHost(Component c) {
+    /** Arena role via slot/id cues or bowl-scale mass — not residential name guessing. */
+    private static boolean looksDedicatedArenaHost(Component c) {
         String id = componentId(c).toLowerCase(Locale.ROOT);
-        String feat = "";
-        if (c.features() != null) {
-            StringBuilder sb = new StringBuilder();
-            for (String f : c.features()) {
-                if (f != null) sb.append(f).append(' ');
-            }
-            feat = sb.toString().toLowerCase(Locale.ROOT);
+        String slot = c.slotId() == null ? "" : c.slotId().trim().toLowerCase(Locale.ROOT);
+        String blob = id + " " + slot;
+        if (blob.contains("arena") || blob.contains("stadium") || blob.contains("bowl")
+                || blob.contains("体育场") || blob.contains("球场") || blob.contains("看台")
+                || blob.contains("鸟巢")) {
+            return true;
         }
-        String blob = id + " " + feat;
-        return blob.contains("mansion") || blob.contains("villa") || blob.contains("宅")
-                || blob.contains("府邸") || blob.contains("公馆") || blob.contains("庄园")
-                || blob.contains("baroque") || blob.contains("巴洛克") || blob.contains("residence")
-                || blob.contains("townhouse") || blob.contains("manor");
+        Dimensions d = c.dimensions();
+        return d != null && d.width() >= 30 && d.depth() >= 30;
     }
 
     private static List<Component> collectMasses(List<Component> components) {
@@ -293,14 +318,22 @@ final class StadiumMisrouteRepair {
     }
 
     private static Map<String, Object> rewriteProportionHints(Map<String, Object> hints, String corpus) {
+        boolean wantsMansard = wantsMansardRoof(corpus);
+        boolean wantsDormers = hasAffirmativeCue(corpus, DORMER_CUES);
+        boolean baroqueAsk = containsAny(corpus, List.of("巴洛克", "baroque"));
         if (hints == null || hints.isEmpty()) {
-            if (!containsAny(corpus, List.of("马萨", "mansard", "折线", "巴洛克", "baroque"))) {
+            if (!baroqueAsk && !wantsMansard) {
                 return hints;
             }
             Map<String, Object> next = new HashMap<>();
-            next.put("typology", "baroque_mansion");
-            next.put("roof_specialty", "mansard");
-            return next;
+            if (baroqueAsk) {
+                next.put("typology", "baroque_mansion");
+            }
+            // Never inject mansard specialty from baroque style alone or flat-roof asks.
+            if (wantsMansard) {
+                next.put("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
+            }
+            return next.isEmpty() ? hints : next;
         }
         boolean dirty = false;
         Map<String, Object> next = new HashMap<>(hints);
@@ -312,13 +345,21 @@ final class StadiumMisrouteRepair {
                 dirty = true;
             }
         }
-        if (containsAny(corpus, List.of("马萨", "mansard", "折线", "老虎窗", "dormer"))) {
+        if (wantsMansard) {
             Object specialty = next.get("roof_specialty");
             if (specialty == null || String.valueOf(specialty).isBlank()
                     || String.valueOf(specialty).toLowerCase(Locale.ROOT).contains("stadium")) {
-                boolean wantsDormers = containsAny(corpus, List.of("老虎窗", "dormer", "mansard_dormer"));
                 next.put("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
                 dirty = true;
+            }
+        } else {
+            Object specialty = next.get("roof_specialty");
+            if (specialty != null) {
+                String s = String.valueOf(specialty).toLowerCase(Locale.ROOT);
+                if (s.contains("mansard") || s.contains("dormer")) {
+                    next.remove("roof_specialty");
+                    dirty = true;
+                }
             }
         }
         for (String key : List.of(
