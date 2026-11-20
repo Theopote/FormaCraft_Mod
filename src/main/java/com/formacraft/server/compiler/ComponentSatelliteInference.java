@@ -558,7 +558,7 @@ final class ComponentSatelliteInference {
 
         Map<String, String> parentById = typologyHostParentMap(components);
         boolean multiBuilding = hasIndependentBuildingBesideTypology(
-                components, exclusiveRoots, exclusiveIds, exclusiveBuildingIds);
+                components, exclusiveRoots, exclusiveBuildingIds);
 
         List<Component> kept = new ArrayList<>();
         int stripped = 0;
@@ -598,13 +598,12 @@ final class ComponentSatelliteInference {
 
     /**
      * True when the plan contains another unbound building root that is not the exclusive typology
-     * executor (distinct {@code building_id} / {@code component_id} host tree). Anonymous redundant
-     * masses beside a sole typology stay single-building exclusive mode.
+     * executor. Strong evidence only: distinct {@code building_id}, or clearly separated footprints.
+     * A different {@code component_id} alone is NOT independent (e.g. pagoda + pagoda_shell).
      */
     private static boolean hasIndependentBuildingBesideTypology(
             List<Component> components,
             List<Component> exclusiveRoots,
-            Set<String> exclusiveIds,
             Set<String> exclusiveBuildingIds) {
         if (exclusiveRoots.size() > 1) {
             return true;
@@ -624,9 +623,8 @@ final class ComponentSatelliteInference {
                     && (exclusiveBuildingIds.isEmpty() || !exclusiveBuildingIds.contains(bid.trim()))) {
                 return true;
             }
-            String id = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
-            if (id != null && !id.isBlank()
-                    && (exclusiveIds.isEmpty() || !exclusiveIds.contains(id.trim()))) {
+            // Ambiguous IDs: only treat as independent when footprints are clearly separated.
+            if (isSpatiallySeparatedFromExclusiveRoots(c, exclusiveRoots)) {
                 return true;
             }
         }
@@ -641,6 +639,46 @@ final class ComponentSatelliteInference {
             }
         }
         return false;
+    }
+
+    /**
+     * True when {@code candidate} has geometry and does not overlap any exclusive root footprint.
+     * Overlap / missing geometry → not independent (avoid retaining co-located redundant shells).
+     */
+    private static boolean isSpatiallySeparatedFromExclusiveRoots(
+            Component candidate, List<Component> exclusiveRoots) {
+        int[] cand = footprintXz(candidate);
+        if (cand == null) {
+            return false;
+        }
+        boolean sawRootGeom = false;
+        for (Component root : exclusiveRoots) {
+            int[] rootBox = footprintXz(root);
+            if (rootBox == null) {
+                continue;
+            }
+            sawRootGeom = true;
+            if (xzOverlaps(cand, rootBox)) {
+                return false;
+            }
+        }
+        return sawRootGeom;
+    }
+
+    /** Center-based XZ AABB: [minX, maxX, minZ, maxZ]. */
+    private static int[] footprintXz(Component c) {
+        if (c == null || c.relativePosition() == null || c.dimensions() == null) {
+            return null;
+        }
+        int w = Math.max(1, c.dimensions().width());
+        int d = Math.max(1, c.dimensions().depth());
+        int cx = c.relativePosition().x();
+        int cz = c.relativePosition().z();
+        return new int[] {cx - w / 2, cx + (w + 1) / 2, cz - d / 2, cz + (d + 1) / 2};
+    }
+
+    private static boolean xzOverlaps(int[] a, int[] b) {
+        return a[0] < b[1] && b[0] < a[1] && a[2] < b[3] && b[2] < a[3];
     }
 
     private static boolean isTypologyExclusiveBuildingRootType(Component c) {

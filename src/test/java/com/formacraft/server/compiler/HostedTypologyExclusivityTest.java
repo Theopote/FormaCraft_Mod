@@ -82,6 +82,36 @@ class HostedTypologyExclusivityTest {
         assertEquals("STRUCTURE", filtered.get(0).componentType());
     }
 
+    @Test void ambiguousPagodaShellWithoutBuildingIdIsNotTreatedAsSecondBuilding() {
+        // Different component_id alone must not enable multi-building retention of a co-located shell.
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var shell = new Component("MASS_MAIN", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "pagoda_shell"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(List.of(pagoda, shell));
+        assertEquals(1, filtered.size());
+        assertEquals("STRUCTURE", filtered.get(0).componentType());
+        assertEquals("pagoda", filtered.get(0).params().get("component_id"));
+    }
+
+    @Test void spatiallySeparatedMansionWithoutBuildingIdSurvivesStadiumExclusive() {
+        var stadium = new Component("STRUCTURE", "arena", new Vec3i(80, 0, 0),
+                new Dimensions(60, 80, 28), List.of("typology:stadium_bowl"),
+                Map.of("component_id", "arena", "typology_id", "stadium_bowl"));
+        var mansion = new Component("MASS_MAIN", "mansion", new Vec3i(0, 0, 0),
+                new Dimensions(18, 28, 12), List.of("baroque"),
+                Map.of("component_id", "mansion"));
+        var roof = new Component("ROOF", "mansion", new Vec3i(0, 12, 0),
+                new Dimensions(18, 28, 6), List.of(),
+                Map.of("component_id", "mansion_roof", "host_id", "mansion", "roof_type", "mansard"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(stadium, mansion, roof));
+        assertEquals(3, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "mansion".equals(String.valueOf(c.params().get("component_id")))));
+    }
+
     @Test void inferredEntranceInheritsHostLocalStyle() {
         var mass = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(16, 20, 10), List.of(),

@@ -564,6 +564,54 @@ class StadiumMisrouteRepairTest {
     }
 
     @Test
+    void smallStadiumWithoutArenaNameIsStillPreserved() {
+        Component mansion = new Component(
+                "MASS_MAIN", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 12),
+                List.of("baroque"),
+                Map.of("component_id", "main_house"));
+        Component arena = new Component(
+                "STRUCTURE", "east",
+                new Vec3i(50, 0, 0),
+                new Dimensions(24, 28, 14),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "east_structure", "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion, arena))
+                .planMeta(Map.of("request_intent_text", "建造一座巴洛克大宅，东侧另建一座小型体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("STRUCTURE", out.components().stream()
+                .filter(c -> "east_structure".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertNull(out.capabilityGap());
+    }
+
+    @Test
+    void largeResidentialShellWithStadiumTypologyIsNotPreservedBySize() {
+        Component misrouted = new Component(
+                "STRUCTURE", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(40, 40, 20),
+                List.of("typology:stadium_bowl", "baroque"),
+                Map.of("component_id", "main_house", "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(misrouted))
+                .planMeta(Map.of("request_intent_text", "建造一座巴洛克大宅和一座体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("MASS_MAIN", out.components().stream()
+                .filter(c -> "main_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertEquals("E_STADIUM_EXECUTOR_MISSING", out.capabilityGap().code());
+    }
+
+    @Test
     void soleRealStadiumBesideCleanResidentialIsPreserved() {
         Component mansion = new Component(
                 "MASS_MAIN", "main",

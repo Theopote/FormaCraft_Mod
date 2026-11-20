@@ -157,20 +157,28 @@ public final class StyleIntentResolver {
     }
 
     private static StyleFlavor detectFlavor(LlmPlan plan, Component component) {
+        // Local / host style_profile first — plan gothic decorative attrs must not override Japanese.
+        // Incidental component features alone must not beat a declared plan Modern identity.
+        String localOrHost = EffectiveBuildingStyleResolver.resolveLocalOrHost(plan, component);
+        if (localOrHost != null) {
+            StyleFlavor fromLocal = flavorFromProfileAndFeatures(localOrHost, component);
+            if (fromLocal != StyleFlavor.DEFAULT) {
+                return fromLocal;
+            }
+        } else if (plan != null && plan.styleProfile() != null) {
+            StyleFlavor fromPlanProfile = flavorFromProfileAndFeatures(plan.styleProfile(), null);
+            if (fromPlanProfile != StyleFlavor.DEFAULT) {
+                return fromPlanProfile;
+            }
+        }
+
         Set<String> tokens = new HashSet<>();
-
-        // Host/component local style_profile wins over plan defaults (mixed compounds).
         String effective = EffectiveBuildingStyleResolver.resolve(plan, component);
-        String identity = StyleIdentityRegistry.canonical(effective);
-        if ("Modern_International".equals(identity)) return StyleFlavor.MODERN;
-        if ("Chinese_Vernacular_Huizhou".equals(identity)) return StyleFlavor.HUI;
-
         if (effective != null) {
             tokens.add(effective.toLowerCase(Locale.ROOT));
         }
 
         if (plan != null) {
-            // Plan genome / decorative attrs only supplement when local style did not decide.
             if (plan.genome() != null && plan.genome().culturalStyle != null) {
                 if (plan.genome().culturalStyle.region != null) {
                     tokens.add(plan.genome().culturalStyle.region.toLowerCase(Locale.ROOT));
@@ -201,6 +209,39 @@ public final class StyleIntentResolver {
             }
         }
 
+        return flavorFromTokens(tokens);
+    }
+
+    private static StyleFlavor flavorFromProfileAndFeatures(String profile, Component component) {
+        Set<String> profileTokens = new HashSet<>();
+        if (profile != null) {
+            profileTokens.add(profile.toLowerCase(Locale.ROOT));
+            String identity = StyleIdentityRegistry.canonical(profile);
+            if (identity != null) {
+                profileTokens.add(identity.toLowerCase(Locale.ROOT));
+            }
+            if ("Modern_International".equals(identity)) return StyleFlavor.MODERN;
+            if ("Chinese_Vernacular_Huizhou".equals(identity)) return StyleFlavor.HUI;
+        }
+        StyleFlavor fromProfile = flavorFromTokens(profileTokens);
+        if (fromProfile != StyleFlavor.DEFAULT) {
+            return fromProfile;
+        }
+        Set<String> featureTokens = new HashSet<>();
+        if (component != null && component.features() != null) {
+            for (String f : component.features()) {
+                if (f != null) {
+                    featureTokens.add(f.toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        return flavorFromTokens(featureTokens);
+    }
+
+    private static StyleFlavor flavorFromTokens(Set<String> tokens) {
+        if (tokens == null || tokens.isEmpty()) {
+            return StyleFlavor.DEFAULT;
+        }
         // Require Gothic-specific cues. Bare church/cathedral must not force the Gothic
         // flavor — otherwise Baroque / modern / named churches inherit pointed arches.
         if (containsAny(tokens, "gothic", "pointed_arch", "flying_buttress", "rose_window", "tracery")
@@ -210,13 +251,13 @@ public final class StyleIntentResolver {
         if (containsAny(tokens, "hui", "huizhou", "徽派")) {
             return StyleFlavor.HUI;
         }
+        if (containsAny(tokens, "japanese", "shoji", "engawa", "japanese_traditional")) {
+            return StyleFlavor.JAPANESE;
+        }
         if (containsAny(tokens, "chinese", "中式", "siheyuan", "courtyard", "dougong",
                 "xieshan", "歇山", "xuanshan", "悬山", "wudian", "wu_dian", "庑殿", "yingshan", "硬山",
                 "tailiang", "chinese_heritage")) {
             return StyleFlavor.CHINESE;
-        }
-        if (containsAny(tokens, "japanese", "shoji", "engawa")) {
-            return StyleFlavor.JAPANESE;
         }
         if (containsAny(tokens, "industrial", "factory", "steel", "frame")) {
             return StyleFlavor.INDUSTRIAL;

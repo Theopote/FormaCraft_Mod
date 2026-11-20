@@ -234,8 +234,12 @@ public final class ComponentPlanCompiler {
         var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
         var flatRoofs = new ArrayList<FlatRoofCoverageValidator.Roof>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
+        boolean soleTypologyShell = typologyExclusivePlan
+                && !GenerationCompileContext.hasIndependentCompositionalBuilding(components);
+        Set<String> exclusiveHosts = GenerationCompileContext.exclusiveTypologyHostIds(components);
         var previousCompileContext = GenerationCompileContext.current();
-        GenerationCompileContext.install(GenerationCompileContext.fromPlan(plan, typologyExclusivePlan));
+        GenerationCompileContext.install(GenerationCompileContext.fromPlan(
+                plan, typologyExclusivePlan, soleTypologyShell, exclusiveHosts));
         PatchOccupancyIndex patchOccupancy;
         try (var geometry = com.formacraft.common.generation.component.util.BuildingGeometryContext.open()) {
             for (Component mass : components) {
@@ -485,7 +489,12 @@ public final class ComponentPlanCompiler {
             // capture; hard-failing the whole typology building is worse than a soft warning.
             // Ordinary compositional plans still hard-fail so circulation contracts stay binding.
             String msg = conflict.getMessage() == null ? "" : conflict.getMessage();
-            if (typologyExclusivePlan) {
+            // Soften only for sole typology shells — a stadium companion must not weaken
+            // circulation hard-fail for a neighbouring residential stair conflict.
+            boolean soften = soleTypologyShell
+                    || (GenerationCompileContext.current() != null
+                    && GenerationCompileContext.current().softensCirculationConflicts());
+            if (soften) {
                 FormacraftMod.LOGGER.warn(
                         "E_PLAN_CIRCULATION_CONFLICT softened (typology): {}", msg);
                 AssemblyCompileDiagnostics.addSoftWarning(

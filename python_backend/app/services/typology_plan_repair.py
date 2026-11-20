@@ -221,12 +221,52 @@ def _belongs_to_typology_exclusive_scope(
     return False
 
 
+def _footprint_xz(comp: Dict[str, Any]) -> Optional[tuple[int, int, int, int]]:
+    pos = comp.get("relative_position") or {}
+    dims = comp.get("dimensions") or {}
+    if not isinstance(pos, dict) or not isinstance(dims, dict):
+        return None
+    try:
+        cx = int(pos.get("x", 0))
+        cz = int(pos.get("z", 0))
+        w = max(1, int(dims.get("width", 1)))
+        d = max(1, int(dims.get("depth", 1)))
+    except (TypeError, ValueError):
+        return None
+    return (cx - w // 2, cx + (w + 1) // 2, cz - d // 2, cz + (d + 1) // 2)
+
+
+def _xz_overlaps(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool:
+    return a[0] < b[1] and b[0] < a[1] and a[2] < b[3] and b[2] < a[3]
+
+
+def _is_spatially_separated_from_exclusive_roots(
+    candidate: Dict[str, Any], exclusive_roots: List[Dict[str, Any]]
+) -> bool:
+    cand = _footprint_xz(candidate)
+    if cand is None:
+        return False
+    saw_root_geom = False
+    for root in exclusive_roots:
+        root_box = _footprint_xz(root)
+        if root_box is None:
+            continue
+        saw_root_geom = True
+        if _xz_overlaps(cand, root_box):
+            return False
+    return saw_root_geom
+
+
 def _has_independent_building_beside_typology(
     components: List[Any],
     exclusive_roots: List[Dict[str, Any]],
     exclusive_ids: set[str],
     exclusive_building_ids: set[str],
 ) -> bool:
+    """
+    Strong evidence only: distinct building_id, or clearly separated footprints.
+    A different component_id alone is NOT independent (pagoda + pagoda_shell).
+    """
     if len(exclusive_roots) > 1:
         return True
     exclusive_set = {id(c) for c in exclusive_roots}
@@ -240,8 +280,7 @@ def _has_independent_building_beside_typology(
         bid = _param_str(comp, "building_id", "buildingId")
         if bid and (not exclusive_building_ids or bid not in exclusive_building_ids):
             return True
-        cid = _param_str(comp, "component_id", "componentId")
-        if cid and (not exclusive_ids or cid not in exclusive_ids):
+        if _is_spatially_separated_from_exclusive_roots(comp, exclusive_roots):
             return True
     seen_building_ids = set(exclusive_building_ids)
     for comp in components:

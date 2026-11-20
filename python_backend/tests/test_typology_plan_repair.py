@@ -415,6 +415,32 @@ class TypologyPlanRepairTest(unittest.TestCase):
             ["STRUCTURE", "MASS_MAIN", "ROOF", "FACADE_WINDOWS", "PATH"],
         )
 
+    def test_ambiguous_pagoda_shell_without_building_id_is_stripped(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "pagoda_shell"},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 1)
+        self.assertEqual(len(out["components"]), 1)
+        self.assertEqual(out["components"][0]["params"]["component_id"], "pagoda")
+
     def test_typology_exclusive_keeps_paving_peripheral(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
 

@@ -90,4 +90,36 @@ class StyleMorphologyTest {
         assertEquals("Chinese_Vernacular_Huizhou",
                 EffectiveBuildingStyleResolver.resolve(plan, mass));
     }
+
+    @Test void authoredFacadeInheritsHostLocalStyleWithoutOwnProfile() {
+        var mass = new Component("MASS_MAIN", null, new Vec3i(0, 0, 0), new Dimensions(16, 14, 8),
+                List.of(), Map.of("component_id", "hui_house", "style_profile", "Chinese_Vernacular_Huizhou"));
+        var facade = new Component("FACADE_WINDOWS", null, new Vec3i(0, 0, 0), new Dimensions(16, 14, 8),
+                List.of(), Map.of("component_id", "hui_facade", "host_id", "hui_house"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_International")
+                .components(List.of(mass, facade))
+                .build();
+        assertEquals("Chinese_Vernacular_Huizhou",
+                EffectiveBuildingStyleResolver.resolve(plan, facade));
+        var facadeOut = StyleIntentResolver.apply(plan, facade);
+        assertEquals("lattice", facadeOut.params().get("window_style"));
+    }
+
+    @Test void localJapaneseProfileBeatsPlanGothicDecorativeKeywords() {
+        var facade = new Component("FACADE_WINDOWS", null, new Vec3i(0, 0, 0), new Dimensions(12, 10, 6),
+                List.of(), Map.of("component_id", "engawa_facade",
+                        "style_profile", "Japanese_Traditional"));
+        var attrs = new StyleAttributes(
+                null, null, null, null, null, null,
+                List.of("gothic", "pointed_arch"), Map.of());
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_International")
+                .styleAttributes(attrs)
+                .components(List.of(facade))
+                .build();
+        var out = StyleIntentResolver.apply(plan, facade);
+        assertEquals("lattice", out.params().get("window_style"),
+                "local Japanese must not become stained from plan gothic decor");
+    }
 }

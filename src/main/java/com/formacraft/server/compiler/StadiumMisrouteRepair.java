@@ -80,6 +80,14 @@ final class StadiumMisrouteRepair {
         }
         boolean poisonedStadium = corpusContainsStadiumTypology(plan) || styleLooksStadium(plan);
         if (!residentialAsk || !poisonedStadium) {
+            // Explicit stadium+residential ask with no arena executor and no poison path still gaps.
+            if (affirmativeStadiumAsk && residentialAsk && !planHasCredibleStadiumExecutor(plan)) {
+                return PlanComponentRewrite.withCapabilityGap(plan, new CapabilityGap(
+                        "E_STADIUM_EXECUTOR_MISSING",
+                        "请求包含独立体育场，但计划中没有可确认的体育场执行器；请重新规划体育场构件。",
+                        "components",
+                        List.of("Emit a STRUCTURE with typology:stadium_bowl (or dedicated arena identity).")));
+            }
             return plan;
         }
 
@@ -284,7 +292,7 @@ final class StadiumMisrouteRepair {
         if (!("STRUCTURE".equals(t) || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER"))) {
             return false;
         }
-        return looksDedicatedArenaHost(c);
+        return looksDedicatedArenaHost(c, plan);
     }
 
     /**
@@ -363,18 +371,96 @@ final class StadiumMisrouteRepair {
         return false;
     }
 
-    /** Arena role via slot/id cues or bowl-scale mass — not residential name guessing. */
-    private static boolean looksDedicatedArenaHost(Component c) {
+    /**
+     * Arena role via executor identity — never footprint size alone.
+     * Residential-tagged shells stay demotable; MODULE + stadium typology is dedicated;
+     * bare STRUCTURE typology is dedicated only beside a separate residential host (compound).
+     */
+    private static boolean looksDedicatedArenaHost(Component c, LlmPlan plan) {
+        if (c == null || hasResidentialIdentity(c)) {
+            return false;
+        }
         String id = componentId(c).toLowerCase(Locale.ROOT);
         String slot = c.slotId() == null ? "" : c.slotId().trim().toLowerCase(Locale.ROOT);
-        String blob = id + " " + slot;
+        String building = "";
+        if (c.params() != null) {
+            Object bid = c.params().get("building_id");
+            if (bid == null) bid = c.params().get("buildingId");
+            if (bid != null) building = String.valueOf(bid).toLowerCase(Locale.ROOT);
+        }
+        String blob = id + " " + slot + " " + building;
         if (blob.contains("arena") || blob.contains("stadium") || blob.contains("bowl")
                 || blob.contains("体育场") || blob.contains("球场") || blob.contains("看台")
                 || blob.contains("鸟巢")) {
             return true;
         }
-        Dimensions d = c.dimensions();
-        return d != null && d.width() >= 30 && d.depth() >= 30;
+        if (hasExclusiveStadiumParams(c)) {
+            return true;
+        }
+        if (!carriesStadiumRouteMarkers(c)) {
+            return false;
+        }
+        String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        if ("MODULE".equals(type)) {
+            return true;
+        }
+        // STRUCTURE with stadium typology but no role cue: keep only in a true compound
+        // (separate residential MASS present). Sole misrouted residential STRUCTURE demotes.
+        return planHasSeparateResidentialHost(plan, c);
+    }
+
+    private static boolean planHasSeparateResidentialHost(LlmPlan plan, Component arenaCandidate) {
+        if (plan == null || plan.components() == null) {
+            return false;
+        }
+        for (Component o : plan.components()) {
+            if (o == null || o == arenaCandidate) continue;
+            String t = o.componentType() == null ? "" : o.componentType().trim().toUpperCase(Locale.ROOT);
+            if (!(t.startsWith("MASS") || "MAIN_MASS".equals(t))) continue;
+            if (carriesStadiumRouteMarkers(o)) continue;
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean hasResidentialIdentity(Component c) {
+        String id = componentId(c).toLowerCase(Locale.ROOT);
+        String slot = c.slotId() == null ? "" : c.slotId().trim().toLowerCase(Locale.ROOT);
+        String blob = id + " " + slot;
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f != null) blob += " " + f.toLowerCase(Locale.ROOT);
+            }
+        }
+        return blob.contains("house") || blob.contains("mansion") || blob.contains("villa")
+                || blob.contains("baroque") || blob.contains("residence") || blob.contains("manor")
+                || blob.contains("大宅") || blob.contains("住宅") || blob.contains("别墅")
+                || blob.contains("府邸") || blob.contains("公馆") || blob.contains("townhouse");
+    }
+
+    private static boolean hasExclusiveStadiumParams(Component c) {
+        if (c == null || c.params() == null) return false;
+        for (String key : STADIUM_EXCLUSIVE_PARAM_KEYS) {
+            if (c.params().containsKey(key) && c.params().get(key) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean planHasCredibleStadiumExecutor(LlmPlan plan) {
+        if (plan == null || plan.components() == null) return false;
+        for (Component c : plan.components()) {
+            if (c != null && carriesStadiumRouteMarkers(c) && looksDedicatedArenaHost(c, plan)) {
+                String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+                if ("STRUCTURE".equals(t) || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER")) {
+                    if (!"MASS_MAIN".equals(t) && !"MAIN_MASS".equals(t)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private static List<Component> collectMasses(List<Component> components) {

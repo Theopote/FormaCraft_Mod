@@ -499,7 +499,7 @@ public final class UnifiedGeneratorRouter {
         }
 
         var compileCtx = com.formacraft.server.generation.GenerationCompileContext.current();
-        if (compileCtx != null && compileCtx.typologyExclusive()
+        if (compileCtx != null && compileCtx.blocksArchetypeFallbackFor(c)
                 && !isExplicitStructureRoutingComponent(c)) {
             return false;
         }
