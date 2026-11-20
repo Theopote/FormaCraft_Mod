@@ -73,20 +73,32 @@ public final class ComponentFootprintUtil {
     }
 
     /**
-     * Plan-space half-open XZ AABB {@code [minX, maxX, minZ, maxZ]} using
-     * {@link ResolvedComponentGeometry} ({@code anchor_mode}) + optional slot.anchor.
+     * Plan-space half-open XZ AABB {@code [minX, maxX, minZ, maxZ]} for ownership / exclusivity.
+     * Uses authored dimensions + {@code anchor_mode} + slot.anchor — does <em>not</em> apply
+     * {@link ResolvedComponentGeometry#normalizeBody} min-3 MASS clamp (identity must match Python).
      * Missing relativePosition/dimensions → null (never invent a 1×1 box).
      */
     public static int[] planSpaceFootprintXz(Component component, Map<String, Slot> slotMap) {
-        ResolvedComponentGeometry geometry = ResolvedComponentGeometry.resolve(component);
-        if (geometry == null) {
+        if (component == null || component.relativePosition() == null || component.dimensions() == null) {
             return null;
         }
+        Dimensions d = component.dimensions();
+        int w = Math.max(1, d.width());
+        int depth = Math.max(1, d.depth());
+        Vec3i p = component.relativePosition();
+        int minX;
+        int minZ;
+        if (isCornerAnchor(component.params())) {
+            minX = p.x();
+            minZ = p.z();
+        } else {
+            minX = p.x() - w / 2;
+            minZ = p.z() - depth / 2;
+        }
         Vec3i slotAnchor = slotAnchorOrZero(slotMap, authoredSlotId(component));
-        Vec3i origin = geometry.originInPlan(slotAnchor);
-        int w = Math.max(1, geometry.dimensions().width());
-        int d = Math.max(1, geometry.dimensions().depth());
-        return new int[] {origin.x(), origin.x() + w, origin.z(), origin.z() + d};
+        minX += slotAnchor.x();
+        minZ += slotAnchor.z();
+        return new int[] {minX, minX + w, minZ, minZ + depth};
     }
 
     /** Top-level {@code slot_id} or params alias {@code slot_id}/{@code slotId}. */

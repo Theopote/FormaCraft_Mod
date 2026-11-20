@@ -567,6 +567,7 @@ final class ComponentSatelliteInference {
 
         List<Component> kept = new ArrayList<>();
         int stripped = 0;
+        List<String> ambiguousIds = new ArrayList<>();
         for (Component c : components) {
             if (c == null) {
                 continue;
@@ -579,17 +580,38 @@ final class ComponentSatelliteInference {
             } else if (!multiBuilding) {
                 stripped++;
             } else {
-                // Mixed compound: per-component ownership. Distant hall stays; co-located
-                // redundant shell (overlap / exclusive scope) and AMBIGUOUS both strip.
+                // Mixed compound: EXCLUSIVE_HOST strips; INDEPENDENT keeps;
+                // AMBIGUOUS keeps design record + capability_gap (never silent delete).
                 GenerationCompileContext.ComponentOwnership ownership =
                         GenerationCompileContext.resolveCompositionalOwnership(
                                 c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById, slotMap);
-                if (ownership == GenerationCompileContext.ComponentOwnership.INDEPENDENT_BUILDING) {
-                    kept.add(c);
-                } else {
+                if (ownership == GenerationCompileContext.ComponentOwnership.EXCLUSIVE_HOST) {
                     stripped++;
+                } else {
+                    kept.add(c);
+                    if (ownership == GenerationCompileContext.ComponentOwnership.AMBIGUOUS) {
+                        String cid = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
+                        ambiguousIds.add(cid != null ? cid : type);
+                    }
                 }
             }
+        }
+
+        if (!ambiguousIds.isEmpty() && !AssemblyCompileDiagnostics.hasGap()) {
+            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                    "E_COMPONENT_OWNERSHIP_AMBIGUOUS",
+                    "混合建筑群中存在归属不明的构件（缺少可判定的 building_id / 几何），无法安全确认是否为独占执行器的重复体量；请补全 building_id、host_id 与尺寸后重试。",
+                    "components",
+                    List.of(
+                            "Assign distinct building_id for independent buildings.",
+                            "Bind satellites with host_id, or provide relative_position + dimensions.",
+                            "Do not drop ambiguous components silently."),
+                    Map.of(
+                            "ambiguous_component_ids", List.copyOf(ambiguousIds),
+                            "exclusive_host_ids", List.copyOf(exclusiveIds))));
+            FormacraftMod.LOGGER.info(
+                    "ComponentPlanCompiler: typology-exclusive ownership ambiguous for {} component(s): {}",
+                    ambiguousIds.size(), ambiguousIds);
         }
 
         if (stripped > 0) {

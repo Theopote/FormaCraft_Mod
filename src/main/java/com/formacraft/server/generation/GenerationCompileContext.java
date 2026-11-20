@@ -180,7 +180,8 @@ public final class GenerationCompileContext {
 
     /**
      * Shared mixed-compound detector used by exclusive filter and compile context.
-     * Strong evidence only: a component with {@link ComponentOwnership#INDEPENDENT_BUILDING}.
+     * Strong evidence only: a component with {@link ComponentOwnership#INDEPENDENT_BUILDING},
+     * or exclusive roots that span distinct {@code building_id} identities.
      */
     public static boolean hasIndependentBuildingBesideTypology(
             List<Component> components,
@@ -190,7 +191,7 @@ public final class GenerationCompileContext {
         if (exclusiveRoots == null || exclusiveRoots.isEmpty()) {
             return false;
         }
-        if (exclusiveRoots.size() > 1) {
+        if (exclusiveRootsSpanDistinctBuildings(exclusiveRoots)) {
             return true;
         }
         Set<String> exclusiveIds = new HashSet<>();
@@ -231,10 +232,35 @@ public final class GenerationCompileContext {
     }
 
     /**
+     * Two+ exclusive STRUCTURE roots count as multi-building only when they carry distinct
+     * {@code building_id} values. Same building_id (or all missing) is not multi by count alone.
+     */
+    public static boolean exclusiveRootsSpanDistinctBuildings(List<Component> exclusiveRoots) {
+        if (exclusiveRoots == null || exclusiveRoots.size() <= 1) {
+            return false;
+        }
+        Set<String> bids = new HashSet<>();
+        int missing = 0;
+        for (Component root : exclusiveRoots) {
+            String bid = param(root, "building_id", "buildingId");
+            if (bid == null) {
+                missing++;
+            } else {
+                bids.add(bid);
+            }
+        }
+        if (bids.size() > 1) {
+            return true;
+        }
+        // One authored building_id plus unlabelled roots → treat as multi (cannot prove same building).
+        return bids.size() == 1 && missing > 0;
+    }
+
+    /**
      * Per-component ownership vs exclusive typology roots.
-     * Overlap / host-chain → {@link ComponentOwnership#EXCLUSIVE_HOST};
-     * distinct building_id or proven footprint separation → {@link ComponentOwnership#INDEPENDENT_BUILDING};
-     * otherwise {@link ComponentOwnership#AMBIGUOUS} (missing geom ≠ independent).
+     * <p>
+     * Building identity first (host chain / building_id), then geometry:
+     * overlap alone never overrides a distinct {@code building_id}.
      */
     public static ComponentOwnership resolveCompositionalOwnership(
             Component c,
@@ -246,23 +272,27 @@ public final class GenerationCompileContext {
         if (c == null) {
             return ComponentOwnership.AMBIGUOUS;
         }
+        // 1) Explicit exclusive scope (same building_id / host chain / exclusive component_id).
         if (belongsToTypologyExclusiveScope(c, exclusiveIds, exclusiveBuildingIds, parentById)) {
             return ComponentOwnership.EXCLUSIVE_HOST;
         }
-        if (overlapsAnyExclusiveRoot(c, exclusiveRoots, slotMap)) {
-            return ComponentOwnership.EXCLUSIVE_HOST;
-        }
-        // Satellite of a non-exclusive host travels with that building tree.
-        String host = param(c, "host_id", "hostId");
-        if (host != null && (exclusiveIds == null || !exclusiveIds.contains(host))) {
-            return ComponentOwnership.INDEPENDENT_BUILDING;
-        }
+        // 2) Distinct building identity — before any XZ overlap heuristic.
         String bid = param(c, "building_id", "buildingId");
         if (bid != null
                 && (exclusiveBuildingIds == null || exclusiveBuildingIds.isEmpty()
                 || !exclusiveBuildingIds.contains(bid))) {
             return ComponentOwnership.INDEPENDENT_BUILDING;
         }
+        // Satellite of a non-exclusive host travels with that building tree.
+        String host = param(c, "host_id", "hostId");
+        if (host != null && (exclusiveIds == null || !exclusiveIds.contains(host))) {
+            return ComponentOwnership.INDEPENDENT_BUILDING;
+        }
+        // 3) Same-building redundant envelope: overlap without independent identity.
+        if (overlapsAnyExclusiveRoot(c, exclusiveRoots, slotMap)) {
+            return ComponentOwnership.EXCLUSIVE_HOST;
+        }
+        // 4) Proven spatial separation.
         if (isSpatiallySeparatedFromExclusiveRoots(c, exclusiveRoots, slotMap)) {
             return ComponentOwnership.INDEPENDENT_BUILDING;
         }

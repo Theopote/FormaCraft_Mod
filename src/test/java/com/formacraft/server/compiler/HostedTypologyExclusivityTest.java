@@ -206,6 +206,72 @@ class HostedTypologyExclusivityTest {
         assertEquals(2, filtered.size());
     }
 
+    @Test void distinctBuildingIdSurvivesXzOverlapWithExclusiveHost() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var stadium = new Component("STRUCTURE", "arena", new Vec3i(0, 0, 0),
+                new Dimensions(60, 80, 20), List.of("typology:stadium_bowl"),
+                Map.of("component_id", "arena", "building_id", "stadium_A", "typology_id", "stadium_bowl"));
+        // View tower cantilever overlaps stadium XZ; distinct building_id + higher Y.
+        var tower = new Component("MASS_MAIN", "view", new Vec3i(20, 12, 0),
+                new Dimensions(16, 16, 24), List.of(),
+                Map.of("component_id", "view_tower", "building_id", "view_tower_B"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(List.of(stadium, tower));
+        assertEquals(2, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "view_tower".equals(String.valueOf(c.params().get("component_id")))));
+        assertFalse(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
+    @Test void ambiguousAnnexInMixedCompoundIsKeptWithOwnershipGap() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var hall = new Component("MASS_MAIN", "hall", new Vec3i(100, 0, 0),
+                new Dimensions(40, 30, 16), List.of(),
+                Map.of("component_id", "main_hall"));
+        var annex = new Component("MASS_MAIN", "annex", null, null, List.of(),
+                Map.of("component_id", "incomplete_annex"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, hall, annex));
+        assertEquals(3, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "incomplete_annex".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(com.formacraft.server.assembly.AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_COMPONENT_OWNERSHIP_AMBIGUOUS",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
+    @Test void sameBuildingIdExclusiveRootsAreNotMultiBuildingByCount() {
+        var a = new Component("STRUCTURE", "a", new Vec3i(0, 0, 0),
+                new Dimensions(20, 20, 10), List.of("typology:stadium_bowl"),
+                Map.of("component_id", "bowl_a", "building_id", "stadium", "typology_id", "stadium_bowl"));
+        var b = new Component("STRUCTURE", "b", new Vec3i(30, 0, 0),
+                new Dimensions(20, 20, 10), List.of("typology:stadium_bowl"),
+                Map.of("component_id", "bowl_b", "building_id", "stadium", "typology_id", "stadium_bowl"));
+        var shell = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
+                new Dimensions(20, 20, 10), List.of(),
+                Map.of("component_id", "redundant_shell", "building_id", "stadium"));
+        assertFalse(com.formacraft.server.generation.GenerationCompileContext
+                .exclusiveRootsSpanDistinctBuildings(List.of(a, b)));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(List.of(a, b, shell));
+        // Sole building identity → strip compositional shell; keep both exclusive STRUCTURE.
+        assertEquals(2, filtered.size());
+        assertTrue(filtered.stream().allMatch(c -> "STRUCTURE".equals(c.componentType())));
+    }
+
+    @Test void authoredWidthOneDoesNotInventOverlapViaMassNormalize() {
+        var stadium = new Component("STRUCTURE", "arena", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 10), List.of("typology:stadium_bowl"),
+                Map.of("component_id", "arena", "typology_id", "stadium_bowl"));
+        // Center at x=6, width=1 → [6,7); stadium center 0 w=12 → [-6,6). Touching, not overlapping half-open.
+        var slim = new Component("MASS_MAIN", "slim", new Vec3i(6, 0, 0),
+                new Dimensions(1, 1, 4), List.of(),
+                Map.of("component_id", "slim_tower"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(List.of(stadium, slim));
+        assertEquals(2, filtered.size());
+    }
+
     @Test void inferredEntranceInheritsHostLocalStyle() {
         var mass = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(16, 20, 10), List.of(),
