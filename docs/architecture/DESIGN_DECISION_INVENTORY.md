@@ -182,6 +182,10 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | exclusive footprint used center-only AABB | `min_corner` + slot.anchor ignored → false overlap / false sole shell | **Fixed (2026-11-20):** `ComponentFootprintUtil.planSpaceFootprintXz` + shared `GenerationCompileContext.hasIndependentBuildingBesideTypology`; Python mirrors; missing geom → null not 1×1 |
 | `looksDedicatedArenaHost` via separate MASS | west_wing made misrouted main look like dedicated arena | **Fixed (2026-11-20):** clearer arena competitor only; residential MASS alone does not preserve |
 | `blocksArchetypeFallbackFor` direct host only | nested satellite under wing→arena missed exclusive block | **Fixed (2026-11-20):** walk `host_id` parent map |
+| exclusive filter global `multiBuilding` keep | distant hall rescued co-located `pagoda_shell` | **Fixed (2026-11-20):** `ComponentOwnership` per-component; overlap→EXCLUSIVE; AMBIGUOUS strips |
+| distinct slots + missing geom → independent | unknown location treated as separated | **Fixed (2026-11-20):** missing geom never proves separation |
+| bare sole `stadium_bowl` STRUCTURE preserved | anonymous misroute counted as arena executor | **Fixed (2026-11-20):** companion MASS or clear cues only; else demote + `E_STADIUM_EXECUTOR_MISSING` |
+| Python `_authored_slot_id` top-level only | `params.slot_id` missed slot.anchor | **Fixed (2026-11-20):** read params alias; Java `authoredSlotId` parity |
 | `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |
 | `StyleIntentResolver.detectFlavor` plan-only | local Huizhou under plan Modern got flat/glass | **Fixed (2026-11-20):** `EffectiveBuildingStyleResolver`; local/host chain first; entrance `bindDerived` inherits |
 | `EffectiveBuildingStyleResolver` local-only | authored FACADE with host_id lacked style inheritance | **Fixed (2026-11-20):** resolve via host_id chain before plan style |

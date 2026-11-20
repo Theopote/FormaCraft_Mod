@@ -82,11 +82,22 @@ public final class ComponentFootprintUtil {
         if (geometry == null) {
             return null;
         }
-        Vec3i slotAnchor = slotAnchorOrZero(slotMap, component.slotId());
+        Vec3i slotAnchor = slotAnchorOrZero(slotMap, authoredSlotId(component));
         Vec3i origin = geometry.originInPlan(slotAnchor);
         int w = Math.max(1, geometry.dimensions().width());
         int d = Math.max(1, geometry.dimensions().depth());
         return new int[] {origin.x(), origin.x() + w, origin.z(), origin.z() + d};
+    }
+
+    /** Top-level {@code slot_id} or params alias {@code slot_id}/{@code slotId}. */
+    public static String authoredSlotId(Component component) {
+        if (component == null) {
+            return null;
+        }
+        if (component.slotId() != null && !component.slotId().isBlank()) {
+            return component.slotId().trim();
+        }
+        return getParamString(component.params(), "slot_id", "slotId");
     }
 
     public static boolean xzFootprintsOverlap(int[] a, int[] b) {

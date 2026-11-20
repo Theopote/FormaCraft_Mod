@@ -372,9 +372,10 @@ final class StadiumMisrouteRepair {
     }
 
     /**
-     * Arena role via executor identity — never footprint size or “another MASS exists”.
-     * Residential-tagged shells stay demotable; MODULE / named arena / bowl params are dedicated.
-     * Bare STRUCTURE typology yields to a clearer arena competitor (e.g. east_arena vs misrouted main).
+     * Arena role via executor identity — never footprint size or candidate-count alone.
+     * Clear cues / MODULE / exclusive bowl params are dedicated. Bare STRUCTURE is dedicated only
+     * as a companion beside a residential MASS (not the misrouted primary). Sole anonymous
+     * stadium_bowl STRUCTURE stays non-dedicated so {@code E_STADIUM_EXECUTOR_MISSING} can fire.
      */
     private static boolean looksDedicatedArenaHost(Component c, LlmPlan plan) {
         if (c == null || hasResidentialIdentity(c)) {
@@ -393,12 +394,41 @@ final class StadiumMisrouteRepair {
         if ("MODULE".equals(type)) {
             return true;
         }
-        // A clearer dedicated arena elsewhere means this bare STRUCTURE is the misrouted shell.
-        if (planHasClearerArenaCompetitor(plan, c)) {
+        // Misrouted primary shell (e.g. main) yields when a clearer arena competitor exists.
+        if (looksLikeMisroutedPrimaryShell(c) && planHasClearerArenaCompetitor(plan, c)) {
             return false;
         }
-        // Sole typology STRUCTURE without residential tags (incl. small east_structure).
-        return true;
+        // Companion STRUCTURE beside a residential MASS (small east_structure, second arena).
+        if (hasResidentialCompositionalCompanion(plan, c)) {
+            return true;
+        }
+        // Sole anonymous STRUCTURE + stadium markers — ambiguous, not dedicated.
+        return false;
+    }
+
+    private static boolean looksLikeMisroutedPrimaryShell(Component c) {
+        if (hasResidentialIdentity(c)) {
+            return true;
+        }
+        String id = componentId(c).toLowerCase(Locale.ROOT);
+        String slot = c.slotId() == null ? "" : c.slotId().trim().toLowerCase(Locale.ROOT);
+        return "main".equals(id) || id.startsWith("main_") || id.endsWith("_main")
+                || "main".equals(slot) || "primary".equals(id) || "primary".equals(slot);
+    }
+
+    /** True when another MASS without stadium markers is present (residential compositional host). */
+    private static boolean hasResidentialCompositionalCompanion(LlmPlan plan, Component arenaCandidate) {
+        if (plan == null || plan.components() == null || arenaCandidate == null) {
+            return false;
+        }
+        for (Component o : plan.components()) {
+            if (o == null || o == arenaCandidate) continue;
+            String t = o.componentType() == null ? "" : o.componentType().trim().toUpperCase(Locale.ROOT);
+            if (!(t.startsWith("MASS") || "MAIN_MASS".equals(t))) continue;
+            if (carriesStadiumRouteMarkers(o)) continue;
+            return true;
+        }
+        return false;
     }
 
     private static boolean hasArenaRoleCue(Component c) {

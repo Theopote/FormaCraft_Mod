@@ -156,6 +156,56 @@ class HostedTypologyExclusivityTest {
         assertEquals("STRUCTURE", filtered.get(0).componentType());
     }
 
+    @Test void mixedCompoundStripsOverlappingShellButKeepsDistantHall() {
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var shell = new Component("MASS_MAIN", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "pagoda_shell"));
+        var hall = new Component("MASS_MAIN", "hall", new Vec3i(100, 0, 0),
+                new Dimensions(40, 30, 16), List.of(),
+                Map.of("component_id", "main_hall"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, shell, hall));
+        assertEquals(2, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "pagoda".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().anyMatch(c -> "main_hall".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().noneMatch(c -> "pagoda_shell".equals(String.valueOf(c.params().get("component_id")))));
+    }
+
+    @Test void distinctSlotsWithMissingGeometryAreAmbiguousNotIndependent() {
+        var pagoda = new Component("STRUCTURE", "tower_main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var shell = new Component("MASS_MAIN", "tower_shell", null, null, List.of(),
+                Map.of("component_id", "pagoda_shell"));
+        Map<String, Slot> slots = Map.of(
+                "tower_main", new Slot("tower_main", new Vec3i(0, 0, 0), null, null, null, null),
+                "tower_shell", new Slot("tower_shell", new Vec3i(0, 0, 0), null, null, null, null));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, shell), slots);
+        assertEquals(1, filtered.size());
+        assertEquals("STRUCTURE", filtered.get(0).componentType());
+        assertFalse(com.formacraft.server.generation.GenerationCompileContext
+                .hasIndependentCompositionalBuilding(List.of(pagoda, shell), slots));
+    }
+
+    @Test void paramsSlotIdResolvesPlanSpaceFootprint() {
+        var pagoda = new Component("STRUCTURE", null, new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda", "slot_id", "pagoda_slot"));
+        var hall = new Component("MASS_MAIN", null, new Vec3i(0, 0, 0),
+                new Dimensions(40, 30, 16), List.of(),
+                Map.of("component_id", "east_hall", "slot_id", "east_slot"));
+        Map<String, Slot> slots = Map.of(
+                "pagoda_slot", new Slot("pagoda_slot", new Vec3i(0, 0, 0), null, null, null, null),
+                "east_slot", new Slot("east_slot", new Vec3i(100, 0, 0), null, null, null, null));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, hall), slots);
+        assertEquals(2, filtered.size());
+    }
+
     @Test void inferredEntranceInheritsHostLocalStyle() {
         var mass = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(16, 20, 10), List.of(),

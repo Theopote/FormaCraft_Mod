@@ -250,7 +250,11 @@ def _slot_anchor_map(plan: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, int]
 
 
 def _authored_slot_id(comp: Dict[str, Any]) -> Optional[str]:
+    """Top-level slot_id/slotId, or params.slot_id/slotId (mirrors Java authoredSlotId)."""
     slot_id = comp.get("slot_id") or comp.get("slotId")
+    if slot_id is None:
+        params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+        slot_id = params.get("slot_id") or params.get("slotId")
     if slot_id is None:
         return None
     text = str(slot_id).strip()
@@ -300,31 +304,70 @@ def _xz_overlaps(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> 
     return a[0] < b[1] and b[0] < a[1] and a[2] < b[3] and b[2] < a[3]
 
 
-def _is_spatially_separated_from_exclusive_roots(
+def _overlaps_any_exclusive_root(
     candidate: Dict[str, Any],
     exclusive_roots: List[Dict[str, Any]],
     slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
 ) -> bool:
     cand = _footprint_xz(candidate, slot_anchors)
-    cand_slot = _authored_slot_id(candidate)
-    saw_comparable = False
+    if cand is None:
+        return False
     for root in exclusive_roots:
         root_box = _footprint_xz(root, slot_anchors)
-        root_slot = _authored_slot_id(root)
-        distinct_slots = (
-            cand_slot is not None and root_slot is not None and cand_slot != root_slot
-        )
-        if cand is not None and root_box is not None:
-            saw_comparable = True
-            if _xz_overlaps(cand, root_box):
-                return False
-            continue
-        # Incomplete geometry: distinct slot frames cannot be proven co-located.
-        if distinct_slots:
-            saw_comparable = True
-            continue
+        if root_box is not None and _xz_overlaps(cand, root_box):
+            return True
+    return False
+
+
+def _is_spatially_separated_from_exclusive_roots(
+    candidate: Dict[str, Any],
+    exclusive_roots: List[Dict[str, Any]],
+    slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
+) -> bool:
+    """Proven plan-space separation only. Missing geometry ≠ independent."""
+    cand = _footprint_xz(candidate, slot_anchors)
+    if cand is None:
         return False
-    return saw_comparable
+    saw_root_geom = False
+    for root in exclusive_roots:
+        root_box = _footprint_xz(root, slot_anchors)
+        if root_box is None:
+            continue
+        saw_root_geom = True
+        if _xz_overlaps(cand, root_box):
+            return False
+    return saw_root_geom
+
+
+# Mirrors Java GenerationCompileContext.ComponentOwnership
+_OWNERSHIP_EXCLUSIVE = "EXCLUSIVE_HOST"
+_OWNERSHIP_INDEPENDENT = "INDEPENDENT_BUILDING"
+_OWNERSHIP_AMBIGUOUS = "AMBIGUOUS"
+
+
+def _resolve_compositional_ownership(
+    comp: Dict[str, Any],
+    exclusive_roots: List[Dict[str, Any]],
+    exclusive_ids: set[str],
+    exclusive_building_ids: set[str],
+    parent_by_id: Dict[str, str],
+    slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
+) -> str:
+    if _belongs_to_typology_exclusive_scope(
+        comp, exclusive_ids, exclusive_building_ids, parent_by_id
+    ):
+        return _OWNERSHIP_EXCLUSIVE
+    if _overlaps_any_exclusive_root(comp, exclusive_roots, slot_anchors):
+        return _OWNERSHIP_EXCLUSIVE
+    host = _param_str(comp, "host_id", "hostId")
+    if host and host not in exclusive_ids:
+        return _OWNERSHIP_INDEPENDENT
+    bid = _param_str(comp, "building_id", "buildingId")
+    if bid and (not exclusive_building_ids or bid not in exclusive_building_ids):
+        return _OWNERSHIP_INDEPENDENT
+    if _is_spatially_separated_from_exclusive_roots(comp, exclusive_roots, slot_anchors):
+        return _OWNERSHIP_INDEPENDENT
+    return _OWNERSHIP_AMBIGUOUS
 
 
 def _has_independent_building_beside_typology(
@@ -335,11 +378,12 @@ def _has_independent_building_beside_typology(
     slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
 ) -> bool:
     """
-    Strong evidence only: distinct building_id, or clearly separated plan-space footprints.
+    Strong evidence only: ownership == INDEPENDENT_BUILDING.
     A different component_id alone is NOT independent (pagoda + pagoda_shell).
     """
     if len(exclusive_roots) > 1:
         return True
+    parent_by_id = _typology_host_parent_map(components)
     exclusive_set = {id(c) for c in exclusive_roots}
     for comp in components:
         if not isinstance(comp, dict) or id(comp) in exclusive_set or _is_whole_building_typology(comp):
@@ -348,10 +392,17 @@ def _has_independent_building_beside_typology(
             continue
         if not _is_typology_exclusive_building_root(comp):
             continue
-        bid = _param_str(comp, "building_id", "buildingId")
-        if bid and (not exclusive_building_ids or bid not in exclusive_building_ids):
-            return True
-        if _is_spatially_separated_from_exclusive_roots(comp, exclusive_roots, slot_anchors):
+        if (
+            _resolve_compositional_ownership(
+                comp,
+                exclusive_roots,
+                exclusive_ids,
+                exclusive_building_ids,
+                parent_by_id,
+                slot_anchors,
+            )
+            == _OWNERSHIP_INDEPENDENT
+        ):
             return True
     seen_building_ids = set(exclusive_building_ids)
     for comp in components:
@@ -373,8 +424,8 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
     (MASS/TOWER/ROOF/…) that the typology builder owns. Mirrors Java applyTypologyExclusiveFilter.
 
     Single-building: strip anonymous / same-host compositionals plan-wide.
-    Mixed compound (distinct building_id / independent host identity): only strip parts that
-    clearly belong to the exclusive typology host — never delete a neighbouring mansion.
+    Mixed compound: per-component ownership — keep INDEPENDENT_BUILDING only;
+    EXCLUSIVE_HOST (incl. overlapping shells) and AMBIGUOUS strip.
     Returns (plan, stripped_count).
     """
     if not isinstance(plan, dict):
@@ -413,15 +464,21 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
             kept.append(comp)
         elif ctype in _TYPOLOGY_EXCLUSIVE_PERIPHERALS:
             kept.append(comp)
-        elif multi_building:
-            if _belongs_to_typology_exclusive_scope(
-                comp, exclusive_ids, exclusive_building_ids, parent_by_id
-            ):
-                stripped += 1
-            else:
-                kept.append(comp)
-        else:
+        elif not multi_building:
             stripped += 1
+        else:
+            ownership = _resolve_compositional_ownership(
+                comp,
+                exclusive_roots,
+                exclusive_ids,
+                exclusive_building_ids,
+                parent_by_id,
+                slot_anchors,
+            )
+            if ownership == _OWNERSHIP_INDEPENDENT:
+                kept.append(comp)
+            else:
+                stripped += 1
 
     if stripped:
         plan = dict(plan)

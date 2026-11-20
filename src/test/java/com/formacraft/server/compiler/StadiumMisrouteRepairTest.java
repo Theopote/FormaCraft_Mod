@@ -612,6 +612,65 @@ class StadiumMisrouteRepairTest {
     }
 
     @Test
+    void anonymousSoleStadiumBowlWithoutResidentialCueEmitsExecutorGap() {
+        // Residential+stadium ask but AI returns only one anonymous STRUCTURE stadium_bowl.
+        Component sole = new Component(
+                "STRUCTURE", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(30, 40, 18),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "main", "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(sole))
+                .planMeta(Map.of("request_intent_text", "建造一座巴洛克大宅，旁边再建一座体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("MASS_MAIN", out.components().stream()
+                .filter(c -> "main".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertNotNull(out.capabilityGap());
+        assertEquals("E_STADIUM_EXECUTOR_MISSING", out.capabilityGap().code());
+    }
+
+    @Test
+    void twoArenaCompanionsBesideResidentialAreBothPreserved() {
+        Component mansion = new Component(
+                "MASS_MAIN", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 12),
+                List.of("baroque"),
+                Map.of("component_id", "main_house"));
+        Component east = new Component(
+                "STRUCTURE", "east",
+                new Vec3i(50, 0, 0),
+                new Dimensions(24, 28, 14),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "east_arena", "typology_id", "stadium_bowl"));
+        Component west = new Component(
+                "STRUCTURE", "west",
+                new Vec3i(-50, 0, 0),
+                new Dimensions(24, 28, 14),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "west_structure", "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion, east, west))
+                .planMeta(Map.of("request_intent_text", "建造一座巴洛克大宅，东西两侧各建一座体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("STRUCTURE", out.components().stream()
+                .filter(c -> "east_arena".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertEquals("STRUCTURE", out.components().stream()
+                .filter(c -> "west_structure".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertNull(out.capabilityGap());
+    }
+
+    @Test
     void soleRealStadiumBesideCleanResidentialIsPreserved() {
         Component mansion = new Component(
                 "MASS_MAIN", "main",

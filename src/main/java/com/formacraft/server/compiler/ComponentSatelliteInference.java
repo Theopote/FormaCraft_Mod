@@ -576,16 +576,19 @@ final class ComponentSatelliteInference {
                 kept.add(c);
             } else if (isTypologyExclusivePeripheral(type)) {
                 kept.add(c);
-            } else if (multiBuilding) {
-                // Mixed compound: only drop compositionals clearly owned by an exclusive typology host.
-                // Ambiguous / independent buildings stay — never wipe a mansion beside a stadium.
-                if (belongsToTypologyExclusiveScope(c, exclusiveIds, exclusiveBuildingIds, parentById)) {
-                    stripped++;
-                } else {
-                    kept.add(c);
-                }
-            } else {
+            } else if (!multiBuilding) {
                 stripped++;
+            } else {
+                // Mixed compound: per-component ownership. Distant hall stays; co-located
+                // redundant shell (overlap / exclusive scope) and AMBIGUOUS both strip.
+                GenerationCompileContext.ComponentOwnership ownership =
+                        GenerationCompileContext.resolveCompositionalOwnership(
+                                c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById, slotMap);
+                if (ownership == GenerationCompileContext.ComponentOwnership.INDEPENDENT_BUILDING) {
+                    kept.add(c);
+                } else {
+                    stripped++;
+                }
             }
         }
 
@@ -618,34 +621,6 @@ final class ComponentSatelliteInference {
             }
         }
         return parentById;
-    }
-
-    private static boolean belongsToTypologyExclusiveScope(
-            Component c,
-            Set<String> exclusiveIds,
-            Set<String> exclusiveBuildingIds,
-            Map<String, String> parentById) {
-        if (c == null) return false;
-        String bid = ComponentPlanTypes.getParamString(c.params(), "building_id", "buildingId");
-        if (bid != null && !bid.isBlank() && exclusiveBuildingIds.contains(bid.trim())) {
-            return true;
-        }
-        String id = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
-        if (id != null && !id.isBlank() && exclusiveIds.contains(id.trim())) {
-            return true;
-        }
-        String cursor = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
-        if (cursor == null || cursor.isBlank()) {
-            cursor = id;
-        }
-        Set<String> seen = new HashSet<>();
-        while (cursor != null && !cursor.isBlank() && seen.add(cursor)) {
-            if (exclusiveIds.contains(cursor)) {
-                return true;
-            }
-            cursor = parentById.get(cursor);
-        }
-        return false;
     }
 
     /** Reflection-compatible forwarders for tests; logic lives in {@link ComponentSatelliteAligner}. */
