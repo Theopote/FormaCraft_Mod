@@ -142,6 +142,10 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `StadiumMisrouteRepair` mansard provenance / unbound roof | USER_EXPLICIT roof_type overwritten; unbound assumed primary | **Fixed (2026-11-20):** `putIfAllowed`; unbound via spatial `resolveUnboundHost` MATCH only |
 | `StadiumMisrouteRepair` void_ratio as stadium evidence | Python mass default void_ratio/tier_count/elliptical demoted annexes | **Fixed (2026-11-20):** exclusive bowl/mesh keys only as evidence; compat keys cleaned only after true hit + provenance |
 | `StadiumMisrouteRepair` mansard specialty on locked hip | roof_type kept but roof_specialty/dormers still injected | **Fixed (2026-11-20):** locked non-mansard skips entire roof bundle |
+| `StadiumMisrouteRepair` meshStructure/tierStep exclusive | 土楼 MODULE / 天坛 radial_terrace_hall demoted as stadium | **Fixed (2026-11-20):** only bowl/field keys exclusive; mesh/tierStep are compat-after-hit |
+| `StadiumMisrouteRepair` style-only demotePrimary | first STRUCTURE by list order demoted | **Fixed (2026-11-20):** demote only stadium-marker hosts; style rewrite alone |
+| `StadiumMisrouteRepair` stadium cue early-return | 「不要体育场」/混合体育场跳过整修 | **Fixed (2026-11-20):** affirmative cue via `isNegatedAt`; mixed preserves non-residential stadium executors |
+| `StadiumMisrouteRepair` baroque⇒mansard | style alone invented mansard+dormers | **Fixed (2026-11-20):** explicit mansard/dormer cues only; flat-roof ask blocks |
 | `DenseEavesPagodaMisrouteRepair` strip floor_count=3 | putIfAllowed rewrote authored 5-storey louge to 3 | **Fixed (2026-11-20):** preserve existing floors; missing-only default; locked features block STRUCTURE demote |
 | `AssemblyCompileDiagnostics` test leakage | gap-emitting misroute tests polluted prepareComponents | **Fixed (2026-11-20):** BeforeEach/AfterEach clear on ExplicitOmission + misroute/conflict tests |
 | `DenseEavesPagodaMisrouteRepair` typology inject | house primary → dense_eaves_pagoda STRUCTURE + drop satellites | **Fixed (2026-11-20):** open/multi-mass pagoda misroute → `E_DENSE_EAVES_PAGODA_ROUTE_UNSUPPORTED`; square force host-scoped to dense_eaves/tower only |

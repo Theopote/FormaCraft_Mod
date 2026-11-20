@@ -361,4 +361,136 @@ class StadiumMisrouteRepairTest {
                 .filter(c -> "side_roof".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow().params().get("roof_type"));
     }
+
+    @Test
+    void templeTierStepAndTulouMeshAreNotStadiumEvidence() {
+        Map<String, Object> mansionParams = new HashMap<>();
+        mansionParams.put("component_id", "mansion");
+        mansionParams.put("typology_id", "stadium_bowl");
+        Component mansion = new Component(
+                "STRUCTURE", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("typology:stadium_bowl"),
+                mansionParams);
+        Map<String, Object> templeParams = new HashMap<>();
+        templeParams.put("component_id", "altar_hall");
+        templeParams.put("typology_id", "radial_terrace_hall");
+        templeParams.put("tierStep", 3);
+        Component temple = new Component(
+                "STRUCTURE", "temple",
+                new Vec3i(40, 0, 0),
+                new Dimensions(24, 24, 16),
+                List.of("typology:radial_terrace_hall"),
+                templeParams);
+        Map<String, Object> tulouParams = new HashMap<>();
+        tulouParams.put("component_id", "tulou");
+        tulouParams.put("module_id", "tulou");
+        tulouParams.put("meshStructure", true);
+        Component tulou = new Component(
+                "MODULE", "tulou",
+                new Vec3i(80, 0, 0),
+                new Dimensions(30, 30, 20),
+                List.of("module:tulou"),
+                tulouParams);
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion, temple, tulou))
+                .planMeta(Map.of("request_intent_text", "巴洛克大宅带马萨屋顶，旁附天坛式祭坛与土楼"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        Component outTemple = out.components().stream()
+                .filter(c -> "altar_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("STRUCTURE", outTemple.componentType());
+        assertEquals("radial_terrace_hall", outTemple.params().get("typology_id"));
+        assertEquals(3, ((Number) outTemple.params().get("tierStep")).intValue());
+        assertNotEquals(Boolean.TRUE, outTemple.params().get("stadium_misroute_demoted"));
+        Component outTulou = out.components().stream()
+                .filter(c -> "tulou".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("MODULE", outTulou.componentType());
+        assertEquals("tulou", outTulou.params().get("module_id"));
+        assertEquals(true, outTulou.params().get("meshStructure"));
+        assertEquals("MASS_MAIN", out.components().stream()
+                .filter(c -> "mansion".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+    }
+
+    @Test
+    void styleOnlyPoisonDoesNotDemoteLeadingBellTower() {
+        Component bell = new Component(
+                "STRUCTURE", "tower",
+                new Vec3i(0, 0, 0),
+                new Dimensions(6, 6, 20),
+                List.of("bell_tower"),
+                Map.of("component_id", "bell_tower", "typology_id", "gothic_bell_tower"));
+        Component mansion = new Component(
+                "MASS_MAIN", "main",
+                new Vec3i(20, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("baroque"),
+                Map.of("component_id", "mansion", "roof_type", "flat"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(bell, mansion))
+                .planMeta(Map.of("request_intent_text", "巴洛克大宅，屋顶使用平屋顶，不要老虎窗"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("STRUCTURE", out.components().stream()
+                .filter(c -> "bell_tower".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertFalse("Modern_Stadium_Elliptical".equalsIgnoreCase(out.styleProfile()));
+        assertTrue(out.components().stream().noneMatch(c ->
+                c.componentType() != null && c.componentType().toUpperCase().startsWith("ROOF")
+                        && "mansard".equals(String.valueOf(c.params().get("roof_type")))));
+        assertNotEquals(Boolean.TRUE, out.components().stream()
+                .filter(c -> "mansion".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("stadium_misroute_demoted"));
+    }
+
+    @Test
+    void negatedStadiumCueStillDemotesMisroutedMansion() {
+        Component mansion = new Component(
+                "STRUCTURE", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "mansion", "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion))
+                .planMeta(Map.of("request_intent_text", "建造一座巴洛克大宅，不要做成体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("MASS_MAIN", out.components().getFirst().componentType());
+        assertFalse(String.valueOf(out.components().getFirst().params().get("typology_id")).contains("stadium"));
+        assertTrue(out.components().stream().noneMatch(c ->
+                c.componentType() != null && c.componentType().toUpperCase().startsWith("ROOF")
+                        && "mansard".equals(String.valueOf(c.params().get("roof_type")))));
+    }
+
+    @Test
+    void baroqueFlatRoofAskDoesNotInventMansardOrDormers() {
+        Component mansion = new Component(
+                "STRUCTURE", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "mansion", "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion))
+                .planMeta(Map.of("request_intent_text", "建造一座巴洛克风格的大宅，但屋顶使用平屋顶，不要老虎窗"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("MASS_MAIN", out.components().getFirst().componentType());
+        assertTrue(out.components().stream().noneMatch(c ->
+                c.componentType() != null && c.componentType().toUpperCase().startsWith("ROOF")));
+        assertNull(out.components().getFirst().params().get("roof_specialty"));
+    }
 }

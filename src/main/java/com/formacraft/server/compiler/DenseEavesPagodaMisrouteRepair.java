@@ -46,8 +46,9 @@ final class DenseEavesPagodaMisrouteRepair {
         if (corpus.isBlank()) {
             return plan;
         }
-        boolean wantsSquare = containsAny(corpus, SQUARE_FOOTPRINT_CUES);
-        boolean hasPagodaCue = containsAny(corpus, PAGODA_CUES);
+        boolean wantsSquare = hasAffirmativeCue(corpus, SQUARE_FOOTPRINT_CUES);
+        // 「楼阁，不要做成宝塔」— negated pagoda cues must not count as positive pagoda intent.
+        boolean hasPagodaCue = hasAffirmativeCue(corpus, PAGODA_CUES);
         boolean pavilionNotPagoda = containsAny(corpus, PAVILION_NOT_PAGODA) && !hasPagodaCue;
         boolean wantsLanterns = wantsLanterns(corpus);
 
@@ -449,14 +450,26 @@ final class DenseEavesPagodaMisrouteRepair {
     }
 
     private static boolean wantsLanterns(String corpus) {
-        if (corpus == null || corpus.isBlank()) return false;
-        // Negation beats lantern substring (不要灯笼 / 无灯笼).
-        if (corpus.contains("不要灯笼") || corpus.contains("无灯笼") || corpus.contains("勿挂灯")
-                || corpus.contains("no lantern") || corpus.contains("without lantern")
-                || corpus.contains("no corner lantern")) {
-            return false;
+        return hasAffirmativeCue(corpus, LANTERN_CUES);
+    }
+
+    /** True when at least one cue occurs outside local negation (不要做成X). */
+    private static boolean hasAffirmativeCue(String corpus, List<String> cues) {
+        if (corpus == null || corpus.isBlank() || cues == null) return false;
+        for (String cue : cues) {
+            if (cue == null || cue.isBlank()) continue;
+            String needle = cue.toLowerCase(Locale.ROOT);
+            int start = 0;
+            while (true) {
+                int idx = corpus.indexOf(needle, start);
+                if (idx < 0) break;
+                if (!RequestIntentInjector.isNegatedAt(corpus, idx)) {
+                    return true;
+                }
+                start = idx + needle.length();
+            }
         }
-        return containsAny(corpus, LANTERN_CUES);
+        return false;
     }
 
     private static boolean containsAny(String corpus, List<String> cues) {

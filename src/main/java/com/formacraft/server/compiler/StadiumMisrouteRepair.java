@@ -38,17 +38,29 @@ final class StadiumMisrouteRepair {
             "mansard", "baroque", "mansion", "villa", "residence", "palace", "manor",
             "townhouse", "rowhouse", "联排");
 
-    /** Bowl/mesh/field params that are stadium-executor evidence by themselves. */
+    /**
+     * Bowl/field params that are stadium-executor evidence by themselves.
+     * Never include meshStructure / tierStep — shared by 土楼 MODULE and 天坛 radial terrace.
+     */
     private static final List<String> STADIUM_EXCLUSIVE_PARAM_KEYS = List.of(
-            "meshStructure", "mesh_structure", "bowlSteepness", "bowl_steepness",
-            "field_ratio", "enclosure_coverage", "tierStep", "tier_step", "field_to_bowl");
+            "bowlSteepness", "bowl_steepness", "field_ratio", "enclosure_coverage", "field_to_bowl");
 
     /**
-     * Ordinary building params also written by Python mass defaults — never stadium evidence alone.
-     * Cleaned only after a component already hit a true stadium route marker.
+     * Shared / ordinary params — never stadium evidence alone. Cleaned only after a component
+     * already hit a true stadium route marker (typology/module/exclusive bowl keys).
      */
     private static final List<String> STADIUM_COMPAT_PARAM_KEYS = List.of(
-            "void_ratio", "tier_count", "elliptical");
+            "void_ratio", "tier_count", "elliptical",
+            "meshStructure", "mesh_structure", "tierStep", "tier_step");
+
+    private static final List<String> MANSARD_CUES = List.of(
+            "马萨", "mansard", "折线屋顶", "折线形屋顶", "折线形");
+
+    private static final List<String> DORMER_CUES = List.of(
+            "老虎窗", "dormer", "mansard_dormer");
+
+    private static final List<String> FLAT_ROOF_CUES = List.of(
+            "平屋顶", "平顶", "flat roof", "flat-roof", "flatroof");
 
     private record StripOutcome(Component component, boolean stadiumRouteDemoted) {}
 
@@ -58,26 +70,34 @@ final class StadiumMisrouteRepair {
         }
         // User/request text only — never treat LLM style_profile=Modern_Stadium_* as a stadium ask.
         String requestCorpus = requestIntentCorpus(plan);
-        if (containsAny(requestCorpus, STADIUM_CUES)) {
+        boolean residentialAsk = containsAny(requestCorpus, RESIDENTIAL_CUES);
+        boolean affirmativeStadiumAsk = hasAffirmativeCue(requestCorpus, STADIUM_CUES);
+        // Pure stadium ask (no residential host) → leave alone. Negated 「不要体育场」is not affirmative.
+        // Mixed residential + stadium compounds continue so the mansion can demote while arena hosts stay.
+        if (affirmativeStadiumAsk && !residentialAsk) {
             return plan;
         }
-        boolean residentialAsk = containsAny(requestCorpus, RESIDENTIAL_CUES);
         boolean poisonedStadium = corpusContainsStadiumTypology(plan) || styleLooksStadium(plan);
         if (!residentialAsk || !poisonedStadium) {
             return plan;
         }
 
-        boolean stylePoisoned = styleLooksStadium(plan);
-        // Stable target identity: stadium-marker host first; else sole style-poisoned primary.
-        String demotePrimaryId = resolveDemotePrimaryId(plan, stylePoisoned);
+        // Only hosts with true stadium route markers may demote — never first STRUCTURE by list order.
+        String demotePrimaryId = resolveDemotePrimaryId(plan);
         List<Component> masses = collectMasses(plan.components());
+        boolean wantsMansard = wantsMansardRoof(requestCorpus);
+        boolean wantsDormers = hasAffirmativeCue(requestCorpus, DORMER_CUES);
 
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         Set<String> demotedHosts = new HashSet<>();
         Component primaryDemotedMass = null;
         for (Component c : plan.components()) {
-            StripOutcome outcome = stripForcedStadium(plan, c, requestCorpus, demotePrimaryId);
+            if (shouldPreserveStadiumExecutor(c, affirmativeStadiumAsk)) {
+                out.add(c);
+                continue;
+            }
+            StripOutcome outcome = stripForcedStadium(plan, c, requestCorpus, wantsMansard, wantsDormers);
             if (outcome.component() != c) {
                 changed = true;
             }
@@ -108,8 +128,6 @@ final class StadiumMisrouteRepair {
             }
         }
 
-        boolean wantsMansard = containsAny(requestCorpus,
-                List.of("马萨", "mansard", "折线", "老虎窗", "dormer", "巴洛克", "baroque"));
         Set<String> roofsCoveringDemoted = new HashSet<>();
         if (wantsMansard && !demotedHosts.isEmpty()) {
             List<Component> roofFixed = new ArrayList<>(out.size());
@@ -117,7 +135,7 @@ final class StadiumMisrouteRepair {
                 if (c != null && c.componentType() != null
                         && c.componentType().toUpperCase(Locale.ROOT).startsWith("ROOF")
                         && roofBelongsToDemotedHost(c, demotedHosts, primaryDemotedMass, masses)) {
-                    Component next = ensureMansardOnRoof(plan, c, requestCorpus);
+                    Component next = ensureMansardOnRoof(plan, c, wantsMansard, wantsDormers);
                     if (next != c) {
                         changed = true;
                     }
@@ -139,7 +157,7 @@ final class StadiumMisrouteRepair {
             String primaryId = componentId(primaryDemotedMass);
             boolean covered = (!primaryId.isBlank() && roofsCoveringDemoted.contains(primaryId));
             if (!covered) {
-                out.add(syntheticMansardRoof(primaryDemotedMass, requestCorpus));
+                out.add(syntheticMansardRoof(primaryDemotedMass, wantsDormers));
                 changed = true;
             }
         }
@@ -182,24 +200,44 @@ final class StadiumMisrouteRepair {
     }
 
     /**
-     * Prefer a host that already carries stadium typology/params; otherwise the first
-     * MASS_MAIN / STRUCTURE when style alone is poisoned. Never "every STRUCTURE".
+     * Only a host that already carries true stadium route markers may be demoted.
+     * Style-only poison rewrites style/layout but never guesses STRUCTURE identity by list order.
      */
-    private static String resolveDemotePrimaryId(LlmPlan plan, boolean stylePoisoned) {
-        Component poisoned = null;
-        Component firstPrimary = null;
+    private static String resolveDemotePrimaryId(LlmPlan plan) {
         for (Component c : plan.components()) {
             if (c == null || !isDemotableHost(c)) continue;
             if (carriesStadiumRouteMarkers(c)) {
-                poisoned = c;
-                break;
-            }
-            if (firstPrimary == null && looksPrimaryMass(c)) {
-                firstPrimary = c;
+                return componentId(c);
             }
         }
-        Component target = poisoned != null ? poisoned : (stylePoisoned ? firstPrimary : null);
-        return target == null ? null : componentId(target);
+        return null;
+    }
+
+    /**
+     * In mixed residential+stadium compounds, keep a stadium executor that is not the
+     * residential misroute host (arena STRUCTURE/MODULE stays when the user also asked for a stadium).
+     */
+    private static boolean shouldPreserveStadiumExecutor(Component c, boolean affirmativeStadiumAsk) {
+        if (!affirmativeStadiumAsk || c == null) return false;
+        if (!carriesStadiumRouteMarkers(c)) return false;
+        return !looksResidentialHost(c);
+    }
+
+    private static boolean looksResidentialHost(Component c) {
+        String id = componentId(c).toLowerCase(Locale.ROOT);
+        String feat = "";
+        if (c.features() != null) {
+            StringBuilder sb = new StringBuilder();
+            for (String f : c.features()) {
+                if (f != null) sb.append(f).append(' ');
+            }
+            feat = sb.toString().toLowerCase(Locale.ROOT);
+        }
+        String blob = id + " " + feat;
+        return blob.contains("mansion") || blob.contains("villa") || blob.contains("宅")
+                || blob.contains("府邸") || blob.contains("公馆") || blob.contains("庄园")
+                || blob.contains("baroque") || blob.contains("巴洛克") || blob.contains("residence")
+                || blob.contains("townhouse") || blob.contains("manor");
     }
 
     private static List<Component> collectMasses(List<Component> components) {
@@ -435,12 +473,9 @@ final class StadiumMisrouteRepair {
         return String.valueOf(c.params().get("component_id"));
     }
 
-    /**
-     * @param demotePrimaryId stable component_id of the single host allowed to demote from
-     *                        STRUCTURE→MASS_MAIN when style alone is poisoned.
-     */
+    /** STRUCTURE demotes only when this component itself carries stadium route markers. */
     private static StripOutcome stripForcedStadium(
-            LlmPlan plan, Component c, String requestCorpus, String demotePrimaryId) {
+            LlmPlan plan, Component c, String requestCorpus, boolean wantsMansard, boolean wantsDormers) {
         if (c == null) {
             return new StripOutcome(c, false);
         }
@@ -532,47 +567,33 @@ final class StadiumMisrouteRepair {
                 stadiumHit = true;
             }
         }
+        // Never demote STRUCTURE from style-alone / list order — only true stadiumHit.
         String type = c.componentType();
-        boolean allowStyleDemote = demotePrimaryId != null
-                && !demotePrimaryId.isBlank()
-                && demotePrimaryId.equals(componentId(c));
-        boolean demoteStructure = type != null && "STRUCTURE".equalsIgnoreCase(type.trim())
-                && (stadiumHit || allowStyleDemote);
-        if (!stadiumHit && !demoteStructure) {
+        boolean demoteStructure = stadiumHit
+                && type != null && "STRUCTURE".equalsIgnoreCase(type.trim());
+        if (!stadiumHit) {
             return new StripOutcome(c, false);
         }
         if (demoteStructure) {
             type = "MASS_MAIN";
-            stadiumHit = true;
         }
         if (params == null) {
             params = new HashMap<>();
         }
-        // Generic mass defaults: strip only after true stadium hit, and only when unlocked.
-        if (stadiumHit) {
-            for (String key : STADIUM_COMPAT_PARAM_KEYS) {
-                if (params.containsKey(key) && DesignProvenance.canMutateParam(plan, params, key)) {
-                    params.remove(key);
-                }
+        // Shared params (meshStructure/tierStep/void_ratio…): strip only after true stadium hit.
+        for (String key : STADIUM_COMPAT_PARAM_KEYS) {
+            if (params.containsKey(key) && DesignProvenance.canMutateParam(plan, params, key)) {
+                params.remove(key);
             }
         }
-        boolean stadiumRouteDemoted = stadiumHit || demoteStructure;
-        if (stadiumRouteDemoted) {
-            params.put("stadium_misroute_demoted", true);
-        }
-        if (stadiumRouteDemoted && containsAny(requestCorpus,
-                List.of("马萨", "mansard", "折线", "老虎窗", "dormer", "巴洛克", "baroque"))) {
+        params.put("stadium_misroute_demoted", true);
+        if (wantsMansard) {
             params.putIfAbsent("roof_type", "mansard");
             params.putIfAbsent("preferred_roof_type", "mansard");
-            boolean wantsDormers = containsAny(requestCorpus, List.of("老虎窗", "dormer", "mansard_dormer"));
             params.putIfAbsent("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
-            if (wantsDormers) {
-                params.putIfAbsent("roof_dormers", true);
-            } else {
-                params.putIfAbsent("roof_dormers", false);
-            }
+            params.putIfAbsent("roof_dormers", wantsDormers);
         }
-        if (stadiumRouteDemoted && containsAny(requestCorpus, List.of("拱形窗", "拱形", "arched", "石英"))) {
+        if (containsAny(requestCorpus, List.of("拱形窗", "拱形", "arched", "石英"))) {
             params.putIfAbsent("window_aspect", "arched");
             params.putIfAbsent("window_style", "arched");
         }
@@ -581,27 +602,27 @@ final class StadiumMisrouteRepair {
         } else {
             features = new ArrayList<>(features);
         }
-        if (stadiumRouteDemoted && containsAny(requestCorpus, List.of("巴洛克", "baroque"))
+        if (containsAny(requestCorpus, List.of("巴洛克", "baroque"))
                 && features.stream().noneMatch(f ->
                 f != null && f.toLowerCase(Locale.ROOT).contains("baroque"))) {
             features.add("baroque");
         }
-        if (stadiumRouteDemoted && containsAny(requestCorpus, List.of("马萨", "mansard", "折线"))
-                && features.stream().noneMatch(f ->
+        if (wantsMansard && features.stream().noneMatch(f ->
                 f != null && f.toLowerCase(Locale.ROOT).contains("mansard"))) {
             features.add("mansard");
         }
         return new StripOutcome(
                 new Component(type, c.slotId(), c.relativePosition(), c.dimensions(), features, params),
-                stadiumRouteDemoted);
+                true);
     }
 
-    private static Component ensureMansardOnRoof(LlmPlan plan, Component c, String requestCorpus) {
+    private static Component ensureMansardOnRoof(
+            LlmPlan plan, Component c, boolean wantsMansard, boolean wantsDormers) {
         if (c == null || c.componentType() == null
                 || !c.componentType().toUpperCase(Locale.ROOT).startsWith("ROOF")) {
             return c;
         }
-        if (!containsAny(requestCorpus, List.of("马萨", "mansard", "折线", "老虎窗", "dormer", "巴洛克", "baroque"))) {
+        if (!wantsMansard) {
             return c;
         }
         Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
@@ -623,12 +644,13 @@ final class StadiumMisrouteRepair {
             changed = true;
         }
         if (roofIsMansard) {
+            String specialty = wantsDormers ? "mansard_dormer" : "mansard";
             if (!params.containsKey("roof_specialty")
-                    && DesignProvenance.putIfAllowed(plan, params, "roof_specialty", "mansard_dormer")) {
+                    && DesignProvenance.putIfAllowed(plan, params, "roof_specialty", specialty)) {
                 changed = true;
             }
             if (!params.containsKey("roof_dormers") && !params.containsKey("dormers")
-                    && DesignProvenance.putIfAllowed(plan, params, "roof_dormers", true)) {
+                    && DesignProvenance.putIfAllowed(plan, params, "roof_dormers", wantsDormers)) {
                 changed = true;
             }
         }
@@ -639,7 +661,7 @@ final class StadiumMisrouteRepair {
                 c.componentType(), c.slotId(), c.relativePosition(), c.dimensions(), c.features(), params);
     }
 
-    private static Component syntheticMansardRoof(Component mass, String requestCorpus) {
+    private static Component syntheticMansardRoof(Component mass, boolean wantsDormers) {
         Dimensions dims = mass.dimensions();
         Vec3i rp = mass.relativePosition() == null ? new Vec3i(0, 0, 0) : mass.relativePosition();
         int w = dims == null ? 12 : Math.max(4, dims.width());
@@ -651,15 +673,14 @@ final class StadiumMisrouteRepair {
             params.put("host_id", mass.params().get("component_id"));
         }
         params.put("roof_type", "mansard");
-        params.put("roof_specialty", "mansard_dormer");
-        params.put("roof_dormers", true);
+        params.put("roof_specialty", wantsDormers ? "mansard_dormer" : "mansard");
+        params.put("roof_dormers", wantsDormers);
         params.put("stadium_misroute_demoted", true);
-        if (containsAny(requestCorpus, List.of("椭圆山花", "oval pediment", "老虎窗", "dormer"))) {
-            params.put("dormer_pediment", "oval");
-        }
         List<String> features = new ArrayList<>();
         features.add("mansard");
-        features.add("mansard_dormer");
+        if (wantsDormers) {
+            features.add("mansard_dormer");
+        }
         return new Component(
                 "ROOF",
                 mass.slotId(),
@@ -667,6 +688,32 @@ final class StadiumMisrouteRepair {
                 new Dimensions(w, d, roofH),
                 features,
                 params);
+    }
+
+    /** Explicit mansard ask only — baroque style alone does not authorize a mansard roof. */
+    private static boolean wantsMansardRoof(String corpus) {
+        if (corpus == null || corpus.isBlank()) return false;
+        if (hasAffirmativeCue(corpus, FLAT_ROOF_CUES)) return false;
+        return hasAffirmativeCue(corpus, MANSARD_CUES) || hasAffirmativeCue(corpus, DORMER_CUES);
+    }
+
+    /** True when at least one cue occurs outside local negation (不要做成X). */
+    private static boolean hasAffirmativeCue(String corpus, List<String> cues) {
+        if (corpus == null || corpus.isBlank() || cues == null) return false;
+        for (String cue : cues) {
+            if (cue == null || cue.isBlank()) continue;
+            String needle = cue.toLowerCase(Locale.ROOT);
+            int start = 0;
+            while (true) {
+                int idx = corpus.indexOf(needle, start);
+                if (idx < 0) break;
+                if (!RequestIntentInjector.isNegatedAt(corpus, idx)) {
+                    return true;
+                }
+                start = idx + needle.length();
+            }
+        }
+        return false;
     }
 
     /** Player request text only — excludes LLM style_profile / stadium feature noise. */
