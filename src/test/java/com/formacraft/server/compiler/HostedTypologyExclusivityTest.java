@@ -112,6 +112,50 @@ class HostedTypologyExclusivityTest {
         assertTrue(filtered.stream().anyMatch(c -> "mansion".equals(String.valueOf(c.params().get("component_id")))));
     }
 
+    @Test void minCornerAdjacentBuildingsWithoutBuildingIdAreNotFalselyOverlapped() {
+        // Pagoda [0,12) and hall [13,93) with min_corner — one-block gap; center-anchor math would overlap.
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda",
+                        "anchor_mode", "min_corner"));
+        var hall = new Component("MASS_MAIN", "hall", new Vec3i(13, 0, 0),
+                new Dimensions(80, 40, 18), List.of(),
+                Map.of("component_id", "main_hall", "anchor_mode", "min_corner"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(List.of(pagoda, hall));
+        assertEquals(2, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "main_hall".equals(String.valueOf(c.params().get("component_id")))));
+    }
+
+    @Test void distinctSlotAnchorsSeparateBuildingsWithIdenticalLocalOrigins() {
+        var pagoda = new Component("STRUCTURE", "pagoda_slot", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var hall = new Component("MASS_MAIN", "hall_slot", new Vec3i(0, 0, 0),
+                new Dimensions(40, 30, 16), List.of(),
+                Map.of("component_id", "main_hall"));
+        Map<String, Slot> slots = Map.of(
+                "pagoda_slot", new Slot("pagoda_slot", new Vec3i(0, 0, 0), null, null, null, null),
+                "hall_slot", new Slot("hall_slot", new Vec3i(100, 0, 0), null, null, null, null));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, hall), slots);
+        assertEquals(2, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "main_hall".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(com.formacraft.server.generation.GenerationCompileContext
+                .hasIndependentCompositionalBuilding(List.of(pagoda, hall), slots));
+    }
+
+    @Test void missingGeometryDoesNotInventOneByOneFootprint() {
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        // No dimensions → cannot prove separation in the same slot → strip shell.
+        var shell = new Component("MASS_MAIN", "pagoda", null, null, List.of(),
+                Map.of("component_id", "pagoda_shell"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(List.of(pagoda, shell));
+        assertEquals(1, filtered.size());
+        assertEquals("STRUCTURE", filtered.get(0).componentType());
+    }
+
     @Test void inferredEntranceInheritsHostLocalStyle() {
         var mass = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(16, 20, 10), List.of(),

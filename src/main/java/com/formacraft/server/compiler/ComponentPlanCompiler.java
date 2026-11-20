@@ -235,11 +235,13 @@ public final class ComponentPlanCompiler {
         var flatRoofs = new ArrayList<FlatRoofCoverageValidator.Roof>();
         boolean typologyExclusivePlan = hasTypologyStructureComponent(components);
         boolean soleTypologyShell = typologyExclusivePlan
-                && !GenerationCompileContext.hasIndependentCompositionalBuilding(components);
+                && !GenerationCompileContext.hasIndependentCompositionalBuilding(components, slotMap);
         Set<String> exclusiveHosts = GenerationCompileContext.exclusiveTypologyHostIds(components);
+        Map<String, String> typologyHostParents =
+                ComponentSatelliteInference.typologyHostParentMapPublic(components);
         var previousCompileContext = GenerationCompileContext.current();
         GenerationCompileContext.install(GenerationCompileContext.fromPlan(
-                plan, typologyExclusivePlan, soleTypologyShell, exclusiveHosts));
+                plan, typologyExclusivePlan, soleTypologyShell, exclusiveHosts, typologyHostParents));
         PatchOccupancyIndex patchOccupancy;
         try (var geometry = com.formacraft.common.generation.component.util.BuildingGeometryContext.open()) {
             for (Component mass : components) {

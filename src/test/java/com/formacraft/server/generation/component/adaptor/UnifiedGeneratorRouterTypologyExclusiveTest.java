@@ -80,6 +80,31 @@ class UnifiedGeneratorRouterTypologyExclusiveTest {
         assertTrue(shouldUseStructureFallback(semantic));
     }
 
+    @Test
+    void mixedCompoundBlocksFallbackThroughMultiLevelHostChain() {
+        BuildingGenome genome = new BuildingGenome();
+        genome.archetype.confidence = 0.9;
+
+        Component ribbon = new Component(
+                "FACADE_WINDOWS",
+                "arena",
+                new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 6),
+                List.of(),
+                Map.of("component_id", "arena_ribbon", "host_id", "arena_wing")
+        );
+        SemanticComponent semantic = new SemanticComponent("FACADE_WINDOWS", null, ribbon, null, null, genome);
+
+        var ctx = new GenerationCompileContext(
+                null,
+                Map.of(),
+                true,
+                false,
+                java.util.Set.of("arena"),
+                Map.of("arena_wing", "arena", "arena_ribbon", "arena_wing"));
+        GenerationCompileContext.runWith(ctx, () -> assertFalse(shouldUseStructureFallback(semantic)));
+    }
+
     private static boolean shouldUseStructureFallback(SemanticComponent semantic) {
         return UnifiedGeneratorRouter.shouldUseStructureFallbackForRouting(semantic);
     }

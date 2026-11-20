@@ -221,19 +221,79 @@ def _belongs_to_typology_exclusive_scope(
     return False
 
 
-def _footprint_xz(comp: Dict[str, Any]) -> Optional[tuple[int, int, int, int]]:
-    pos = comp.get("relative_position") or {}
-    dims = comp.get("dimensions") or {}
+def _slot_anchor_map(plan: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, int]]:
+    anchors: Dict[str, Dict[str, int]] = {}
+    if not isinstance(plan, dict):
+        return anchors
+    layout = plan.get("layout") or {}
+    slots = layout.get("slots") if isinstance(layout, dict) else None
+    if not isinstance(slots, list):
+        return anchors
+    for slot in slots:
+        if not isinstance(slot, dict):
+            continue
+        slot_id = slot.get("slot_id") or slot.get("slotId")
+        if not slot_id:
+            continue
+        anchor = slot.get("anchor") or {}
+        if not isinstance(anchor, dict):
+            anchor = {}
+        try:
+            anchors[str(slot_id).strip()] = {
+                "x": int(anchor.get("x", 0)),
+                "y": int(anchor.get("y", 0)),
+                "z": int(anchor.get("z", 0)),
+            }
+        except (TypeError, ValueError):
+            anchors[str(slot_id).strip()] = {"x": 0, "y": 0, "z": 0}
+    return anchors
+
+
+def _authored_slot_id(comp: Dict[str, Any]) -> Optional[str]:
+    slot_id = comp.get("slot_id") or comp.get("slotId")
+    if slot_id is None:
+        return None
+    text = str(slot_id).strip()
+    return text or None
+
+
+def _footprint_xz(
+    comp: Dict[str, Any],
+    slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
+) -> Optional[tuple[int, int, int, int]]:
+    """
+    Plan-space half-open XZ AABB matching Java ComponentFootprintUtil.planSpaceFootprintXz.
+    Requires explicit relative_position + dimensions — never invent a 1×1 box at origin.
+    Respects anchor_mode / anchorMode and slot.anchor.
+    """
+    pos = comp.get("relative_position")
+    dims = comp.get("dimensions")
     if not isinstance(pos, dict) or not isinstance(dims, dict):
         return None
-    try:
-        cx = int(pos.get("x", 0))
-        cz = int(pos.get("z", 0))
-        w = max(1, int(dims.get("width", 1)))
-        d = max(1, int(dims.get("depth", 1)))
-    except (TypeError, ValueError):
+    if "x" not in pos or "z" not in pos:
         return None
-    return (cx - w // 2, cx + (w + 1) // 2, cz - d // 2, cz + (d + 1) // 2)
+    if "width" not in dims or "depth" not in dims:
+        return None
+    try:
+        x = int(pos["x"])
+        z = int(pos["z"])
+        w = int(dims["width"])
+        d = int(dims["depth"])
+    except (TypeError, ValueError, KeyError):
+        return None
+    if w < 1 or d < 1:
+        return None
+    params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+    anchor = str(params.get("anchor_mode") or params.get("anchorMode") or "").lower()
+    if "corner" in anchor:
+        min_x, min_z = x, z
+    else:
+        min_x, min_z = x - w // 2, z - d // 2
+    slot_id = _authored_slot_id(comp)
+    if slot_anchors and slot_id and slot_id in slot_anchors:
+        min_x += int(slot_anchors[slot_id].get("x", 0))
+        min_z += int(slot_anchors[slot_id].get("z", 0))
+    return (min_x, min_x + w, min_z, min_z + d)
 
 
 def _xz_overlaps(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool:
@@ -241,20 +301,30 @@ def _xz_overlaps(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> 
 
 
 def _is_spatially_separated_from_exclusive_roots(
-    candidate: Dict[str, Any], exclusive_roots: List[Dict[str, Any]]
+    candidate: Dict[str, Any],
+    exclusive_roots: List[Dict[str, Any]],
+    slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
 ) -> bool:
-    cand = _footprint_xz(candidate)
-    if cand is None:
-        return False
-    saw_root_geom = False
+    cand = _footprint_xz(candidate, slot_anchors)
+    cand_slot = _authored_slot_id(candidate)
+    saw_comparable = False
     for root in exclusive_roots:
-        root_box = _footprint_xz(root)
-        if root_box is None:
+        root_box = _footprint_xz(root, slot_anchors)
+        root_slot = _authored_slot_id(root)
+        distinct_slots = (
+            cand_slot is not None and root_slot is not None and cand_slot != root_slot
+        )
+        if cand is not None and root_box is not None:
+            saw_comparable = True
+            if _xz_overlaps(cand, root_box):
+                return False
             continue
-        saw_root_geom = True
-        if _xz_overlaps(cand, root_box):
-            return False
-    return saw_root_geom
+        # Incomplete geometry: distinct slot frames cannot be proven co-located.
+        if distinct_slots:
+            saw_comparable = True
+            continue
+        return False
+    return saw_comparable
 
 
 def _has_independent_building_beside_typology(
@@ -262,9 +332,10 @@ def _has_independent_building_beside_typology(
     exclusive_roots: List[Dict[str, Any]],
     exclusive_ids: set[str],
     exclusive_building_ids: set[str],
+    slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
 ) -> bool:
     """
-    Strong evidence only: distinct building_id, or clearly separated footprints.
+    Strong evidence only: distinct building_id, or clearly separated plan-space footprints.
     A different component_id alone is NOT independent (pagoda + pagoda_shell).
     """
     if len(exclusive_roots) > 1:
@@ -280,7 +351,7 @@ def _has_independent_building_beside_typology(
         bid = _param_str(comp, "building_id", "buildingId")
         if bid and (not exclusive_building_ids or bid not in exclusive_building_ids):
             return True
-        if _is_spatially_separated_from_exclusive_roots(comp, exclusive_roots):
+        if _is_spatially_separated_from_exclusive_roots(comp, exclusive_roots, slot_anchors):
             return True
     seen_building_ids = set(exclusive_building_ids)
     for comp in components:
@@ -327,8 +398,9 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
             exclusive_building_ids.add(bid)
 
     parent_by_id = _typology_host_parent_map(components)
+    slot_anchors = _slot_anchor_map(plan)
     multi_building = _has_independent_building_beside_typology(
-        components, exclusive_roots, exclusive_ids, exclusive_building_ids
+        components, exclusive_roots, exclusive_ids, exclusive_building_ids, slot_anchors
     )
 
     kept: List[Dict[str, Any]] = []

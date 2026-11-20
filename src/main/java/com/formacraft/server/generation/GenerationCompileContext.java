@@ -1,11 +1,14 @@
 package com.formacraft.server.generation;
 
+import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.routing.GenerationAuthority;
 import com.formacraft.common.generation.routing.PlanMetaAccess;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.typology.TypologyComponentRouter;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,6 +25,8 @@ import java.util.function.Supplier;
  * <p>
  * Typology-exclusive softening / fallback blocking is host-scoped when a mixed
  * compound retains independent buildings beside a typology STRUCTURE.
+ * Independent-building identity must match {@code applyTypologyExclusiveFilter}
+ * (building_id / plan-space footprints — never component_id alone).
  */
 public final class GenerationCompileContext {
     private static final ThreadLocal<GenerationCompileContext> CURRENT = new ThreadLocal<>();
@@ -32,13 +37,15 @@ public final class GenerationCompileContext {
     /** True when the plan is a sole typology shell (no independent compositional building). */
     private final boolean soleTypologyShell;
     private final Set<String> typologyExclusiveHostIds;
+    /** component_id → host_id for multi-level ownership walks. */
+    private final Map<String, String> typologyHostParentById;
 
     public GenerationCompileContext(
             GenerationAuthority authority,
             Map<String, Object> planMeta,
             boolean typologyExclusive
     ) {
-        this(authority, planMeta, typologyExclusive, typologyExclusive, Set.of());
+        this(authority, planMeta, typologyExclusive, typologyExclusive, Set.of(), Map.of());
     }
 
     public GenerationCompileContext(
@@ -47,6 +54,17 @@ public final class GenerationCompileContext {
             boolean typologyExclusive,
             boolean soleTypologyShell,
             Set<String> typologyExclusiveHostIds
+    ) {
+        this(authority, planMeta, typologyExclusive, soleTypologyShell, typologyExclusiveHostIds, Map.of());
+    }
+
+    public GenerationCompileContext(
+            GenerationAuthority authority,
+            Map<String, Object> planMeta,
+            boolean typologyExclusive,
+            boolean soleTypologyShell,
+            Set<String> typologyExclusiveHostIds,
+            Map<String, String> typologyHostParentById
     ) {
         this.authority = authority;
         this.planMeta = planMeta == null || planMeta.isEmpty()
@@ -57,10 +75,13 @@ public final class GenerationCompileContext {
         this.typologyExclusiveHostIds = typologyExclusiveHostIds == null || typologyExclusiveHostIds.isEmpty()
                 ? Set.of()
                 : Set.copyOf(typologyExclusiveHostIds);
+        this.typologyHostParentById = typologyHostParentById == null || typologyHostParentById.isEmpty()
+                ? Map.of()
+                : Map.copyOf(typologyHostParentById);
     }
 
     public static GenerationCompileContext fromPlan(LlmPlan plan, boolean typologyExclusive) {
-        return fromPlan(plan, typologyExclusive, typologyExclusive, Set.of());
+        return fromPlan(plan, typologyExclusive, typologyExclusive, Set.of(), Map.of());
     }
 
     public static GenerationCompileContext fromPlan(
@@ -69,12 +90,23 @@ public final class GenerationCompileContext {
             boolean soleTypologyShell,
             Set<String> typologyExclusiveHostIds
     ) {
+        return fromPlan(plan, typologyExclusive, soleTypologyShell, typologyExclusiveHostIds, Map.of());
+    }
+
+    public static GenerationCompileContext fromPlan(
+            LlmPlan plan,
+            boolean typologyExclusive,
+            boolean soleTypologyShell,
+            Set<String> typologyExclusiveHostIds,
+            Map<String, String> typologyHostParentById
+    ) {
         return new GenerationCompileContext(
                 PlanMetaAccess.planGenerationAuthority(plan),
                 plan == null ? null : plan.planMeta(),
                 typologyExclusive,
                 soleTypologyShell,
-                typologyExclusiveHostIds
+                typologyExclusiveHostIds,
+                typologyHostParentById
         );
     }
 
@@ -102,46 +134,141 @@ public final class GenerationCompileContext {
     }
 
     /**
-     * Independent compositional host present beside typology STRUCTURE (MASS without typology /
-     * host_id, with its own identity). Used to keep residential circulation hard-failing in mixes.
+     * Independent compositional host present beside typology STRUCTURE.
+     * Same contract as typology-exclusive filter: distinct {@code building_id} or plan-space
+     * spatial separation (anchor_mode + slot.anchor). Never component_id alone.
      */
     public static boolean hasIndependentCompositionalBuilding(List<Component> components) {
+        return hasIndependentCompositionalBuilding(components, Map.of());
+    }
+
+    public static boolean hasIndependentCompositionalBuilding(
+            List<Component> components, Map<String, Slot> slotMap) {
         if (components == null || components.isEmpty()) {
             return false;
         }
-        Set<String> exclusiveIds = exclusiveTypologyHostIds(components);
+        List<Component> exclusiveRoots = new ArrayList<>();
         Set<String> exclusiveBuildingIds = new HashSet<>();
         for (Component c : components) {
             if (c == null) continue;
             String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
             if (!"STRUCTURE".equals(type) || !TypologyComponentRouter.hasTypologyHint(c)) continue;
             if (param(c, "host_id", "hostId") != null) continue;
+            exclusiveRoots.add(c);
             String bid = param(c, "building_id", "buildingId");
             if (bid != null) exclusiveBuildingIds.add(bid);
         }
+        if (exclusiveRoots.isEmpty()) {
+            return false;
+        }
+        return hasIndependentBuildingBesideTypology(
+                components, exclusiveRoots, exclusiveBuildingIds, slotMap);
+    }
+
+    /**
+     * Shared mixed-compound detector used by exclusive filter and compile context.
+     * Strong evidence only: distinct {@code building_id}, or clearly separated plan-space footprints.
+     */
+    public static boolean hasIndependentBuildingBesideTypology(
+            List<Component> components,
+            List<Component> exclusiveRoots,
+            Set<String> exclusiveBuildingIds,
+            Map<String, Slot> slotMap) {
+        if (exclusiveRoots == null || exclusiveRoots.isEmpty()) {
+            return false;
+        }
+        if (exclusiveRoots.size() > 1) {
+            return true;
+        }
+        Set<Component> exclusiveSet = new HashSet<>(exclusiveRoots);
         for (Component c : components) {
-            if (c == null) continue;
-            String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
-            if (!(type.startsWith("MASS") || "TOWER".equals(type) || type.startsWith("TOWER"))) {
+            if (c == null || exclusiveSet.contains(c) || isWholeBuildingTypologyRoot(c)) {
                 continue;
             }
             if (param(c, "host_id", "hostId") != null) {
                 continue;
             }
-            if (TypologyComponentRouter.hasTypologyHint(c)) {
+            if (!isTypologyExclusiveBuildingRootType(c)) {
                 continue;
             }
             String bid = param(c, "building_id", "buildingId");
-            if (bid != null && (exclusiveBuildingIds.isEmpty() || !exclusiveBuildingIds.contains(bid))) {
+            if (bid != null
+                    && (exclusiveBuildingIds == null || exclusiveBuildingIds.isEmpty()
+                    || !exclusiveBuildingIds.contains(bid))) {
                 return true;
             }
-            String id = param(c, "component_id", "componentId");
-            if (id != null && !exclusiveIds.contains(id) && bid == null && exclusiveBuildingIds.isEmpty()) {
-                // Distinct unbound mass with identity — compositional companion when no shared building_id.
+            if (isSpatiallySeparatedFromExclusiveRoots(c, exclusiveRoots, slotMap)) {
+                return true;
+            }
+        }
+        Set<String> seenBuildingIds = new HashSet<>(
+                exclusiveBuildingIds == null ? Set.of() : exclusiveBuildingIds);
+        for (Component c : components) {
+            if (c == null) continue;
+            String bid = param(c, "building_id", "buildingId");
+            if (bid == null) continue;
+            if (seenBuildingIds.add(bid)
+                    && exclusiveBuildingIds != null && !exclusiveBuildingIds.isEmpty()) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean isWholeBuildingTypologyRoot(Component c) {
+        if (c == null) return false;
+        String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        return "STRUCTURE".equals(type)
+                && TypologyComponentRouter.hasTypologyHint(c)
+                && param(c, "host_id", "hostId") == null;
+    }
+
+    private static boolean isTypologyExclusiveBuildingRootType(Component c) {
+        String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        return type.startsWith("MASS")
+                || "STRUCTURE".equals(type)
+                || "MODULE".equals(type)
+                || "TOWER".equals(type)
+                || type.startsWith("TOWER");
+    }
+
+    private static boolean isSpatiallySeparatedFromExclusiveRoots(
+            Component candidate, List<Component> exclusiveRoots, Map<String, Slot> slotMap) {
+        if (candidate == null || exclusiveRoots == null || exclusiveRoots.isEmpty()) {
+            return false;
+        }
+        int[] cand = ComponentFootprintUtil.planSpaceFootprintXz(candidate, slotMap);
+        String candSlot = authoredSlotId(candidate);
+        boolean sawComparable = false;
+        for (Component root : exclusiveRoots) {
+            if (root == null) continue;
+            int[] rootBox = ComponentFootprintUtil.planSpaceFootprintXz(root, slotMap);
+            String rootSlot = authoredSlotId(root);
+            boolean distinctSlots = candSlot != null && rootSlot != null && !candSlot.equals(rootSlot);
+
+            if (cand != null && rootBox != null) {
+                sawComparable = true;
+                if (ComponentFootprintUtil.xzFootprintsOverlap(cand, rootBox)) {
+                    return false;
+                }
+                continue;
+            }
+
+            // Incomplete geometry: distinct slot frames cannot be proven co-located.
+            if (distinctSlots) {
+                sawComparable = true;
+                continue;
+            }
+            return false;
+        }
+        return sawComparable;
+    }
+
+    private static String authoredSlotId(Component c) {
+        if (c == null || c.slotId() == null || c.slotId().isBlank()) {
+            return null;
+        }
+        return c.slotId().trim();
     }
 
     private static String param(Component c, String... keys) {
@@ -180,8 +307,9 @@ public final class GenerationCompileContext {
     }
 
     /**
-     * Block archetype→structure fallback for components owned by exclusive typology hosts,
-     * or for every component when the plan is a sole typology shell.
+     * Block archetype→structure fallback for components owned by exclusive typology hosts
+     * (including multi-level host_id chains), or for every component when the plan is a sole
+     * typology shell.
      */
     public boolean blocksArchetypeFallbackFor(Component c) {
         if (!typologyExclusive) {
@@ -197,8 +325,15 @@ public final class GenerationCompileContext {
         if (id != null && typologyExclusiveHostIds.contains(id)) {
             return true;
         }
-        String host = param(c, "host_id", "hostId");
-        return host != null && typologyExclusiveHostIds.contains(host);
+        String cursor = param(c, "host_id", "hostId");
+        Set<String> seen = new HashSet<>();
+        while (cursor != null && seen.add(cursor)) {
+            if (typologyExclusiveHostIds.contains(cursor)) {
+                return true;
+            }
+            cursor = typologyHostParentById.get(cursor);
+        }
+        return false;
     }
 
     public static GenerationCompileContext current() {

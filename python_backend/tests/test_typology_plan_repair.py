@@ -441,6 +441,93 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(len(out["components"]), 1)
         self.assertEqual(out["components"][0]["params"]["component_id"], "pagoda")
 
+    def test_min_corner_adjacent_buildings_without_building_id_kept(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "slot_id": "pagoda",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {
+                        "component_id": "pagoda",
+                        "typology_id": "dense_eaves_pagoda",
+                        "anchor_mode": "min_corner",
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall",
+                    "relative_position": {"x": 13, "y": 0, "z": 0},
+                    "dimensions": {"width": 80, "depth": 40, "height": 18},
+                    "features": [],
+                    "params": {"component_id": "main_hall", "anchor_mode": "min_corner"},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 0)
+        self.assertEqual(len(out["components"]), 2)
+
+    def test_distinct_slot_anchors_keep_independent_hall(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "layout": {
+                "slots": [
+                    {"slot_id": "pagoda_slot", "anchor": {"x": 0, "y": 0, "z": 0}},
+                    {"slot_id": "hall_slot", "anchor": {"x": 100, "y": 0, "z": 0}},
+                ]
+            },
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "slot_id": "pagoda_slot",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "slot_id": "hall_slot",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 40, "depth": 30, "height": 16},
+                    "features": [],
+                    "params": {"component_id": "main_hall"},
+                },
+            ],
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 0)
+        self.assertEqual(len(out["components"]), 2)
+
+    def test_missing_geometry_does_not_invent_one_by_one_box(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "features": [],
+                    "params": {"component_id": "pagoda_shell"},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 1)
+        self.assertEqual(len(out["components"]), 1)
+
     def test_typology_exclusive_keeps_paving_peripheral(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
 

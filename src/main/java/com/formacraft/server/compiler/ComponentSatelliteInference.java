@@ -9,6 +9,7 @@ import com.formacraft.common.generation.component.util.ComponentFoundationEnforc
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
+import com.formacraft.server.generation.GenerationCompileContext;
 import com.formacraft.common.llm.NonClassicalEnrichmentGuard;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
@@ -144,7 +145,7 @@ final class ComponentSatelliteInference {
 
         AssemblyPlanPromoter.PromotionResult assemblyPromotion = AssemblyPlanPromoter.promoteNestedAssembly(components);
         components = assemblyPromotion.components();
-        components = applyTypologyExclusiveFilter(components);
+        components = applyTypologyExclusiveFilter(components, slotMap);
         Set<String> assemblyPrimarySlots = assemblyPromotion.assemblyPrimarySlots();
         massSlots.clear();
         for (Component c : components) {
@@ -529,6 +530,10 @@ final class ComponentSatelliteInference {
     }
 
     static List<Component> applyTypologyExclusiveFilter(List<Component> components) {
+        return applyTypologyExclusiveFilter(components, Map.of());
+    }
+
+    static List<Component> applyTypologyExclusiveFilter(List<Component> components, Map<String, Slot> slotMap) {
         if (components == null || components.isEmpty()) {
             return components;
         }
@@ -557,8 +562,8 @@ final class ComponentSatelliteInference {
         }
 
         Map<String, String> parentById = typologyHostParentMap(components);
-        boolean multiBuilding = hasIndependentBuildingBesideTypology(
-                components, exclusiveRoots, exclusiveBuildingIds);
+        boolean multiBuilding = GenerationCompileContext.hasIndependentBuildingBesideTypology(
+                components, exclusiveRoots, exclusiveBuildingIds, slotMap);
 
         List<Component> kept = new ArrayList<>();
         int stripped = 0;
@@ -596,98 +601,9 @@ final class ComponentSatelliteInference {
         return "PAVING".equals(type) || "PATH".equals(type) || "COURTYARD_SPACE".equals(type);
     }
 
-    /**
-     * True when the plan contains another unbound building root that is not the exclusive typology
-     * executor. Strong evidence only: distinct {@code building_id}, or clearly separated footprints.
-     * A different {@code component_id} alone is NOT independent (e.g. pagoda + pagoda_shell).
-     */
-    private static boolean hasIndependentBuildingBesideTypology(
-            List<Component> components,
-            List<Component> exclusiveRoots,
-            Set<String> exclusiveBuildingIds) {
-        if (exclusiveRoots.size() > 1) {
-            return true;
-        }
-        for (Component c : components) {
-            if (c == null || exclusiveRoots.contains(c) || isWholeBuildingTypology(c)) {
-                continue;
-            }
-            if (ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId") != null) {
-                continue;
-            }
-            if (!isTypologyExclusiveBuildingRootType(c)) {
-                continue;
-            }
-            String bid = ComponentPlanTypes.getParamString(c.params(), "building_id", "buildingId");
-            if (bid != null && !bid.isBlank()
-                    && (exclusiveBuildingIds.isEmpty() || !exclusiveBuildingIds.contains(bid.trim()))) {
-                return true;
-            }
-            // Ambiguous IDs: only treat as independent when footprints are clearly separated.
-            if (isSpatiallySeparatedFromExclusiveRoots(c, exclusiveRoots)) {
-                return true;
-            }
-        }
-        // Distinct building_id on any satellite of a non-exclusive tree also signals a compound.
-        Set<String> seenBuildingIds = new HashSet<>(exclusiveBuildingIds);
-        for (Component c : components) {
-            if (c == null) continue;
-            String bid = ComponentPlanTypes.getParamString(c.params(), "building_id", "buildingId");
-            if (bid == null || bid.isBlank()) continue;
-            if (seenBuildingIds.add(bid.trim()) && !exclusiveBuildingIds.isEmpty()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * True when {@code candidate} has geometry and does not overlap any exclusive root footprint.
-     * Overlap / missing geometry → not independent (avoid retaining co-located redundant shells).
-     */
-    private static boolean isSpatiallySeparatedFromExclusiveRoots(
-            Component candidate, List<Component> exclusiveRoots) {
-        int[] cand = footprintXz(candidate);
-        if (cand == null) {
-            return false;
-        }
-        boolean sawRootGeom = false;
-        for (Component root : exclusiveRoots) {
-            int[] rootBox = footprintXz(root);
-            if (rootBox == null) {
-                continue;
-            }
-            sawRootGeom = true;
-            if (xzOverlaps(cand, rootBox)) {
-                return false;
-            }
-        }
-        return sawRootGeom;
-    }
-
-    /** Center-based XZ AABB: [minX, maxX, minZ, maxZ]. */
-    private static int[] footprintXz(Component c) {
-        if (c == null || c.relativePosition() == null || c.dimensions() == null) {
-            return null;
-        }
-        int w = Math.max(1, c.dimensions().width());
-        int d = Math.max(1, c.dimensions().depth());
-        int cx = c.relativePosition().x();
-        int cz = c.relativePosition().z();
-        return new int[] {cx - w / 2, cx + (w + 1) / 2, cz - d / 2, cz + (d + 1) / 2};
-    }
-
-    private static boolean xzOverlaps(int[] a, int[] b) {
-        return a[0] < b[1] && b[0] < a[1] && a[2] < b[3] && b[2] < a[3];
-    }
-
-    private static boolean isTypologyExclusiveBuildingRootType(Component c) {
-        String type = ComponentPlanTypes.normalizeType(c.componentType());
-        return type.startsWith("MASS")
-                || "STRUCTURE".equals(type)
-                || "MODULE".equals(type)
-                || "TOWER".equals(type)
-                || type.startsWith("TOWER");
+    /** Host parent map for multi-level typology ownership walks. */
+    static Map<String, String> typologyHostParentMapPublic(List<Component> components) {
+        return typologyHostParentMap(components);
     }
 
     private static Map<String, String> typologyHostParentMap(List<Component> components) {

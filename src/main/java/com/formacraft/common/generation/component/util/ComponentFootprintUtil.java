@@ -2,6 +2,7 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 
 import java.util.Locale;
@@ -69,6 +70,41 @@ public final class ComponentFootprintUtil {
         if (component == null) return null;
         ResolvedComponentGeometry geometry = ResolvedComponentGeometry.resolve(component);
         return geometry == null ? component.relativePosition() : geometry.origin();
+    }
+
+    /**
+     * Plan-space half-open XZ AABB {@code [minX, maxX, minZ, maxZ]} using
+     * {@link ResolvedComponentGeometry} ({@code anchor_mode}) + optional slot.anchor.
+     * Missing relativePosition/dimensions → null (never invent a 1×1 box).
+     */
+    public static int[] planSpaceFootprintXz(Component component, Map<String, Slot> slotMap) {
+        ResolvedComponentGeometry geometry = ResolvedComponentGeometry.resolve(component);
+        if (geometry == null) {
+            return null;
+        }
+        Vec3i slotAnchor = slotAnchorOrZero(slotMap, component.slotId());
+        Vec3i origin = geometry.originInPlan(slotAnchor);
+        int w = Math.max(1, geometry.dimensions().width());
+        int d = Math.max(1, geometry.dimensions().depth());
+        return new int[] {origin.x(), origin.x() + w, origin.z(), origin.z() + d};
+    }
+
+    public static boolean xzFootprintsOverlap(int[] a, int[] b) {
+        if (a == null || b == null || a.length < 4 || b.length < 4) {
+            return false;
+        }
+        return a[0] < b[1] && b[0] < a[1] && a[2] < b[3] && b[2] < a[3];
+    }
+
+    public static Vec3i slotAnchorOrZero(Map<String, Slot> slotMap, String slotId) {
+        if (slotMap == null || slotId == null || slotId.isBlank()) {
+            return new Vec3i(0, 0, 0);
+        }
+        Slot slot = slotMap.get(slotId.trim());
+        if (slot == null || slot.anchor() == null) {
+            return new Vec3i(0, 0, 0);
+        }
+        return slot.anchor();
     }
 
     public static boolean isCornerAnchor(Map<String, Object> params) {

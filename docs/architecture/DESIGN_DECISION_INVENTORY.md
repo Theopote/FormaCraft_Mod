@@ -179,6 +179,9 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `shouldPreserveStadium` sole+MASS_MAIN | missing arena kept misrouted STRUCTURE | **Fixed (2026-11-20):** dedicated arena identity only; affirmative ask without arena → `E_STADIUM_EXECUTOR_MISSING` |
 | `isMisplacedWallOrRoofDecor` pilaster | skinny facade pilaster dropped | **Fixed (2026-11-20):** column/pilaster no longer attic-delete cues |
 | `applyTypologyExclusiveFilter` / Python `strip_typology_exclusive_compositionals` plan-wide | stadium STRUCTURE deleted neighbouring mansion MASS/ROOF/FACADE | **Fixed (2026-11-20):** multi-building by `building_id` or spatially separated footprints; `component_id` alone is NOT independent |
+| exclusive footprint used center-only AABB | `min_corner` + slot.anchor ignored → false overlap / false sole shell | **Fixed (2026-11-20):** `ComponentFootprintUtil.planSpaceFootprintXz` + shared `GenerationCompileContext.hasIndependentBuildingBesideTypology`; Python mirrors; missing geom → null not 1×1 |
+| `looksDedicatedArenaHost` via separate MASS | west_wing made misrouted main look like dedicated arena | **Fixed (2026-11-20):** clearer arena competitor only; residential MASS alone does not preserve |
+| `blocksArchetypeFallbackFor` direct host only | nested satellite under wing→arena missed exclusive block | **Fixed (2026-11-20):** walk `host_id` parent map |
 | `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |
 | `StyleIntentResolver.detectFlavor` plan-only | local Huizhou under plan Modern got flat/glass | **Fixed (2026-11-20):** `EffectiveBuildingStyleResolver`; local/host chain first; entrance `bindDerived` inherits |
 | `EffectiveBuildingStyleResolver` local-only | authored FACADE with host_id lacked style inheritance | **Fixed (2026-11-20):** resolve via host_id chain before plan style |

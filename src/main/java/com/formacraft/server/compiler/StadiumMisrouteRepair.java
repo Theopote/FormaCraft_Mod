@@ -372,26 +372,15 @@ final class StadiumMisrouteRepair {
     }
 
     /**
-     * Arena role via executor identity — never footprint size alone.
-     * Residential-tagged shells stay demotable; MODULE + stadium typology is dedicated;
-     * bare STRUCTURE typology is dedicated only beside a separate residential host (compound).
+     * Arena role via executor identity — never footprint size or “another MASS exists”.
+     * Residential-tagged shells stay demotable; MODULE / named arena / bowl params are dedicated.
+     * Bare STRUCTURE typology yields to a clearer arena competitor (e.g. east_arena vs misrouted main).
      */
     private static boolean looksDedicatedArenaHost(Component c, LlmPlan plan) {
         if (c == null || hasResidentialIdentity(c)) {
             return false;
         }
-        String id = componentId(c).toLowerCase(Locale.ROOT);
-        String slot = c.slotId() == null ? "" : c.slotId().trim().toLowerCase(Locale.ROOT);
-        String building = "";
-        if (c.params() != null) {
-            Object bid = c.params().get("building_id");
-            if (bid == null) bid = c.params().get("buildingId");
-            if (bid != null) building = String.valueOf(bid).toLowerCase(Locale.ROOT);
-        }
-        String blob = id + " " + slot + " " + building;
-        if (blob.contains("arena") || blob.contains("stadium") || blob.contains("bowl")
-                || blob.contains("体育场") || blob.contains("球场") || blob.contains("看台")
-                || blob.contains("鸟巢")) {
+        if (hasArenaRoleCue(c)) {
             return true;
         }
         if (hasExclusiveStadiumParams(c)) {
@@ -404,21 +393,45 @@ final class StadiumMisrouteRepair {
         if ("MODULE".equals(type)) {
             return true;
         }
-        // STRUCTURE with stadium typology but no role cue: keep only in a true compound
-        // (separate residential MASS present). Sole misrouted residential STRUCTURE demotes.
-        return planHasSeparateResidentialHost(plan, c);
+        // A clearer dedicated arena elsewhere means this bare STRUCTURE is the misrouted shell.
+        if (planHasClearerArenaCompetitor(plan, c)) {
+            return false;
+        }
+        // Sole typology STRUCTURE without residential tags (incl. small east_structure).
+        return true;
     }
 
-    private static boolean planHasSeparateResidentialHost(LlmPlan plan, Component arenaCandidate) {
-        if (plan == null || plan.components() == null) {
+    private static boolean hasArenaRoleCue(Component c) {
+        String id = componentId(c).toLowerCase(Locale.ROOT);
+        String slot = c.slotId() == null ? "" : c.slotId().trim().toLowerCase(Locale.ROOT);
+        String building = "";
+        if (c.params() != null) {
+            Object bid = c.params().get("building_id");
+            if (bid == null) bid = c.params().get("buildingId");
+            if (bid != null) building = String.valueOf(bid).toLowerCase(Locale.ROOT);
+        }
+        String blob = id + " " + slot + " " + building;
+        return blob.contains("arena") || blob.contains("stadium") || blob.contains("bowl")
+                || blob.contains("体育场") || blob.contains("球场") || blob.contains("看台")
+                || blob.contains("鸟巢");
+    }
+
+    /** True when another STRUCTURE/MODULE has stadium markers plus stronger arena evidence than {@code c}. */
+    private static boolean planHasClearerArenaCompetitor(LlmPlan plan, Component candidate) {
+        if (plan == null || plan.components() == null || candidate == null) {
             return false;
         }
         for (Component o : plan.components()) {
-            if (o == null || o == arenaCandidate) continue;
+            if (o == null || o == candidate) continue;
+            if (!carriesStadiumRouteMarkers(o)) continue;
             String t = o.componentType() == null ? "" : o.componentType().trim().toUpperCase(Locale.ROOT);
-            if (!(t.startsWith("MASS") || "MAIN_MASS".equals(t))) continue;
-            if (carriesStadiumRouteMarkers(o)) continue;
-            return true;
+            if (!("STRUCTURE".equals(t) || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER"))) {
+                continue;
+            }
+            if (hasResidentialIdentity(o)) continue;
+            if (hasArenaRoleCue(o) || hasExclusiveStadiumParams(o) || "MODULE".equals(t)) {
+                return true;
+            }
         }
         return false;
     }
