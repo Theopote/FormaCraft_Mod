@@ -81,9 +81,24 @@ final class ExplicitDesignConflictRepair {
                     && "FACADE_WINDOWS".equals(c.componentType())
                     && ExplicitDesignPolicy.windowsDisabled(body)
                     && !ExplicitDesignPolicy.windowsDisabled(c)) {
+                if (isDesignLockedOpening(plan, c)) {
+                    lockedConflict = new CapabilityGap(
+                            "E_EXPLICIT_DESIGN_CONFLICT",
+                            "宿主明确禁用窗户，但 FACADE_WINDOWS 带有设计锁定，无法静默删除；请取消开窗锁定或撤销宿主 window_style=none",
+                            "components[].FACADE_WINDOWS",
+                            List.of(
+                                    "Remove the locked FACADE_WINDOWS satellite",
+                                    "Or clear host window_style=none / window_ratio=0",
+                                    "Or clear design_sources lock on the windows satellite"));
+                    FormacraftMod.LOGGER.info(
+                            "ExplicitDesignConflictRepair: locked FACADE_WINDOWS host={} conflicts with windows disabled → gap",
+                            hostRef);
+                    out.add(c);
+                    continue;
+                }
                 FormacraftMod.LOGGER.info(
                         "ExplicitDesignConflictRepair: drop FACADE_WINDOWS host={} (windows disabled)",
-                        c.params().get("host_id"));
+                        hostRef);
                 changed = true;
                 continue;
             }
@@ -92,9 +107,24 @@ final class ExplicitDesignConflictRepair {
                     && ExplicitDesignPolicy.entranceDisabled(body)
                     && !ExplicitDesignPolicy.entranceDisabled(c)
                     && !Boolean.TRUE.equals(c.params().get("compiler_internal_portal"))) {
+                if (isDesignLockedOpening(plan, c)) {
+                    lockedConflict = new CapabilityGap(
+                            "E_EXPLICIT_DESIGN_CONFLICT",
+                            "宿主明确禁用入口，但 ENTRANCE 带有设计锁定，无法静默删除；请取消入口锁定或撤销宿主 entrance_type=none",
+                            "components[].ENTRANCE",
+                            List.of(
+                                    "Remove the locked ENTRANCE satellite",
+                                    "Or clear host entrance_type=none",
+                                    "Or clear design_sources lock on the entrance satellite"));
+                    FormacraftMod.LOGGER.info(
+                            "ExplicitDesignConflictRepair: locked ENTRANCE host={} conflicts with entrance disabled → gap",
+                            hostRef);
+                    out.add(c);
+                    continue;
+                }
                 FormacraftMod.LOGGER.info(
                         "ExplicitDesignConflictRepair: drop ENTRANCE host={} (entrance disabled)",
-                        c.params().get("host_id"));
+                        hostRef);
                 changed = true;
                 continue;
             }
@@ -136,7 +166,8 @@ final class ExplicitDesignConflictRepair {
             }
             out.add(c);
         }
-        if (lockedConflict != null) {
+        // List-only prepareComponents path needs diagnostics; plan-level apply() stamps capabilityGap.
+        if (lockedConflict != null && plan == null) {
             AssemblyCompileDiagnostics.set(lockedConflict);
         }
         return new Result(changed ? out : components, lockedConflict);
@@ -207,6 +238,23 @@ final class ExplicitDesignConflictRepair {
         return !DesignProvenance.canMutateParam(plan, params, "crown_template")
                 || !DesignProvenance.canMutateParam(plan, params, "crown_type")
                 || !DesignProvenance.canMutateParam(plan, params, "crown_requirement");
+    }
+
+    /** Locked window/entrance satellites must gap, not silently drop (same contract as crowns). */
+    private static boolean isDesignLockedOpening(LlmPlan plan, Component c) {
+        Map<String, Object> params = c == null ? null : c.params();
+        if (params != null) {
+            if (UserConstraintContract.isServerVerified(params, "window_style")
+                    || UserConstraintContract.isServerVerified(params, "window_ratio")
+                    || UserConstraintContract.isServerVerified(params, "entrance_type")
+                    || UserConstraintContract.isServerVerified(params, "generate")) {
+                return true;
+            }
+        }
+        return !DesignProvenance.canMutateParam(plan, params, "window_style")
+                || !DesignProvenance.canMutateParam(plan, params, "window_ratio")
+                || !DesignProvenance.canMutateParam(plan, params, "entrance_type")
+                || !DesignProvenance.canEnrichFeatures(plan, params);
     }
 
     private static String idOf(Component c) {

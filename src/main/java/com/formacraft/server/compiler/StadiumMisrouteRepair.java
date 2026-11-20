@@ -1,6 +1,7 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.design.DesignProvenance;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -22,6 +23,8 @@ import java.util.Set;
  * <p>
  * Strip alone is not enough: leftover {@code ribbon_glazing}, {@code Modern_Stadium_*} style,
  * and {@code RADIAL_RING} layout still emit a glass curtain-wall box without a mansard roof.
+ * Demotion and mansard rewrite are host-scoped to the stadium-poisoned (or sole style-poisoned
+ * primary) mass — never every STRUCTURE / every ROOF in a compound.
  */
 final class StadiumMisrouteRepair {
     private StadiumMisrouteRepair() {}
@@ -40,6 +43,8 @@ final class StadiumMisrouteRepair {
             "field_ratio", "void_ratio", "enclosure_coverage", "tierStep", "tier_step",
             "tier_count", "field_to_bowl");
 
+    private record StripOutcome(Component component, boolean stadiumRouteDemoted) {}
+
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) {
             return plan;
@@ -55,17 +60,23 @@ final class StadiumMisrouteRepair {
             return plan;
         }
 
+        boolean stylePoisoned = styleLooksStadium(plan);
+        // Stable target identity: stadium-marker host first; else sole style-poisoned primary.
+        String demotePrimaryId = resolveDemotePrimaryId(plan, stylePoisoned);
+        List<Component> masses = collectMasses(plan.components());
+
         List<Component> out = new ArrayList<>(plan.components().size());
         boolean changed = false;
         Set<String> demotedHosts = new HashSet<>();
-        Component primaryMass = null;
-        boolean primaryDemoted = false;
-        boolean stylePoisoned = styleLooksStadium(plan);
+        Component primaryDemotedMass = null;
         for (Component c : plan.components()) {
-            Component repaired = stripForcedStadium(c, requestCorpus, stylePoisoned);
-            if (repaired != c) {
+            StripOutcome outcome = stripForcedStadium(c, requestCorpus, demotePrimaryId);
+            if (outcome.component() != c) {
                 changed = true;
-                String id = componentId(repaired);
+            }
+            // Only true stadium-route demotion enters demotedHosts — format cleanup alone does not.
+            if (outcome.stadiumRouteDemoted() && isDemotableHost(outcome.component())) {
+                String id = componentId(outcome.component());
                 if (!id.isBlank()) {
                     demotedHosts.add(id);
                 }
@@ -73,16 +84,23 @@ final class StadiumMisrouteRepair {
                 if (!priorId.isBlank()) {
                     demotedHosts.add(priorId);
                 }
+                if (primaryDemotedMass == null
+                        && (id.equals(demotePrimaryId) || priorId.equals(demotePrimaryId)
+                        || looksPrimaryMass(outcome.component()))) {
+                    primaryDemotedMass = outcome.component();
+                }
             }
-            out.add(repaired);
-            if (primaryMass == null && looksPrimaryMass(repaired)) {
-                primaryMass = repaired;
-                primaryDemoted = repaired != c
-                        || Boolean.TRUE.equals(repaired.params() == null
-                        ? null : repaired.params().get("stadium_misroute_demoted"));
+            out.add(outcome.component());
+        }
+        if (primaryDemotedMass == null && demotePrimaryId != null) {
+            for (Component c : out) {
+                if (demotePrimaryId.equals(componentId(c))) {
+                    primaryDemotedMass = c;
+                    break;
+                }
             }
         }
-        // Host-scoped mansard: only roofs on demoted hosts (or unbound when primary demoted).
+
         boolean wantsMansard = containsAny(requestCorpus,
                 List.of("马萨", "mansard", "折线", "老虎窗", "dormer", "巴洛克", "baroque"));
         Set<String> roofsCoveringDemoted = new HashSet<>();
@@ -91,15 +109,16 @@ final class StadiumMisrouteRepair {
             for (Component c : out) {
                 if (c != null && c.componentType() != null
                         && c.componentType().toUpperCase(Locale.ROOT).startsWith("ROOF")
-                        && roofBelongsToDemotedHost(c, demotedHosts, primaryDemoted)) {
-                    Component next = ensureMansardOnRoof(c, requestCorpus);
+                        && roofBelongsToDemotedHost(c, demotedHosts, primaryDemotedMass, masses)) {
+                    Component next = ensureMansardOnRoof(plan, c, requestCorpus);
                     if (next != c) {
                         changed = true;
                     }
                     String host = hostIdOf(c);
-                    if (host != null) roofsCoveringDemoted.add(host);
-                    else if (primaryDemoted && primaryMass != null) {
-                        roofsCoveringDemoted.add(componentId(primaryMass));
+                    if (host != null) {
+                        roofsCoveringDemoted.add(host);
+                    } else if (primaryDemotedMass != null) {
+                        roofsCoveringDemoted.add(componentId(primaryDemotedMass));
                     }
                     roofFixed.add(next);
                 } else {
@@ -108,15 +127,12 @@ final class StadiumMisrouteRepair {
             }
             out = roofFixed;
         }
-        if (wantsMansard && primaryDemoted && primaryMass != null) {
-            String primaryId = componentId(primaryMass);
-            boolean covered = (!primaryId.isBlank() && roofsCoveringDemoted.contains(primaryId))
-                    || out.stream().anyMatch(x -> x != null && x.componentType() != null
-                    && x.componentType().toUpperCase(Locale.ROOT).startsWith("ROOF")
-                    && roofBelongsToDemotedHost(x, demotedHosts, true)
-                    && (hostIdOf(x) == null || hostIdOf(x).equals(primaryId)));
+        if (wantsMansard && primaryDemotedMass != null
+                && demotedHosts.contains(componentId(primaryDemotedMass))) {
+            String primaryId = componentId(primaryDemotedMass);
+            boolean covered = (!primaryId.isBlank() && roofsCoveringDemoted.contains(primaryId));
             if (!covered) {
-                out.add(syntheticMansardRoof(primaryMass, requestCorpus));
+                out.add(syntheticMansardRoof(primaryDemotedMass, requestCorpus));
                 changed = true;
             }
         }
@@ -147,8 +163,8 @@ final class StadiumMisrouteRepair {
         }
         FormacraftMod.LOGGER.info(
                 "StadiumMisrouteRepair: demoted stadium_bowl → residential/baroque mansion "
-                        + "(style={}, mansard={}, clear ribbon_glazing)",
-                style, containsAny(requestCorpus, List.of("马萨", "mansard", "折线", "老虎窗", "dormer")));
+                        + "(style={}, mansard={}, clear ribbon_glazing, hosts={})",
+                style, wantsMansard, demotedHosts);
         return new LlmPlan(
                 plan.mode(), style, plan.anchor(), constraints, layout,
                 out, plan.genome(), plan.styleAttributes(), hints,
@@ -156,6 +172,45 @@ final class StadiumMisrouteRepair {
                 plan.planProgram(), plan.planSkeleton(), plan.planStatus(), plan.error(),
                 plan.capabilityGap(), plan.playerFidelityNoticeZh(), plan.distinguishingFeatures(),
                 plan.enrichmentGuard(), plan.planMeta(), plan.designSources());
+    }
+
+    /**
+     * Prefer a host that already carries stadium typology/params; otherwise the first
+     * MASS_MAIN / STRUCTURE when style alone is poisoned. Never "every STRUCTURE".
+     */
+    private static String resolveDemotePrimaryId(LlmPlan plan, boolean stylePoisoned) {
+        Component poisoned = null;
+        Component firstPrimary = null;
+        for (Component c : plan.components()) {
+            if (c == null || !isDemotableHost(c)) continue;
+            if (carriesStadiumRouteMarkers(c)) {
+                poisoned = c;
+                break;
+            }
+            if (firstPrimary == null && looksPrimaryMass(c)) {
+                firstPrimary = c;
+            }
+        }
+        Component target = poisoned != null ? poisoned : (stylePoisoned ? firstPrimary : null);
+        return target == null ? null : componentId(target);
+    }
+
+    private static List<Component> collectMasses(List<Component> components) {
+        List<Component> masses = new ArrayList<>();
+        for (Component m : components) {
+            if (m != null && ComponentPlanTypes.isMassType(
+                    ComponentPlanTypes.normalizeType(m.componentType()))) {
+                masses.add(m);
+            }
+        }
+        return masses;
+    }
+
+    private static boolean isDemotableHost(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        return t.startsWith("MASS") || "MAIN_MASS".equals(t) || "STRUCTURE".equals(t)
+                || "TOWER".equals(t) || t.startsWith("TOWER");
     }
 
     private static boolean looksPrimaryMass(Component c) {
@@ -248,36 +303,8 @@ final class StadiumMisrouteRepair {
 
     private static boolean corpusContainsStadiumTypology(LlmPlan plan) {
         for (Component c : plan.components()) {
-            if (c == null) continue;
-            if (c.params() != null) {
-                for (String key : List.of(
-                        "typology_id", "structural_typology", "typologyId", "structuralTypologyId", "typology",
-                        "module_id", "reference_landmark", "landmark")) {
-                    Object v = c.params().get(key);
-                    if (v != null) {
-                        String s = String.valueOf(v).toLowerCase(Locale.ROOT);
-                        if (s.contains("stadium") || s.contains("birds_nest") || s.contains("bird_nest")) {
-                            return true;
-                        }
-                    }
-                }
-                Object aspect = c.params().get("window_aspect");
-                if (aspect == null) {
-                    aspect = c.params().get("windowAspect");
-                }
-                if (aspect != null && String.valueOf(aspect).toLowerCase(Locale.ROOT).contains("ribbon")) {
-                    return true;
-                }
-            }
-            if (c.features() != null) {
-                for (String f : c.features()) {
-                    if (f == null) continue;
-                    String lower = f.toLowerCase(Locale.ROOT);
-                    if (lower.contains("stadium_bowl") || lower.contains("birds_nest")
-                            || lower.contains("typology:stadium") || lower.contains("ribbon_glazing")) {
-                        return true;
-                    }
-                }
+            if (carriesStadiumRouteMarkers(c)) {
+                return true;
             }
         }
         if (plan.layout() != null && plan.layout().skeletonType() == Layout.SkeletonType.RADIAL_RING
@@ -287,20 +314,108 @@ final class StadiumMisrouteRepair {
         return styleLooksStadium(plan);
     }
 
-    private static boolean roofBelongsToDemotedHost(
-            Component roof, Set<String> demotedHosts, boolean allowUnboundPrimary) {
-        String host = hostIdOf(roof);
-        if (host == null || host.isBlank()) {
-            return allowUnboundPrimary;
+    /** True stadium routing evidence — never plain material_hints alone. */
+    private static boolean carriesStadiumRouteMarkers(Component c) {
+        if (c == null) return false;
+        if (c.params() != null) {
+            for (String key : List.of(
+                    "typology_id", "structural_typology", "typologyId", "structuralTypologyId", "typology",
+                    "module_id", "reference_landmark", "landmark")) {
+                Object v = c.params().get(key);
+                if (v != null) {
+                    String s = String.valueOf(v).toLowerCase(Locale.ROOT);
+                    if (s.contains("stadium") || s.contains("birds_nest") || s.contains("bird_nest")) {
+                        return true;
+                    }
+                }
+            }
+            for (String key : STADIUM_PARAM_KEYS) {
+                if (c.params().containsKey(key)) {
+                    return true;
+                }
+            }
+            Object aspect = c.params().get("window_aspect");
+            if (aspect == null) aspect = c.params().get("windowAspect");
+            if (aspect != null && String.valueOf(aspect).toLowerCase(Locale.ROOT).contains("ribbon")) {
+                return true;
+            }
+            Object assembly = c.params().get("assembly");
+            if (assembly instanceof Map<?, ?> raw) {
+                Object preset = raw.get("preset");
+                if (preset == null) preset = raw.get("presetId");
+                if (preset != null) {
+                    String s = String.valueOf(preset).toLowerCase(Locale.ROOT);
+                    if (s.contains("stadium") || s.contains("birds_nest")) {
+                        return true;
+                    }
+                }
+            }
+            if (materialHintsLookStadium(c.params().get("material_hints"))) {
+                return true;
+            }
         }
-        return demotedHosts.contains(host);
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("stadium_bowl") || lower.contains("birds_nest")
+                        || lower.contains("typology:stadium") || lower.contains("ribbon_glazing")
+                        || lower.contains("elliptical_footprint") || lower.contains("radial_ring")
+                        || lower.contains("arch_ribs") || lower.contains("two_tier_enclosure")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean materialHintsLookStadium(Object materialHints) {
+        if (!(materialHints instanceof Map<?, ?> map)) {
+            return false;
+        }
+        for (Map.Entry<?, ?> e : map.entrySet()) {
+            String blob = (String.valueOf(e.getKey()) + " " + e.getValue()).toLowerCase(Locale.ROOT);
+            if (blob.contains("stadium") || blob.contains("birds_nest") || blob.contains("bird_nest")
+                    || blob.contains("ribbon") || blob.contains("bowl")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Unbound roofs bind only via unique spatial MATCH to a demoted primary —
+     * AMBIGUOUS / NONE leave the roof alone (multi-building safety).
+     */
+    private static boolean roofBelongsToDemotedHost(
+            Component roof,
+            Set<String> demotedHosts,
+            Component primaryDemotedMass,
+            List<Component> masses) {
+        String host = hostIdOf(roof);
+        if (host != null && !host.isBlank()) {
+            return demotedHosts.contains(host);
+        }
+        if (primaryDemotedMass == null) {
+            return false;
+        }
+        String primaryId = componentId(primaryDemotedMass);
+        if (primaryId.isBlank() || !demotedHosts.contains(primaryId)) {
+            return false;
+        }
+        return ComponentSatelliteInference.resolveUnboundHost(primaryDemotedMass, masses, roof)
+                == ComponentSatelliteInference.HostPick.MATCH;
     }
 
     private static String hostIdOf(Component c) {
         if (c == null || c.params() == null) return null;
         Object host = c.params().get("host_id");
         if (host == null) host = c.params().get("hostId");
-        return host == null ? null : String.valueOf(host);
+        if (host == null || String.valueOf(host).isBlank()
+                || "null".equalsIgnoreCase(String.valueOf(host))) {
+            return null;
+        }
+        return String.valueOf(host);
     }
 
     private static String componentId(Component c) {
@@ -311,15 +426,15 @@ final class StadiumMisrouteRepair {
     }
 
     /**
-     * @param demotePrimaryWhenStylePoisoned when style alone is stadium-poisoned, demote the
-     *                                       primary STRUCTURE only — never every STRUCTURE in a compound.
+     * @param demotePrimaryId stable component_id of the single host allowed to demote from
+     *                        STRUCTURE→MASS_MAIN when style alone is poisoned.
      */
-    private static Component stripForcedStadium(
-            Component c, String requestCorpus, boolean demotePrimaryWhenStylePoisoned) {
+    private static StripOutcome stripForcedStadium(
+            Component c, String requestCorpus, String demotePrimaryId) {
         if (c == null) {
-            return c;
+            return new StripOutcome(c, false);
         }
-        boolean hit = false;
+        boolean stadiumHit = false;
         Map<String, Object> params = c.params() == null ? null : new HashMap<>(c.params());
         List<String> features = c.features() == null ? null : new ArrayList<>(c.features());
         if (params != null) {
@@ -330,7 +445,7 @@ final class StadiumMisrouteRepair {
                     String s = String.valueOf(v).toLowerCase(Locale.ROOT);
                     if (s.contains("stadium") || s.contains("birds_nest")) {
                         params.remove(key);
-                        hit = true;
+                        stadiumHit = true;
                     }
                 }
             }
@@ -340,20 +455,20 @@ final class StadiumMisrouteRepair {
                     String s = String.valueOf(v).toLowerCase(Locale.ROOT);
                     if (s.contains("stadium") || s.contains("birds_nest") || s.contains("bird_nest")) {
                         params.remove(key);
-                        hit = true;
+                        stadiumHit = true;
                     }
                 }
             }
             for (String key : STADIUM_PARAM_KEYS) {
                 if (params.remove(key) != null) {
-                    hit = true;
+                    stadiumHit = true;
                 }
             }
             for (String key : List.of("window_aspect", "windowAspect")) {
                 Object v = params.get(key);
                 if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains("ribbon")) {
                     params.put(key, "arched");
-                    hit = true;
+                    stadiumHit = true;
                 }
             }
             Object assembly = params.get("assembly");
@@ -370,19 +485,20 @@ final class StadiumMisrouteRepair {
                         asm.remove("preset");
                         asm.remove("presetId");
                         params.put("assembly", asm);
-                        hit = true;
+                        stadiumHit = true;
                     }
                 }
             }
+            // material_hints: only strip when stadium-tainted — plain palette hints are not evidence.
             Object materialHints = params.get("material_hints");
-            if (materialHints instanceof Map<?, ?>) {
-                // Keep user-ish palette bands but drop stadium crest/glazing aliases later via style.
+            if (materialHintsLookStadium(materialHints)) {
                 params.remove("material_hints");
-                hit = true;
+                stadiumHit = true;
             }
         }
         if (features != null) {
             List<String> next = new ArrayList<>();
+            boolean featHit = false;
             for (String f : features) {
                 if (f == null) continue;
                 String lower = f.toLowerCase(Locale.ROOT);
@@ -396,32 +512,38 @@ final class StadiumMisrouteRepair {
                         || lower.contains("ribbon_glazing")
                         || lower.contains("arch_ribs")
                         || lower.contains("two_tier_enclosure")) {
-                    hit = true;
+                    featHit = true;
                     continue;
                 }
                 next.add(f);
             }
-            if (hit) {
+            if (featHit) {
                 features = next;
+                stadiumHit = true;
             }
         }
-        // Demote STRUCTURE only when it carried stadium markers, or it is the primary host and
-        // style alone was poisoned — never blanket-demote foreign compound STRUCTURE satellites.
         String type = c.componentType();
+        boolean allowStyleDemote = demotePrimaryId != null
+                && !demotePrimaryId.isBlank()
+                && demotePrimaryId.equals(componentId(c));
         boolean demoteStructure = type != null && "STRUCTURE".equalsIgnoreCase(type.trim())
-                && (hit || (demotePrimaryWhenStylePoisoned && looksPrimaryMass(c)));
-        if (!hit && !demoteStructure) {
-            return c;
+                && (stadiumHit || allowStyleDemote);
+        if (!stadiumHit && !demoteStructure) {
+            return new StripOutcome(c, false);
         }
         if (demoteStructure) {
             type = "MASS_MAIN";
-            hit = true;
+            stadiumHit = true;
         }
         if (params == null) {
             params = new HashMap<>();
         }
-        params.put("stadium_misroute_demoted", true);
-        if (containsAny(requestCorpus, List.of("马萨", "mansard", "折线", "老虎窗", "dormer", "巴洛克", "baroque"))) {
+        boolean stadiumRouteDemoted = stadiumHit || demoteStructure;
+        if (stadiumRouteDemoted) {
+            params.put("stadium_misroute_demoted", true);
+        }
+        if (stadiumRouteDemoted && containsAny(requestCorpus,
+                List.of("马萨", "mansard", "折线", "老虎窗", "dormer", "巴洛克", "baroque"))) {
             params.putIfAbsent("roof_type", "mansard");
             params.putIfAbsent("preferred_roof_type", "mansard");
             boolean wantsDormers = containsAny(requestCorpus, List.of("老虎窗", "dormer", "mansard_dormer"));
@@ -432,7 +554,7 @@ final class StadiumMisrouteRepair {
                 params.putIfAbsent("roof_dormers", false);
             }
         }
-        if (containsAny(requestCorpus, List.of("拱形窗", "拱形", "arched", "石英"))) {
+        if (stadiumRouteDemoted && containsAny(requestCorpus, List.of("拱形窗", "拱形", "arched", "石英"))) {
             params.putIfAbsent("window_aspect", "arched");
             params.putIfAbsent("window_style", "arched");
         }
@@ -441,19 +563,22 @@ final class StadiumMisrouteRepair {
         } else {
             features = new ArrayList<>(features);
         }
-        if (containsAny(requestCorpus, List.of("巴洛克", "baroque")) && features.stream().noneMatch(f ->
+        if (stadiumRouteDemoted && containsAny(requestCorpus, List.of("巴洛克", "baroque"))
+                && features.stream().noneMatch(f ->
                 f != null && f.toLowerCase(Locale.ROOT).contains("baroque"))) {
             features.add("baroque");
         }
-        if (containsAny(requestCorpus, List.of("马萨", "mansard", "折线")) && features.stream().noneMatch(f ->
+        if (stadiumRouteDemoted && containsAny(requestCorpus, List.of("马萨", "mansard", "折线"))
+                && features.stream().noneMatch(f ->
                 f != null && f.toLowerCase(Locale.ROOT).contains("mansard"))) {
             features.add("mansard");
         }
-        return new Component(
-                type, c.slotId(), c.relativePosition(), c.dimensions(), features, params);
+        return new StripOutcome(
+                new Component(type, c.slotId(), c.relativePosition(), c.dimensions(), features, params),
+                stadiumRouteDemoted);
     }
 
-    private static Component ensureMansardOnRoof(Component c, String requestCorpus) {
+    private static Component ensureMansardOnRoof(LlmPlan plan, Component c, String requestCorpus) {
         if (c == null || c.componentType() == null
                 || !c.componentType().toUpperCase(Locale.ROOT).startsWith("ROOF")) {
             return c;
@@ -468,15 +593,16 @@ final class StadiumMisrouteRepair {
             rt = params.get("roofType");
         }
         if (rt == null || !String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard")) {
-            params.put("roof_type", "mansard");
+            if (DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard")) {
+                changed = true;
+            }
+        }
+        if (!params.containsKey("roof_specialty")
+                && DesignProvenance.putIfAllowed(plan, params, "roof_specialty", "mansard_dormer")) {
             changed = true;
         }
-        if (!params.containsKey("roof_specialty")) {
-            params.put("roof_specialty", "mansard_dormer");
-            changed = true;
-        }
-        if (!params.containsKey("roof_dormers") && !params.containsKey("dormers")) {
-            params.put("roof_dormers", true);
+        if (!params.containsKey("roof_dormers") && !params.containsKey("dormers")
+                && DesignProvenance.putIfAllowed(plan, params, "roof_dormers", true)) {
             changed = true;
         }
         if (!changed) {

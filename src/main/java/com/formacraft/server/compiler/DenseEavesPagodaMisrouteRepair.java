@@ -35,6 +35,9 @@ final class DenseEavesPagodaMisrouteRepair {
     private static final List<String> SQUARE_FOOTPRINT_CUES = List.of(
             "方塔", "方形塔", "四角塔", "四角塔楼", "square tower", "four-corner tower", "four corner tower");
 
+    private static final List<String> LANTERN_CUES = List.of(
+            "灯笼", "角灯", "挂灯", "lantern", "corner lantern", "corner_lantern");
+
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) {
             return plan;
@@ -46,9 +49,10 @@ final class DenseEavesPagodaMisrouteRepair {
         boolean wantsSquare = containsAny(corpus, SQUARE_FOOTPRINT_CUES);
         boolean hasPagodaCue = containsAny(corpus, PAGODA_CUES);
         boolean pavilionNotPagoda = containsAny(corpus, PAVILION_NOT_PAGODA) && !hasPagodaCue;
+        boolean wantsLanterns = wantsLanterns(corpus);
 
-        // Pagoda intent + open multi-mass composition without a STRUCTURE dense_eaves executor
-        // → capability_gap (same contract as Siheyuan/Landmark). Never inject + wipe satellites.
+        // Pagoda cue + house-primary inject target, without an authored pagoda composition or
+        // dense_eaves executor → capability_gap. Never inject + wipe satellites.
         if (hasPagodaCue && !pavilionNotPagoda && !alreadyDenseEavesExecutor(plan)
                 && looksOpenPagodaMisroute(plan)) {
             FormacraftMod.LOGGER.info(
@@ -69,11 +73,22 @@ final class DenseEavesPagodaMisrouteRepair {
         for (Component c : plan.components()) {
             Component next = c;
             if (pavilionNotPagoda && carriesDenseEaves(c)) {
-                next = stripDenseEaves(c);
-                changed = true;
+                if (!canStripDenseEaves(plan, c)) {
+                    FormacraftMod.LOGGER.info(
+                            "DenseEavesPagodaMisrouteRepair: locked dense_eaves on {} under non-pagoda intent → gap",
+                            idOf(c));
+                    return PlanComponentRewrite.withCapabilityGap(plan, new CapabilityGap(
+                            "E_DENSE_EAVES_PAGODA_ROUTE_UNSUPPORTED",
+                            "非密檐楼阁意图与设计锁定的 dense_eaves_pagoda 执行器冲突，已拒绝静默剥离 typology；请解除锁定或改用开放楼阁组合",
+                            "DenseEavesPagodaMisrouteRepair",
+                            List.of(
+                                    "Clear design_sources lock on typology_id / footprint",
+                                    "Or keep dense_eaves when pagoda geometry is intended")));
+                }
+                next = stripDenseEaves(plan, c);
+                if (next != c) changed = true;
             } else if (wantsSquare && isSquareTowerTarget(c)) {
-                // Host-scoped: only the pagoda/tower executor — never annex MASS_SECONDARY houses.
-                Component squared = forceSquareFootprint(plan, c, corpus);
+                Component squared = forceSquareFootprint(plan, c, corpus, wantsLanterns);
                 if (squared != c) {
                     next = squared;
                     changed = true;
@@ -106,19 +121,48 @@ final class DenseEavesPagodaMisrouteRepair {
     }
 
     /**
-     * True only when the former inject path would have rewritten a house-primary mass
-     * into dense_eaves_pagoda (and wiped satellites). Authored stupa/tower compositions
-     * without a house-primary carrier must keep compiling — do not gap every multi-mass
-     * plan that merely mentions 佛塔/宝塔.
+     * Gap only when a house-primary would have been injected AND no authored pagoda mass
+     * already exists in the plan (hall + independent pagoda composition must compile).
      */
     private static boolean looksOpenPagodaMisroute(LlmPlan plan) {
-        int housePrimaries = 0;
-        for (Component c : plan.components()) {
-            if (c == null || c.componentType() == null) continue;
-            if (looksHousePrimary(c)) housePrimaries++;
+        if (hasAuthoredPagodaComposition(plan)) {
+            return false;
         }
-        // No house-primary inject target → leave the authored composition alone.
-        return housePrimaries >= 1;
+        for (Component c : plan.components()) {
+            if (c != null && looksHousePrimary(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Independent pagoda/stupa/tower mass already composed (not a gable house). */
+    private static boolean hasAuthoredPagodaComposition(LlmPlan plan) {
+        for (Component c : plan.components()) {
+            if (looksAuthoredPagodaMass(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean looksAuthoredPagodaMass(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        if (carriesDenseEaves(c)) return true;
+        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        if (!(t.startsWith("MASS") || "TOWER".equals(t) || t.startsWith("TOWER") || "STRUCTURE".equals(t))) {
+            return false;
+        }
+        String id = idOf(c).toLowerCase(Locale.ROOT);
+        String feat = featuresOf(c).toLowerCase(Locale.ROOT);
+        boolean pagodaIdentity = id.contains("pagoda") || id.contains("stupa") || id.contains("宝塔")
+                || id.contains("密檐") || id.contains("佛塔") || id.contains("舍利")
+                || feat.contains("pagoda") || feat.contains("stupa") || feat.contains("宝塔")
+                || feat.contains("密檐") || feat.contains("佛塔") || feat.contains("harmika")
+                || feat.contains("bumpa");
+        if (!pagodaIdentity) return false;
+        // House-shaped MASS_MAIN with blank/gable roof is the inject target, not authored pagoda.
+        return !looksHousePrimary(c);
     }
 
     /**
@@ -130,7 +174,6 @@ final class DenseEavesPagodaMisrouteRepair {
         if (carriesDenseEaves(c)) return true;
         String t = c.componentType().trim().toUpperCase(Locale.ROOT);
         if (!("STRUCTURE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER"))) {
-            // MASS_* only when identity is clearly the tower (not an annex house).
             if (!t.startsWith("MASS")) return false;
         }
         String id = idOf(c).toLowerCase(Locale.ROOT);
@@ -147,6 +190,12 @@ final class DenseEavesPagodaMisrouteRepair {
             return false;
         }
         if (carriesDenseEaves(c)) return false;
+        String id = idOf(c).toLowerCase(Locale.ROOT);
+        String feat = featuresOf(c).toLowerCase(Locale.ROOT);
+        if (id.contains("pagoda") || id.contains("stupa") || id.contains("宝塔") || id.contains("密檐")
+                || feat.contains("pagoda") || feat.contains("stupa") || feat.contains("宝塔")) {
+            return false;
+        }
         String roof = String.valueOf(c.params().getOrDefault("roof_type",
                 c.params().getOrDefault("roofType", ""))).toLowerCase(Locale.ROOT);
         return roof.contains("gable") || roof.isBlank() || "default".equals(roof);
@@ -179,23 +228,47 @@ final class DenseEavesPagodaMisrouteRepair {
         return false;
     }
 
-    private static Component stripDenseEaves(Component c) {
+    private static boolean canStripDenseEaves(LlmPlan plan, Component c) {
+        Map<String, Object> params = c.params();
+        if (params == null) return true;
+        for (String key : List.of(
+                "typology_id", "structural_typology", "typologyId", "structuralTypologyId", "typology",
+                "footprint")) {
+            Object v = params.get(key);
+            if (v == null) continue;
+            String s = String.valueOf(v).toLowerCase(Locale.ROOT);
+            if ((key.contains("typology") || "typology".equals(key)) && s.contains("dense_eaves")
+                    && !DesignProvenance.canMutateParam(plan, params, key)) {
+                return false;
+            }
+            if ("footprint".equals(key) && !DesignProvenance.canMutateParam(plan, params, "footprint")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Component stripDenseEaves(LlmPlan plan, Component c) {
         Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
         List<String> features = c.features() == null ? new ArrayList<>() : new ArrayList<>(c.features());
         for (String key : List.of(
                 "typology_id", "structural_typology", "typologyId", "structuralTypologyId", "typology")) {
             Object v = params.get(key);
-            if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains("dense_eaves")) {
+            if (v != null && String.valueOf(v).toLowerCase(Locale.ROOT).contains("dense_eaves")
+                    && DesignProvenance.canMutateParam(plan, params, key)) {
                 params.remove(key);
             }
         }
-        params.remove("footprint");
+        if (DesignProvenance.canMutateParam(plan, params, "footprint")) {
+            params.remove("footprint");
+        }
         List<String> nextFeat = new ArrayList<>();
+        boolean canStripFeatures = DesignProvenance.canEnrichFeatures(plan, params);
         for (String f : features) {
             if (f == null) continue;
             String lower = f.toLowerCase(Locale.ROOT);
-            if (lower.contains("dense_eaves") || lower.contains("typology:dense_eaves")
-                    || lower.contains("finial_spire") && lower.contains("pagoda")) {
+            if (canStripFeatures && (lower.contains("dense_eaves") || lower.contains("typology:dense_eaves")
+                    || lower.contains("finial_spire") && lower.contains("pagoda"))) {
                 continue;
             }
             nextFeat.add(f);
@@ -204,34 +277,31 @@ final class DenseEavesPagodaMisrouteRepair {
         if (type != null && "STRUCTURE".equalsIgnoreCase(type.trim())) {
             type = "MASS_MAIN";
             params.putIfAbsent("pagoda_misroute_demoted", true);
-            params.putIfAbsent("floor_count", 3);
+            DesignProvenance.putIfAllowed(plan, params, "floor_count", 3);
             params.putIfAbsent("open", false);
         }
         return new Component(type, c.slotId(), c.relativePosition(), c.dimensions(), nextFeat, params);
     }
 
-    private static Component forceSquareFootprint(LlmPlan plan, Component c, String corpus) {
+    private static Component forceSquareFootprint(
+            LlmPlan plan, Component c, String corpus, boolean wantsLanterns) {
         Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
         boolean changed = false;
         Object fp = params.get("footprint");
         if (fp == null || !"square".equalsIgnoreCase(String.valueOf(fp))) {
-            if (DesignProvenance.canMutateParam(plan, params, "footprint")) {
-                params.put("footprint", "square");
+            if (DesignProvenance.putIfAllowed(plan, params, "footprint", "square")) {
                 changed = true;
             }
         }
         Object niche = params.get("niche_rhythm");
         if (niche != null && String.valueOf(niche).toLowerCase(Locale.ROOT).contains("octagon")
-                && DesignProvenance.canMutateParam(plan, params, "niche_rhythm")) {
-            params.put("niche_rhythm", "none");
+                && DesignProvenance.putIfAllowed(plan, params, "niche_rhythm", "none")) {
             changed = true;
         }
         int floors = ComponentParamParsers.intParam(params, "floor_count", "floorCount", "levels");
         if (floors <= 0) {
             floors = parseFloorCount(corpus);
-            if (floors > 0 && DesignProvenance.canMutateParam(plan, params, "floor_count")) {
-                params.put("floor_count", floors);
-                params.put("levels", floors);
+            if (floors > 0 && DesignProvenance.putIfAllowed(plan, params, "floor_count", floors)) {
                 changed = true;
             }
         }
@@ -247,9 +317,7 @@ final class DenseEavesPagodaMisrouteRepair {
             }
         }
         int floorHeight = ComponentParamParsers.intParam(params, "floor_height", "floorHeight", "storey_height");
-        if (floorHeight < 6 && DesignProvenance.canMutateParam(plan, params, "floor_height")) {
-            params.put("floor_height", 6);
-            params.put("storey_height", 6);
+        if (floorHeight < 6 && DesignProvenance.putIfAllowed(plan, params, "floor_height", 6)) {
             changed = true;
         }
         if (params.get("tier_heights") instanceof List<?> tiers && !tiers.isEmpty()
@@ -274,16 +342,21 @@ final class DenseEavesPagodaMisrouteRepair {
                 changed = true;
             }
         }
-        if (DesignProvenance.canMutateParam(plan, params, "corner_lanterns")) {
-            if (params.putIfAbsent("lantern_hang", 2) == null) changed = true;
-            if (params.putIfAbsent("corner_lanterns", true) == null) changed = true;
-            if (params.putIfAbsent("lantern_block", "minecraft:lantern") == null) changed = true;
-            if (params.putIfAbsent("lantern_chain_block", "minecraft:iron_bars") == null) changed = true;
-        }
         List<String> features = c.features() == null ? new ArrayList<>() : new ArrayList<>(c.features());
-        if (features.stream().noneMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("lantern"))) {
-            features.add("corner_lanterns");
-            changed = true;
+        boolean alreadyHasLantern = features.stream()
+                .anyMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("lantern"));
+        // Only keep/add lanterns when request or AI plan already asks — never invent for 四角塔 alone.
+        if (wantsLanterns || alreadyHasLantern) {
+            if (DesignProvenance.canMutateParam(plan, params, "corner_lanterns")) {
+                if (params.putIfAbsent("lantern_hang", 2) == null) changed = true;
+                if (params.putIfAbsent("corner_lanterns", true) == null) changed = true;
+                if (params.putIfAbsent("lantern_block", "minecraft:lantern") == null) changed = true;
+                if (params.putIfAbsent("lantern_chain_block", "minecraft:iron_bars") == null) changed = true;
+            }
+            if (wantsLanterns && !alreadyHasLantern && DesignProvenance.canEnrichFeatures(plan, params)) {
+                features.add("corner_lanterns");
+                changed = true;
+            }
         }
         if (!changed) return c;
         return new Component(c.componentType(), c.slotId(), c.relativePosition(), dims, features, params);
@@ -331,6 +404,17 @@ final class DenseEavesPagodaMisrouteRepair {
             }
         }
         return sb.toString().toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean wantsLanterns(String corpus) {
+        if (corpus == null || corpus.isBlank()) return false;
+        // Negation beats lantern substring (不要灯笼 / 无灯笼).
+        if (corpus.contains("不要灯笼") || corpus.contains("无灯笼") || corpus.contains("勿挂灯")
+                || corpus.contains("no lantern") || corpus.contains("without lantern")
+                || corpus.contains("no corner lantern")) {
+            return false;
+        }
+        return containsAny(corpus, LANTERN_CUES);
     }
 
     private static boolean containsAny(String corpus, List<String> cues) {

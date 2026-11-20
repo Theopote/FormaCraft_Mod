@@ -14,7 +14,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class Live2252RegressionTest {
     @BeforeAll static void init() { MinecraftRegistryTestBootstrap.initialize(); }
-    @AfterEach void clear() { AssemblyCompileDiagnostics.clear(); }
+    @BeforeEach void clearBefore() { AssemblyCompileDiagnostics.clear(); }
+    @AfterEach void clearAfter() { AssemblyCompileDiagnostics.clear(); }
     private LlmPlan load(String name) throws Exception {
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper()
                 .configure(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

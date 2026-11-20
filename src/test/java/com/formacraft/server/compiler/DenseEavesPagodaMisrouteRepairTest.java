@@ -62,7 +62,10 @@ class DenseEavesPagodaMisrouteRepairTest {
         assertEquals("square", c.params().get("footprint"));
         assertTrue(c.dimensions().height() >= 34, "height=" + c.dimensions().height());
         assertTrue(((Number) c.params().get("floor_height")).intValue() >= 6);
-        assertEquals(true, c.params().get("corner_lanterns"));
+        // 四角塔 alone must not invent corner lanterns — only request/AI-planned lanterns.
+        assertFalse(Boolean.TRUE.equals(c.params().get("corner_lanterns")));
+        assertTrue(c.features() == null || c.features().stream()
+                .noneMatch(f -> f != null && f.toLowerCase().contains("lantern")));
         assertEquals("dense_eaves_pagoda", c.params().get("typology_id"));
     }
 
@@ -168,5 +171,63 @@ class DenseEavesPagodaMisrouteRepairTest {
         assertEquals("xieshan", out.components().stream()
                 .filter(c -> "main_roof".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow().params().get("roof_type"));
+    }
+
+    @Test
+    void authoredPagodaBesideHallDoesNotEmitFalseGap() {
+        Component hall = new Component(
+                "MASS_MAIN", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(14, 10, 8),
+                List.of(),
+                Map.of("component_id", "main_hall", "roof_type", "gable"));
+        Component pagoda = new Component(
+                "MASS_SECONDARY", "pagoda",
+                new Vec3i(24, 0, 0),
+                new Dimensions(8, 8, 22),
+                List.of("pagoda", "tiered"),
+                Map.of("component_id", "pagoda_tower", "roof_type", "none", "floor_count", 5));
+        Component pagodaRoof = new Component(
+                "ROOF", "pagoda",
+                new Vec3i(24, 22, 0),
+                new Dimensions(8, 8, 4),
+                List.of("eaves"),
+                Map.of("component_id", "pagoda_roof", "host_id", "pagoda_tower", "roof_type", "hip"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(hall, pagoda, pagodaRoof))
+                .planMeta(Map.of("request_intent_text", "寺院大殿旁建一座宝塔"))
+                .build();
+
+        LlmPlan out = DenseEavesPagodaMisrouteRepair.apply(plan);
+        assertFalse(out.hasCapabilityGap());
+        assertEquals(3, out.components().size());
+        assertEquals("gable", out.components().stream()
+                .filter(c -> "main_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+    }
+
+    @Test
+    void lockedStoreyHeightIsNotOverwrittenViaFloorHeightAlias() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "tower_body");
+        params.put("typology_id", "dense_eaves_pagoda");
+        params.put("floor_count", 3);
+        params.put("storey_height", 4);
+        params.put("design_sources", Map.of("storey_height", "USER_EXPLICIT"));
+        Component structure = new Component(
+                "STRUCTURE", "tower",
+                new Vec3i(0, 0, 0),
+                new Dimensions(16, 16, 23),
+                List.of("typology:dense_eaves_pagoda"),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(structure))
+                .planMeta(Map.of("request_intent_text", "中式三层四角塔楼，不要灯笼"))
+                .build();
+
+        LlmPlan out = DenseEavesPagodaMisrouteRepair.apply(plan);
+        Component c = out.components().get(0);
+        assertEquals(4, ((Number) c.params().get("storey_height")).intValue());
+        assertFalse(Boolean.TRUE.equals(c.params().get("corner_lanterns")));
     }
 }
