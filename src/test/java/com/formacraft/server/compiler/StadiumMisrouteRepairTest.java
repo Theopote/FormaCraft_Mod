@@ -535,6 +535,47 @@ class StadiumMisrouteRepairTest {
     }
 
     @Test
+    void threeBuildingMixDemotesMisroutedShellButKeepsDedicatedArena() {
+        Component mansion = new Component(
+                "MASS_MAIN", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2));
+        Component misrouted = new Component(
+                "STRUCTURE", "wing",
+                new Vec3i(30, 0, 0),
+                new Dimensions(12, 14, 10),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "side_house", "typology_id", "stadium_bowl"));
+        Component arena = new Component(
+                "STRUCTURE", "arena",
+                new Vec3i(60, 0, 0),
+                new Dimensions(40, 60, 20),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "east_arena", "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion, misrouted, arena))
+                .planMeta(Map.of("request_intent_text",
+                        "建造一座巴洛克大宅和一栋附属住宅，东侧另建一座体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("MASS_MAIN", out.components().stream()
+                .filter(c -> "main_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertEquals("MASS_MAIN", out.components().stream()
+                .filter(c -> "side_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        Component east = out.components().stream()
+                .filter(c -> "east_arena".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("STRUCTURE", east.componentType());
+        assertEquals("stadium_bowl", east.params().get("typology_id"));
+    }
+
+    @Test
     void preservedStadiumKeepsRibbonFacadeAndArchRibSatellites() {
         Component mansion = new Component(
                 "MASS_MAIN", "main",

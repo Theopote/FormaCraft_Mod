@@ -251,11 +251,13 @@ final class StadiumMisrouteRepair {
         if (!("STRUCTURE".equals(t) || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER"))) {
             return false;
         }
-        // Legitimate: clean MASS_MAIN residential + this STRUCTURE/MODULE arena (even if sole stadium marker).
-        if (hasSeparateNonStadiumPrimaryMass(plan, c)) {
+        int stadiumHosts = countStadiumMarkedHosts(plan);
+        boolean cleanResidentialBeside = hasSeparateNonStadiumPrimaryMass(plan, c);
+        // "There is a residential MASS_MAIN" is not enough when multiple stadium-marked executors
+        // exist — only dedicated arena cues / bowl scale identify the real arena (3-building mix).
+        if (cleanResidentialBeside && stadiumHosts == 1) {
             return true;
         }
-        int stadiumHosts = countStadiumMarkedHosts(plan);
         if (stadiumHosts >= 2) {
             return looksDedicatedArenaHost(c);
         }
@@ -280,8 +282,8 @@ final class StadiumMisrouteRepair {
     }
 
     /**
-     * Satellites of a preserved arena (host_id → arena, or host → roof → arena) must not lose
-     * ribbon_glazing / arch_ribs during residential demotion cleanup.
+     * Satellites of a preserved arena via recursive host_id chain (decor → facade → arena).
+     * Cycle-safe; never guesses by mansion name tags.
      */
     private static boolean belongsToPreservedStadiumHost(
             Component c, Set<String> preservedHosts, List<Component> all) {
@@ -292,19 +294,29 @@ final class StadiumMisrouteRepair {
         if (!id.isBlank() && preservedHosts.contains(id)) {
             return true;
         }
-        String host = hostIdOf(c);
-        if (host != null && preservedHosts.contains(host)) {
-            return true;
+        if (all == null || all.isEmpty()) {
+            return false;
         }
-        // decor → roof/facade → arena: host_id may point at a satellite owned by the arena.
-        if (host != null && all != null) {
-            for (Component other : all) {
-                if (other == null || !host.equals(componentId(other))) continue;
-                String parent = hostIdOf(other);
-                if (parent != null && preservedHosts.contains(parent)) {
-                    return true;
-                }
+        Map<String, String> parentById = new HashMap<>();
+        for (Component other : all) {
+            if (other == null) continue;
+            String oid = componentId(other);
+            if (oid.isBlank()) continue;
+            String parent = hostIdOf(other);
+            if (parent != null && !parent.isBlank()) {
+                parentById.put(oid, parent);
             }
+        }
+        String cursor = hostIdOf(c);
+        if (cursor == null || cursor.isBlank()) {
+            cursor = id;
+        }
+        Set<String> seen = new HashSet<>();
+        while (cursor != null && !cursor.isBlank() && seen.add(cursor)) {
+            if (preservedHosts.contains(cursor)) {
+                return true;
+            }
+            cursor = parentById.get(cursor);
         }
         return false;
     }

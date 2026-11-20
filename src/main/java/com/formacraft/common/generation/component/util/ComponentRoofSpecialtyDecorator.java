@@ -52,27 +52,20 @@ public final class ComponentRoofSpecialtyDecorator {
             if (hint != null) {
                 SpecialtyLevel parsed = parseLevel(String.valueOf(hint));
                 if (parsed != SpecialtyLevel.OFF) {
-                    // Global proportionHints may name mansard silhouette for typology — never broadcast
-                    // mansard_dormer onto sibling roofs. Dormers require component/host-local cues.
+                    // Plan-level specialty/typology never invents roof_type for blank roofs in compounds.
+                    // Only refine roofs that already authored mansard locally.
+                    if (!isMansardRoofType(params, component)) {
+                        return SpecialtyLevel.OFF;
+                    }
                     if (parsed == SpecialtyLevel.MANSARD_DORMER) {
-                        if (!isMansardRoofType(params, component)) {
-                            return SpecialtyLevel.MANSARD;
-                        }
                         return shouldApplyDormers(plan, params, component)
                                 ? SpecialtyLevel.MANSARD_DORMER
                                 : SpecialtyLevel.MANSARD;
                     }
-                    return parsed;
+                    return SpecialtyLevel.MANSARD;
                 }
             }
-            String typology = String.valueOf(hints.getOrDefault("typology", "")).toLowerCase(Locale.ROOT);
-            // Mansard silhouette only — dormers require an explicit cue (屋顶 specialty / roof_dormers /
-            // feature tokens). Auto-adding three dormers to every baroque/townhouse roof was wrong.
-            if (typology.contains("baroque") || typology.contains("townhouse") || typology.contains("paris")
-                    || typology.contains("classical") || typology.contains("monument")
-                    || typology.contains("palace")) {
-                return SpecialtyLevel.MANSARD;
-            }
+            // Typology baroque/classical is a non-binding silhouette hint — never force roof_type.
         }
         if (shouldApplyDormers(plan, params, component) && isMansardRoofType(params, component)) {
             return SpecialtyLevel.MANSARD_DORMER;

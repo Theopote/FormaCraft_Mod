@@ -348,6 +348,59 @@ class BaroqueMansionStyleRepairTest {
     }
 
     @Test
+    void stadiumAndOrdinaryWingStayUntouchedAfterBaroqueEnrich() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 8), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 2));
+        Component wing = new Component(
+                "MASS_SECONDARY", "wing", new Vec3i(30, 0, 0),
+                new Dimensions(10, 8, 6), List.of(),
+                Map.of("component_id", "west_wing", "floor_count", 2, "floor_height", 2));
+        Component arena = new Component(
+                "STRUCTURE", "arena", new Vec3i(60, 0, 0),
+                new Dimensions(40, 60, 20),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "east_stadium", "typology_id", "stadium_bowl",
+                        "floor_height", 3));
+        Component arenaColumn = new Component(
+                "DECOR_DETAIL", "arena", new Vec3i(62, 2, 2),
+                new Dimensions(2, 2, 10), List.of("column"),
+                Map.of("component_id", "east_stadium_column", "host_id", "east_stadium"));
+        Map<String, Object> hints = new HashMap<>();
+        hints.put("typology", "stadium_bowl");
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(main, wing, arena, arenaColumn))
+                .proportionHints(hints)
+                .planMeta(Map.of("request_intent_text",
+                        "建造一座巴洛克大宅、西侧普通附属住宅，东侧独立体育场"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        Component fixedMain = out.components().stream()
+                .filter(c -> "main_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertTrue(((Number) fixedMain.params().get("floor_height")).intValue() >= 4);
+        Component fixedWing = out.components().stream()
+                .filter(c -> "west_wing".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(2, ((Number) fixedWing.params().get("floor_height")).intValue());
+        assertNull(fixedWing.params().get("facade_profile"));
+        Component fixedArena = out.components().stream()
+                .filter(c -> "east_stadium".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(3, ((Number) fixedArena.params().get("floor_height")).intValue());
+        assertEquals("stadium_bowl", fixedArena.params().get("typology_id"));
+        assertNull(fixedArena.params().get("facade_profile"));
+        assertTrue(fixedArena.features() == null
+                || fixedArena.features().stream().noneMatch(f -> f != null && f.contains("base_plinth")));
+        assertTrue(out.components().stream().anyMatch(c ->
+                "east_stadium_column".equals(String.valueOf(c.params().get("component_id")))));
+        assertEquals("stadium_bowl", out.proportionHints().get("typology"));
+    }
+
+    @Test
     void stadiumPavingAndGateEntranceAreNotRewrittenAsMainPlaza() {
         Component main = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),

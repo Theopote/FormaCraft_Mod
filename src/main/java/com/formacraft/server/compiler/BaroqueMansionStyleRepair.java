@@ -53,28 +53,35 @@ final class BaroqueMansionStyleRepair {
 
         boolean corpusWantsMansard = corpusWantsMansard(corpus);
         boolean corpusWantsDormers = hasAffirmativeCue(corpus, List.of("老虎窗", "dormer", "mansard_dormer"));
+        String baroqueTarget = baroqueTargetHostId(plan, plan.components());
+        boolean planHasPreservedStadium = planHasStadiumExecutor(plan);
         List<Component> out = new ArrayList<>(plan.components().size());
         for (Component c : plan.components()) {
             if (c == null) {
                 continue;
             }
-            // Full-footprint DECOR "dormers" vs owning host footprint — drop rings, keep nestled shells.
-            Dimensions hostFootprint = hostMassFootprint(plan.components(), hostIdOf(c));
-            if (isOversizedRoofDormerDecor(c, hostFootprint)) {
-                changed = true;
-                FormacraftMod.LOGGER.info(
-                        "BaroqueMansionStyleRepair: drop oversized roof decor id={}",
-                        c.params() == null ? c.componentType() : c.params().get("component_id"));
-                continue;
+            boolean onBaroqueHost = belongsToBaroqueTarget(c, baroqueTarget, plan.components());
+            // Geometric decor cleanup only on the confirmed baroque host — never stadium/gothic columns.
+            if (onBaroqueHost) {
+                Dimensions hostFootprint = hostMassFootprint(plan.components(), hostIdOf(c));
+                if (isOversizedRoofDormerDecor(c, hostFootprint)) {
+                    changed = true;
+                    FormacraftMod.LOGGER.info(
+                            "BaroqueMansionStyleRepair: drop oversized roof decor id={}",
+                            c.params() == null ? c.componentType() : c.params().get("component_id"));
+                    continue;
+                }
+                if (isMisplacedWallOrRoofDecor(c)) {
+                    changed = true;
+                    FormacraftMod.LOGGER.info(
+                            "BaroqueMansionStyleRepair: drop misplaced decor id={}",
+                            c.params() == null ? c.componentType() : c.params().get("component_id"));
+                    continue;
+                }
             }
-            if (isMisplacedWallOrRoofDecor(c)) {
-                changed = true;
-                FormacraftMod.LOGGER.info(
-                        "BaroqueMansionStyleRepair: drop misplaced decor id={}",
-                        c.params() == null ? c.componentType() : c.params().get("component_id"));
-                continue;
-            }
-            Component next = enrich(plan, c, corpus, corpusWantsMansard, corpusWantsDormers);
+            Component next = onBaroqueHost
+                    ? enrich(plan, c, corpus, corpusWantsMansard, corpusWantsDormers, baroqueTarget)
+                    : c;
             if (next != c) {
                 changed = true;
             }
@@ -105,8 +112,9 @@ final class BaroqueMansionStyleRepair {
                 : new HashMap<>(plan.proportionHints());
         Object typology = hints.get("typology");
         String typ = typology == null ? "" : String.valueOf(typology).toLowerCase(Locale.ROOT);
-        // Only rewrite clearly wrong temple/stadium typology — leave other LLM typologies alone.
-        if (typ.contains("stadium") || typ.contains("temple") || typ.contains("pantheon")) {
+        // Never overwrite stadium typology when a real arena executor remains in the compound.
+        if (!planHasPreservedStadium
+                && (typ.contains("stadium") || typ.contains("temple") || typ.contains("pantheon"))) {
             hints.put("typology", "baroque_mansion");
             changed = true;
         }
@@ -157,14 +165,16 @@ final class BaroqueMansionStyleRepair {
         return null;
     }
 
+    /** Exact component_id match only — floor plates must not impersonate the host via host_id. */
     private static Dimensions massFootprintById(List<Component> components, String id) {
         for (Component c : components) {
             if (c == null || c.dimensions() == null || c.componentType() == null) continue;
+            if (isFloorPlate(c)) continue;
             String type = c.componentType().trim().toUpperCase(Locale.ROOT);
             if (!(type.startsWith("MASS") || "MAIN_MASS".equals(type) || "STRUCTURE".equals(type))) {
                 continue;
             }
-            if (id.equals(componentId(c)) || id.equals(hostIdOf(c))) {
+            if (id.equals(componentId(c))) {
                 return c.dimensions();
             }
         }
@@ -498,19 +508,101 @@ final class BaroqueMansionStyleRepair {
         String blob = id + " " + slot;
         if (blob.contains("gate") || blob.contains("arch") || blob.contains("triumphal")
                 || blob.contains("门楼") || blob.contains("牌楼") || blob.contains("bell")
-                || blob.contains("gothic") || blob.contains("钟楼") || blob.contains("哥特")) {
+                || blob.contains("gothic") || blob.contains("钟楼") || blob.contains("哥特")
+                || blob.contains("stadium") || blob.contains("arena") || blob.contains("bowl")
+                || blob.contains("体育场") || blob.contains("球场") || blob.contains("看台")
+                || blob.contains("tulou") || blob.contains("土楼") || blob.contains("temple")
+                || blob.contains("寺庙")) {
             return true;
+        }
+        if (c.params() != null) {
+            for (String key : List.of(
+                    "typology_id", "structural_typology", "typologyId", "module_id", "typology")) {
+                Object v = c.params().get(key);
+                if (v == null) continue;
+                String s = String.valueOf(v).toLowerCase(Locale.ROOT);
+                if (s.contains("stadium") || s.contains("birds_nest") || s.contains("tulou")
+                        || s.contains("temple") || s.contains("pagoda")) {
+                    return true;
+                }
+            }
         }
         if (c.features() == null) return false;
         return c.features().stream().anyMatch(f -> f != null && (
                 f.toLowerCase(Locale.ROOT).contains("gothic")
                         || f.toLowerCase(Locale.ROOT).contains("triumphal")
                         || f.toLowerCase(Locale.ROOT).contains("archway")
-                        || f.contains("哥特") || f.contains("凯旋") || f.contains("门楼")));
+                        || f.toLowerCase(Locale.ROOT).contains("stadium")
+                        || f.toLowerCase(Locale.ROOT).contains("ribbon_glazing")
+                        || f.contains("哥特") || f.contains("凯旋") || f.contains("门楼")
+                        || f.contains("体育场")));
+    }
+
+    private static boolean planHasStadiumExecutor(LlmPlan plan) {
+        if (plan == null || plan.components() == null) return false;
+        for (Component c : plan.components()) {
+            if (c == null || c.componentType() == null) continue;
+            String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (!("STRUCTURE".equals(t) || "MODULE".equals(t) || t.startsWith("TOWER"))) continue;
+            if (isForeignStyleHost(c) && (componentId(c).toLowerCase(Locale.ROOT).contains("stadium")
+                    || componentId(c).toLowerCase(Locale.ROOT).contains("arena")
+                    || (c.params() != null && String.valueOf(c.params().getOrDefault("typology_id", ""))
+                    .toLowerCase(Locale.ROOT).contains("stadium")))) {
+                return true;
+            }
+            if (c.params() != null) {
+                Object typ = c.params().get("typology_id");
+                if (typ == null) typ = c.params().get("module_id");
+                if (typ != null && String.valueOf(typ).toLowerCase(Locale.ROOT).contains("stadium")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Component belongs to the unique baroque target via id or host_id chain. */
+    private static boolean belongsToBaroqueTarget(
+            Component c, String baroqueTarget, List<Component> components) {
+        if (c == null || baroqueTarget == null || baroqueTarget.isBlank()) {
+            return false;
+        }
+        if (isForeignStyleHost(c)) {
+            return false;
+        }
+        if (baroqueTarget.equals(componentId(c)) || baroqueTarget.equals(hostIdOf(c))) {
+            return true;
+        }
+        // Walk host_id → parent until target or cycle.
+        Map<String, String> parentById = new HashMap<>();
+        if (components != null) {
+            for (Component other : components) {
+                if (other == null) continue;
+                String oid = componentId(other);
+                if (oid.isBlank()) continue;
+                String parent = hostIdOf(other);
+                if (parent != null && !parent.isBlank()) {
+                    parentById.put(oid, parent);
+                }
+            }
+        }
+        String cursor = hostIdOf(c);
+        if (cursor == null || cursor.isBlank()) {
+            cursor = componentId(c);
+        }
+        java.util.HashSet<String> seen = new java.util.HashSet<>();
+        while (cursor != null && !cursor.isBlank() && seen.add(cursor)) {
+            if (baroqueTarget.equals(cursor)) {
+                return true;
+            }
+            cursor = parentById.get(cursor);
+        }
+        return false;
     }
 
     private static Component enrich(
-            LlmPlan plan, Component c, String corpus, boolean corpusWantsMansard, boolean corpusWantsDormers) {
+            LlmPlan plan, Component c, String corpus, boolean corpusWantsMansard, boolean corpusWantsDormers,
+            String baroqueTarget) {
         if (c == null || c.componentType() == null) return c;
         String type = c.componentType().trim().toUpperCase(Locale.ROOT);
         Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
@@ -521,15 +613,15 @@ final class BaroqueMansionStyleRepair {
         if (hostId == null || hostId.isBlank()) {
             hostId = componentId(c);
         }
-        boolean foreignHost = isForeignStyleHost(c);
-        String baroqueTarget = baroqueTargetHostId(plan, plan.components());
+        boolean baroqueOwned = belongsToBaroqueTarget(c, baroqueTarget, plan.components());
         boolean hostMansard = hostHasMansard(plan, plan.components(), hostId);
         boolean hostDormers = hostWantsDormers(plan, plan.components(), hostId, corpusWantsDormers);
-        // Force mansard only when THIS host already authored mansard / features, or unique baroque target.
-        boolean mayForceMansard = !foreignHost && (hostMansard || featuresSayMansard(features)
-                || (corpusWantsMansard && !baroqueTarget.isBlank() && hostId.equals(baroqueTarget)));
+        // Force mansard only on the confirmed baroque target host.
+        boolean mayForceMansard = baroqueOwned && (hostMansard || featuresSayMansard(features)
+                || (corpusWantsMansard && hostId.equals(baroqueTarget)));
 
-        if ((type.startsWith("MASS") || "STRUCTURE".equals(type)) && !foreignHost) {
+        // Mass/STRUCTURE plinth, storey, and material enrich — baroque target only.
+        if ((type.startsWith("MASS") || "STRUCTURE".equals(type)) && baroqueOwned) {
             boolean plate = isFloorPlate(c) || isFloorPlateParams(params);
             if (plate && dims != null && dims.height() > 1) {
                 dims = new Dimensions(dims.width(), dims.depth(), 1);
@@ -595,13 +687,13 @@ final class BaroqueMansionStyleRepair {
                 }
             }
         }
-        if (type.startsWith("ROOF") && !foreignHost) {
+        if (type.startsWith("ROOF") && baroqueOwned) {
             Object rt = params.get("roof_type");
             if (rt == null) rt = params.get("roofType");
             boolean mansard = rt != null && String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard");
             // Host-scoped: sibling mansard must not rewrite this roof's type.
             if (!mansard && mayForceMansard && (hostMansard || featuresSayMansard(features)
-                    || (corpusWantsMansard && !baroqueTarget.isBlank() && hostId.equals(baroqueTarget)))) {
+                    || (corpusWantsMansard && hostId.equals(baroqueTarget)))) {
                 if (DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard")) {
                     DesignProvenance.putIfAllowed(plan, params, "roof_specialty",
                             hostDormers ? "mansard_dormer" : "mansard");
@@ -636,9 +728,6 @@ final class BaroqueMansionStyleRepair {
                 changed = true;
             }
         }
-        // Only rewrite plaza/entrance for the unique baroque target — never stadium/gate paving.
-        boolean baroqueOwned = !foreignHost && !baroqueTarget.isBlank()
-                && (hostId.equals(baroqueTarget) || hostOwnsComponent(c, baroqueTarget));
         Vec3i position = c.relativePosition();
         if (baroqueOwned && ("PAVING".equals(type) || "PLAZA".equals(type))) {
             if (!params.containsKey("role")) {
@@ -654,7 +743,7 @@ final class BaroqueMansionStyleRepair {
             position = new Vec3i(position.x(), 1, position.z());
             changed = true;
         }
-        if ((type.contains("FACADE") || type.contains("WINDOW")) && !foreignHost) {
+        if ((type.contains("FACADE") || type.contains("WINDOW")) && baroqueOwned) {
             // Component/host features only — plan distinguishingFeatures must not rewrite annex windows.
             Object aspect = params.get("window_aspect");
             if (aspect == null) aspect = params.get("windowAspect");

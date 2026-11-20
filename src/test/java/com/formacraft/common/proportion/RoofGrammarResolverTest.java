@@ -57,6 +57,23 @@ class RoofGrammarResolverTest {
     }
 
     @Test
+    void blankAnnexRoofDoesNotInheritGlobalMansardType() {
+        Component annexRoof = new Component(
+                "ROOF", "annex", new Vec3i(30, 8, 0),
+                new Dimensions(10, 10, 4), List.of("overhang"),
+                Map.of("component_id", "annex_roof", "host_id", "west_wing", "roof_height", 4));
+        LlmPlan plan = planWithHints(Map.of(
+                "typology", "baroque_mansion",
+                "roof_specialty", "mansard"
+        ));
+        Component enriched = RoofGrammarResolver.apply(plan, annexRoof);
+        assertNotEquals("mansard", enriched.params().get("roof_type"));
+        assertTrue(enriched.params().get("roof_type") == null
+                || "default".equalsIgnoreCase(String.valueOf(enriched.params().get("roof_type"))));
+        assertNotEquals(true, enriched.params().get("roof_dormers"));
+    }
+
+    @Test
     void siblingMansardWithoutDormersKeepsNoDormersAfterGrammar() {
         Component annexRoof = new Component(
                 "ROOF", "annex", new Vec3i(30, 8, 0),

@@ -39,11 +39,12 @@ public final class RoofGrammarResolver {
                 ComponentRoofSpecialtyDecorator.resolveLevel(plan, params, component);
 
         String roofType = getParamString(params, "roof_type", "roofType");
-        if (level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD
-                || level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD_DORMER) {
-            if (isBlank(roofType) || "default".equalsIgnoreCase(roofType)) {
-                changed |= DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard");
-            }
+        // Never invent mansard from plan hints alone — blank roof_type stays blank in multi-host plans.
+        if ((level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD
+                || level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD_DORMER)
+                && ComponentRoofSpecialtyDecorator.isMansardRoofType(params, component)
+                && (isBlank(roofType) || "default".equalsIgnoreCase(roofType))) {
+            changed |= DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard");
         }
         if (level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD_DORMER) {
             if (!params.containsKey("roof_dormers") && !params.containsKey("dormers")) {
@@ -78,8 +79,12 @@ public final class RoofGrammarResolver {
                             || level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD) {
                         changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty", "mansard");
                     }
-                } else {
-                    changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty", hintStr);
+                } else if (ComponentRoofSpecialtyDecorator.isMansardRoofType(params, component)
+                        || level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD
+                        || level == ComponentRoofSpecialtyDecorator.SpecialtyLevel.MANSARD_DORMER) {
+                    // Specialty hint only on roofs that already authorized mansard locally.
+                    changed |= DesignProvenance.putIfAllowed(plan, params, "roof_specialty",
+                            lower.contains("mansard") ? "mansard" : hintStr);
                 }
             }
         }

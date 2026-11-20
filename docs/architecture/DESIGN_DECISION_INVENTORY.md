@@ -162,6 +162,18 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `BaroqueMansionStyleRepair` primaryHostId order | first MASS_MAIN got corpus mansard | **Fixed (2026-11-20):** unique `baroqueTargetHostId` markers; ambiguous → no force |
 | `BaroqueMansionStyleRepair` paving/entrance global | plaza/entrance rewritten for every host | **Fixed (2026-11-20):** baroque-target-owned only |
 | `hostMassFootprint` primary fallback | decor host→roof fell back to first mass | **Fixed (2026-11-20):** decor→roof→mass chain; null if unresolved |
+| `BaroqueMansionStyleRepair` enrich non-target | stadium/wing got plinth/storey enrich | **Fixed (2026-11-20):** enrich/decor drop only `belongsToBaroqueTarget` |
+| `RoofGrammarResolver` global mansard type | blank annex roof forced mansard from hints | **Fixed (2026-11-20):** plan hints refine local mansard only; typology non-binding |
+| `StadiumMisrouteRepair` preserve via any MASS_MAIN | misrouted STRUCTURE kept when clean MASS_MAIN exists | **Fixed (2026-11-20):** sole stadium+residential OR dedicated arena when multi |
+| `belongsToPreservedStadiumHost` 2-hop only | deep satellites stripped | **Fixed (2026-11-20):** recursive host_id walk with cycle guard |
+| `massFootprintById` host_id plate match | floor plate dims used as host footprint | **Fixed (2026-11-20):** exact component_id; skip plates |
+| `Baroque` overwrites stadium typology hint | proportionHints typology→baroque_mansion | **Fixed (2026-11-20):** skip when stadium executor remains |
+| `BaroqueMansionStyleRepair` enrich non-target | stadium/wing got plinth/storey enrich | **Fixed (2026-11-20):** enrich/decor drop only `belongsToBaroqueTarget` |
+| `RoofGrammarResolver` global mansard type | blank annex roof forced mansard from hints | **Fixed (2026-11-20):** plan hints refine local mansard only; typology non-binding |
+| `StadiumMisrouteRepair` preserve via any MASS_MAIN | misrouted STRUCTURE kept when clean MASS_MAIN exists | **Fixed (2026-11-20):** sole stadium+residential OR dedicated arena when multi |
+| `belongsToPreservedStadiumHost` 2-hop only | deep satellites stripped | **Fixed (2026-11-20):** recursive host_id walk with cycle guard |
+| `massFootprintById` host_id plate match | floor plate dims used as host footprint | **Fixed (2026-11-20):** exact component_id; skip plates |
+| `Baroque` overwrites stadium typology hint | proportionHints typology→baroque_mansion | **Fixed (2026-11-20):** skip when stadium executor remains |
 | `DenseEavesPagodaMisrouteRepair` strip floor_count=3 | putIfAllowed rewrote authored 5-storey louge to 3 | **Fixed (2026-11-20):** preserve existing floors; missing-only default; locked features block STRUCTURE demote |
 | `AssemblyCompileDiagnostics` test leakage | gap-emitting misroute tests polluted prepareComponents | **Fixed (2026-11-20):** BeforeEach/AfterEach clear on ExplicitOmission + misroute/conflict tests |
 | `DenseEavesPagodaMisrouteRepair` typology inject | house primary → dense_eaves_pagoda STRUCTURE + drop satellites | **Fixed (2026-11-20):** open/multi-mass pagoda misroute → `E_DENSE_EAVES_PAGODA_ROUTE_UNSUPPORTED`; square force host-scoped to dense_eaves/tower only |
