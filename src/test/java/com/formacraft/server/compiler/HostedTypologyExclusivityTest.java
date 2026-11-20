@@ -145,15 +145,51 @@ class HostedTypologyExclusivityTest {
     }
 
     @Test void missingGeometryDoesNotInventOneByOneFootprint() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
         var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
                 new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
                 Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
-        // No dimensions → cannot prove separation in the same slot → strip shell.
+        // No dimensions → AMBIGUOUS keep + gap (never invent 1×1 or silent delete).
         var shell = new Component("MASS_MAIN", "pagoda", null, null, List.of(),
                 Map.of("component_id", "pagoda_shell"));
         var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(List.of(pagoda, shell));
-        assertEquals(1, filtered.size());
-        assertEquals("STRUCTURE", filtered.get(0).componentType());
+        assertEquals(2, filtered.size());
+        assertEquals("E_COMPONENT_OWNERSHIP_AMBIGUOUS",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
+    @Test void soleIncompleteAnnexIsKeptWithOwnershipGap() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var annex = new Component("MASS_MAIN", "annex", null, null, List.of(),
+                Map.of("component_id", "incomplete_annex"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(List.of(pagoda, annex));
+        assertEquals(2, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "incomplete_annex".equals(String.valueOf(c.params().get("component_id")))));
+        assertEquals("E_COMPONENT_OWNERSHIP_AMBIGUOUS",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
+    @Test void unresolvableHostIdDoesNotBypassOverlapExclusiveStrip() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var pagoda = new Component("STRUCTURE", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
+        var shell = new Component("MASS_MAIN", "pagoda", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "pagoda_shell", "host_id", "missing_host"));
+        var hall = new Component("MASS_MAIN", "hall", new Vec3i(100, 0, 0),
+                new Dimensions(40, 30, 16), List.of(),
+                Map.of("component_id", "main_hall"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagoda, shell, hall));
+        assertEquals(2, filtered.size());
+        assertTrue(filtered.stream().noneMatch(c -> "pagoda_shell".equals(String.valueOf(c.params().get("component_id")))));
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
     }
 
     @Test void mixedCompoundStripsOverlappingShellButKeepsDistantHall() {
@@ -175,6 +211,7 @@ class HostedTypologyExclusivityTest {
     }
 
     @Test void distinctSlotsWithMissingGeometryAreAmbiguousNotIndependent() {
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
         var pagoda = new Component("STRUCTURE", "tower_main", new Vec3i(0, 0, 0),
                 new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
                 Map.of("component_id", "pagoda", "typology_id", "dense_eaves_pagoda"));
@@ -185,10 +222,12 @@ class HostedTypologyExclusivityTest {
                 "tower_shell", new Slot("tower_shell", new Vec3i(0, 0, 0), null, null, null, null));
         var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
                 List.of(pagoda, shell), slots);
-        assertEquals(1, filtered.size());
-        assertEquals("STRUCTURE", filtered.get(0).componentType());
+        assertEquals(2, filtered.size());
         assertFalse(com.formacraft.server.generation.GenerationCompileContext
                 .hasIndependentCompositionalBuilding(List.of(pagoda, shell), slots));
+        assertEquals("E_COMPONENT_OWNERSHIP_AMBIGUOUS",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
     }
 
     @Test void paramsSlotIdResolvesPlanSpaceFootprint() {

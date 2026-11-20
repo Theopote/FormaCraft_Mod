@@ -525,8 +525,66 @@ class TypologyPlanRepairTest(unittest.TestCase):
             ]
         }
         out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 0)
+        self.assertEqual(len(out["components"]), 2)
+        self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_AMBIGUOUS")
+
+    def test_sole_incomplete_annex_kept_with_ownership_gap(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "features": [],
+                    "params": {"component_id": "incomplete_annex"},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 0)
+        self.assertEqual(len(out["components"]), 2)
+        self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_AMBIGUOUS")
+
+    def test_unresolvable_host_id_does_not_bypass_overlap_strip(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {"component_id": "pagoda", "typology_id": "dense_eaves_pagoda"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "pagoda_shell", "host_id": "missing_host"},
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 100, "y": 0, "z": 0},
+                    "dimensions": {"width": 40, "depth": 30, "height": 16},
+                    "features": [],
+                    "params": {"component_id": "main_hall"},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
         self.assertEqual(stripped, 1)
-        self.assertEqual(len(out["components"]), 1)
+        ids = [c["params"]["component_id"] for c in out["components"]]
+        self.assertEqual(set(ids), {"pagoda", "main_hall"})
 
     def test_mixed_compound_strips_overlapping_shell_keeps_distant_hall(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
@@ -589,8 +647,9 @@ class TypologyPlanRepairTest(unittest.TestCase):
             ],
         }
         out, stripped = strip_typology_exclusive_compositionals(plan)
-        self.assertEqual(stripped, 1)
-        self.assertEqual(len(out["components"]), 1)
+        self.assertEqual(stripped, 0)
+        self.assertEqual(len(out["components"]), 2)
+        self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_AMBIGUOUS")
 
     def test_params_slot_id_applies_slot_anchor(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals

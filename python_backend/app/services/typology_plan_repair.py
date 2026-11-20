@@ -345,6 +345,17 @@ _OWNERSHIP_INDEPENDENT = "INDEPENDENT_BUILDING"
 _OWNERSHIP_AMBIGUOUS = "AMBIGUOUS"
 
 
+def _known_component_ids(components: List[Any]) -> set[str]:
+    ids: set[str] = set()
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        cid = _param_str(comp, "component_id", "componentId")
+        if cid:
+            ids.add(cid)
+    return ids
+
+
 def _resolve_compositional_ownership(
     comp: Dict[str, Any],
     exclusive_roots: List[Dict[str, Any]],
@@ -352,8 +363,12 @@ def _resolve_compositional_ownership(
     exclusive_building_ids: set[str],
     parent_by_id: Dict[str, str],
     slot_anchors: Optional[Dict[str, Dict[str, int]]] = None,
+    known_component_ids: Optional[set[str]] = None,
 ) -> str:
-    """Building identity first; XZ overlap never overrides a distinct building_id."""
+    """Building identity first; XZ overlap never overrides a distinct building_id.
+    Unresolvable host_id is not independence evidence.
+    """
+    known = known_component_ids or set()
     if _belongs_to_typology_exclusive_scope(
         comp, exclusive_ids, exclusive_building_ids, parent_by_id
     ):
@@ -363,7 +378,9 @@ def _resolve_compositional_ownership(
         return _OWNERSHIP_INDEPENDENT
     host = _param_str(comp, "host_id", "hostId")
     if host and host not in exclusive_ids:
-        return _OWNERSHIP_INDEPENDENT
+        if host in known:
+            return _OWNERSHIP_INDEPENDENT
+        # Missing host — fall through to overlap / spatial / ambiguous.
     if _overlaps_any_exclusive_root(comp, exclusive_roots, slot_anchors):
         return _OWNERSHIP_EXCLUSIVE
     if _is_spatially_separated_from_exclusive_roots(comp, exclusive_roots, slot_anchors):
@@ -401,6 +418,7 @@ def _has_independent_building_beside_typology(
     if _exclusive_roots_span_distinct_buildings(exclusive_roots):
         return True
     parent_by_id = _typology_host_parent_map(components)
+    known_ids = _known_component_ids(components)
     exclusive_set = {id(c) for c in exclusive_roots}
     for comp in components:
         if not isinstance(comp, dict) or id(comp) in exclusive_set or _is_whole_building_typology(comp):
@@ -417,6 +435,7 @@ def _has_independent_building_beside_typology(
                 exclusive_building_ids,
                 parent_by_id,
                 slot_anchors,
+                known_ids,
             )
             == _OWNERSHIP_INDEPENDENT
         ):
@@ -465,6 +484,7 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
             exclusive_building_ids.add(bid)
 
     parent_by_id = _typology_host_parent_map(components)
+    known_ids = _known_component_ids(components)
     slot_anchors = _slot_anchor_map(plan)
     multi_building = _has_independent_building_beside_typology(
         components, exclusive_roots, exclusive_ids, exclusive_building_ids, slot_anchors
@@ -479,26 +499,27 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
         ctype = str(comp.get("component_type") or "").upper()
         if ctype == "STRUCTURE" and _has_typology_hint(comp):
             kept.append(comp)
-        elif ctype in _TYPOLOGY_EXCLUSIVE_PERIPHERALS:
+            continue
+        if ctype in _TYPOLOGY_EXCLUSIVE_PERIPHERALS:
             kept.append(comp)
-        elif not multi_building:
+            continue
+        # Per-component ownership always — never gate on multi_building.
+        ownership = _resolve_compositional_ownership(
+            comp,
+            exclusive_roots,
+            exclusive_ids,
+            exclusive_building_ids,
+            parent_by_id,
+            slot_anchors,
+            known_ids,
+        )
+        if ownership == _OWNERSHIP_EXCLUSIVE:
             stripped += 1
         else:
-            ownership = _resolve_compositional_ownership(
-                comp,
-                exclusive_roots,
-                exclusive_ids,
-                exclusive_building_ids,
-                parent_by_id,
-                slot_anchors,
-            )
-            if ownership == _OWNERSHIP_EXCLUSIVE:
-                stripped += 1
-            else:
-                kept.append(comp)
-                if ownership == _OWNERSHIP_AMBIGUOUS:
-                    cid = _param_str(comp, "component_id", "componentId") or ctype
-                    ambiguous_ids.append(cid)
+            kept.append(comp)
+            if ownership == _OWNERSHIP_AMBIGUOUS:
+                cid = _param_str(comp, "component_id", "componentId") or ctype
+                ambiguous_ids.append(cid)
 
     changed = stripped > 0 or bool(ambiguous_ids)
     if changed:
@@ -510,13 +531,13 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
         plan["capability_gap"] = {
             "code": "E_COMPONENT_OWNERSHIP_AMBIGUOUS",
             "message": (
-                "混合建筑群中存在归属不明的构件（缺少可判定的 building_id / 几何），"
-                "无法安全确认是否为独占执行器的重复体量；请补全 building_id、host_id 与尺寸后重试。"
+                "存在归属不明的构件（缺少可判定的 building_id / 有效 host_id / 几何），"
+                "无法安全确认是否为独占执行器的重复体量；请补全身份与尺寸后重试。"
             ),
             "path": "components",
             "suggestions": [
                 "Assign distinct building_id for independent buildings.",
-                "Bind satellites with host_id, or provide relative_position + dimensions.",
+                "Bind satellites with a resolvable host_id, or provide relative_position + dimensions.",
                 "Do not drop ambiguous components silently.",
             ],
             "details": {

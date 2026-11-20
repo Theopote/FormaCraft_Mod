@@ -212,7 +212,8 @@ public final class GenerationCompileContext {
                 continue;
             }
             if (resolveCompositionalOwnership(
-                    c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById, slotMap)
+                    c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById,
+                    knownComponentIds(components), slotMap)
                     == ComponentOwnership.INDEPENDENT_BUILDING) {
                 return true;
             }
@@ -261,6 +262,7 @@ public final class GenerationCompileContext {
      * <p>
      * Building identity first (host chain / building_id), then geometry:
      * overlap alone never overrides a distinct {@code building_id}.
+     * Unknown {@code host_id} is not independence evidence.
      */
     public static ComponentOwnership resolveCompositionalOwnership(
             Component c,
@@ -268,10 +270,12 @@ public final class GenerationCompileContext {
             Set<String> exclusiveIds,
             Set<String> exclusiveBuildingIds,
             Map<String, String> parentById,
+            Set<String> knownComponentIds,
             Map<String, Slot> slotMap) {
         if (c == null) {
             return ComponentOwnership.AMBIGUOUS;
         }
+        Set<String> known = knownComponentIds == null ? Set.of() : knownComponentIds;
         // 1) Explicit exclusive scope (same building_id / host chain / exclusive component_id).
         if (belongsToTypologyExclusiveScope(c, exclusiveIds, exclusiveBuildingIds, parentById)) {
             return ComponentOwnership.EXCLUSIVE_HOST;
@@ -283,10 +287,13 @@ public final class GenerationCompileContext {
                 || !exclusiveBuildingIds.contains(bid))) {
             return ComponentOwnership.INDEPENDENT_BUILDING;
         }
-        // Satellite of a non-exclusive host travels with that building tree.
+        // Satellite of a resolvable non-exclusive host travels with that building tree.
         String host = param(c, "host_id", "hostId");
         if (host != null && (exclusiveIds == null || !exclusiveIds.contains(host))) {
-            return ComponentOwnership.INDEPENDENT_BUILDING;
+            if (known.contains(host)) {
+                return ComponentOwnership.INDEPENDENT_BUILDING;
+            }
+            // Unresolvable host_id is not independence evidence — fall through.
         }
         // 3) Same-building redundant envelope: overlap without independent identity.
         if (overlapsAnyExclusiveRoot(c, exclusiveRoots, slotMap)) {
@@ -297,6 +304,17 @@ public final class GenerationCompileContext {
             return ComponentOwnership.INDEPENDENT_BUILDING;
         }
         return ComponentOwnership.AMBIGUOUS;
+    }
+
+    public static Set<String> knownComponentIds(List<Component> components) {
+        Set<String> ids = new HashSet<>();
+        if (components == null) return ids;
+        for (Component c : components) {
+            if (c == null) continue;
+            String id = param(c, "component_id", "componentId");
+            if (id != null) ids.add(id);
+        }
+        return ids;
     }
 
     public static boolean belongsToTypologyExclusiveScope(

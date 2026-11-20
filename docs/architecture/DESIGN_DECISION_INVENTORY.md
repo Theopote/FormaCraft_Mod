@@ -190,6 +190,9 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | AMBIGUOUS silent strip | incomplete annex vanished in mixed compounds | **Fixed (2026-11-20):** keep + `E_COMPONENT_OWNERSHIP_AMBIGUOUS` |
 | `exclusiveRoots.size()>1` ⇒ multi | same `building_id` dual STRUCTURE flipped soleTypology | **Fixed (2026-11-20):** `exclusiveRootsSpanDistinctBuildings` |
 | ownership footprint via MASS min-3 | Java/Python disagree on width-1 adjacency | **Fixed (2026-11-20):** authored dims in `planSpaceFootprintXz` |
+| `!multiBuilding` strip-all shortcut | sole pagoda+incomplete annex silent delete | **Fixed (2026-11-20):** always per-component ownership; AMBIGUOUS gap in sole too |
+| `normalizeBody` before exclusive filter | prepareComponents widened width-1 before ownership | **Fixed (2026-11-20):** filter then normalizeBody |
+| unresolved `host_id` ⇒ independent | `missing_host` bypassed overlap strip | **Fixed (2026-11-20):** host must resolve in known component ids |
 | `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |
 | `StyleIntentResolver.detectFlavor` plan-only | local Huizhou under plan Modern got flat/glass | **Fixed (2026-11-20):** `EffectiveBuildingStyleResolver`; local/host chain first; entrance `bindDerived` inherits |
 | `EffectiveBuildingStyleResolver` local-only | authored FACADE with host_id lacked style inheritance | **Fixed (2026-11-20):** resolve via host_id chain before plan style |

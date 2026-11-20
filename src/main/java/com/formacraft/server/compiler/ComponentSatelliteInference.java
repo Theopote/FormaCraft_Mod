@@ -120,7 +120,8 @@ final class ComponentSatelliteInference {
             normalizedComponent = PlanIntentFidelityRepair.enrich(plan, normalizedComponent);
             normalizedComponent = StyleIntentResolver.apply(plan, normalizedComponent);
             normalizedComponent = OpeningGrammarResolver.apply(plan, normalizedComponent);
-            normalizedComponent = com.formacraft.common.generation.component.util.ResolvedComponentGeometry.normalizeBody(normalizedComponent);
+            // Delay normalizeBody until after typology-exclusive ownership: identity footprints
+            // must use authored dims (Java/Python parity), not MASS min-3 generation clamps.
             String type = ComponentPlanTypes.normalizeType(normalizedComponent.componentType());
             if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(plan, normalizedComponent.params())) {
                 var params = new HashMap<String, Object>();
@@ -146,6 +147,16 @@ final class ComponentSatelliteInference {
         AssemblyPlanPromoter.PromotionResult assemblyPromotion = AssemblyPlanPromoter.promoteNestedAssembly(components);
         components = assemblyPromotion.components();
         components = applyTypologyExclusiveFilter(components, slotMap);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return new PreparedComponents(List.of(), Set.of());
+        }
+        // Generation geometry clamp after ownership filtering.
+        List<Component> bodyNormalized = new ArrayList<>(components.size());
+        for (Component c : components) {
+            bodyNormalized.add(
+                    com.formacraft.common.generation.component.util.ResolvedComponentGeometry.normalizeBody(c));
+        }
+        components = bodyNormalized;
         Set<String> assemblyPrimarySlots = assemblyPromotion.assemblyPrimarySlots();
         massSlots.clear();
         for (Component c : components) {
@@ -562,6 +573,7 @@ final class ComponentSatelliteInference {
         }
 
         Map<String, String> parentById = typologyHostParentMap(components);
+        Set<String> knownComponentIds = knownComponentIds(components);
         boolean multiBuilding = GenerationCompileContext.hasIndependentBuildingBesideTypology(
                 components, exclusiveRoots, exclusiveBuildingIds, slotMap);
 
@@ -575,24 +587,24 @@ final class ComponentSatelliteInference {
             String type = ComponentPlanTypes.normalizeType(c.componentType());
             if ("STRUCTURE".equals(type) && TypologyComponentRouter.hasTypologyHint(c)) {
                 kept.add(c);
-            } else if (isTypologyExclusivePeripheral(type)) {
+                continue;
+            }
+            if (isTypologyExclusivePeripheral(type)) {
                 kept.add(c);
-            } else if (!multiBuilding) {
+                continue;
+            }
+            // Per-component ownership always — never gate on multiBuilding.
+            GenerationCompileContext.ComponentOwnership ownership =
+                    GenerationCompileContext.resolveCompositionalOwnership(
+                            c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds,
+                            parentById, knownComponentIds, slotMap);
+            if (ownership == GenerationCompileContext.ComponentOwnership.EXCLUSIVE_HOST) {
                 stripped++;
             } else {
-                // Mixed compound: EXCLUSIVE_HOST strips; INDEPENDENT keeps;
-                // AMBIGUOUS keeps design record + capability_gap (never silent delete).
-                GenerationCompileContext.ComponentOwnership ownership =
-                        GenerationCompileContext.resolveCompositionalOwnership(
-                                c, exclusiveRoots, exclusiveIds, exclusiveBuildingIds, parentById, slotMap);
-                if (ownership == GenerationCompileContext.ComponentOwnership.EXCLUSIVE_HOST) {
-                    stripped++;
-                } else {
-                    kept.add(c);
-                    if (ownership == GenerationCompileContext.ComponentOwnership.AMBIGUOUS) {
-                        String cid = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
-                        ambiguousIds.add(cid != null ? cid : type);
-                    }
+                kept.add(c);
+                if (ownership == GenerationCompileContext.ComponentOwnership.AMBIGUOUS) {
+                    String cid = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
+                    ambiguousIds.add(cid != null ? cid : type);
                 }
             }
         }
@@ -600,11 +612,11 @@ final class ComponentSatelliteInference {
         if (!ambiguousIds.isEmpty() && !AssemblyCompileDiagnostics.hasGap()) {
             AssemblyCompileDiagnostics.set(new CapabilityGap(
                     "E_COMPONENT_OWNERSHIP_AMBIGUOUS",
-                    "混合建筑群中存在归属不明的构件（缺少可判定的 building_id / 几何），无法安全确认是否为独占执行器的重复体量；请补全 building_id、host_id 与尺寸后重试。",
+                    "存在归属不明的构件（缺少可判定的 building_id / 有效 host_id / 几何），无法安全确认是否为独占执行器的重复体量；请补全身份与尺寸后重试。",
                     "components",
                     List.of(
                             "Assign distinct building_id for independent buildings.",
-                            "Bind satellites with host_id, or provide relative_position + dimensions.",
+                            "Bind satellites with a resolvable host_id, or provide relative_position + dimensions.",
                             "Do not drop ambiguous components silently."),
                     Map.of(
                             "ambiguous_component_ids", List.copyOf(ambiguousIds),
@@ -620,6 +632,19 @@ final class ComponentSatelliteInference {
                     stripped, kept.size(), multiBuilding);
         }
         return kept;
+    }
+
+    private static Set<String> knownComponentIds(List<Component> components) {
+        Set<String> ids = new HashSet<>();
+        if (components == null) return ids;
+        for (Component c : components) {
+            if (c == null) continue;
+            String id = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
+            if (id != null && !id.isBlank()) {
+                ids.add(id.trim());
+            }
+        }
+        return ids;
     }
 
     private static boolean isTypologyExclusivePeripheral(String type) {
