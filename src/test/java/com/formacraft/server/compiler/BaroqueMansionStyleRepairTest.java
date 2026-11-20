@@ -271,6 +271,71 @@ class BaroqueMansionStyleRepairTest {
     }
 
     @Test
+    void frenchMansardAnnexDoesNotStealBaroqueTargetFromHipMain() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 8), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 2));
+        Component mainRoof = new Component(
+                "ROOF", "main", new Vec3i(0, 8, 0),
+                new Dimensions(15, 25, 4), List.of(),
+                Map.of("component_id", "main_roof", "host_id", "main_house", "roof_type", "hip"));
+        Component french = new Component(
+                "MASS_SECONDARY", "wing", new Vec3i(30, 0, 0),
+                new Dimensions(10, 10, 8), List.of(),
+                Map.of("component_id", "french_wing", "floor_count", 2, "floor_height", 2));
+        Component frenchRoof = new Component(
+                "ROOF", "wing", new Vec3i(30, 8, 0),
+                new Dimensions(10, 10, 4), List.of(),
+                Map.of("component_id", "french_roof", "host_id", "french_wing", "roof_type", "mansard"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(main, mainRoof, french, frenchRoof))
+                .planMeta(Map.of("request_intent_text",
+                        "主楼是一栋巴洛克大宅采用四坡屋顶；东侧另外建一栋法式马萨屋顶住宅"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        Component fixedMain = out.components().stream()
+                .filter(c -> "main_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertTrue(((Number) fixedMain.params().get("floor_height")).intValue() >= 4);
+        assertEquals("base_plinth", fixedMain.params().get("facade_profile"));
+        Component fixedFrench = out.components().stream()
+                .filter(c -> "french_wing".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(2, ((Number) fixedFrench.params().get("floor_height")).intValue());
+        assertNull(fixedFrench.params().get("facade_profile"));
+        assertEquals("mansard", out.components().stream()
+                .filter(c -> "french_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+        assertEquals("hip", out.components().stream()
+                .filter(c -> "main_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+    }
+
+    @Test
+    void facadePilasterOnBaroqueHostIsNotDroppedBySkinnyAspect() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 12), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 5));
+        Component pilaster = new Component(
+                "DECOR_DETAIL", "main", new Vec3i(0, 1, 4),
+                new Dimensions(2, 2, 10), List.of("pilaster"),
+                Map.of("component_id", "west_facade_pilaster", "host_id", "main_house"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(main, pilaster))
+                .planMeta(Map.of("request_intent_text", "巴洛克大宅立面壁柱"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        assertTrue(out.components().stream().anyMatch(c ->
+                "west_facade_pilaster".equals(String.valueOf(c.params().get("component_id")))));
+    }
+
+    @Test
     void firstMassMainIsNotAssumedBaroqueTargetForMansardCorpus() {
         Component ordinary = new Component(
                 "MASS_MAIN", "west", new Vec3i(0, 0, 0),
@@ -284,10 +349,11 @@ class BaroqueMansionStyleRepairTest {
                 "MASS_MAIN", "east", new Vec3i(40, 0, 0),
                 new Dimensions(15, 25, 12), List.of("baroque"),
                 Map.of("component_id", "east_mansion", "floor_count", 2, "floor_height", 5));
+        // Blank roof_type: corpus mansard may fill the unique baroque host only — never west gable.
         Component baroqueRoof = new Component(
                 "ROOF", "east", new Vec3i(40, 12, 0),
                 new Dimensions(15, 25, 5), List.of(),
-                Map.of("component_id", "east_roof", "host_id", "east_mansion", "roof_type", "hip"));
+                Map.of("component_id", "east_roof", "host_id", "east_mansion"));
         LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .styleProfile("baroque")
                 .components(List.of(ordinary, ordinaryRoof, baroque, baroqueRoof))

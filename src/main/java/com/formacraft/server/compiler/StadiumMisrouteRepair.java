@@ -174,14 +174,32 @@ final class StadiumMisrouteRepair {
             }
         }
 
-        String style = plan.styleProfile();
+        // Do not collapse RADIAL_RING when a true arena STRUCTURE/MODULE was preserved.
+        boolean preservedStadium = !preservedStadiumHosts.isEmpty();
+        String originalStyle = plan.styleProfile();
+        String style = originalStyle;
+        // Mixed compound: plan-level style becomes residential for demoted hosts, but preserved
+        // arena hosts keep the original stadium style via per-component style_profile.
         if (styleLooksStadium(plan)) {
             style = resolveResidentialStyle(requestCorpus);
             changed = true;
+            if (preservedStadium && originalStyle != null && !originalStyle.isBlank()) {
+                List<Component> stamped = stampHostStyleProfile(
+                        out, preservedStadiumHosts, originalStyle);
+                if (stamped != out) {
+                    out = stamped;
+                    changed = true;
+                }
+            }
         }
-
-        // Do not collapse RADIAL_RING when a true arena STRUCTURE/MODULE was preserved.
-        boolean preservedStadium = !preservedStadiumHosts.isEmpty();
+        if (affirmativeStadiumAsk && residentialAsk && !preservedStadium) {
+            // Stadium was requested but no dedicated arena host remained — do not invent one.
+            com.formacraft.server.assembly.AssemblyCompileDiagnostics.addSoftWarning(
+                    "STADIUM_ROUTE_AMBIGUOUS",
+                    "请求包含体育场，但计划中没有可确认的体育场执行器（可能被误路由住宅占用）",
+                    "STRUCTURE",
+                    null);
+        }
         Layout layout = plan.layout();
         GlobalConstraints constraints = plan.globalConstraints();
         if (!preservedStadium) {
@@ -232,13 +250,9 @@ final class StadiumMisrouteRepair {
     }
 
     /**
-     * Mixed residential+stadium: preserve STRUCTURE/MODULE/TOWER arena executors by role — never by
-     * "how many stadium markers exist". MASS_MAIN shells never stay as stadium.
-     * <ul>
-     *   <li>Clean residential host beside this stadium → preserve (sole real arena is valid).</li>
-     *   <li>Several stadium-marked hosts → preserve only dedicated arena cues / bowl scale.</li>
-     *   <li>Sole stadium-marked host under a residential ask → demote (classic misroute).</li>
-     * </ul>
+     * Mixed residential+stadium: preserve only STRUCTURE/MODULE/TOWER executors with dedicated
+     * arena identity (role/slot/bowl scale). Never preserve because a MASS_MAIN exists or because
+     * this is the sole stadium marker — a missing real arena must not keep a misrouted shell.
      */
     private static boolean shouldPreserveStadiumExecutor(
             Component c, boolean affirmativeStadiumAsk, LlmPlan plan) {
@@ -251,34 +265,43 @@ final class StadiumMisrouteRepair {
         if (!("STRUCTURE".equals(t) || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER"))) {
             return false;
         }
-        int stadiumHosts = countStadiumMarkedHosts(plan);
-        boolean cleanResidentialBeside = hasSeparateNonStadiumPrimaryMass(plan, c);
-        // "There is a residential MASS_MAIN" is not enough when multiple stadium-marked executors
-        // exist — only dedicated arena cues / bowl scale identify the real arena (3-building mix).
-        if (cleanResidentialBeside && stadiumHosts == 1) {
-            return true;
-        }
-        if (stadiumHosts >= 2) {
-            return looksDedicatedArenaHost(c);
-        }
-        return false;
+        return looksDedicatedArenaHost(c);
     }
 
-    /** Mass/STRUCTURE/MODULE hosts that can own stadium route markers (includes MODULE). */
-    private static int countStadiumMarkedHosts(LlmPlan plan) {
-        int n = 0;
-        for (Component other : plan.components()) {
-            if (other == null || !isStadiumCapableHost(other)) continue;
-            if (carriesStadiumRouteMarkers(other)) n++;
+    /**
+     * Stamp preserved arena hosts (and their satellites) with a local style_profile so emit can
+     * keep stadium materials while the plan-level profile becomes residential for demoted hosts.
+     */
+    private static List<Component> stampHostStyleProfile(
+            List<Component> components, Set<String> preservedHosts, String styleProfile) {
+        if (components == null || preservedHosts == null || preservedHosts.isEmpty()
+                || styleProfile == null || styleProfile.isBlank()) {
+            return components;
         }
-        return n;
-    }
-
-    private static boolean isStadiumCapableHost(Component c) {
-        if (c == null || c.componentType() == null) return false;
-        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
-        return t.startsWith("MASS") || "MAIN_MASS".equals(t) || "STRUCTURE".equals(t)
-                || "MODULE".equals(t) || "TOWER".equals(t) || t.startsWith("TOWER");
+        List<Component> next = new ArrayList<>(components.size());
+        boolean dirty = false;
+        for (Component c : components) {
+            if (c == null) {
+                next.add(null);
+                continue;
+            }
+            if (!belongsToPreservedStadiumHost(c, preservedHosts, components)) {
+                next.add(c);
+                continue;
+            }
+            Map<String, Object> params = c.params() == null ? new HashMap<>() : new HashMap<>(c.params());
+            Object existing = params.get("style_profile");
+            if (existing == null) existing = params.get("effective_style_profile");
+            if (existing != null && !String.valueOf(existing).isBlank()) {
+                next.add(c);
+                continue;
+            }
+            params.put("style_profile", styleProfile);
+            dirty = true;
+            next.add(new Component(c.componentType(), c.slotId(), c.relativePosition(),
+                    c.dimensions(), c.features(), params));
+        }
+        return dirty ? next : components;
     }
 
     /**
@@ -317,25 +340,6 @@ final class StadiumMisrouteRepair {
                 return true;
             }
             cursor = parentById.get(cursor);
-        }
-        return false;
-    }
-
-    /**
-     * A clean primary residential mass (MASS_MAIN) without stadium markers means this stadium
-     * executor is the real arena — not a misrouted shell. Wings alone do not qualify (avoids
-     * preserving a misrouted STRUCTURE just because an annex exists).
-     */
-    private static boolean hasSeparateNonStadiumPrimaryMass(LlmPlan plan, Component stadium) {
-        String stadiumId = componentId(stadium);
-        for (Component other : plan.components()) {
-            if (other == null || other == stadium || other.componentType() == null) continue;
-            String t = other.componentType().trim().toUpperCase(Locale.ROOT);
-            if (!("MASS_MAIN".equals(t) || "MAIN_MASS".equals(t))) continue;
-            String otherId = componentId(other);
-            if (!stadiumId.isBlank() && stadiumId.equals(otherId)) continue;
-            if (carriesStadiumRouteMarkers(other)) continue;
-            return true;
         }
         return false;
     }

@@ -495,6 +495,71 @@ class StadiumMisrouteRepairTest {
     }
 
     @Test
+    void preservedStadiumKeepsLocalStadiumStyleWhilePlanBecomesResidential() {
+        Component mansion = new Component(
+                "MASS_MAIN", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2));
+        Component arena = new Component(
+                "STRUCTURE", "arena",
+                new Vec3i(60, 0, 0),
+                new Dimensions(40, 60, 20),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "east_stadium", "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion, arena))
+                .planMeta(Map.of("request_intent_text", "建造一座巴洛克大宅，并在东侧建一座体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertFalse("Modern_Stadium_Elliptical".equalsIgnoreCase(out.styleProfile()));
+        Component east = out.components().stream()
+                .filter(c -> "east_stadium".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("Modern_Stadium_Elliptical", east.params().get("style_profile"));
+        assertEquals("Modern_Stadium_Elliptical",
+                ComponentEmitPass.resolveComponentStyleProfile(out, east));
+        Component main = out.components().stream()
+                .filter(c -> "main_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertNull(main.params().get("style_profile"));
+        assertEquals(out.styleProfile(), ComponentEmitPass.resolveComponentStyleProfile(out, main));
+    }
+
+    @Test
+    void missingRealArenaDemotesMisroutedShellAndDoesNotPreserveIt() {
+        Component mansion = new Component(
+                "MASS_MAIN", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("baroque"),
+                Map.of("component_id", "main_house"));
+        Component misrouted = new Component(
+                "STRUCTURE", "wing",
+                new Vec3i(30, 0, 0),
+                new Dimensions(12, 14, 10),
+                List.of("typology:stadium_bowl"),
+                Map.of("component_id", "side_house", "typology_id", "stadium_bowl"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion, misrouted))
+                .planMeta(Map.of("request_intent_text",
+                        "建造一座巴洛克大宅和附属住宅，东侧另建一座体育场"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        assertEquals("MASS_MAIN", out.components().stream()
+                .filter(c -> "side_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
+        assertFalse(String.valueOf(out.components().stream()
+                .filter(c -> "side_house".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("typology_id")).contains("stadium"));
+    }
+
+    @Test
     void soleRealStadiumBesideCleanResidentialIsPreserved() {
         Component mansion = new Component(
                 "MASS_MAIN", "main",
