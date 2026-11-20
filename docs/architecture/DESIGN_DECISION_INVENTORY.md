@@ -176,8 +176,11 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `Baroque` overwrites stadium typology hint | proportionHints typology→baroque_mansion | **Fixed (2026-11-20):** skip when stadium executor remains |
 | `StadiumMisrouteRepair` global style rewrite | preserved arena still got residential styleProfile | **Fixed (2026-11-20):** stamp host `style_profile`; emit prefers local |
 | `baroqueTargetHostId` via mansard | French mansard annex stole baroque target | **Fixed (2026-11-20):** style markers only; mansard ≠ baroque identity |
-| `shouldPreserveStadium` sole+MASS_MAIN | missing arena kept misrouted STRUCTURE | **Fixed (2026-11-20):** dedicated arena identity only + soft warn |
+| `shouldPreserveStadium` sole+MASS_MAIN | missing arena kept misrouted STRUCTURE | **Fixed (2026-11-20):** dedicated arena identity only; affirmative ask without arena → `E_STADIUM_EXECUTOR_MISSING` |
 | `isMisplacedWallOrRoofDecor` pilaster | skinny facade pilaster dropped | **Fixed (2026-11-20):** column/pilaster no longer attic-delete cues |
+| `applyTypologyExclusiveFilter` / Python `strip_typology_exclusive_compositionals` plan-wide | stadium STRUCTURE deleted neighbouring mansion MASS/ROOF/FACADE | **Fixed (2026-11-20):** multi-building scopes by `building_id` / independent host identity; single-building anonymous redundant strip retained |
+| `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |
+| `StyleIntentResolver.detectFlavor` plan-only | local Huizhou under plan Modern got flat/glass | **Fixed (2026-11-20):** `EffectiveBuildingStyleResolver`; local profile first; entrance `bindDerived` inherits |
 | `DenseEavesPagodaMisrouteRepair` strip floor_count=3 | putIfAllowed rewrote authored 5-storey louge to 3 | **Fixed (2026-11-20):** preserve existing floors; missing-only default; locked features block STRUCTURE demote |
 | `AssemblyCompileDiagnostics` test leakage | gap-emitting misroute tests polluted prepareComponents | **Fixed (2026-11-20):** BeforeEach/AfterEach clear on ExplicitOmission + misroute/conflict tests |
 | `DenseEavesPagodaMisrouteRepair` typology inject | house primary → dense_eaves_pagoda STRUCTURE + drop satellites | **Fixed (2026-11-20):** open/multi-mass pagoda misroute → `E_DENSE_EAVES_PAGODA_ROUTE_UNSUPPORTED`; square force host-scoped to dense_eaves/tower only |

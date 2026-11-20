@@ -159,16 +159,18 @@ public final class StyleIntentResolver {
     private static StyleFlavor detectFlavor(LlmPlan plan, Component component) {
         Set<String> tokens = new HashSet<>();
 
-        // A declared identity precedes incidental decorative feature words.
-        String identity = plan == null ? null : StyleIdentityRegistry.canonical(plan.styleProfile());
+        // Host/component local style_profile wins over plan defaults (mixed compounds).
+        String effective = EffectiveBuildingStyleResolver.resolve(plan, component);
+        String identity = StyleIdentityRegistry.canonical(effective);
         if ("Modern_International".equals(identity)) return StyleFlavor.MODERN;
         if ("Chinese_Vernacular_Huizhou".equals(identity)) return StyleFlavor.HUI;
 
+        if (effective != null) {
+            tokens.add(effective.toLowerCase(Locale.ROOT));
+        }
+
         if (plan != null) {
-            String profile = plan.styleProfile();
-            if (profile != null) {
-                tokens.add(profile.toLowerCase(Locale.ROOT));
-            }
+            // Plan genome / decorative attrs only supplement when local style did not decide.
             if (plan.genome() != null && plan.genome().culturalStyle != null) {
                 if (plan.genome().culturalStyle.region != null) {
                     tokens.add(plan.genome().culturalStyle.region.toLowerCase(Locale.ROOT));

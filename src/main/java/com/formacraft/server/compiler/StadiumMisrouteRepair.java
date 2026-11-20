@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.design.DesignProvenance;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.GlobalConstraints;
@@ -192,13 +193,16 @@ final class StadiumMisrouteRepair {
                 }
             }
         }
+        CapabilityGap missingStadiumGap = null;
         if (affirmativeStadiumAsk && residentialAsk && !preservedStadium) {
-            // Stadium was requested but no dedicated arena host remained — do not invent one.
-            com.formacraft.server.assembly.AssemblyCompileDiagnostics.addSoftWarning(
-                    "STADIUM_ROUTE_AMBIGUOUS",
-                    "请求包含体育场，但计划中没有可确认的体育场执行器（可能被误路由住宅占用）",
-                    "STRUCTURE",
-                    null);
+            // Explicit stadium ask with no credible arena executor → capability_gap, not soft success.
+            missingStadiumGap = new CapabilityGap(
+                    "E_STADIUM_EXECUTOR_MISSING",
+                    "请求包含独立体育场，但计划中没有可确认的体育场执行器；请重新规划体育场构件，勿将住宅误路由结果当作完整建造。",
+                    "components",
+                    List.of(
+                            "Emit a STRUCTURE with typology:stadium_bowl (or dedicated arena identity).",
+                            "Do not treat residential demotion as a successful stadium build."));
         }
         Layout layout = plan.layout();
         GlobalConstraints constraints = plan.globalConstraints();
@@ -217,6 +221,21 @@ final class StadiumMisrouteRepair {
                 plan.proportionHints(), requestCorpus, preservedStadium);
         if (hints != plan.proportionHints()) {
             changed = true;
+        }
+
+        if (missingStadiumGap != null) {
+            LlmPlan base = changed
+                    ? new LlmPlan(
+                    plan.mode(), style, plan.anchor(), constraints, layout,
+                    out, plan.genome(), plan.styleAttributes(), hints,
+                    plan.alignmentAndSymmetry(), plan.targetSlotId(), plan.allowedArea(), plan.patch(),
+                    plan.planProgram(), plan.planSkeleton(), plan.planStatus(), plan.error(),
+                    plan.capabilityGap(), plan.playerFidelityNoticeZh(), plan.distinguishingFeatures(),
+                    plan.enrichmentGuard(), plan.planMeta(), plan.designSources())
+                    : plan;
+            FormacraftMod.LOGGER.info(
+                    "StadiumMisrouteRepair: affirmative stadium ask without arena executor → capability_gap");
+            return PlanComponentRewrite.withCapabilityGap(base, missingStadiumGap);
         }
 
         if (!changed) {

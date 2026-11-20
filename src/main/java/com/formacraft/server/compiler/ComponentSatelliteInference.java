@@ -533,19 +533,32 @@ final class ComponentSatelliteInference {
             return components;
         }
 
-        boolean hasTypologyStructure = false;
+        List<Component> exclusiveRoots = new ArrayList<>();
         for (Component c : components) {
-            if (c == null) {
-                continue;
-            }
             if (isWholeBuildingTypology(c)) {
-                hasTypologyStructure = true;
-                break;
+                exclusiveRoots.add(c);
             }
         }
-        if (!hasTypologyStructure) {
+        if (exclusiveRoots.isEmpty()) {
             return components;
         }
+
+        Set<String> exclusiveIds = new HashSet<>();
+        Set<String> exclusiveBuildingIds = new HashSet<>();
+        for (Component root : exclusiveRoots) {
+            String id = ComponentPlanTypes.getParamString(root.params(), "component_id", "componentId");
+            if (id != null && !id.isBlank()) {
+                exclusiveIds.add(id.trim());
+            }
+            String bid = ComponentPlanTypes.getParamString(root.params(), "building_id", "buildingId");
+            if (bid != null && !bid.isBlank()) {
+                exclusiveBuildingIds.add(bid.trim());
+            }
+        }
+
+        Map<String, String> parentById = typologyHostParentMap(components);
+        boolean multiBuilding = hasIndependentBuildingBesideTypology(
+                components, exclusiveRoots, exclusiveIds, exclusiveBuildingIds);
 
         List<Component> kept = new ArrayList<>();
         int stripped = 0;
@@ -558,6 +571,14 @@ final class ComponentSatelliteInference {
                 kept.add(c);
             } else if (isTypologyExclusivePeripheral(type)) {
                 kept.add(c);
+            } else if (multiBuilding) {
+                // Mixed compound: only drop compositionals clearly owned by an exclusive typology host.
+                // Ambiguous / independent buildings stay — never wipe a mansion beside a stadium.
+                if (belongsToTypologyExclusiveScope(c, exclusiveIds, exclusiveBuildingIds, parentById)) {
+                    stripped++;
+                } else {
+                    kept.add(c);
+                }
             } else {
                 stripped++;
             }
@@ -565,14 +586,112 @@ final class ComponentSatelliteInference {
 
         if (stripped > 0) {
             FormacraftMod.LOGGER.info(
-                    "ComponentPlanCompiler: typology-exclusive plan stripped {} compositional component(s), kept {}",
-                    stripped, kept.size());
+                    "ComponentPlanCompiler: typology-exclusive plan stripped {} compositional component(s), kept {} (multiBuilding={})",
+                    stripped, kept.size(), multiBuilding);
         }
         return kept;
     }
 
     private static boolean isTypologyExclusivePeripheral(String type) {
         return "PAVING".equals(type) || "PATH".equals(type) || "COURTYARD_SPACE".equals(type);
+    }
+
+    /**
+     * True when the plan contains another unbound building root that is not the exclusive typology
+     * executor (distinct {@code building_id} / {@code component_id} host tree). Anonymous redundant
+     * masses beside a sole typology stay single-building exclusive mode.
+     */
+    private static boolean hasIndependentBuildingBesideTypology(
+            List<Component> components,
+            List<Component> exclusiveRoots,
+            Set<String> exclusiveIds,
+            Set<String> exclusiveBuildingIds) {
+        if (exclusiveRoots.size() > 1) {
+            return true;
+        }
+        for (Component c : components) {
+            if (c == null || exclusiveRoots.contains(c) || isWholeBuildingTypology(c)) {
+                continue;
+            }
+            if (ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId") != null) {
+                continue;
+            }
+            if (!isTypologyExclusiveBuildingRootType(c)) {
+                continue;
+            }
+            String bid = ComponentPlanTypes.getParamString(c.params(), "building_id", "buildingId");
+            if (bid != null && !bid.isBlank()
+                    && (exclusiveBuildingIds.isEmpty() || !exclusiveBuildingIds.contains(bid.trim()))) {
+                return true;
+            }
+            String id = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
+            if (id != null && !id.isBlank()
+                    && (exclusiveIds.isEmpty() || !exclusiveIds.contains(id.trim()))) {
+                return true;
+            }
+        }
+        // Distinct building_id on any satellite of a non-exclusive tree also signals a compound.
+        Set<String> seenBuildingIds = new HashSet<>(exclusiveBuildingIds);
+        for (Component c : components) {
+            if (c == null) continue;
+            String bid = ComponentPlanTypes.getParamString(c.params(), "building_id", "buildingId");
+            if (bid == null || bid.isBlank()) continue;
+            if (seenBuildingIds.add(bid.trim()) && !exclusiveBuildingIds.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isTypologyExclusiveBuildingRootType(Component c) {
+        String type = ComponentPlanTypes.normalizeType(c.componentType());
+        return type.startsWith("MASS")
+                || "STRUCTURE".equals(type)
+                || "MODULE".equals(type)
+                || "TOWER".equals(type)
+                || type.startsWith("TOWER");
+    }
+
+    private static Map<String, String> typologyHostParentMap(List<Component> components) {
+        Map<String, String> parentById = new HashMap<>();
+        for (Component c : components) {
+            if (c == null) continue;
+            String id = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
+            if (id == null || id.isBlank()) continue;
+            String host = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
+            if (host != null && !host.isBlank()) {
+                parentById.put(id.trim(), host.trim());
+            }
+        }
+        return parentById;
+    }
+
+    private static boolean belongsToTypologyExclusiveScope(
+            Component c,
+            Set<String> exclusiveIds,
+            Set<String> exclusiveBuildingIds,
+            Map<String, String> parentById) {
+        if (c == null) return false;
+        String bid = ComponentPlanTypes.getParamString(c.params(), "building_id", "buildingId");
+        if (bid != null && !bid.isBlank() && exclusiveBuildingIds.contains(bid.trim())) {
+            return true;
+        }
+        String id = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
+        if (id != null && !id.isBlank() && exclusiveIds.contains(id.trim())) {
+            return true;
+        }
+        String cursor = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
+        if (cursor == null || cursor.isBlank()) {
+            cursor = id;
+        }
+        Set<String> seen = new HashSet<>();
+        while (cursor != null && !cursor.isBlank() && seen.add(cursor)) {
+            if (exclusiveIds.contains(cursor)) {
+                return true;
+            }
+            cursor = parentById.get(cursor);
+        }
+        return false;
     }
 
     /** Reflection-compatible forwarders for tests; logic lives in {@link ComponentSatelliteAligner}. */
@@ -768,7 +887,8 @@ final class ComponentSatelliteInference {
             entranceHeight = Math.max(2, Math.min(height, paramDoorH + 1));
         } else {
             var entranceSemantic = new SemanticComponent("MASS_MAIN", null, base,
-                    plan.styleProfile(), plan.styleAttributes(), plan.genome());
+                    com.formacraft.common.style.EffectiveBuildingStyleResolver.resolve(plan, base),
+                    plan.styleAttributes(), plan.genome());
             var layers = com.formacraft.common.generation.component.util.ResolvedFacadeLayers
                     .resolve(entranceSemantic, width, depth, height);
             for (int y = 0; y + 1 < layers.length; y++) {
@@ -946,7 +1066,8 @@ final class ComponentSatelliteInference {
         // Other shapes need clipping in the original mask coordinates rather than a smaller mask.
         if ("MASS_MAIN".equals(ComponentPlanTypes.normalizeType(base.componentType()))) {
             var semantic = new SemanticComponent(base.componentType(), null, base,
-                    plan.styleProfile(), plan.styleAttributes(), plan.genome());
+                    com.formacraft.common.style.EffectiveBuildingStyleResolver.resolve(plan, base),
+                    plan.styleAttributes(), plan.genome());
             var mask = com.formacraft.common.generation.component.util.ComponentFootprintMask.from(semantic,
                     base.params(), dims.width(), dims.depth());
             boolean rectangle = true;
@@ -969,7 +1090,8 @@ final class ComponentSatelliteInference {
                 width, depth, 0, params);
         if (!com.formacraft.common.generation.component.util.RoofPitchGeometry.hasExplicitRiseIntent(params))
             roofHeight = com.formacraft.common.generation.component.util.StyleRoofGeometry.defaultRise(
-                    plan.styleProfile(), width, depth, roofHeight);
+                    com.formacraft.common.style.EffectiveBuildingStyleResolver.resolve(plan, base),
+                    width, depth, roofHeight);
         String roofType = ComponentPlanTypes.getParamString(params, "roof_type", "roofType");
         // An unroofed setback tier supports the next tier and its garden deck;
         // a default pitched roof would cut through that upper occupied body.
@@ -1068,7 +1190,8 @@ final class ComponentSatelliteInference {
         if (mass.params() != null) params.putAll(mass.params());
         params.putAll(part.sourceParams());
         var semantic = new SemanticComponent(mass.componentType(),null,mass,
-                plan.styleProfile(),plan.styleAttributes(),plan.genome());
+                com.formacraft.common.style.EffectiveBuildingStyleResolver.resolve(plan, mass),
+                plan.styleAttributes(),plan.genome());
         var dims = part.dimensions();
         var mask = com.formacraft.common.generation.component.util.ComponentFootprintMask.from(semantic,params,dims.width(),dims.depth());
         for (int x = 0; x < dims.width(); x++) for (int z = 0; z < dims.depth(); z++)
@@ -1213,6 +1336,8 @@ final class ComponentSatelliteInference {
             params.put("host_id", identity);
             params.put("component_id", identity + "#" + role);
         }
+        // Entrance/facade/roof satellites must inherit host-local style for StyleIntentResolver + emit.
+        com.formacraft.common.style.EffectiveBuildingStyleResolver.inheritLocalStyle(params, mass);
     }
 
     private static boolean hasSatelliteForMass(Component mass, List<Component> primary, List<Component> inferred, String wantedType) {

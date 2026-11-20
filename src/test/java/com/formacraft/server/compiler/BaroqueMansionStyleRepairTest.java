@@ -315,6 +315,37 @@ class BaroqueMansionStyleRepairTest {
     }
 
     @Test
+    void sameBaroqueHostKeepsDistinctMansardAndHipRoofs() {
+        Component main = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(20, 28, 12), List.of("baroque"),
+                Map.of("component_id", "main_house", "floor_count", 2, "floor_height", 5));
+        Component central = new Component(
+                "ROOF", "main", new Vec3i(0, 12, 0),
+                new Dimensions(14, 20, 7), List.of(),
+                Map.of("component_id", "central_roof", "host_id", "main_house", "roof_type", "mansard"));
+        // Authored hip without USER_EXPLICIT lock — sibling mansard must not unify it.
+        Component wingRoof = new Component(
+                "ROOF", "main", new Vec3i(16, 12, 4),
+                new Dimensions(8, 12, 4), List.of(),
+                Map.of("component_id", "wing_hip_roof", "host_id", "main_house", "roof_type", "hip"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("baroque")
+                .components(List.of(main, central, wingRoof))
+                .planMeta(Map.of("request_intent_text", "巴洛克大宅中央马萨屋顶，侧翼保留四坡顶"))
+                .build();
+
+        LlmPlan out = BaroqueMansionStyleRepair.apply(plan);
+        assertEquals("mansard", out.components().stream()
+                .filter(c -> "central_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"));
+        assertEquals("hip", out.components().stream()
+                .filter(c -> "wing_hip_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("roof_type"),
+                "authored non-blank hip must survive hostHasMansard sibling cue");
+    }
+
+    @Test
     void facadePilasterOnBaroqueHostIsNotDroppedBySkinnyAspect() {
         Component main = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),

@@ -1186,17 +1186,7 @@ final class ComponentEmitPass {
      * preserved stadium) can emit distinct material languages per building.
      */
     static String resolveComponentStyleProfile(LlmPlan plan, Component c) {
-        if (c != null && c.params() != null) {
-            Object local = c.params().get("style_profile");
-            if (local == null) local = c.params().get("effective_style_profile");
-            if (local != null) {
-                String s = String.valueOf(local).trim();
-                if (!s.isEmpty() && !"null".equalsIgnoreCase(s)) {
-                    return s;
-                }
-            }
-        }
-        return plan == null ? null : plan.styleProfile();
+        return com.formacraft.common.style.EffectiveBuildingStyleResolver.resolve(plan, c);
     }
 
     /** Soft-warn when gable seal cannot run on a non-rectangular footprint. */

@@ -72,4 +72,22 @@ class StyleMorphologyTest {
         var resolved=StyleIntentResolver.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleProfile("Modern_International").build(),c);
         assertEquals("flat",resolved.params().get("roof_type"));
     }
+
+    @Test void componentLocalStyleBeatsPlanModernDefaults() {
+        var mass = new Component("MASS_MAIN", null, new Vec3i(0, 0, 0), new Dimensions(16, 14, 8),
+                List.of(), Map.of("component_id", "hui_wing", "style_profile", "Chinese_Vernacular_Huizhou"));
+        var facade = new Component("FACADE_WINDOWS", null, new Vec3i(0, 0, 0), new Dimensions(16, 14, 8),
+                List.of(), Map.of("component_id", "hui_wing#facade", "host_id", "hui_wing",
+                        "style_profile", "Chinese_Vernacular_Huizhou"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_International").build();
+        var massOut = StyleIntentResolver.apply(plan, mass);
+        var facadeOut = StyleIntentResolver.apply(plan, facade);
+        assertEquals("yingshan", massOut.params().get("roof_type"),
+                "local Huizhou must not inherit plan Modern flat roof");
+        assertEquals("lattice", facadeOut.params().get("window_style"),
+                "local Huizhou facade must not inherit plan Modern glass");
+        assertEquals("Chinese_Vernacular_Huizhou",
+                EffectiveBuildingStyleResolver.resolve(plan, mass));
+    }
 }

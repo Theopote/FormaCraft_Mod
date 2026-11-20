@@ -152,10 +152,119 @@ def _has_typology_hint(comp: Dict[str, Any]) -> bool:
     return False
 
 
+def _param_str(comp: Dict[str, Any], *keys: str) -> Optional[str]:
+    params = comp.get("params") if isinstance(comp, dict) else None
+    if not isinstance(params, dict):
+        return None
+    for key in keys:
+        v = params.get(key)
+        if v is None:
+            continue
+        s = str(v).strip()
+        if s and s.lower() != "null":
+            return s
+    return None
+
+
+def _is_whole_building_typology(comp: Dict[str, Any]) -> bool:
+    if not isinstance(comp, dict):
+        return False
+    if str(comp.get("component_type") or "").upper() != "STRUCTURE":
+        return False
+    if not _has_typology_hint(comp):
+        return False
+    return _param_str(comp, "host_id", "hostId") is None
+
+
+def _is_typology_exclusive_building_root(comp: Dict[str, Any]) -> bool:
+    ctype = str(comp.get("component_type") or "").upper()
+    return (
+        ctype.startswith("MASS")
+        or ctype in ("STRUCTURE", "MODULE", "TOWER")
+        or ctype.startswith("TOWER")
+    )
+
+
+def _typology_host_parent_map(components: List[Any]) -> Dict[str, str]:
+    parent_by_id: Dict[str, str] = {}
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        cid = _param_str(comp, "component_id", "componentId")
+        if not cid:
+            continue
+        host = _param_str(comp, "host_id", "hostId")
+        if host:
+            parent_by_id[cid] = host
+    return parent_by_id
+
+
+def _belongs_to_typology_exclusive_scope(
+    comp: Dict[str, Any],
+    exclusive_ids: set[str],
+    exclusive_building_ids: set[str],
+    parent_by_id: Dict[str, str],
+) -> bool:
+    bid = _param_str(comp, "building_id", "buildingId")
+    if bid and bid in exclusive_building_ids:
+        return True
+    cid = _param_str(comp, "component_id", "componentId")
+    if cid and cid in exclusive_ids:
+        return True
+    cursor = _param_str(comp, "host_id", "hostId") or cid
+    seen: set[str] = set()
+    while cursor and cursor not in seen:
+        seen.add(cursor)
+        if cursor in exclusive_ids:
+            return True
+        cursor = parent_by_id.get(cursor)
+    return False
+
+
+def _has_independent_building_beside_typology(
+    components: List[Any],
+    exclusive_roots: List[Dict[str, Any]],
+    exclusive_ids: set[str],
+    exclusive_building_ids: set[str],
+) -> bool:
+    if len(exclusive_roots) > 1:
+        return True
+    exclusive_set = {id(c) for c in exclusive_roots}
+    for comp in components:
+        if not isinstance(comp, dict) or id(comp) in exclusive_set or _is_whole_building_typology(comp):
+            continue
+        if _param_str(comp, "host_id", "hostId"):
+            continue
+        if not _is_typology_exclusive_building_root(comp):
+            continue
+        bid = _param_str(comp, "building_id", "buildingId")
+        if bid and (not exclusive_building_ids or bid not in exclusive_building_ids):
+            return True
+        cid = _param_str(comp, "component_id", "componentId")
+        if cid and (not exclusive_ids or cid not in exclusive_ids):
+            return True
+    seen_building_ids = set(exclusive_building_ids)
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        bid = _param_str(comp, "building_id", "buildingId")
+        if not bid:
+            continue
+        if bid not in seen_building_ids:
+            seen_building_ids.add(bid)
+            if exclusive_building_ids:
+                return True
+    return False
+
+
 def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
     """
     When plan already has STRUCTURE + typology:*, drop redundant compositional parts
     (MASS/TOWER/ROOF/…) that the typology builder owns. Mirrors Java applyTypologyExclusiveFilter.
+
+    Single-building: strip anonymous / same-host compositionals plan-wide.
+    Mixed compound (distinct building_id / independent host identity): only strip parts that
+    clearly belong to the exclusive typology host — never delete a neighbouring mansion.
     Returns (plan, stripped_count).
     """
     if not isinstance(plan, dict):
@@ -164,15 +273,24 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
     if not isinstance(components, list) or not components:
         return plan, 0
 
-    has_typology_structure = any(
-        isinstance(c, dict)
-        and str(c.get("component_type") or "").upper() == "STRUCTURE"
-        and _has_typology_hint(c)
-        and not str((c.get("params") or {}).get("host_id") or (c.get("params") or {}).get("hostId") or "").strip()
-        for c in components
-    )
-    if not has_typology_structure:
+    exclusive_roots = [c for c in components if isinstance(c, dict) and _is_whole_building_typology(c)]
+    if not exclusive_roots:
         return plan, 0
+
+    exclusive_ids: set[str] = set()
+    exclusive_building_ids: set[str] = set()
+    for root in exclusive_roots:
+        cid = _param_str(root, "component_id", "componentId")
+        if cid:
+            exclusive_ids.add(cid)
+        bid = _param_str(root, "building_id", "buildingId")
+        if bid:
+            exclusive_building_ids.add(bid)
+
+    parent_by_id = _typology_host_parent_map(components)
+    multi_building = _has_independent_building_beside_typology(
+        components, exclusive_roots, exclusive_ids, exclusive_building_ids
+    )
 
     kept: List[Dict[str, Any]] = []
     stripped = 0
@@ -184,6 +302,13 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
             kept.append(comp)
         elif ctype in _TYPOLOGY_EXCLUSIVE_PERIPHERALS:
             kept.append(comp)
+        elif multi_building:
+            if _belongs_to_typology_exclusive_scope(
+                comp, exclusive_ids, exclusive_building_ids, parent_by_id
+            ):
+                stripped += 1
+            else:
+                kept.append(comp)
         else:
             stripped += 1
 
@@ -191,9 +316,10 @@ def strip_typology_exclusive_compositionals(plan: Dict[str, Any]) -> Tuple[Dict[
         plan = dict(plan)
         plan["components"] = kept
         logger.info(
-            "TypologyPlanRepair: typology-exclusive stripped %d compositional component(s), kept %d",
+            "TypologyPlanRepair: typology-exclusive stripped %d compositional component(s), kept %d (multi_building=%s)",
             stripped,
             len(kept),
+            multi_building,
         )
     return plan, stripped
 

@@ -362,6 +362,59 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(len(out["components"]), 1)
         self.assertEqual(out["components"][0]["component_type"], "STRUCTURE")
 
+    def test_mixed_compound_keeps_independent_mansion_beside_stadium(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "features": ["typology:stadium_bowl"],
+                    "params": {
+                        "component_id": "arena",
+                        "building_id": "stadium",
+                        "typology_id": "stadium_bowl",
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "params": {
+                        "component_id": "mansion",
+                        "building_id": "mansion",
+                        "style_profile": "Legacy_Classical_Facade",
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "params": {
+                        "component_id": "mansion_roof",
+                        "host_id": "mansion",
+                        "building_id": "mansion",
+                        "roof_type": "mansard",
+                    },
+                },
+                {
+                    "component_type": "FACADE_WINDOWS",
+                    "params": {
+                        "component_id": "mansion_facade",
+                        "host_id": "mansion",
+                        "building_id": "mansion",
+                    },
+                },
+                {
+                    "component_type": "PATH",
+                    "params": {},
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        self.assertEqual(stripped, 0)
+        types = [c["component_type"] for c in out["components"]]
+        self.assertEqual(
+            types,
+            ["STRUCTURE", "MASS_MAIN", "ROOF", "FACADE_WINDOWS", "PATH"],
+        )
+
     def test_typology_exclusive_keeps_paving_peripheral(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
 

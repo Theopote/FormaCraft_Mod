@@ -698,8 +698,9 @@ final class BaroqueMansionStyleRepair {
             if (rt == null) rt = params.get("roofType");
             boolean mansard = rt != null && String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard");
             boolean blankRoof = rt == null || String.valueOf(rt).isBlank();
-            // Never overwrite authored hip/gable from a compound-wide mansard cue.
-            if (!mansard && (mayForceMansard || (mayFillBlankMansard && blankRoof))) {
+            // Authored hip/gable/flat/xieshan stay — sibling mansard on the same host must not unify them.
+            // Only blank roofs may receive mansard (host cue or corpus fill on the baroque target).
+            if (!mansard && blankRoof && (mayForceMansard || mayFillBlankMansard)) {
                 if (DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard")) {
                     DesignProvenance.putIfAllowed(plan, params, "roof_specialty",
                             hostDormers ? "mansard_dormer" : "mansard");

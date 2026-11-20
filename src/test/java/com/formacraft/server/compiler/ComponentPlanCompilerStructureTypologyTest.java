@@ -75,6 +75,44 @@ class ComponentPlanCompilerStructureTypologyTest {
     }
 
     @Test
+    void mixedCompoundPreservesIndependentBuildingBesideTypology() throws Exception {
+        List<Component> input = List.of(
+                new Component(
+                        "STRUCTURE",
+                        null,
+                        new Vec3i(80, 0, 0),
+                        new Dimensions(60, 80, 28),
+                        List.of("typology:stadium_bowl"),
+                        Map.of("component_id", "arena", "building_id", "stadium", "typology_id", "stadium_bowl")
+                ),
+                new Component(
+                        "MASS_MAIN",
+                        null,
+                        new Vec3i(0, 0, 0),
+                        new Dimensions(16, 24, 10),
+                        List.of(),
+                        Map.of("component_id", "mansion", "building_id", "mansion")
+                ),
+                new Component(
+                        "ROOF",
+                        null,
+                        new Vec3i(0, 10, 0),
+                        new Dimensions(16, 24, 5),
+                        List.of(),
+                        Map.of("component_id", "mansion_roof", "host_id", "mansion", "building_id", "mansion",
+                                "roof_type", "mansard")
+                )
+        );
+
+        @SuppressWarnings("unchecked")
+        List<Component> filtered = (List<Component>) invokeFilter(input);
+
+        assertEquals(3, filtered.size());
+        assertTrue(filtered.stream().anyMatch(c -> "MASS_MAIN".equals(c.componentType())));
+        assertTrue(filtered.stream().anyMatch(c -> "ROOF".equals(c.componentType())));
+    }
+
+    @Test
     void typologyExclusivePlanKeepsPeripheralPaving() throws Exception {
         List<Component> input = List.of(
                 new Component(

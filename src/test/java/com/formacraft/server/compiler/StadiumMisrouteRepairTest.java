@@ -17,6 +17,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -557,6 +558,9 @@ class StadiumMisrouteRepairTest {
         assertFalse(String.valueOf(out.components().stream()
                 .filter(c -> "side_house".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow().params().get("typology_id")).contains("stadium"));
+        assertNotNull(out.capabilityGap());
+        assertEquals("E_STADIUM_EXECUTOR_MISSING", out.capabilityGap().code());
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
     }
 
     @Test
