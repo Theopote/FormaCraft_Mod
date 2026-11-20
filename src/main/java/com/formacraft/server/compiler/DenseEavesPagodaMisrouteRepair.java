@@ -139,20 +139,25 @@ final class DenseEavesPagodaMisrouteRepair {
     /** Independent pagoda/stupa/tower mass already composed (not a gable house). */
     private static boolean hasAuthoredPagodaComposition(LlmPlan plan) {
         for (Component c : plan.components()) {
-            if (looksAuthoredPagodaMass(c)) {
+            if (looksAuthoredPagodaMass(plan, c)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean looksAuthoredPagodaMass(Component c) {
+    /**
+     * Authored pagoda = identity cue plus executable massing (storeys/height/hosted roof),
+     * not a bare name-tagged box that should still surface a routing gap.
+     */
+    private static boolean looksAuthoredPagodaMass(LlmPlan plan, Component c) {
         if (c == null || c.componentType() == null) return false;
         if (carriesDenseEaves(c)) return true;
         String t = c.componentType().trim().toUpperCase(Locale.ROOT);
         if (!(t.startsWith("MASS") || "TOWER".equals(t) || t.startsWith("TOWER") || "STRUCTURE".equals(t))) {
             return false;
         }
+        if (looksHousePrimary(c)) return false;
         String id = idOf(c).toLowerCase(Locale.ROOT);
         String feat = featuresOf(c).toLowerCase(Locale.ROOT);
         boolean pagodaIdentity = id.contains("pagoda") || id.contains("stupa") || id.contains("宝塔")
@@ -161,8 +166,20 @@ final class DenseEavesPagodaMisrouteRepair {
                 || feat.contains("密檐") || feat.contains("佛塔") || feat.contains("harmika")
                 || feat.contains("bumpa");
         if (!pagodaIdentity) return false;
-        // House-shaped MASS_MAIN with blank/gable roof is the inject target, not authored pagoda.
-        return !looksHousePrimary(c);
+        int floors = c.params() == null ? 0
+                : ComponentParamParsers.intParam(c.params(), "floor_count", "floorCount", "levels");
+        int height = c.dimensions() == null ? 0 : c.dimensions().height();
+        if (floors >= 3 || height >= 16) return true;
+        String cid = idOf(c);
+        if (cid.isBlank() || plan.components() == null) return false;
+        for (Component s : plan.components()) {
+            if (s == null || s.componentType() == null) continue;
+            if (!s.componentType().toUpperCase(Locale.ROOT).startsWith("ROOF")) continue;
+            Object host = s.params() == null ? null : s.params().get("host_id");
+            if (host == null && s.params() != null) host = s.params().get("hostId");
+            if (host != null && cid.equals(String.valueOf(host))) return true;
+        }
+        return false;
     }
 
     /**
@@ -245,7 +262,23 @@ final class DenseEavesPagodaMisrouteRepair {
                 return false;
             }
         }
+        // Locked dense_eaves features must not be demoted STRUCTURE→MASS_MAIN while tags remain.
+        if (featuresContainDenseEaves(c) && !DesignProvenance.canEnrichFeatures(plan, params)) {
+            return false;
+        }
         return true;
+    }
+
+    private static boolean featuresContainDenseEaves(Component c) {
+        if (c == null || c.features() == null) return false;
+        for (String f : c.features()) {
+            if (f == null) continue;
+            String lower = f.toLowerCase(Locale.ROOT);
+            if (lower.contains("dense_eaves") || lower.contains("typology:dense_eaves")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Component stripDenseEaves(LlmPlan plan, Component c) {
@@ -274,10 +307,19 @@ final class DenseEavesPagodaMisrouteRepair {
             nextFeat.add(f);
         }
         String type = c.componentType();
-        if (type != null && "STRUCTURE".equalsIgnoreCase(type.trim())) {
+        boolean denseFeatRemains = nextFeat.stream().anyMatch(f ->
+                f != null && (f.toLowerCase(Locale.ROOT).contains("dense_eaves")
+                        || f.toLowerCase(Locale.ROOT).contains("typology:dense_eaves")));
+        // Demote STRUCTURE only when dense_eaves features are gone — never leave typology tags on MASS_MAIN.
+        if (type != null && "STRUCTURE".equalsIgnoreCase(type.trim()) && !denseFeatRemains) {
             type = "MASS_MAIN";
             params.putIfAbsent("pagoda_misroute_demoted", true);
-            DesignProvenance.putIfAllowed(plan, params, "floor_count", 3);
+            // Preserve authored storeys; only fill a missing floor_count default.
+            boolean hasFloors = params.containsKey("floor_count") || params.containsKey("floorCount")
+                    || params.containsKey("levels");
+            if (!hasFloors) {
+                DesignProvenance.putIfAllowed(plan, params, "floor_count", 3);
+            }
             params.putIfAbsent("open", false);
         }
         return new Component(type, c.slotId(), c.relativePosition(), c.dimensions(), nextFeat, params);

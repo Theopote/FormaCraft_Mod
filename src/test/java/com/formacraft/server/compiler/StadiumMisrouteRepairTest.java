@@ -5,6 +5,9 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -14,9 +17,20 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StadiumMisrouteRepairTest {
+
+    @BeforeEach
+    void clearBefore() {
+        AssemblyCompileDiagnostics.clear();
+    }
+
+    @AfterEach
+    void clearAfter() {
+        AssemblyCompileDiagnostics.clear();
+    }
 
     @Test
     void stripsStadiumBowlFromBaroqueMansion() {
@@ -228,9 +242,88 @@ class StadiumMisrouteRepairTest {
                 .build();
 
         LlmPlan out = StadiumMisrouteRepair.apply(plan);
-        assertEquals("hip", out.components().stream()
+        Component outRoof = out.components().stream()
                 .filter(c -> "mansion_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("hip", outRoof.params().get("roof_type"));
+        assertNull(outRoof.params().get("roof_specialty"));
+        assertNull(outRoof.params().get("roof_dormers"));
+    }
+
+    @Test
+    void annexVoidRatioDoesNotEnterDemotedHostsOrLoseValue() {
+        Map<String, Object> mansionParams = new HashMap<>();
+        mansionParams.put("component_id", "mansion");
+        mansionParams.put("typology_id", "stadium_bowl");
+        mansionParams.put("meshStructure", true);
+        Component mansion = new Component(
+                "STRUCTURE", "main",
+                new Vec3i(0, 0, 0),
+                new Dimensions(15, 25, 18),
+                List.of("typology:stadium_bowl"),
+                mansionParams);
+        Map<String, Object> annexParams = new HashMap<>();
+        annexParams.put("component_id", "side_hall");
+        annexParams.put("roof_type", "gable");
+        annexParams.put("void_ratio", 0.15);
+        annexParams.put("tier_count", 1);
+        Component annex = new Component(
+                "MASS_SECONDARY", "annex",
+                new Vec3i(30, 0, 0),
+                new Dimensions(10, 8, 6),
+                List.of(),
+                annexParams);
+        Component annexRoof = new Component(
+                "ROOF", "annex",
+                new Vec3i(30, 6, 0),
+                new Dimensions(10, 8, 3),
+                List.of(),
+                Map.of("component_id", "side_roof", "host_id", "side_hall", "roof_type", "gable"));
+        Component bell = new Component(
+                "STRUCTURE", "tower",
+                new Vec3i(50, 0, 0),
+                new Dimensions(6, 6, 18),
+                List.of("bell_tower"),
+                Map.of("component_id", "bell_tower", "typology_id", "gothic_bell_tower"));
+        Map<String, Object> hipRoofParams = new HashMap<>();
+        hipRoofParams.put("component_id", "bell_roof");
+        hipRoofParams.put("host_id", "bell_tower");
+        hipRoofParams.put("roof_type", "hip");
+        hipRoofParams.put("design_sources", Map.of("roof_type", "USER_EXPLICIT"));
+        Component bellRoof = new Component(
+                "ROOF", "tower",
+                new Vec3i(50, 18, 0),
+                new Dimensions(6, 6, 3),
+                List.of(),
+                hipRoofParams);
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleProfile("Modern_Stadium_Elliptical")
+                .components(List.of(mansion, annex, annexRoof, bell, bellRoof))
+                .planMeta(Map.of("request_intent_text", "巴洛克大宅带马萨屋顶，旁附配殿与钟楼"))
+                .build();
+
+        LlmPlan out = StadiumMisrouteRepair.apply(plan);
+        Component outAnnex = out.components().stream()
+                .filter(c -> "side_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(0.15, ((Number) outAnnex.params().get("void_ratio")).doubleValue(), 1e-6);
+        assertEquals(1, ((Number) outAnnex.params().get("tier_count")).intValue());
+        assertNotEquals(Boolean.TRUE, outAnnex.params().get("stadium_misroute_demoted"));
+        assertEquals("gable", out.components().stream()
+                .filter(c -> "side_roof".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow().params().get("roof_type"));
+        Component outBell = out.components().stream()
+                .filter(c -> "bell_tower".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("STRUCTURE", outBell.componentType());
+        Component outBellRoof = out.components().stream()
+                .filter(c -> "bell_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("hip", outBellRoof.params().get("roof_type"));
+        assertNull(outBellRoof.params().get("roof_specialty"));
+        assertEquals("MASS_MAIN", out.components().stream()
+                .filter(c -> "mansion".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().componentType());
     }
 
     @Test

@@ -38,10 +38,17 @@ final class StadiumMisrouteRepair {
             "mansard", "baroque", "mansion", "villa", "residence", "palace", "manor",
             "townhouse", "rowhouse", "联排");
 
-    private static final List<String> STADIUM_PARAM_KEYS = List.of(
-            "elliptical", "meshStructure", "mesh_structure", "bowlSteepness", "bowl_steepness",
-            "field_ratio", "void_ratio", "enclosure_coverage", "tierStep", "tier_step",
-            "tier_count", "field_to_bowl");
+    /** Bowl/mesh/field params that are stadium-executor evidence by themselves. */
+    private static final List<String> STADIUM_EXCLUSIVE_PARAM_KEYS = List.of(
+            "meshStructure", "mesh_structure", "bowlSteepness", "bowl_steepness",
+            "field_ratio", "enclosure_coverage", "tierStep", "tier_step", "field_to_bowl");
+
+    /**
+     * Ordinary building params also written by Python mass defaults — never stadium evidence alone.
+     * Cleaned only after a component already hit a true stadium route marker.
+     */
+    private static final List<String> STADIUM_COMPAT_PARAM_KEYS = List.of(
+            "void_ratio", "tier_count", "elliptical");
 
     private record StripOutcome(Component component, boolean stadiumRouteDemoted) {}
 
@@ -70,7 +77,7 @@ final class StadiumMisrouteRepair {
         Set<String> demotedHosts = new HashSet<>();
         Component primaryDemotedMass = null;
         for (Component c : plan.components()) {
-            StripOutcome outcome = stripForcedStadium(c, requestCorpus, demotePrimaryId);
+            StripOutcome outcome = stripForcedStadium(plan, c, requestCorpus, demotePrimaryId);
             if (outcome.component() != c) {
                 changed = true;
             }
@@ -314,7 +321,10 @@ final class StadiumMisrouteRepair {
         return styleLooksStadium(plan);
     }
 
-    /** True stadium routing evidence — never plain material_hints alone. */
+    /**
+     * True stadium routing evidence only — never plain material_hints, void_ratio, tier_count,
+     * or elliptical alone (those are ordinary mass defaults from Python normalization).
+     */
     private static boolean carriesStadiumRouteMarkers(Component c) {
         if (c == null) return false;
         if (c.params() != null) {
@@ -329,7 +339,7 @@ final class StadiumMisrouteRepair {
                     }
                 }
             }
-            for (String key : STADIUM_PARAM_KEYS) {
+            for (String key : STADIUM_EXCLUSIVE_PARAM_KEYS) {
                 if (c.params().containsKey(key)) {
                     return true;
                 }
@@ -430,7 +440,7 @@ final class StadiumMisrouteRepair {
      *                        STRUCTURE→MASS_MAIN when style alone is poisoned.
      */
     private static StripOutcome stripForcedStadium(
-            Component c, String requestCorpus, String demotePrimaryId) {
+            LlmPlan plan, Component c, String requestCorpus, String demotePrimaryId) {
         if (c == null) {
             return new StripOutcome(c, false);
         }
@@ -459,7 +469,7 @@ final class StadiumMisrouteRepair {
                     }
                 }
             }
-            for (String key : STADIUM_PARAM_KEYS) {
+            for (String key : STADIUM_EXCLUSIVE_PARAM_KEYS) {
                 if (params.remove(key) != null) {
                     stadiumHit = true;
                 }
@@ -538,6 +548,14 @@ final class StadiumMisrouteRepair {
         if (params == null) {
             params = new HashMap<>();
         }
+        // Generic mass defaults: strip only after true stadium hit, and only when unlocked.
+        if (stadiumHit) {
+            for (String key : STADIUM_COMPAT_PARAM_KEYS) {
+                if (params.containsKey(key) && DesignProvenance.canMutateParam(plan, params, key)) {
+                    params.remove(key);
+                }
+            }
+        }
         boolean stadiumRouteDemoted = stadiumHit || demoteStructure;
         if (stadiumRouteDemoted) {
             params.put("stadium_misroute_demoted", true);
@@ -592,18 +610,27 @@ final class StadiumMisrouteRepair {
         if (rt == null) {
             rt = params.get("roofType");
         }
-        if (rt == null || !String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard")) {
-            if (DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard")) {
+        boolean roofIsMansard = rt != null && String.valueOf(rt).toLowerCase(Locale.ROOT).contains("mansard");
+        if (!roofIsMansard) {
+            // Locked non-mansard: leave the whole roof bundle alone (no specialty/dormer mix).
+            if (!DesignProvenance.canMutateParam(plan, params, "roof_type")) {
+                return c;
+            }
+            if (!DesignProvenance.putIfAllowed(plan, params, "roof_type", "mansard")) {
+                return c;
+            }
+            roofIsMansard = true;
+            changed = true;
+        }
+        if (roofIsMansard) {
+            if (!params.containsKey("roof_specialty")
+                    && DesignProvenance.putIfAllowed(plan, params, "roof_specialty", "mansard_dormer")) {
                 changed = true;
             }
-        }
-        if (!params.containsKey("roof_specialty")
-                && DesignProvenance.putIfAllowed(plan, params, "roof_specialty", "mansard_dormer")) {
-            changed = true;
-        }
-        if (!params.containsKey("roof_dormers") && !params.containsKey("dormers")
-                && DesignProvenance.putIfAllowed(plan, params, "roof_dormers", true)) {
-            changed = true;
+            if (!params.containsKey("roof_dormers") && !params.containsKey("dormers")
+                    && DesignProvenance.putIfAllowed(plan, params, "roof_dormers", true)) {
+                changed = true;
+            }
         }
         if (!changed) {
             return c;

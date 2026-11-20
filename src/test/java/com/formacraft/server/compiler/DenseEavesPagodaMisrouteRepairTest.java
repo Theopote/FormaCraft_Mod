@@ -5,6 +5,9 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -18,6 +21,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DenseEavesPagodaMisrouteRepairTest {
+
+    @BeforeEach
+    void clearBefore() {
+        AssemblyCompileDiagnostics.clear();
+    }
+
+    @AfterEach
+    void clearAfter() {
+        AssemblyCompileDiagnostics.clear();
+    }
 
     @Test
     void stripsDenseEavesFromAsymmetricWastelandPavilion() {
@@ -204,6 +217,30 @@ class DenseEavesPagodaMisrouteRepairTest {
         assertEquals("gable", out.components().stream()
                 .filter(c -> "main_hall".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow().params().get("roof_type"));
+    }
+
+    @Test
+    void stripDenseEavesPreservesAuthoredFloorCount() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "louge");
+        params.put("typology_id", "dense_eaves_pagoda");
+        params.put("floor_count", 5);
+        params.put("footprint", "octagon");
+        Component structure = new Component(
+                "STRUCTURE", "tower",
+                new Vec3i(0, 0, 0),
+                new Dimensions(16, 16, 40),
+                List.of("typology:dense_eaves_pagoda"),
+                params);
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(structure))
+                .planMeta(Map.of("request_intent_text", "生成一座非对称废土风格中式楼阁"))
+                .build();
+
+        LlmPlan out = DenseEavesPagodaMisrouteRepair.apply(plan);
+        Component c = out.components().get(0);
+        assertEquals("MASS_MAIN", c.componentType());
+        assertEquals(5, ((Number) c.params().get("floor_count")).intValue());
     }
 
     @Test

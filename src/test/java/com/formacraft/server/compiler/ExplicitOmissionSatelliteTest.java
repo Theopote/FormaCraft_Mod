@@ -5,6 +5,9 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -20,6 +23,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * {@code allow_compiler_satellites=true}.
  */
 class ExplicitOmissionSatelliteTest {
+
+    @BeforeEach
+    void clearBefore() {
+        AssemblyCompileDiagnostics.clear();
+    }
+
+    @AfterEach
+    void clearAfter() {
+        AssemblyCompileDiagnostics.clear();
+    }
 
     @Test
     void prepareComponentsDoesNotInferRoofWhenRoofTypeNone() {
