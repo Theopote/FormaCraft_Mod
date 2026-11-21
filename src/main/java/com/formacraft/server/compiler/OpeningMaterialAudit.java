@@ -221,7 +221,7 @@ final class OpeningMaterialAudit {
         if (c.params() == null) return null;
         if ("FACADE_WINDOWS".equalsIgnoreCase(c.componentType())) {
             String lattice = com.formacraft.common.generation.component.util.WoodLatticeMaterial.resolve(c.params());
-            if (lattice != null) return lattice;
+            if (lattice != null) return blockId(lattice);
         }
         for (String key : List.of("glass_block", "glazing_block", "glass_material", "window_block")) {
             Object value = c.params().get(key);

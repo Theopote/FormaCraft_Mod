@@ -14,6 +14,9 @@ public final class MaterialBlockFamily {
     }
 
     public static String slab(String block) { return shape(block, "slab"); }
+    public static String wall(String block) { return shape(block, "wall"); }
+    public static String fence(String block) { return shape(block, "fence"); }
+    public static String pane(String block) { return shape(block, "pane"); }
 
     /**
      * Full cube in the same family as stairs/slab (for slope fill under stair surfaces).
@@ -88,6 +91,9 @@ public final class MaterialBlockFamily {
     private static String stemOf(String name) {
         if (name.endsWith("_stairs")) return name.substring(0, name.length() - 7);
         if (name.endsWith("_slab")) return name.substring(0, name.length() - 5);
+        if (name.endsWith("_wall")) return name.substring(0, name.length() - 5);
+        if (name.endsWith("_fence")) return name.substring(0, name.length() - 6);
+        if (name.endsWith("_pane")) return name.substring(0, name.length() - 5);
         if (name.endsWith("_planks")) return name.substring(0, name.length() - 7);
         if (name.equals("quartz_block")) return "quartz";
         if (name.equals("bricks")) return "brick";
@@ -102,7 +108,7 @@ public final class MaterialBlockFamily {
         // Terracotta / concrete / wool have no stair variants — leave roof as full block.
         String path = id.getPath();
         if (path.contains("terracotta") || path.contains("concrete") || path.contains("wool")
-                || path.contains("glass") || path.equals("dirt") || path.equals("grass_block")) {
+                || path.contains("glass") && !"pane".equals(shape) || path.equals("dirt") || path.equals("grass_block")) {
             return null;
         }
         return id.getNamespace() + ":" + stem + "_" + shape;

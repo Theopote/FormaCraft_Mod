@@ -6,7 +6,6 @@ import com.formacraft.common.patch.BlockPatchTargetResolver;
 import net.minecraft.block.*;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
-import net.minecraft.util.Identifier;
 
 /** Material changes never turn stairs/slabs/functional objects into solid cubes. */
 public final class ShapePreservingMaterialSwap {
@@ -25,10 +24,9 @@ public final class ShapePreservingMaterialSwap {
         String shape = null;
         if (from instanceof StairsBlock && !(to instanceof StairsBlock)) shape = MaterialBlockFamily.stairs(base);
         else if (from instanceof SlabBlock && !(to instanceof SlabBlock)) shape = MaterialBlockFamily.slab(base);
-        else if (from instanceof WallBlock && !(to instanceof WallBlock)) shape = family(base, "wall");
-        else if (from instanceof FenceBlock && !(to instanceof FenceBlock)) shape = family(base, "fence");
-        else if (from instanceof PaneBlock && !(to instanceof PaneBlock)) shape = base.endsWith("_glass")
-                ? base + "_pane" : base.equals("minecraft:glass") ? "minecraft:glass_pane" : null;
+        else if (from instanceof WallBlock && !(to instanceof WallBlock)) shape = MaterialBlockFamily.wall(base);
+        else if (from instanceof FenceBlock && !(to instanceof FenceBlock)) shape = MaterialBlockFamily.fence(base);
+        else if (from instanceof PaneBlock && !(to instanceof PaneBlock)) shape = MaterialBlockFamily.pane(base);
         if (shape != null) {
             BlockState shaped = BlockPatchTargetResolver.parse(shape);
             if (shaped != null) { requested = shaped; to = shaped.getBlock(); }
@@ -50,13 +48,6 @@ public final class ShapePreservingMaterialSwap {
     public static String apply(String captured, String requested) {
         BlockState out = apply(captured, BlockPatchTargetResolver.parse(requested));
         return out == null ? captured : BlockStateStringUtil.fromState(out);
-    }
-
-    private static String family(String base, String shape) {
-        String stem = base.replaceFirst("_(planks|stairs|slab|wall|fence)$", "")
-                .replaceFirst("bricks$", "brick").replaceFirst("tiles$", "tile");
-        Identifier id = Identifier.tryParse(stem + "_" + shape);
-        return id != null && Registries.BLOCK.containsId(id) ? id.toString() : null;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

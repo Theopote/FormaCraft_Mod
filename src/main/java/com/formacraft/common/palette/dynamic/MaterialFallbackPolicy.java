@@ -10,6 +10,7 @@ import java.util.*;
 /** Resolve planner vocabulary before validation and material protection see the plan. */
 public final class MaterialFallbackPolicy {
     private static final Set<String> ASSEMBLY_STAIR_TYPES = Set.of("STAIR_SYSTEM", "STAIRS_SYSTEM", "STAIRCASE");
+    private static final Set<String> EXPLICIT_STAIR_MATERIALS = Set.of("stairs", "floor", "supportMaterial");
 
     private MaterialFallbackPolicy() {}
 
@@ -37,7 +38,8 @@ public final class MaterialFallbackPolicy {
                 || ("STRUCTURE".equals(type) && component.features() != null
                     && component.features().stream().anyMatch(feature -> feature != null && feature.startsWith("stair:")));
         var copy = new LinkedHashMap<String, Object>();
-        params.forEach((k, v) -> copy.put(k, directStair && "stairs".equals(k) ? v : normalizeValue(k, v)));
+        params.forEach((k, v) -> copy.put(k, directStair && EXPLICIT_STAIR_MATERIALS.contains(k)
+                ? v : normalizeValue(k, v)));
         return copy;
     }
 
@@ -49,7 +51,7 @@ public final class MaterialFallbackPolicy {
             var copy = new LinkedHashMap<String, Object>();
             boolean stair = ASSEMBLY_STAIR_TYPES.contains(Objects.toString(map.get("op"), "").trim().toUpperCase(Locale.ROOT))
                     || ASSEMBLY_STAIR_TYPES.contains(Objects.toString(map.get("type"), "").trim().toUpperCase(Locale.ROOT));
-            map.forEach((k, v) -> copy.put(String.valueOf(k), stair && "stairs".equals(k)
+            map.forEach((k, v) -> copy.put(String.valueOf(k), stair && EXPLICIT_STAIR_MATERIALS.contains(String.valueOf(k))
                     ? v : normalizeValue(String.valueOf(k), v)));
             return copy;
         }

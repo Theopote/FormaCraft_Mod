@@ -66,6 +66,23 @@ class AssemblyShellOpsTest {
     }
 
     @Test
+    void assemblyStairsKeepExplicitFloorAndSupportStates() {
+        var op = new HashMap<String, Object>(Map.of(
+                "op", "STAIR_SYSTEM", "floor", "minecraft:smooth_quartz_slab[type=top]",
+                "supportMaterial", "minecraft:oak_log[axis=x]",
+                "from", Map.of("x", 0, "y", 0, "z", 0), "to", Map.of("x", 0, "y", 2, "z", 3)));
+        var ctx = new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null);
+        var engine = new MetaAssemblyEngine();
+        var blocks = snapshot(engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), ctx));
+        assertEquals(net.minecraft.block.enums.SlabType.TOP, blocks.get(BlockPos.ORIGIN).get(Properties.SLAB_TYPE));
+        assertEquals(Direction.Axis.X, blocks.get(BlockPos.ORIGIN.down()).get(Properties.AXIS));
+        op.put("supportMaterial", "minecraft:oak_log[axis=bad]");
+        var issue = assertThrows(AssemblyCirculationOps.InvalidStairMaterial.class,
+                () -> engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), ctx));
+        assertTrue(issue.getMessage().contains("supportMaterial"));
+    }
+
+    @Test
     void modelAuthoredLoftProducesSlopedSurfaceAcrossSections() {
         var start = Map.of("at", Map.of("z", 0), "profilePoints",
                 List.of(Map.of("x", 0, "y", 2), Map.of("x", 8, "y", 2)));

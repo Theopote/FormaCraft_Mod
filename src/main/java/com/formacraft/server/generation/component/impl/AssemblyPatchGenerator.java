@@ -187,7 +187,8 @@ public final class AssemblyPatchGenerator {
             String path = fbd instanceof com.formacraft.common.dsl.FbdCompiler.Compilation
                     ? "components[].params.fbd_program" : "components[].params.assembly";
             return fail("E_ASSEMBLY_STAIR_MATERIAL", failure.getMessage(), path,
-                    List.of("Specify a registered stair block or omit stairs to use the floor family."));
+                    List.of("Use registered block states for floor and supportMaterial.",
+                            "Specify a registered stair block or omit stairs to use the floor family."));
         } catch (AssemblyCirculationConstraints.Conflict conflict) {
             return fail("E_ASSEMBLY_CIRCULATION_CONFLICT", conflict.getMessage(),
                     "components[].params.assembly", List.of("Separate conflicting flights and landings; generate shell/floors before stairs."));

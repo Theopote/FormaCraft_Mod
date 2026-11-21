@@ -130,7 +130,8 @@ class ComponentPlanCompilerMaterialTest {
 
     @Test void nestedAssemblyTreadsReachValidationWithoutMaterialSubstitution() {
         String material = "minecraft:cracked_deepslate_brick_stairs";
-        var assembly = Map.of("ops", List.of(Map.of("op", "STAIR_SYSTEM", "stairs", material)));
+        var assembly = Map.of("ops", List.of(Map.of("op", "STAIR_SYSTEM", "stairs", material,
+                "floor", "missing:floor", "supportMaterial", "missing:support")));
         var component = new Component("ASSEMBLY", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
                 List.of(), Map.of("assembly", assembly));
         var policy = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(

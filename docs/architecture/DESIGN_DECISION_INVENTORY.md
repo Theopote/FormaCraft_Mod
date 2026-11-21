@@ -1,5 +1,13 @@
 # Design decision inventory
 
+Wood lattice window execution resolves a selected plank material to its registered fence family (GEOMETRY). Explicit fence IDs keep precedence and existing descriptive wood/default handling remains available.
+
+Explicit wood-lattice fence states are preserved at emission (FORMAT_REPAIR). The opening material audit compares block identity independently of connection and waterlogged state.
+
+Shape-preserving material adaptation shares the registered block family lookup across stairs, slabs, walls, fences and panes (GEOMETRY). A missing compatible variant retains the captured block and connection state.
+
+Explicit stair floor and support block states pass through plan preprocessing and are resolved by the shared strict parser (HARD_CONSTRAINT). A malformed block state receives the existing stair material diagnostic. Omitted values and FBD material roles still flow through the executor's palette path.
+
 Nested Assembly stair ops and graph components preserve explicit tread values during material preprocessing. Java resolves stair strings with the shared block-state parser and returns an Assembly diagnostic for incompatible stair material (HARD_CONSTRAINT). Omitted treads and FBD roles retain their existing resolution.
 
 Straight-stair normalization preserves explicit iron-block tread input. Java reports incompatible stair geometry through the existing capability gap (HARD_CONSTRAINT). The backend no longer substitutes stone bricks.

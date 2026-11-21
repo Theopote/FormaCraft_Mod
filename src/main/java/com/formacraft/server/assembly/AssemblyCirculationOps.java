@@ -28,6 +28,19 @@ public final class AssemblyCirculationOps {
         int clamp(int v, int min, int max);
     }
 
+    private static BlockState stairMaterial(Adapter adapter, MetaAssemblyEngine.Context ctx, Map<?, ?> op,
+                                            String key, String role, long salt, BlockState fallback) {
+        Object authored = op.get(key);
+        if (!(authored instanceof String name)) {
+            return adapter.pick(ctx, op, key, role, salt, fallback);
+        }
+        BlockState state = BlockPatchTargetResolver.parse(name);
+        if (state == null) {
+            throw new InvalidStairMaterial("STAIR_SYSTEM " + key + " must resolve to a registered block state: " + name);
+        }
+        return state;
+    }
+
     public static void applyStairSystem(List<PlannedBlock> out,
                                         MetaAssemblyEngine.Context ctx,
                                         BlockPos origin,
@@ -46,7 +59,7 @@ public final class AssemblyCirculationOps {
         long planned = (long) (run + 1) * width * (1 + (support ? 1 : 0) + (carve ? clearH : 0))
                 + (carve ? (long) run * width * clearH : 0);
         if (planned > 100_000) throw new IllegalArgumentException("STAIR_SYSTEM exceeds 100000 planned block operations");
-        BlockState floorMat = adapter.pick(ctx, op, "floor", "FLOORING", 0xA57471L, Blocks.SMOOTH_STONE.getDefaultState());
+        BlockState floorMat = stairMaterial(adapter, ctx, op, "floor", "FLOORING", 0xA57471L, Blocks.SMOOTH_STONE.getDefaultState());
         BlockState stairDefault = Blocks.STONE_BRICK_STAIRS.getDefaultState();
         if (!op.containsKey("stairs") && op.get("floor") instanceof String floor) {
             String familyStairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(floor);
@@ -55,13 +68,10 @@ public final class AssemblyCirculationOps {
                         net.minecraft.util.Identifier.of(familyStairs)).getDefaultState();
             }
         }
-        Object authoredStairs = op.get("stairs");
-        BlockState stairMat = authoredStairs instanceof String name
-                ? BlockPatchTargetResolver.parse(name)
-                : adapter.pick(ctx, op, "stairs", "STAIR", 0xA57470L, stairDefault);
-        BlockState supportMat = adapter.pick(ctx, op, "supportMaterial", "FOUNDATION", 0xA57472L, floorMat);
-        if (stairMat == null || !(stairMat.getBlock() instanceof net.minecraft.block.StairsBlock)) {
-            throw new InvalidStairMaterial("STAIR_SYSTEM stairs must resolve to a registered stair block: " + authoredStairs);
+        BlockState stairMat = stairMaterial(adapter, ctx, op, "stairs", "STAIR", 0xA57470L, stairDefault);
+        BlockState supportMat = stairMaterial(adapter, ctx, op, "supportMaterial", "FOUNDATION", 0xA57472L, floorMat);
+        if (!(stairMat.getBlock() instanceof net.minecraft.block.StairsBlock)) {
+            throw new InvalidStairMaterial("STAIR_SYSTEM stairs must resolve to a registered stair block: " + op.get("stairs"));
         }
         if (floorMat.isAir()) {
             throw new InvalidStairMaterial("STAIR_SYSTEM floor must be a non-air block");

@@ -39,6 +39,32 @@ class Live0121RegressionTest {
         var bad=OpeningMaterialAudit.inspect(expected,List.of(new com.formacraft.common.patch.BlockPatch(com.formacraft.common.patch.BlockPatch.PLACE,0,0,0,"minecraft:glass_pane")));
         assertEquals(1,bad.mismatchCells());
     }
+    @Test void woodenLatticeUsesTheSelectedPlankFamily() {
+        var params = new HashMap<String, Object>(Map.of(
+                "window_style", "wooden_lattice", "lattice_material", "minecraft:birch_planks"));
+        assertEquals("minecraft:birch_fence",
+                com.formacraft.common.generation.component.util.WoodLatticeMaterial.resolve(params));
+        params.put("lattice_material", "minecraft:mangrove_planks");
+        assertEquals("minecraft:mangrove_fence",
+                com.formacraft.common.generation.component.util.WoodLatticeMaterial.resolve(params));
+        params.put("lattice_material", "minecraft:spruce_fence");
+        assertEquals("minecraft:spruce_fence",
+                com.formacraft.common.generation.component.util.WoodLatticeMaterial.resolve(params));
+    }
+    @Test void woodenLatticeFenceStateKeepsItsMaterialIdentity() {
+        String authored = "birch_fence[north=true,waterlogged=true]";
+        var component = new Component("FACADE_WINDOWS", "slot", new Vec3i(0, 0, 0),
+                new Dimensions(1, 2, 2), List.of(),
+                Map.of("window_style", "wooden_lattice", "lattice_material", authored));
+        String target = com.formacraft.common.generation.component.util.WoodLatticeMaterial.resolve(component.params());
+        assertEquals("minecraft:" + authored, target);
+        var expectations = new HashMap<BlockPos, OpeningMaterialAudit.Expectation>();
+        var window = new com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell(
+                BlockPos.ORIGIN, com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.WINDOW);
+        OpeningMaterialAudit.capture(expectations, component, List.of(window), BlockPos.ORIGIN);
+        var patch = new com.formacraft.common.patch.BlockPatch("place", 0, 0, 0, target);
+        assertTrue(OpeningMaterialAudit.inspect(expectations, List.of(patch)).isMatched());
+    }
     @Test void narrowCabinWallDoesNotReceiveGroundGlass() throws Exception {
         var cells=snapshot(compile(load("010719")),BlockPos.ORIGIN);
         var patch=com.formacraft.server.edit.WindowInsertCompiler.compile(cells,BlockPos.ORIGIN,Set.of(),2,2);

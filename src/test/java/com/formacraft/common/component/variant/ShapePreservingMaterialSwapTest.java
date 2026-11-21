@@ -37,6 +37,11 @@ class ShapePreservingMaterialSwapTest {
         var result=ShapePreservingMaterialSwap.apply("minecraft:glass_pane[north=true]",Blocks.BLUE_STAINED_GLASS.getDefaultState());
         assertEquals(Blocks.BLUE_STAINED_GLASS_PANE,result.getBlock());assertTrue(result.get(Properties.NORTH));
         assertEquals(Blocks.GLASS_PANE.getDefaultState(),ShapePreservingMaterialSwap.apply("minecraft:glass_pane",Blocks.STONE.getDefaultState()));
+        var tinted = ShapePreservingMaterialSwap.apply("minecraft:blue_stained_glass_pane[north=true,waterlogged=true]",
+                Blocks.TINTED_GLASS.getDefaultState());
+        assertEquals(Blocks.BLUE_STAINED_GLASS_PANE, tinted.getBlock());
+        assertTrue(tinted.get(Properties.NORTH));
+        assertTrue(tinted.get(Properties.WATERLOGGED));
     }
     @Test void fencesAndWallsRetainConnections() {
         var fence=ShapePreservingMaterialSwap.apply("minecraft:oak_fence[north=true,east=true]",Blocks.SPRUCE_PLANKS.getDefaultState());
@@ -47,6 +52,13 @@ class ShapePreservingMaterialSwapTest {
         assertEquals(Blocks.STONE_BRICK_WALL,wall.getBlock());
         assertTrue(wall.toString().contains("north=low"));
         assertTrue(wall.get(Properties.UP));
+        var redSandstone = ShapePreservingMaterialSwap.apply("minecraft:cobblestone_wall[east=tall,waterlogged=true]",
+                Blocks.RED_SANDSTONE_SLAB.getDefaultState());
+        assertEquals(Blocks.RED_SANDSTONE_WALL, redSandstone.getBlock());
+        assertEquals(net.minecraft.block.enums.WallShape.TALL, redSandstone.get(Properties.EAST_WALL_SHAPE));
+        assertTrue(redSandstone.get(Properties.WATERLOGGED));
+        assertEquals(wall, ShapePreservingMaterialSwap.apply(
+                "minecraft:stone_brick_wall[north=low,up=true]", Blocks.WHITE_CONCRETE.getDefaultState()));
     }
     @Test void rotationAlsoTransformsLogAxis() {
         var rotated=com.formacraft.common.component.transform.CapturedBlockStateTransform.apply(
