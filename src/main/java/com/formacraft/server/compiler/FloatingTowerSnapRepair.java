@@ -38,14 +38,15 @@ final class FloatingTowerSnapRepair {
                     componentId(tower), y, supportTop, supportTop);
             components.set(i, shift(tower, dy));
             String towerId = componentId(tower);
-            var descendants = HostAttachmentTree.descendantIds(towerId, components);
-            for (int j = 0; j < components.size(); j++) {
-                if (j == i) continue;
+            var descendants = HostAttachmentTree.descendantIndices(towerId, components);
+            java.util.BitSet shifted = new java.util.BitSet();
+            shifted.set(i);
+            for (int j = descendants.nextSetBit(0); j >= 0; j = descendants.nextSetBit(j + 1)) {
+                if (shifted.get(j)) continue;
                 Component c = components.get(j);
                 if (c == null || c.relativePosition() == null) continue;
-                if (descendants.contains(componentId(c))) {
-                    components.set(j, shift(c, dy));
-                }
+                components.set(j, shift(c, dy));
+                shifted.set(j);
             }
             changed = true;
         }

@@ -295,6 +295,22 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
+    void floatingMassSnapShiftsHostedRoofWithoutComponentId() {
+        var hall = new Component("MASS_MAIN", "site", new Vec3i(0, 10, 0),
+                new Dimensions(14, 14, 10), List.of(),
+                Map.of("component_id", "hall", "building_id", "hall"));
+        var roof = new Component("ROOF", "site", new Vec3i(0, 18, 0),
+                new Dimensions(14, 14, 3), List.of(),
+                Map.of("host_id", "hall"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(hall, roof)).build();
+        var repaired = FloatingMassSnapRepair.apply(plan);
+        assertEquals(0, repaired.components().get(0).relativePosition().y());
+        assertEquals(8, repaired.components().get(1).relativePosition().y(),
+                "host_id attachment without component_id must still follow mass Y snap");
+    }
+
+    @Test
     void floatingMassSnapShiftsNestedHostTreeButNotForeignBuilding() {
         var hall = new Component("MASS_MAIN", "site", new Vec3i(0, 10, 0),
                 new Dimensions(14, 14, 10), List.of(),

@@ -9,12 +9,42 @@ import org.junit.jupiter.api.TestFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ComplexBuildRetest {
     @BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
+
+    /**
+     * Industrial logged plans used invalid LLM tread ids; raw ids must revise to registered stairs
+     * and still emit a walkable exterior flight (not patch-count alone).
+     */
+    @Test void industrialLoggedPlansReviseInvalidTreadsAndRemainWalkable() throws Exception {
+        for (String n : List.of("5.normalized", "latest_5.normalized")) {
+            var json = Files.readString(Path.of("python_backend/tests/fixtures/complex_build_retest/" + n + ".json"));
+            var plan = com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(
+                    LlmPlanParser.parse(json));
+            // Normalize alone preserves invalid authored treads.
+            var normalizedOnly = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
+            boolean sawInvalidPreserved = normalizedOnly.components().stream().anyMatch(c -> {
+                if (c == null || c.params() == null) return false;
+                Object stairs = c.params().get("stairs");
+                return "minecraft:iron_block".equals(stairs) || "minecraft:gray_concrete_stairs".equals(stairs);
+            });
+            assertTrue(sawInvalidPreserved, n + " normalize must preserve invalid LLM tread ids");
+            // Full compile applies StairTreadMaterialRevision then executes.
+            var compilation = ComponentPlanCompiler.compileWithCirculation(
+                    plan, net.minecraft.util.math.BlockPos.ORIGIN, null, null, false);
+            assertFalse(compilation.patches().isEmpty(), n + " " + AssemblyCompileDiagnostics.get());
+            assertFalse(AssemblyCompileDiagnostics.hasGap(), n + " " + AssemblyCompileDiagnostics.get());
+            var blocks = com.formacraft.test.PatchTestSnapshot.blocks(compilation.patches());
+            assertTrue(blocks.values().stream().anyMatch(id -> id != null && id.contains("_stairs")),
+                    n + " must place registered stair treads after revision");
+            assertFalse(compilation.circulation().isEmpty(), n + " must publish stair flights");
+        }
+    }
 
     /** Stronger usability sample on the controlled fidelity fixture (not patch-count alone). */
     @Test void fidelityInteriorStairLandingWalkableSample() throws Exception {

@@ -139,11 +139,16 @@ class ComponentPlanCompilerMaterialTest {
         assertEquals(assembly, policy.components().getFirst().params().get("assembly"));
     }
 
-    @Test void canonicalCompilerRejectsExplicitIronTread() {
+    @Test void canonicalCompilerRejectsUserExplicitIronTread() {
+        Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("stairs", "minecraft:iron_block");
+        params.put("floor", "minecraft:stone");
+        params.put("from", Map.of("x", 0, "y", 0, "z", 0));
+        params.put("to", Map.of("x", 0, "y", 2, "z", 3));
+        params.put("design_sources", Map.of("stairs", "USER_EXPLICIT"));
+        params.put("stairs_explicit", Boolean.TRUE);
         var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
-                List.of("stair:straight_single_run"), Map.of(
-                "stairs", "minecraft:iron_block", "floor", "minecraft:stone",
-                "from", Map.of("x", 0, "y", 0, "z", 0), "to", Map.of("x", 0, "y", 2, "z", 3)));
+                List.of("stair:straight_single_run"), params);
         var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(stair));
         try {
             assertTrue(ComponentPlanCompiler.compile(plan).isEmpty());
@@ -152,6 +157,38 @@ class ComponentPlanCompilerMaterialTest {
         } finally {
             com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
         }
+    }
+
+    @Test void llmInferredInvalidIronTreadIsRevisedToExecutableStairs() {
+        var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of("stair:straight_single_run"), Map.of(
+                "stairs", "minecraft:iron_block", "floor", "minecraft:iron_block",
+                "from", Map.of("x", 0, "y", 0, "z", 0), "to", Map.of("x", 0, "y", 2, "z", 3)));
+        var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(stair));
+        try {
+            var patches = ComponentPlanCompiler.compile(plan);
+            assertFalse(patches.isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
+            assertFalse(AssemblyCompileDiagnostics.hasGap());
+            var blocks = PatchTestSnapshot.blocks(patches);
+            assertTrue(blocks.values().stream().anyMatch(id -> id != null && id.contains("_stairs")),
+                    "revised industrial stair must place registered stair treads");
+        } finally {
+            AssemblyCompileDiagnostics.clear();
+        }
+    }
+
+    @Test void structureFromToStairsWithoutStairFeaturePreservesTreadsInNormalize() {
+        // Unified identity: from/to + *_stairs preserves tread even without stair: feature.
+        String tread = "minecraft:gray_concrete_stairs";
+        var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of(), Map.of(
+                "stairs", tread,
+                "from", Map.of("x", 0, "y", 0, "z", 0),
+                "to", Map.of("x", 0, "y", 2, "z", 3)));
+        var normalized = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(stair)).build());
+        assertEquals(tread, normalized.components().getFirst().params().get("stairs"),
+                "from/to + *_stairs must preserve tread without requiring stair: feature");
     }
     @Test void attachmentAndStairFloorMaterialsAlsoHaveFallbacks() {
         var source = new Component("STRUCTURE", null, new Vec3i(0,0,0), new Dimensions(3,6,5), List.of(),

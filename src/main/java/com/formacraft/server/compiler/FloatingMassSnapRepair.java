@@ -38,16 +38,16 @@ final class FloatingMassSnapRepair {
                     componentId(mass), y, supportTop, supportTop);
             components.set(i, shift(mass, dy));
             String massId = componentId(mass);
-            // Full authored host tree (annex→roof→chimney), never same-slot peers.
-            var descendants = HostAttachmentTree.descendantIds(massId, components);
-            for (int j = 0; j < components.size(); j++) {
-                if (j == i) continue;
+            // Full authored host tree by index (incl. host_id attachments without component_id).
+            var descendants = HostAttachmentTree.descendantIndices(massId, components);
+            java.util.BitSet shifted = new java.util.BitSet();
+            shifted.set(i);
+            for (int j = descendants.nextSetBit(0); j >= 0; j = descendants.nextSetBit(j + 1)) {
+                if (shifted.get(j)) continue;
                 Component c = components.get(j);
                 if (c == null || c.relativePosition() == null) continue;
-                String cid = componentId(c);
-                if (descendants.contains(cid)) {
-                    components.set(j, shift(c, dy));
-                }
+                components.set(j, shift(c, dy));
+                shifted.set(j);
             }
             changed = true;
         }

@@ -33,10 +33,9 @@ public final class MaterialFallbackPolicy {
     private static Map<String, Object> normalizeParams(Component component) {
         var params = component.params();
         if (params == null) return null;
-        String type = Objects.toString(component.componentType(), "").toUpperCase(Locale.ROOT);
-        boolean directStair = Set.of("STAIR_SYSTEM", "STAIRCASE", "STAIRS").contains(type)
-                || ("STRUCTURE".equals(type) && component.features() != null
-                    && component.features().stream().anyMatch(feature -> feature != null && feature.startsWith("stair:")));
+        // Same stair identity as StraightStairComponentGenerator — feature tags must not
+        // change whether authored tread/floor/support materials are preserved.
+        boolean directStair = StairComponentIdentity.isStairComponent(component);
         var copy = new LinkedHashMap<String, Object>();
         params.forEach((k, v) -> copy.put(k, directStair && EXPLICIT_STAIR_MATERIALS.contains(k)
                 ? v : normalizeValue(k, v)));
@@ -47,6 +46,12 @@ public final class MaterialFallbackPolicy {
         // FBD has its own typed roles and expressions. Treat its AST as opaque:
         // e.g. floor="floor" is a role, not an unresolved Minecraft block ID.
         if ("fbd_program".equals(key)) return value;
+        // Provenance maps use param names as keys (including "stairs") with source tags,
+        // not block ids — never run material fallback on them.
+        if ("design_sources".equals(key) || "_param_sources".equals(key)
+                || "_server_verified_sources".equals(key)) {
+            return value;
+        }
         if (value instanceof Map<?, ?> map) {
             var copy = new LinkedHashMap<String, Object>();
             boolean stair = ASSEMBLY_STAIR_TYPES.contains(Objects.toString(map.get("op"), "").trim().toUpperCase(Locale.ROOT))

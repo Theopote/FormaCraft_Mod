@@ -30,6 +30,10 @@ Assembly STAIR_SYSTEM uses a declared floor block's matching stair family as a f
 
 Straight stairs, interior stair inference and structure accessory repair infer a stair block from the authored floor's registered block family only when the stair material is absent (TECHNICAL_DEFAULT). The existing stone-brick default covers families without stairs. Explicit stair block and state values reach the existing geometry executor.
 
+`MaterialFallbackPolicy` and `StraightStairComponentGenerator` share `StairComponentIdentity` so tread/floor/support fidelity does not depend on a `stair:` feature tag (FORMAT_REPAIR identity). After normalize preserves authored tread ids, `StairTreadMaterialRevision` maps unexecutable LLM treads via the material family (TECHNICAL_DEFAULT); `USER_EXPLICIT` treads without a same-family registered stair stay intact and the executor reports `E_STAIR_COMPONENT_INVALID` (HARD_CONSTRAINT). Cross-family stone-brick substitution is never applied to sealed user-explicit treads.
+
+`HostAttachmentTree` tracks descendants by component index so `host_id` attachments without `component_id` still follow floating mass/tower Y snaps once (GEOMETRY).
+
 BuildingProfile carries optional, bounded geometry evidence for Stage P (NONBINDING_HINT). Research synthesis records the actual snippet sources and applies the evidence limit after validation and deduplication (HARD_CONSTRAINT). The planning model chooses form, dimensions and executable operators from the request and evidence.
 
 When both research and massing stages are enabled, source-backed geometry observations are also available to the preliminary massing call (NONBINDING_HINT). The final planner can revise the draft to satisfy the user and the geometry contract.
@@ -350,6 +354,9 @@ Roof omission uses the same first nonblank parameter and alias resolution as the
 | `HostAliasNormalizer` after NarrowTower | camelCase facade host missed → suppress_windows | **Fixed (2026-11-21):** alias normalize right after duplicate-id scrub |
 | floating snap `sameSlotSatellite` | distant same-slot terrace dragged with mass Y | **Fixed (2026-11-21):** only `hostedBy` attachments shift |
 | floating snap direct-host only | annex moved but roof/chimney left at old Y | **Fixed (2026-11-21):** `HostAttachmentTree.descendantIds` shifts full host subtree |
+| host tree required `component_id` | `host_id` roof without id skipped on Y snap | **Fixed (2026-11-22):** `descendantIndices` shifts by component index |
+| stair normalize vs accepts mismatch | from/to+`_stairs` without `stair:` got tread substituted | **Fixed (2026-11-22):** shared `StairComponentIdentity` |
+| invalid LLM tread vs USER_EXPLICIT | ComplexBuildRetest vs MaterialTest contract clash | **Fixed (2026-11-22):** `StairTreadMaterialRevision` after normalize; USER_EXPLICIT still gaps |
 | `_fetch_remote_models` unbounded `resp.read()` | huge `/models` JSON can OOM worker | **Fixed (2026-11-21):** 1 MiB body + 500 entry caps |
 | pool-saturated error skipped ticket gate | cancelled request could still flash queue-full UI | **Fixed (2026-11-21):** `mayDeliverPreview` before saturated error send |
 | `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |

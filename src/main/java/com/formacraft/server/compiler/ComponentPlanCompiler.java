@@ -207,6 +207,8 @@ public final class ComponentPlanCompiler {
         // earlier grows — reconcile envelopes once more before authored design gates.
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
+        // After normalize preserves authored tread ids: revise only unexecutable LLM treads.
+        plan = com.formacraft.common.palette.dynamic.StairTreadMaterialRevision.apply(plan);
         var authoredIssue = DesignValidatorSuite.checkAuthored(plan);
         if (authoredIssue.isPresent()) {
             AssemblyCompileDiagnostics.set(authoredIssue.get());

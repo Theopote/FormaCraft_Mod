@@ -14,16 +14,7 @@ import java.util.*;
 public final class StraightStairComponentGenerator {
     private StraightStairComponentGenerator() {}
     public static boolean accepts(Component c) {
-        if (c == null || c.componentType() == null) return false;
-        if (Set.of("STAIR_SYSTEM", "STAIRCASE", "STAIRS").contains(c.componentType().toUpperCase(Locale.ROOT))) return true;
-        if ("STRUCTURE".equalsIgnoreCase(c.componentType()) && c.params()!=null
-                && c.params().get("from") instanceof Map<?,?> && c.params().get("to") instanceof Map<?,?>
-                && (c.features()==null || c.features().stream().noneMatch(f->f!=null
-                    && (f.startsWith("typology:") || f.startsWith("landmark:") || f.startsWith("module:"))))
-                && c.params().get("stairs") instanceof String stairs
-                && stairs.split("\\[", 2)[0].trim().endsWith("_stairs")) return true;
-        return "STRUCTURE".equalsIgnoreCase(c.componentType()) && c.features() != null
-            && c.features().stream().filter(Objects::nonNull).anyMatch(f -> f.startsWith("stair:"));
+        return com.formacraft.common.palette.dynamic.StairComponentIdentity.isStairComponent(c);
     }
     public static List<BlockPatch> generate(SemanticComponent semantic) {
         Component c = semantic.source();

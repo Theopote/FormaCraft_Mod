@@ -2,6 +2,7 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.palette.component.MaterialBlockFamily;
 import java.util.*;
+import java.util.stream.Stream;
 
 /** Shared material contract for the native wooden lattice representation. */
 public final class WoodLatticeMaterial {
@@ -34,7 +35,7 @@ public final class WoodLatticeMaterial {
             String source = Objects.toString(sources.get("glass_block"), "").trim().toUpperCase(Locale.ROOT);
             marked |= Set.of("USER_EXPLICIT", "USER", "PLAYER").contains(source);
         }
-        return marked && List.of("glass_block", "glazing_block", "glass_material", "window_block").stream()
+        return marked && Stream.of("glass_block", "glazing_block", "glass_material", "window_block")
                 .anyMatch(key -> params.get(key) instanceof String value && !value.isBlank());
     }
 }
