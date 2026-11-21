@@ -111,6 +111,14 @@ public final class LlmPlanPreviewBuilder {
             Consumer<Boolean> done,
             BuildRequestGate.Ticket gateTicket
     ) {
+        scheduleBuildPreview(server, player, req, llmPlan, origin, serverWorld, hbAlive, done, gateTicket, true);
+    }
+
+    private static void scheduleBuildPreview(
+            MinecraftServer server, ServerPlayerEntity player, FormaRequest req, LlmPlan llmPlan,
+            BlockPos origin, ServerWorld serverWorld, AtomicBoolean hbAlive, Consumer<Boolean> done,
+            BuildRequestGate.Ticket gateTicket, boolean allowRoofRepair
+    ) {
         // Always invoke done exactly once so BuildRequestGate tickets cannot leak on exceptions.
         Consumer<Boolean> finish = onceFinish(done);
         try {
@@ -178,6 +186,34 @@ public final class LlmPlanPreviewBuilder {
                         }
                         if (artifact == null || artifact.compilation() == null
                                 || artifact.gap() != null) {
+                            if (allowRoofRepair && req != null && artifact != null && artifact.gap() != null
+                                    && "E_FLAT_ROOF_HOST_COVERAGE".equals(artifact.gap().code())) {
+                                var originalGap = artifact.gap();
+                                NetworkOrchestratorProvider.get().requestFlatRoofRepair(req, normalizedPlan, originalGap)
+                                        .whenComplete((proposal, failure) -> server.execute(() -> {
+                                            if (gateTicket != null && !BuildRequestGate.mayDeliverPreview(gateTicket)) {
+                                                hbAlive.set(false);
+                                                finish.accept(true);
+                                                return;
+                                            }
+                                            try {
+                                                var candidate = com.formacraft.server.compiler.FlatRoofRepairGuard
+                                                        .candidate(normalizedPlan, originalGap, failure == null ? proposal : null);
+                                                if (candidate.isPresent()) {
+                                                    scheduleBuildPreview(server, player, req, candidate.get(), origin, serverWorld,
+                                                            hbAlive, finish, gateTicket, false);
+                                                    return;
+                                                }
+                                            } catch (RuntimeException invalid) {
+                                                LOG.warn("Rejected invalid flat roof repair proposal");
+                                            }
+                                            deliverPreview(finish, () -> {
+                                                reportCapabilityGap(player, req, hbAlive, originalGap);
+                                                return true;
+                                            });
+                                        }));
+                                return;
+                            }
                             // Structured error path — never a generic main-thread full recompile.
                             deliverPreview(finish, () -> {
                                 var gap = artifact != null && artifact.gap() != null

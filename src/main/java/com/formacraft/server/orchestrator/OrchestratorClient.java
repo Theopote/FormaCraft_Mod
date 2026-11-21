@@ -296,25 +296,37 @@ public class OrchestratorClient {
 
     private CompletableFuture<com.formacraft.server.dsl.FbdRepairLoop.Patch> requestFbdRepair(
             FormaRequest req, LlmPlan plan, com.formacraft.common.llm.dto.CapabilityGap diagnostic, int round) {
+        return requestRepair(req, plan, diagnostic, round, "/fbd/repair",
+                com.formacraft.server.dsl.FbdRepairLoop.Patch.class);
+    }
+
+    public CompletableFuture<com.formacraft.server.compiler.FlatRoofRepairGuard.Proposal> requestFlatRoofRepair(
+            FormaRequest req, LlmPlan plan, com.formacraft.common.llm.dto.CapabilityGap diagnostic) {
+        return requestRepair(req, plan, diagnostic, 1, "/components/flat-roof/repair",
+                com.formacraft.server.compiler.FlatRoofRepairGuard.Proposal.class);
+    }
+
+    private <T> CompletableFuture<T> requestRepair(
+            FormaRequest req, LlmPlan plan, com.formacraft.common.llm.dto.CapabilityGap diagnostic,
+            int round, String path, Class<T> responseType) {
         try {
             var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             var body = mapper.createObjectNode();
             body.set("request", mapper.readTree(JsonUtil.toJson(req)));
             body.set("plan", mapper.valueToTree(plan)); body.set("diagnostic", mapper.valueToTree(diagnostic));
             body.put("round", round);
-            var repairBuilder = HttpRequest.newBuilder().uri(URI.create(endpoint + "/fbd/repair"))
+            var repairBuilder = HttpRequest.newBuilder().uri(URI.create(endpoint + path))
                     .header("Content-Type", "application/json").timeout(Duration.ofSeconds(50))
                     .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(body)));
             applySecret(repairBuilder);
             var request = repairBuilder.build();
-            FormacraftMod.LOGGER.info("FBD repair round {}/2: code={}, node={}, path={}", round, diagnostic.code(),
-                    diagnostic.details() == null ? null : diagnostic.details().get("node"), diagnostic.path());
+            FormacraftMod.LOGGER.info("Plan repair round {}: code={}, path={}", round, diagnostic.code(), diagnostic.path());
             return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                     .orTimeout(50, TimeUnit.SECONDS).thenApply(response -> {
                 if (response.statusCode() != 200 || response.body().length() > 16_384)
-                    throw new IllegalArgumentException("FBD repair unavailable or response too large");
-                try { return mapper.readValue(response.body(), com.formacraft.server.dsl.FbdRepairLoop.Patch.class); }
-                catch (Exception e) { throw new IllegalArgumentException("Invalid FBD repair patch", e); }
+                    throw new IllegalArgumentException("Plan repair unavailable or response too large");
+                try { return mapper.readValue(response.body(), responseType); }
+                catch (Exception e) { throw new IllegalArgumentException("Invalid plan repair proposal", e); }
             });
         } catch (Exception e) { return CompletableFuture.failedFuture(e); }
     }
