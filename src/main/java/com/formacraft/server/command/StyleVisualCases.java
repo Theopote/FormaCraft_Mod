@@ -16,7 +16,7 @@ import static net.minecraft.server.command.CommandManager.*;
 
 /** Fixed inputs for manual visual review through the production preview pipeline. */
 public final class StyleVisualCases {
-    public static final List<String> IDS = List.of("wood_stone", "modern_flat", "hui_white_black", "two_materials", "twisted_shell");
+    public static final List<String> IDS = List.of("wood_stone", "modern_flat", "hui_white_black", "two_materials", "twisted_shell", "loft_gallery");
     private StyleVisualCases() {}
 
     public static LlmPlan load(String id) throws Exception {

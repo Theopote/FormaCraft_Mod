@@ -210,6 +210,7 @@ final class AssemblyOpSurfaceValidator {
                 if (!(sec instanceof List<?> sl) || sl.size() < 2) {
                     out.add(AssemblyValidationSupport.err(p + ".sections", "E_LOFT_SECTIONS", "LOFT_SURFACE.sections 必须是数组且至少 2 段"));
                 } else {
+                    int pointCount = -1;
                     for (int si = 0; si < sl.size(); si++) {
                         Object it2 = sl.get(si);
                         String sp = p + ".sections[" + si + "]";
@@ -226,7 +227,15 @@ final class AssemblyOpSurfaceValidator {
                         Object prof = sm.get("profileRings");
                         if (prof == null) prof = sm.get("rings");
                         if (prof == null) prof = sm.get("profilePoints");
-                        if (!(prof instanceof List<?>)) out.add(AssemblyValidationSupport.err(sp, "E_LOFT_PROFILE_MISSING", "每段需要 profilePoints/profileRings（数组）"));
+                        if (prof instanceof List<?> rings && rings.size() == 1 && rings.getFirst() instanceof List<?> ring) prof = ring;
+                        if (!(prof instanceof List<?> points) || points.size() < 2
+                                || points.stream().anyMatch(point -> !(point instanceof Map<?, ?>))) {
+                            out.add(AssemblyValidationSupport.err(sp, "E_LOFT_PROFILE_INVALID", "每段需要一个至少包含两个点的轮廓"));
+                        } else if (pointCount == -1) {
+                            pointCount = points.size();
+                        } else if (pointCount != points.size()) {
+                            out.add(AssemblyValidationSupport.err(sp, "E_LOFT_PROFILE_COUNT", "各段轮廓点数必须一致"));
+                        }
                     }
                 }
                 if (m.get("uSamples") != null || m.get("u") != null) AssemblyValidationSupport.requireIntMin(out, p, m, "uSamples", 2);

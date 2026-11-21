@@ -49,6 +49,11 @@ Core rules:
   The operator builds the wall perimeter and decks. A spiral stair alone only supplies circulation.
 - For a trapezoidal footprint, PRIMITIVE with params.kind="trapezoid" extrudes a centered
   profile: dimensions.width at local -Z and integer params.end_width at +Z (1..width; depth >= 2).
+- For a sloped or changing surface, an ASSEMBLY LOFT_SURFACE op takes sections[] with
+  at:{x,y,z} and profilePoints:[{x,y}, ...]. Each profile lies in its section's local XY
+  plane. Use two or more sections with the same point count (at least two), in corresponding
+  order. Repeat the first point as the last only when the outline should close.
+  This creates a surface. Author any needed end walls, floors or solid volumes separately.
 - A component name or feature label does not emit geometry. For simple linear details such as
   exposed pipes, model each straight run as an optional PRIMITIVE box with params.kind="box",
   params.anchor_mode="min_corner", a material, and explicit relative_position and dimensions.

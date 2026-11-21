@@ -11,6 +11,20 @@ from app.services.assembly_plan_repair import finalize_assembly_plan_or_gap
 
 
 class AssemblyPlanValidatorTest(unittest.TestCase):
+    def test_loft_requires_matching_profiles_without_rewriting_points(self):
+        first = [{"x": 0, "y": 2}, {"x": 8, "y": 2}]
+        second = [{"x": 2, "y": 6}, {"x": 4, "y": 7}, {"x": 6, "y": 6}]
+        loft = {"type": "LOFT", "sections": [{"profilePoints": first}, {"profilePoints": second}]}
+        plan = {"components": [{"component_type": "ASSEMBLY", "params": {
+            "assembly": {"graph": {"components": [loft]}},
+        }}]}
+        gap = finalize_assembly_plan_or_gap(plan, "建造折光匣斜面")["capability_gap"]
+        self.assertEqual("E_LOFT_PROFILE_COUNT", gap["code"])
+        self.assertTrue(gap["path"].endswith("sections[1].profilePoints"))
+        self.assertEqual(3, len(second))
+        second.pop(1)
+        self.assertEqual([], validate_assembly_plan(plan))
+
     def test_graph_shell_dimension_alias_is_validated_at_its_authored_path(self):
         shell = {"type": "BOX_SHELL", "width": 4, "depth": 10, "height": 28}
         plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": {"graph": {

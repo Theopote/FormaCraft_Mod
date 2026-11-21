@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class StyleVisualCasesTest {
     @BeforeAll static void bootstrap() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
-    static java.util.stream.Stream<String> cases() { return StyleVisualCases.IDS.stream().filter(id -> !"twisted_shell".equals(id)); }
+    static java.util.stream.Stream<String> cases() { return StyleVisualCases.IDS.stream().filter(id -> !java.util.Set.of("twisted_shell", "loft_gallery").contains(id)); }
 
     @ParameterizedTest @MethodSource("cases")
     void fixedSamplesReplayWithMaterialsAndOpenings(String id) throws Exception {

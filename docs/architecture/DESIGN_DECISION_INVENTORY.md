@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Ordinary planning exposes the existing LOFT_SURFACE section contract (NONBINDING_HINT). Matching ordered profiles are validated before execution (HARD_CONSTRAINT). Profile shape, placement, caps and materials remain model-authored.
+
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 
 Assembly repair guidance preserves the authored composition and reports unsupported geometry (NONBINDING_HINT). Request-aware validation rejects a fixed Assembly preset unless the user explicitly requested that exact ID (HARD_CONSTRAINT). Offline fixture validation can still validate preset schema and IDs without request context.

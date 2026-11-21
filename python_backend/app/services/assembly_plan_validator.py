@@ -304,6 +304,35 @@ def _validate_assembly_component(
 def _validate_geometry_fields(
     issues: List[AssemblyPlanIssue], comp: dict, path: str, kind: str, *, graph_component: bool = False,
 ) -> None:
+    if kind == "LOFT_SURFACE":
+        sections = comp.get("sections")
+        if not isinstance(sections, list) or len(sections) < 2:
+            issues.append(AssemblyPlanIssue(path + ".sections", "E_LOFT_SECTIONS",
+                                           "LOFT_SURFACE requires at least two sections"))
+            return
+        point_count = None
+        for index, section in enumerate(sections):
+            section_path = f"{path}.sections[{index}]"
+            if not isinstance(section, dict):
+                issues.append(AssemblyPlanIssue(section_path, "E_LOFT_SECTION_NOT_OBJECT",
+                                               "Loft section must be an object"))
+                continue
+            field = next((key for key in ("profileRings", "rings", "profilePoints")
+                          if section.get(key) is not None), "profilePoints")
+            profile = section.get(field)
+            if isinstance(profile, list) and len(profile) == 1 and isinstance(profile[0], list):
+                profile = profile[0]
+            if not isinstance(profile, list) or len(profile) < 2 or any(
+                not isinstance(point, dict) or any(type(point.get(axis)) is not int for axis in ("x", "y"))
+                for point in profile
+            ):
+                issues.append(AssemblyPlanIssue(f"{section_path}.{field}", "E_LOFT_PROFILE_INVALID",
+                                               "Provide one profile of at least two integer x/y points"))
+            elif point_count is None:
+                point_count = len(profile)
+            elif len(profile) != point_count:
+                issues.append(AssemblyPlanIssue(f"{section_path}.{field}", "E_LOFT_PROFILE_COUNT",
+                                               "Loft sections must have matching profile point counts"))
     if kind == "OPENINGS" and not comp.get("face") and not comp.get("faces"):
         issues.append(AssemblyPlanIssue(path + '.face', "E_FACE_MISSING",
                                        "OPENINGS requires face/faces; side is not an executable face field"))

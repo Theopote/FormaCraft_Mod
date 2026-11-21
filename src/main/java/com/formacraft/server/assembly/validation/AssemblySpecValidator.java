@@ -263,6 +263,9 @@ public final class AssemblySpecValidator {
             }
 
             // P0: validate known component kinds we heavily use
+            if (Set.of("LOFT_SURFACE", "LOFT", "SKIN_SURFACE").contains(type)) {
+                AssemblyOpSurfaceValidator.validate("LOFT_SURFACE", out, p, c);
+            }
             if (type.equals("STAIR_SYSTEM") || type.equals("STAIRS_SYSTEM") || type.equals("STAIRCASE")) {
                 String error = com.formacraft.server.assembly.AssemblyCirculationOps.flightError(c.get("from"), c.get("to"));
                 if (error != null) out.add(AssemblyValidationSupport.err(p, "E_STAIR_FLIGHT_INVALID", error));

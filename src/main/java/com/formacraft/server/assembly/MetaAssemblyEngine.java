@@ -314,7 +314,7 @@ public final class MetaAssemblyEngine {
         if (spec == null || ctx == null || ctx.origin == null) throw new IllegalArgumentException("Geometry context required");
         if (ctx.paletteId != null && !ctx.paletteId.isBlank()) throw new IllegalArgumentException("Geometry verification requires explicit materials");
         var supported = java.util.Set.of("PUSH_ORIGIN", "POP_ORIGIN", "CYLINDER", "STAIR_SYSTEM", "CLEAR_BOX",
-                "SHELL_BOX", "ROOF_COVER", "SURFACE_PATTERN");
+                "SHELL_BOX", "ROOF_COVER", "SURFACE_PATTERN", "LOFT_SURFACE");
         for (var op : spec.ops) if (!supported.contains(str(op.get("op"), "").toUpperCase(java.util.Locale.ROOT)))
             throw new IllegalArgumentException("World-dependent or unsupported geometry operation: " + op.get("op"));
         return executeOperations(spec, ctx);

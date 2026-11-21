@@ -1,0 +1,119 @@
+{
+  "mode": "build",
+  "style_profile": "DEFAULT",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "components": [
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "gallery",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 24,
+        "depth": 14,
+        "height": 5
+      },
+      "features": [],
+      "params": {
+        "component_id": "gallery",
+        "kind": "trapezoid",
+        "end_width": 16,
+        "anchor_mode": "min_corner",
+        "material": "minecraft:smooth_quartz"
+      }
+    },
+    {
+      "component_type": "PRIMITIVE",
+      "slot_id": "raised_wing",
+      "relative_position": {
+        "x": 7,
+        "y": 0,
+        "z": 8
+      },
+      "dimensions": {
+        "width": 10,
+        "depth": 6,
+        "height": 8
+      },
+      "features": [],
+      "params": {
+        "component_id": "raised_wing",
+        "allow_patch_overwrite": true,
+        "kind": "trapezoid",
+        "end_width": 8,
+        "anchor_mode": "min_corner",
+        "material": "minecraft:light_gray_concrete"
+      }
+    },
+    {
+      "component_type": "ASSEMBLY",
+      "slot_id": "roof_surface",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 18,
+        "depth": 14,
+        "height": 9
+      },
+      "features": [],
+      "params": {
+        "component_id": "roof_surface",
+        "assembly": {
+          "entranceFacing": "SOUTH",
+          "ops": [
+            {
+              "op": "LOFT_SURFACE",
+              "material": "minecraft:light_gray_concrete",
+              "sections": [
+                {
+                  "at": {
+                    "x": 0,
+                    "y": 5,
+                    "z": 0
+                  },
+                  "profilePoints": [
+                    {
+                      "x": 3,
+                      "y": 0
+                    },
+                    {
+                      "x": 20,
+                      "y": 0
+                    }
+                  ]
+                },
+                {
+                  "at": {
+                    "x": 0,
+                    "y": 8,
+                    "z": 13
+                  },
+                  "profilePoints": [
+                    {
+                      "x": 8,
+                      "y": 0
+                    },
+                    {
+                      "x": 15,
+                      "y": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -45,6 +45,28 @@ class AssemblyShellOpsTest {
         return map;
     }
     @Test
+    void modelAuthoredLoftProducesSlopedSurfaceAcrossSections() {
+        var start = Map.of("at", Map.of("z", 0), "profilePoints",
+                List.of(Map.of("x", 0, "y", 2), Map.of("x", 8, "y", 2)));
+        var end = Map.of("at", Map.of("z", 12), "profilePoints",
+                List.of(Map.of("x", 2, "y", 6), Map.of("x", 6, "y", 6)));
+        var op = Map.of("op", "LOFT_SURFACE", "sections", List.of(start, end));
+        var payload = Map.of("ops", List.of(op));
+        assertTrue(AssemblySpecValidator.validate(payload).stream()
+                .noneMatch(issue -> issue.severity() == AssemblyValidationIssue.Severity.ERROR));
+        var ctx = new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null);
+        var blocks = snapshot(new MetaAssemblyEngine().executeGeometry(AssemblySpec.fromExtra(payload), ctx));
+        assertTrue(blocks.containsKey(new BlockPos(4, 2, 0)));
+        assertTrue(blocks.containsKey(new BlockPos(4, 4, 6)));
+        assertTrue(blocks.containsKey(new BlockPos(4, 6, 12)));
+        assertFalse(blocks.containsKey(new BlockPos(4, 2, 12)));
+        var shortSection = Map.of("profilePoints", List.of(Map.of("x", 0, "y", 2)));
+        assertTrue(AssemblySpecValidator.validate(Map.of("ops", List.of(Map.of("op", "LOFT_SURFACE",
+                "sections", List.of(start, shortSection))))).stream()
+                .anyMatch(issue -> issue.code().equals("E_LOFT_PROFILE_INVALID")));
+    }
+
+    @Test
     void shellPortsFollowBaseTwistWhileCustomPortsKeepTheirCoordinates() {
         var shell = shell(0.125);
         shell.put("w", 12);
