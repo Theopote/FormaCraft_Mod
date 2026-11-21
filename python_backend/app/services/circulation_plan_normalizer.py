@@ -1063,6 +1063,6 @@ def _complete_requested_stairs(plan: dict) -> None:
                                          'building_id': params.get('building_id', identity),
                                          'anchor_mode': 'min_corner', 'from': _point(0, 0, 0), 'to': _point(rise, rise, 0),
                                          'width': 2, 'clearHeight': 2, 'landing_length': 1, 'support': False,
-                                         'stairs': 'minecraft:stone_brick_stairs', 'floor': params.get('floor_block', 'minecraft:oak_planks'),
+                                         'floor': params.get('floor_block', 'minecraft:oak_planks'),
                                          'circulation_source': 'missing_requested_stair'}})
     components.extend(additions)

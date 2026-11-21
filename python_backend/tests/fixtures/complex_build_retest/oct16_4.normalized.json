@@ -1627,7 +1627,6 @@
         "clearHeight": 2,
         "landing_length": 1,
         "support": false,
-        "stairs": "minecraft:stone_brick_stairs",
         "floor": "minecraft:polished_andesite",
         "circulation_source": "missing_requested_stair"
       }
@@ -1667,7 +1666,6 @@
         "clearHeight": 2,
         "landing_length": 1,
         "support": false,
-        "stairs": "minecraft:stone_brick_stairs",
         "floor": "minecraft:polished_andesite",
         "circulation_source": "missing_requested_stair"
       }

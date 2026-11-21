@@ -27,6 +27,9 @@ class ComplexBuildRetest(unittest.TestCase):
                     stairs = [c for c in result['components'] if c.get('params', {}).get('circulation_source') == 'missing_requested_stair'
                               and c['params']['host_id'] == 'office_building']
                     self.assertEqual(2, len(stairs))
+                    for stair in stairs:
+                        self.assertEqual("minecraft:polished_deepslate", stair["params"]["floor"])
+                        self.assertNotIn("stairs", stair["params"])
                 else:
                     main = next(c for c in plan['components'] if c.get('params', {}).get('component_id') == 'inn_main')
                     main['dimensions']['width'] = 20

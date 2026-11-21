@@ -1,5 +1,7 @@
 # Design decision inventory
 
+The existing missing-stair compatibility path supplies its host floor material and leaves the tread field absent (TECHNICAL_DEFAULT). Java resolves the registered stair family. The rule applies to generated flights and does not change authored tread values.
+
 Ordinary stair guidance exposes floor-family tread inference and an explicit tread override (NONBINDING_HINT). The circulation example leaves the floor material to the model and preserves requested enclosure and roof choices.
 
 Assembly STAIR_SYSTEM uses a declared floor block's matching stair family as a fallback only when the stair field is absent (TECHNICAL_DEFAULT). Explicit stairs and configured palette selection keep precedence.
