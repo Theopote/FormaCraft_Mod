@@ -896,21 +896,24 @@ final class AssemblyComponentEmitter {
             if (w > 0 || d > 0) {
                 int hx = w / 2;
                 int hz = d / 2;
+                boolean exactShell = type.equals("SHELL_BOX") || type.equals("BOX_SHELL");
+                int east = exactShell && w > 0 ? w - hx - 1 : hx;
+                int south = exactShell && d > 0 ? d - hz - 1 : hz;
                 ports.put("north", new int[]{0, 0, -hz});
-                ports.put("south", new int[]{0, 0, hz});
-                ports.put("east", new int[]{hx, 0, 0});
+                ports.put("south", new int[]{0, 0, south});
+                ports.put("east", new int[]{east, 0, 0});
                 ports.put("west", new int[]{-hx, 0, 0});
 
                 // corners / edge midpoints (useful for multiple corridors/roads)
                 ports.put("nw", new int[]{-hx, 0, -hz});
-                ports.put("ne", new int[]{hx, 0, -hz});
-                ports.put("sw", new int[]{-hx, 0, hz});
-                ports.put("se", new int[]{hx, 0, hz});
+                ports.put("ne", new int[]{east, 0, -hz});
+                ports.put("sw", new int[]{-hx, 0, south});
+                ports.put("se", new int[]{east, 0, south});
 
-                ports.put("front_left", new int[]{-hx, 0, hz});
-                ports.put("front_right", new int[]{hx, 0, hz});
+                ports.put("front_left", new int[]{-hx, 0, south});
+                ports.put("front_right", new int[]{east, 0, south});
                 ports.put("back_left", new int[]{-hx, 0, -hz});
-                ports.put("back_right", new int[]{hx, 0, -hz});
+                ports.put("back_right", new int[]{east, 0, -hz});
 
                 ports.put("corner_front_left", ports.get("front_left"));
                 ports.put("corner_front_right", ports.get("front_right"));

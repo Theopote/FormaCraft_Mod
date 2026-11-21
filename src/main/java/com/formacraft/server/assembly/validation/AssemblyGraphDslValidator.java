@@ -98,7 +98,7 @@ public final class AssemblyGraphDslValidator {
             return;
         }
         Set<String> ports = AssemblyPortResolver.portIds(comp);
-        if (!ports.contains(parsed.portName())) {
+        if (!ports.contains(AssemblyPortResolver.normalizePortId(parsed.portName()))) {
             out.add(AssemblyValidationSupport.err(
                     path,
                     "E_CONN_UNKNOWN_PORT",

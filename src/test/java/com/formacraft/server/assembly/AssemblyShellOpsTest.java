@@ -45,6 +45,35 @@ class AssemblyShellOpsTest {
         return map;
     }
     @Test
+    void evenShellPortsTouchTheBaseWallCells() {
+        var shell = shell(0);
+        shell.put("w", 12);
+        shell.put("d", 10);
+        var ports = AssemblyPortResolver.ports(shell);
+        var blocks = snapshot(generate(shell));
+        assertArrayEquals(new int[]{5, 0, 0}, ports.get("east"));
+        assertArrayEquals(new int[]{0, 0, 4}, ports.get("south"));
+        assertArrayEquals(new int[]{5, 0, 4}, ports.get("front_right"));
+        for (String key : List.of("north", "south", "east", "west", "nw", "ne", "sw", "se")) {
+            int[] cell = ports.get(key);
+            assertEquals(Blocks.STONE_BRICKS.getDefaultState(), blocks.get(new BlockPos(cell[0], cell[1], cell[2])));
+        }
+    }
+
+    @Test
+    void graphValidationUsesTheExecutorPortSpellingRules() {
+        var component = Map.of("id", "shell", "type", "SHELL_BOX",
+                "w", 12, "d", 12, "h", 28,
+                "ports", Map.of("Canopy Mount", Map.of("x", 1)));
+        var graph = Map.of("components", List.of(component), "connections", List.of(
+                Map.of("from", "shell.N", "to", "shell.top-center"),
+                Map.of("from", "shell.canopy-mount", "to", "shell.center")));
+        var issues = AssemblySpecValidator.validate(Map.of("graph", graph));
+        assertTrue(issues.stream().noneMatch(issue -> issue.severity() == AssemblyValidationIssue.Severity.ERROR),
+                issues::toString);
+    }
+
+    @Test
     void rawCoordinatesCannotSilentlyDropAGraphConnection() {
         var graph = Map.of("components", List.of(Map.of("id", "shell", "type", "SHELL_BOX")),
                 "connections", List.of(Map.of("from", Map.of("x", 3, "y", 0, "z", 0), "to", "shell.center")));

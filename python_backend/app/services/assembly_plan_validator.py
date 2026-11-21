@@ -369,7 +369,7 @@ def _validate_endpoint(
     if comp is None:
         return
     ports = _ports_for_component(comp)
-    if port not in ports:
+    if _normalize_port_id(port) not in ports:
         issues.append(AssemblyPlanIssue(
             path,
             "E_CONN_UNKNOWN_PORT",
@@ -396,11 +396,27 @@ def _parse_endpoint(endpoint: Any) -> Optional[Tuple[Optional[str], Optional[str
     return None
 
 
+def _normalize_port_id(name: str) -> str:
+    key = name.strip().lower().replace("-", "_").replace(" ", "_") or "center"
+    aliases = {
+        "n": "north", "s": "south", "e": "east", "w": "west",
+        "topcenter": "top_center", "bottomcenter": "bottom_center",
+        "frontleft": "front_left", "frontright": "front_right",
+        "backleft": "back_left", "backright": "back_right",
+    }
+    return aliases.get(key, key)
+
+
 def _ports_for_component(comp: Dict[str, Any]) -> Set[str]:
-    ctype = str(comp.get("type") or comp.get("op") or "").strip()
-    ports = set(component_ports(ctype))
-    if not ports:
-        ports = set(BUILTIN_PORTS)
+    ctype = str(comp.get("type") or "").strip() or str(comp.get("op") or "").strip()
+    ports = {_normalize_port_id(port) for port in component_ports(ctype) or BUILTIN_PORTS}
+    # The exported shell sample has dimensions, but an unsized shell exposes only axial ports.
+    if ctype.upper() in ("SHELL_BOX", "BOX_SHELL") and not {"w", "d", "width", "depth"}.intersection(comp):
+        ports.intersection_update({"center", "bottom_center", "top_center", "bottom", "top", "mid"})
+    custom_ports = comp.get("ports")
+    if isinstance(custom_ports, dict):
+        ports.update(_normalize_port_id(name) for name, point in custom_ports.items()
+                     if isinstance(name, str) and isinstance(point, dict))
     return ports
 
 

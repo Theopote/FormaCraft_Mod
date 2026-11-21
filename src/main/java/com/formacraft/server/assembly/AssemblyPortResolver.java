@@ -11,6 +11,10 @@ public final class AssemblyPortResolver {
 
     private AssemblyPortResolver() {}
 
+    public static String normalizePortId(String name) {
+        return AssemblyCompilerUtils.normalizePortKey(name);
+    }
+
     public static Set<String> portIds(Map<String, Object> component) {
         if (component == null || component.isEmpty()) {
             return Set.of();

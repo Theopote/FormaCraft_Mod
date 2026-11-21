@@ -11,6 +11,32 @@ from app.services.assembly_plan_repair import finalize_assembly_plan_or_gap
 
 
 class AssemblyPlanValidatorTest(unittest.TestCase):
+    def test_shell_without_dimensions_only_exposes_axial_and_custom_ports(self):
+        shell = {"id": "shell", "type": "BOX_SHELL"}
+        connection = {"from": "shell.N", "to": "shell.top-center"}
+        plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": {"graph": {
+            "components": [shell], "connections": [connection],
+        }}}}]}
+        issues = validate_assembly_plan(plan)
+        self.assertEqual(["E_CONN_UNKNOWN_PORT"], [issue.code for issue in issues])
+        self.assertTrue(issues[0].path.endswith("connections[0].from"))
+        shell["ports"] = {"north": {"z": -3}}
+        self.assertEqual([], validate_assembly_plan(plan))
+        shell.pop("ports")
+        shell.update(w=12, d=12)
+        self.assertEqual([], validate_assembly_plan(plan))
+
+    def test_existing_port_spellings_and_custom_ports_resolve(self):
+        component = {"id": "shell", "type": "SHELL_BOX", "w": 12, "d": 12, "h": 28,
+                     "ports": {"Canopy Mount": {"x": 1}}}
+        connections = [{"from": "shell.N", "to": "shell.top-center"},
+                       {"from": "shell.canopy-mount", "to": "shell.center"}]
+        payload = {"graph": {"components": [component], "connections": connections}}
+        plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": payload}}]}
+        self.assertEqual([], validate_assembly_plan(plan))
+        self.assertEqual("shell.canopy-mount", connections[1]["from"])
+        self.assertEqual({"x": 1}, component["ports"]["Canopy Mount"])
+
     def test_connection_requires_a_component_but_accepts_relative_offsets(self):
         connection = {"from": {"x": 3, "y": 0, "z": 0}, "to": "shell.center"}
         payload = {"graph": {"components": [{"id": "shell", "type": "SHELL_BOX"}],

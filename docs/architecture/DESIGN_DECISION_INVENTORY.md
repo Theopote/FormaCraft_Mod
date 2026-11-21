@@ -14,6 +14,12 @@ Assembly graph connection lists must be arrays of objects when supplied (HARD_CO
 
 Assembly graph connection endpoints must reference a component (HARD_CONSTRAINT). A raw coordinate is supported as a route waypoint, while an endpoint may use coordinates as offsets on an explicit component reference. Python and Java report unusable endpoints before execution.
 
+Graph endpoint checks use the executor's existing port spelling rules and accept declared custom ports (FORMAT_REPAIR). Validation preserves the authored names and coordinates.
+
+Python checks shell endpoint availability when the graph omits both footprint dimensions (GEOMETRY). In that case the Java port resolver exposes axial and explicitly declared custom ports. The validator does not insert dimensions or move endpoints.
+
+Built-in graph shell ports use the same positive base edges as closed SHELL_BOX geometry (GEOMETRY). This aligns even-sized shells without changing component dimensions or overriding custom port coordinates.
+
 An explicitly supplied Assembly graph must be an object and its component list must be an array of objects (HARD_CONSTRAINT). Executable raw ops do not suppress malformed graph diagnostics.
 
 Ordinary Assembly reports ambiguity when both raw ops and a nonempty component list are supplied (HARD_CONSTRAINT). The existing repair loop asks for one complete representation so execution never silently drops the other geometry.
