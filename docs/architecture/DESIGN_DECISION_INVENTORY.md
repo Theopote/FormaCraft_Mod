@@ -2,6 +2,28 @@
 
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 
+Assembly repair guidance preserves the authored composition and reports unsupported geometry (NONBINDING_HINT). Request-aware validation rejects a fixed Assembly preset unless the user explicitly requested that exact ID (HARD_CONSTRAINT). Offline fixture validation can still validate preset schema and IDs without request context.
+
+Ordinary Assembly validates explicit SHELL_BOX dimensions, floor spacing and rotation against the executor's supported ranges before repair (HARD_CONSTRAINT). Valid values pass through unchanged. Omitted fields retain the existing executor contract.
+
+Adaptive terrain padding for model-authored Assembly ops, graphs or FBD derives its footprint from final load-bearing blocks at the adapted ground elevation (GEOMETRY). Elevated overhangs and floating platforms participate in support diagnostics but do not create ground pads. Explicit flatten, stilt and preset-only paths keep their prior contracts.
+
+The ordinary planning catalog exposes model-authored Assembly ops and graphs for free-form geometry (NONBINDING_HINT). The closed SHELL_BOX example shows how to combine explicit rotation and taper without a building-name route. Dedicated FBD intent remains separate. No executor or geometric parameter is selected by the catalog.
+
+Optional `SHELL_BOX.topScale` is owned by the user or planner. Java applies the same interpolated section to wall, floor, clearing and roof (GEOMETRY). Missing input retains scale 1 as a technical default. Explicit 1 also retains constant dimensions. The backend reports invalid scales and taper on open walls through the existing Assembly repair loop (HARD_CONSTRAINT). Java independently enforces the same geometry boundary before placement.
+
+Closed SHELL_BOX treats width and depth as cell counts even when they are even (GEOMETRY). Walls, decks and clearing share the same local boundaries before rotation. Open colonnade positioning retains its existing contract.
+
+Closed twisted SHELL_BOX interiors use the same destination-cell sampling as decks (GEOMETRY). FBD preflight includes a conservative rotated-sample budget (HARD_CONSTRAINT). No new design default is introduced.
+
+Closed twisted SHELL_BOX floors and roof decks sample destination cells against the rotated footprint (GEOMETRY). This avoids holes from independently rounding source cells. Candidate samples remain metered, and no design defaults are added.
+
+Twisted closed SHELL_BOX wall edges fill face-adjacency gaps introduced by rounding (GEOMETRY). The join stays near the original edge and uses the adjacent wall material. No new design defaults or presets.
+
+`PRIMITIVE trapezoid` adds a geometry operator, not a building category (GEOMETRY). The model supplies the envelope and required `end_width`. Java interpolates the centered horizontal profile and emits `E_PRIMITIVE_GEOMETRY_INVALID` for missing or out-of-range input. No preset or design default is added.
+
+CSG child detail aliases for wall thickness, polygon sides, triangle mode, Voronoi and Möbius parameters take precedence over inherited values (FORMAT_REPAIR). This adds no geometry defaults.
+
 CSG child aliases for top radius, axis radii and sector angles override inherited values of the same fields (FORMAT_REPAIR). The parser and inheritance share the existing aliases and add no defaults.
 
 CSG child rotation (all three axes) and radius aliases override inherited values for the same parameter (FORMAT_REPAIR). No design defaults or supported tokens were added.

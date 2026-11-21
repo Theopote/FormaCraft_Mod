@@ -10,6 +10,21 @@ _EXAMPLES = Path(__file__).resolve().parent.parent.parent / "src/main/resources/
 
 
 class ShapePrimitiveM2Test(unittest.TestCase):
+    def test_trapezoid_survives_backend_normalization(self):
+        from app.models.llm_plan import validate_llm_plan_dict
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
+
+        fixture = _EXAMPLES.parents[4] / "test/resources/style_quality_20261115/trapezoid_volume.json"
+        original = json.loads(fixture.read_text(encoding="utf-8"))
+        normalized = _normalize_llm_plan_output(original, req=None)
+        validate_llm_plan_dict(normalized)
+        component, = normalized["components"]
+        self.assertEqual(component["component_type"], "PRIMITIVE")
+        self.assertEqual(component["params"]["kind"], "trapezoid")
+        self.assertEqual(component["params"]["end_width"], 4)
+        self.assertEqual(component["dimensions"], {"width": 9, "depth": 7, "height": 4})
+        self.assertEqual(component["relative_position"], {"x": 3, "y": 2, "z": 4})
+
     def _load(self, name: str) -> dict:
         data = json.loads((_EXAMPLES / name).read_text(encoding="utf-8"))
         return data.get("plan", data)

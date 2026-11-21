@@ -10,6 +10,7 @@ import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.model.build.BuildingSpec;
 import com.formacraft.common.model.build.Footprint;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.server.assembly.AssemblyShellOps;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.server.assembly.AssemblySpec;
 import com.formacraft.server.assembly.MetaAssemblyCompiler;
@@ -99,8 +100,8 @@ public final class AssemblyPatchGenerator {
                     "ASSEMBLY component missing params.assembly (or ops/graph/macro/preset)",
                     "components[].params.assembly",
                     List.of(
-                            "Use params.assembly with preset, graph.components, or ops[].",
-                            "Prefer preset: spiral_watchtower | suspension_bridge_simple | gothic_shell_box."
+                            "Provide executable params.assembly.graph.components or ops[].",
+                            "Use a preset only when the user explicitly requests its ID."
                     ));
         }
 
@@ -147,7 +148,7 @@ public final class AssemblyPatchGenerator {
                         "components[].params.assembly",
                         List.of(
                                 "Ensure graph.components[] types match exported schema.",
-                                "Or use a known preset shorthand.",
+                                "Preserve the requested geometry when revising the graph or operations.",
                                 "Return plan_status=capability_gap if geometry is unsupported."
                         ));
             }
@@ -171,6 +172,11 @@ public final class AssemblyPatchGenerator {
         } catch (com.formacraft.common.dsl.FbdException failure) {
             com.formacraft.server.dsl.FbdPlanLowering.report(failure, "components[].params.fbd_program");
             return GenerateResult.failed(AssemblyCompileDiagnostics.get());
+        } catch (AssemblyShellOps.InvalidTopScale failure) {
+            String path = fbd instanceof com.formacraft.common.dsl.FbdCompiler.Compilation
+                    ? "components[].params.fbd_program" : "components[].params.assembly";
+            return fail("E_SHELL_BOX_TOP_SCALE", failure.getMessage(), path,
+                    List.of("Use topScale in 0.5..1.0 for closed walls; omit it or use 1.0 for open walls."));
         } catch (AssemblyCirculationConstraints.Conflict conflict) {
             return fail("E_ASSEMBLY_CIRCULATION_CONFLICT", conflict.getMessage(),
                     "components[].params.assembly", List.of("Separate conflicting flights and landings; generate shell/floors before stairs."));
@@ -250,6 +256,16 @@ public final class AssemblyPatchGenerator {
         if (payload.get("components") instanceof List<?> components && !components.isEmpty()) return true;
         return payload.get("graph") instanceof Map<?, ?> graph
             && graph.get("components") instanceof List<?> components && !components.isEmpty();
+    }
+
+    /** Terrain adaptation can use the generated footprint of model-authored geometry. */
+    public static boolean usesGeneratedTerrainFootprint(Component component) {
+        if (component == null || component.params() == null) return false;
+        if (component.params().containsKey("fbd_program")) return true;
+        if (!"ASSEMBLY".equalsIgnoreCase(component.componentType())) return false;
+        return resolveAssemblyPayload(component.params()) instanceof Map<?, ?> payload
+                && payload.get("preset") == null && payload.get("presetId") == null
+                && hasExecutablePayload(payload);
     }
 
     public static boolean hasCirculation(Component component) {

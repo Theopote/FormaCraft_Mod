@@ -39,6 +39,16 @@ Core rules:
 - style_profile is a string preset id. style_attributes.palette/materials/block_palette MUST be objects
   mapping roles→block ids — never put a palette preset string into those map fields.
 - ASSEMBLY is for free-form parametric geometry when MASS/ROOF enums cannot express the shape.
+  For a complete closed rectangular envelope with continuous twist or taper, ASSEMBLY
+  params.assembly.ops can contain {"op":"SHELL_BOX","w":12,"d":12,"h":28,"twistTurns":0.125,"topScale":0.85}.
+  Adapt all values to the design. w/d are base dimensions (5..129), and h (6..255)
+  is measured from the ground deck to the last wall row; the roof is at h+1.
+  twistTurns is the total rotation in turns (-2..2, degrees / 360). Optional twistPhase
+  sets the initial rotation (0..1 turn). Optional topScale
+  (0.5..1) scales both horizontal dimensions to the top. Use 1 or omit it for constant dimensions.
+  The operator builds the wall perimeter and decks. A spiral stair alone only supplies circulation.
+- For a trapezoidal footprint, PRIMITIVE with params.kind="trapezoid" extrudes a centered
+  profile: dimensions.width at local -Z and integer params.end_width at +Z (1..width; depth >= 2).
 - A component name or feature label does not emit geometry. For simple linear details such as
   exposed pipes, model each straight run as an optional PRIMITIVE box with params.kind="box",
   params.anchor_mode="min_corner", a material, and explicit relative_position and dimensions.

@@ -17,6 +17,7 @@ import com.formacraft.server.build.BuildPreviewPipeline;
 import com.formacraft.server.build.BuildConstraintContext;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.foundation.FoundationPlanner;
+import com.formacraft.server.generation.component.impl.AssemblyPatchGenerator;
 import com.formacraft.server.foundation.FoundationType;
 import com.formacraft.server.preview.PreviewStorage;
 import com.formacraft.server.terrain.TerrainAdaptationEngine;
@@ -708,8 +709,8 @@ public final class LlmPlanPreviewBuilder {
             } else {
                 // ========== 地形平整：在生成建筑之后平整地坪 ==========
                 boolean terrainPadApplied = false;
-                boolean procedural = llmPlan.components() != null && llmPlan.components().stream().anyMatch(c ->
-                        c != null && c.params() != null && c.params().containsKey("fbd_program"));
+                boolean useGeneratedFootprint = llmPlan.components() != null && llmPlan.components().stream()
+                        .anyMatch(AssemblyPatchGenerator::usesGeneratedTerrainFootprint);
                 boolean wantsStiltFoundation = LlmPlanTerrainBounds.wantsStiltFoundation(req);
                 // 获取地形策略
                 GlobalConstraints.TerrainStrategy terrainStrategy =
@@ -793,9 +794,9 @@ public final class LlmPlanPreviewBuilder {
                         final BlockState finalFillMaterial = fillMaterial;
                         final com.formacraft.server.terrain.BuildingOccupancyMask occupancy =
                                 com.formacraft.server.terrain.BuildingOccupancyMask.fromSolidBlocks(plannedBlocks);
-                        final List<BlockPos> proceduralFootprint = procedural
-                                ? com.formacraft.server.build.StructureSupportAnalysis.unsupportedBases(
-                                        plannedBlocks, p -> Blocks.AIR.getDefaultState()) : List.of();
+                        final List<BlockPos> bearingFootprint = useGeneratedFootprint
+                                ? com.formacraft.server.build.StructureSupportAnalysis.groundContacts(
+                                        plannedBlocks, finalTargetY) : List.of();
                         List<PlannedBlock> terrainPadBlocks = BuildConstraintContext.withRequest(req, () -> {
                             List<PlannedBlock> out = new ArrayList<>();
                             java.util.LinkedHashSet<BlockPos> cleared = new java.util.LinkedHashSet<>();
@@ -808,9 +809,9 @@ public final class LlmPlanPreviewBuilder {
                             if (terrainStrategy == GlobalConstraints.TerrainStrategy.FLATTEN) {
                                 out.addAll(TerrainFit.balancedPad(
                                         serverWorld, finalCenter, finalWidth, finalDepth, finalTargetY, finalFillMaterial, padDepth, clearHeight, true, true));
-                            } else if (procedural) {
+                            } else if (useGeneratedFootprint) {
                                 // Only bearing columns, not roof overhangs or gaps between independent pavilions.
-                                out.addAll(TerrainFit.adaptivePad(serverWorld, proceduralFootprint, finalTargetY,
+                                out.addAll(TerrainFit.adaptivePad(serverWorld, bearingFootprint, finalTargetY,
                                         finalFillMaterial, padDepth, 0, true, true));
                             } else {
                                 // Always pad+clear under footprint (range<=1 still buries doors on mild slopes).
@@ -841,7 +842,7 @@ public final class LlmPlanPreviewBuilder {
                             }
                             return out;
                         });
-                        if (procedural && terrainStrategy == GlobalConstraints.TerrainStrategy.ADAPTIVE)
+                        if (useGeneratedFootprint && terrainStrategy == GlobalConstraints.TerrainStrategy.ADAPTIVE)
                             terrainPadApplied = true; // A second rectangular pad would fill the gaps again.
 
                         // 将地坪平整的方块添加到结果的最前面（确保先清理地形，再放置建筑）
@@ -946,7 +947,7 @@ public final class LlmPlanPreviewBuilder {
 
                     boolean skipPadFoundation = terrainPadApplied
                             && (finalFd.type() == FoundationType.FLAT_PAD || finalFd.type() == FoundationType.STEPPED
-                                || procedural && strategy == GlobalConstraints.TerrainStrategy.ADAPTIVE && !wantsStiltFoundation);
+                                || useGeneratedFootprint && strategy == GlobalConstraints.TerrainStrategy.ADAPTIVE && !wantsStiltFoundation);
                     List<PlannedBlock> terrainPrep = skipPadFoundation ? List.of()
                             : BuildConstraintContext.withRequest(req, () -> switch (finalFd.type()) {
                                 case STILT -> TerrainAdaptationEngine.anchorPillars(
@@ -1559,7 +1560,7 @@ public final class LlmPlanPreviewBuilder {
                 "E_CAPABILITY_GAP",
                 msg,
                 "plan",
-                List.of("Use ASSEMBLY preset/graph from ai-assembly-schema.json.", "Or simplify to MASS_* + ROOF.")
+                List.of("Check the supported geometry operators in ai-assembly-schema.json.")
         );
     }
 

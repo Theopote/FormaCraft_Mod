@@ -1171,6 +1171,7 @@ final class ComponentEmitPass {
         if (message.startsWith("E_PRIMITIVE_SHAPE_UNSUPPORTED")) return "E_PRIMITIVE_SHAPE_UNSUPPORTED";
         if (message.startsWith("E_PRIMITIVE_CSG_OP_UNSUPPORTED")) return "E_PRIMITIVE_CSG_OP_UNSUPPORTED";
         if (message.startsWith("E_PRIMITIVE_CSG_INVALID")) return "E_PRIMITIVE_CSG_INVALID";
+        if (message.startsWith("E_PRIMITIVE_GEOMETRY_INVALID")) return "E_PRIMITIVE_GEOMETRY_INVALID";
         if (message.startsWith("E_PRIMITIVE_EXTRUDE_MODE_UNSUPPORTED")) return "E_PRIMITIVE_EXTRUDE_MODE_UNSUPPORTED";
         if (message.startsWith("E_FOOTPRINT_COMBINATION_UNSUPPORTED")) return "E_FOOTPRINT_COMBINATION_UNSUPPORTED";
         if (message.startsWith("E_PLATE_ROLE_UNSUPPORTED")) return "E_PLATE_ROLE_UNSUPPORTED";

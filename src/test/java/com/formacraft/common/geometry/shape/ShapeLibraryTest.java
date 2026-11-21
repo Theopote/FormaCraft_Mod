@@ -101,6 +101,26 @@ class ShapeLibraryTest {
     }
 
     @Test
+    void trapezoidExtrudesTheAuthoredEndWidths() {
+        var spec = ShapeSpec.fromParams(9, 7, 4, Map.of("kind", "trapezoid", "end_width", 3));
+        var voxels = ShapeLibrary.generate(spec);
+        for (int y = 0; y < 4; y++) {
+            int layer = y;
+            assertEquals(9L, voxels.stream().filter(v -> v.y() == layer && v.z() == 0).count());
+            assertEquals(3L, voxels.stream().filter(v -> v.y() == layer && v.z() == 6).count());
+        }
+        var plate = ShapeSpec.fromParams(9, 7, 4, Map.of("kind", "trapezoid", "end_width", 3, "extrude_mode", "plate"));
+        assertTrue(ShapeLibrary.generate(plate).stream().allMatch(v -> v.y() == 0));
+        var evenEnd = ShapeSpec.fromParams(9, 7, 4, Map.of("kind", "trapezoid", "end_width", 4));
+        assertEquals(4L, ShapeLibrary.generate(evenEnd).stream().filter(v -> v.y() == 0 && v.z() == 6).count());
+        for (var params : List.of(Map.<String, Object>of("kind", "trapezoid"),
+                Map.<String, Object>of("kind", "trapezoid", "end_width", 10))) {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                    () -> ShapeSpec.fromParams(9, 7, 4, params));
+        }
+    }
+
+    @Test
     void triangle_footprint() {
         ShapeSpec spec = ShapeSpec.fromParams(10, 10, 4, Map.of(
                 "kind", "triangle", "radius", 4, "triangle_mode", "right"));
@@ -121,6 +141,20 @@ class ShapeLibraryTest {
                 ShapeSpec.fromParams(w, d, h, Map.of("kind", "box")));
         List<ShapeLibrary.Voxel> carved = ShapeLibrary.generateComposite(ops);
         assertTrue(carved.size() < solid.size());
+    }
+
+    @Test
+    void csgChildDetailAliasesAndFalseFlagsOverrideInheritedValues() {
+        var parent = Map.<String, Object>of("kind", "voronoi", "thickness", 2, "sides", 6,
+                "voronoi_cells", 8, "voronoi_seed", 4, "voronoi_3d", true, "mobius_twist", 1);
+        var params = new java.util.HashMap<>(parent);
+        params.put("operations", List.of(Map.of("wallThickness", 1, "numSides", 7,
+                "cells", 5, "design_seed", 9, "voronoi_dimension", "2d", "twist", 2)));
+        var actual = ShapeSpec.parseOperations(11, 9, 7, params).getFirst().spec();
+        var expected = ShapeSpec.fromParams(11, 9, 7, Map.of("kind", "voronoi", "thickness", 1,
+                "sides", 7, "voronoi_cells", 5, "voronoi_seed", 9, "voronoi_dimension", "2d", "mobius_twist", 2));
+        assertEquals(expected, actual);
+        assertEquals(ShapeLibrary.generate(expected), ShapeLibrary.generate(actual));
     }
 
     @Test

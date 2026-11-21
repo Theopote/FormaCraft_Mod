@@ -48,7 +48,17 @@ public final class FbdPrimitives {
         }
         long w = 2 * (number(p, "w", 0) / 2) + 1;
         long d = 2 * (number(p, "d", 0) / 2) + 1;
-        if (op.equals("SHELL_BOX")) return product(w, d, 3 * number(p, "h", 0) + 4);
+        if (op.equals("SHELL_BOX")) {
+            long h = number(p, "h", 0);
+            boolean twisted = (p.get("twistTurns") instanceof Number turns && Math.abs(turns.doubleValue()) > 0.001)
+                    || (p.get("twistPhase") instanceof Number phase && Math.abs(phase.doubleValue()) > 0.001);
+            if (!twisted) return product(w, d, 3 * h + 4);
+            // A rotated rectangle's projection cannot exceed its diagonal on either axis.
+            long span = 2 * (long) Math.floor(Math.hypot(w, d) / 2) + 1;
+            long floorStep = Math.max(3, number(p, "floorStep", 4));
+            return product(span, span, h + h / floorStep + 2)
+                    + product(h + 1, w * d + 2 * (w + d - 2), 1);
+        }
         long overhang = number(p, "overhang", 0);
         return product(w + 2 * overhang, d + 2 * overhang, number(p, "rise", 32) + 2);
     }

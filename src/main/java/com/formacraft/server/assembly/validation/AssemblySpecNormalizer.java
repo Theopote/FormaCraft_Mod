@@ -480,7 +480,7 @@ public final class AssemblySpecNormalizer {
             "profilePoints", "profileRings", "rings",
             "profileScale0", "profileScale1", "scale0", "scale1",
             "profileW0", "profileW1", "profileH0", "profileH1",
-            "twistTurns", "twistPhase",
+            "twistTurns", "twistPhase", "topScale",
             "capEnds", "capThickness", "carveInterior",
             "connectSamples", "connectMaxStep",
             // bezier surface
@@ -540,7 +540,7 @@ public final class AssemblySpecNormalizer {
             "profileW", "profileH", "profilePoints", "profileRings", "rings",
             "profileScale0", "profileScale1", "scale0", "scale1",
             "profileW0", "profileW1", "profileH0", "profileH1",
-            "twistTurns", "twistPhase",
+            "twistTurns", "twistPhase", "topScale",
             "capEnds", "capThickness", "carveInterior",
             "connectSamples", "connectMaxStep",
             // bezier surface

@@ -27,7 +27,7 @@ public final class AssemblyComponentSchemaRegistry {
     private static final List<ComponentSchemaDef> DEFINITIONS = List.of(
             def("SHELL_BOX", "shell", List.of("BOX_SHELL"),
                     List.of("w", "d", "h"),
-                    List.of("twistTurns", "twistPhase", "wall", "window", "floor", "roof", "facade", "floorStep")),
+                    List.of("twistTurns", "twistPhase", "topScale", "wall", "window", "floor", "roof", "facade", "floorStep")),
             def("CYLINDER", "solid", List.of(),
                     List.of("r", "h"),
                     List.of("radius", "height", "thickness", "hollow", "wall", "material")),
@@ -214,9 +214,9 @@ public final class AssemblyComponentSchemaRegistry {
     public static List<String> compatibilityRules() {
         return List.of(
                 "Use component_type=ASSEMBLY at top level; never nest params.assembly inside MASS_*.",
-                "Prefer preset shorthand when intent matches: spiral_watchtower, suspension_bridge_simple, gothic_shell_box.",
+                "Use preset shorthand only for the preset explicitly requested by the user.",
                 "graph.connections endpoints must be \"ComponentId.port\" using exported port ids only.",
-                "For conventional buildings use MASS_* + ROOF; use ASSEMBLY preset/graph/ops for freeform geometry.",
+                "Use ASSEMBLY graph or ops for model-authored geometry that needs these operations.",
                 "If geometry is unsupported, return plan_status=capability_gap with capability_gap.code instead of empty components.",
                 "Do NOT invent component types or port names outside this schema export."
         );

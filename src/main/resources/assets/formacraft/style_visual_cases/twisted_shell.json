@@ -1,0 +1,43 @@
+{
+  "mode": "build",
+  "anchor": {
+    "x": 0,
+    "y": 64,
+    "z": 0
+  },
+  "components": [
+    {
+      "component_type": "ASSEMBLY",
+      "relative_position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "dimensions": {
+        "width": 16,
+        "depth": 16,
+        "height": 30
+      },
+      "features": [],
+      "params": {
+        "assembly": {
+          "ops": [
+            {
+              "op": "SHELL_BOX",
+              "w": 12,
+              "d": 12,
+              "h": 28,
+              "twistTurns": 0.125,
+              "topScale": 0.85,
+              "floorStep": 4,
+              "wall": "minecraft:smooth_stone",
+              "window": "minecraft:white_stained_glass"
+            }
+          ]
+        }
+      },
+      "slot_id": "tower"
+    }
+  ],
+  "style_profile": "MODERN"
+}

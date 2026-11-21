@@ -430,6 +430,7 @@ final class AssemblyComponentEmitter {
                 o.put("h", h);
                 AssemblyCompilerUtils.copyInt(comp, o, "floorStep", 4);
                 // Forma-Gene integration: twist support
+                AssemblyCompilerUtils.copy(comp, o, "topScale");
                 AssemblyCompilerUtils.copy(comp, o, "twistTurns");
                 AssemblyCompilerUtils.copy(comp, o, "twist_turns");
                 AssemblyCompilerUtils.copy(comp, o, "twistPhase");

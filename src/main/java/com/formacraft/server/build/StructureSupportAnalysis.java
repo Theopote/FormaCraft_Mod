@@ -23,6 +23,14 @@ public final class StructureSupportAnalysis {
         return states;
     }
 
+    /** Ground-plane contacts used for padding, independent of floating-component diagnostics. */
+    public static List<BlockPos> groundContacts(List<PlannedBlock> blocks, int groundY) {
+        return finalStates(blocks).entrySet().stream()
+                .filter(entry -> entry.getKey().getY() == groundY && carriesSupport(entry.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+    }
+
     public static BlockState effectiveState(Map<BlockPos, BlockState> planned,
                                             Function<BlockPos, BlockState> terrain, BlockPos pos) {
         return planned.containsKey(pos) ? planned.get(pos) : terrain.apply(pos);

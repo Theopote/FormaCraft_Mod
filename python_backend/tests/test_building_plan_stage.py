@@ -26,6 +26,26 @@ FIXTURES = Path(__file__).resolve().parent.parent / "eval" / "fixtures" / "plans
 
 
 class PlanStagePromptTest(unittest.TestCase):
+    def test_ordinary_prompt_exposes_geometry_for_unnamed_twisted_envelope(self):
+        from app.services.assembly_plan_repair import normalize_and_validate_assembly_plan
+        from app.services.generation_capability import planning_component_exposure
+        from app.services.llm_plan_system_prompt import build_llm_plan_system_prompt
+
+        request = "建造一座名叫折光匣的建筑，平面旋转45度并略微收腰，不要使用FBD。"
+        exposure = planning_component_exposure(user_request=request)
+        self.assertFalse(exposure["context"]["explicit_fbd"])
+        self.assertIn("params.assembly.ops", exposure["conditional"]["ASSEMBLY"]["requires"])
+        self.assertIn("topScale", build_llm_plan_system_prompt())
+        shell = {"op": "SHELL_BOX", "w": 12, "d": 12, "h": 28, "twistTurns": 0.125, "topScale": 0.85}
+        plan = {"mode": "build", "components": [{
+            "component_type": "ASSEMBLY", "relative_position": {"x": 0, "y": 0, "z": 0},
+            "dimensions": {"width": 16, "depth": 16, "height": 30}, "features": [],
+            "params": {"assembly": {"ops": [dict(shell)]}},
+        }]}
+        normalized, issues = normalize_and_validate_assembly_plan(plan, request)
+        self.assertFalse(issues)
+        self.assertEqual({"ops": [shell]}, normalized["components"][0]["params"]["assembly"])
+
     def test_research_defaults_cannot_override_explicit_user_design(self):
         from app.services.building_plan_stage import PLAN_STAGE_SYSTEM_ADDON
 
@@ -70,15 +90,15 @@ class PlanStagePromptTest(unittest.TestCase):
             str(catalog_conditional["STRUCTURE"].get("routes") or []),
         )
         self.assertIn("structure_type", catalog_conditional["STRUCTURE"]["requires"])
-        # Default exposure without preset/FBD hides MODULE/ASSEMBLY.
+        # Ordinary requests can use model-authored Assembly geometry.
         self.assertNotIn("MODULE", exposure["conditional"])
-        self.assertNotIn("ASSEMBLY", exposure["conditional"])
+        self.assertIn("params.assembly.ops", exposure["conditional"]["ASSEMBLY"]["requires"])
         profile = BuildingProfile(query="test")
         block = build_plan_stage_user_block(profile, "build test")
         self.assertIn("Directly plannable component_type values", block)
         self.assertIn("Conditional catalog types", block)
         self.assertNotIn("- MODULE [", block)
-        self.assertNotIn("- ASSEMBLY [", block)
+        self.assertIn("- ASSEMBLY [", block)
         self.assertNotIn("MASS_ANCILLARY", registered)
         self.assertNotIn("PLAZA_CORE", registered)
 

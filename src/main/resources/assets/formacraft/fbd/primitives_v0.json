@@ -4,6 +4,7 @@
     "d": {"type":"int","required":true,"min":5,"max":129},
     "h": {"type":"int","required":true,"min":6,"max":255},
     "floorStep": {"type":"int","min":3,"max":8},
+    "topScale": {"type":"scalar","min":0.5,"max":1},
     "twistTurns": {"type":"scalar","min":-2,"max":2},
     "twistPhase": {"type":"scalar","min":0,"max":1},
     "wallMode": {"type":"enum","enum":["SOLID","COLONNADE","OPEN","PILLARS","POSTS"]},

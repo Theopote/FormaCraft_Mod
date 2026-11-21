@@ -484,6 +484,11 @@ def planning_component_exposure(
     has_preset = (not model_designed) and bool(profile_preset or explicit_preset)
     has_typology = bool(str(getattr(mc, "structural_typology", None) or "").strip()) and not model_designed
     wants_fbd = requests_fbd(text)
+    if "ASSEMBLY" in conditional and not wants_fbd:
+        conditional["ASSEMBLY"] = {
+            **conditional["ASSEMBLY"],
+            "requires": "Model-authored params.assembly.ops or params.assembly.graph with executable geometry",
+        }
 
     if model_designed:
         conditional.pop("MODULE", None)
@@ -497,19 +502,13 @@ def planning_component_exposure(
                 ),
                 "routes": ["parametric_structure_type"],
             }
-        if not wants_fbd:
-            conditional.pop("ASSEMBLY", None)
     elif has_typology:
         # Typology-first: keep STRUCTURE native route; MODULE stays out unless preset.
         if not has_preset:
             conditional.pop("MODULE", None)
-        if not wants_fbd:
-            conditional.pop("ASSEMBLY", None)
     else:
         if not has_preset:
             conditional.pop("MODULE", None)
-        if not wants_fbd:
-            conditional.pop("ASSEMBLY", None)
 
     return {
         "direct": direct,

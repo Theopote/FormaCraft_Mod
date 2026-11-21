@@ -11,12 +11,66 @@ from app.services.assembly_plan_repair import finalize_assembly_plan_or_gap
 
 
 class AssemblyPlanValidatorTest(unittest.TestCase):
+    def test_shell_rotation_is_validated_without_changing_direction_or_phase(self):
+        op = {"op": "SHELL_BOX", "w": 12, "d": 12, "h": 28, "twistTurns": -0.125, "twistPhase": 0.25}
+        plan = {"mode": "build", "components": [{
+            "component_type": "ASSEMBLY", "params": {"assembly": {"ops": [op]}},
+        }]}
+        self.assertEqual(plan, finalize_assembly_plan_or_gap(plan, "生成向左旋转的折光匣"))
+        for key, value in (("twistTurns", -2.1), ("twistPhase", 1.01), ("twistPhase", False)):
+            with self.subTest(key=key, value=value):
+                candidate = {"mode": "build", "components": [{
+                    "component_type": "ASSEMBLY",
+                    "params": {"assembly": {"ops": [{**op, key: value}]}},
+                }]}
+                result = finalize_assembly_plan_or_gap(candidate, "生成向左旋转的折光匣")
+                self.assertEqual("capability_gap", result["plan_status"])
+                self.assertEqual("E_SHELL_BOX_TWIST_RANGE", result["capability_gap"]["code"])
+                self.assertTrue(result["capability_gap"]["path"].endswith("." + key))
+
+    def test_shell_dimensions_outside_executor_range_become_a_gap(self):
+        for key, value in (("w", 4), ("d", 130), ("h", 5), ("h", 256),
+                           ("floorStep", 9), ("floorStep", 4.5), ("h", None)):
+            with self.subTest(key=key, value=value):
+                op = {"op": "SHELL_BOX", "w": 5, "d": 129, "h": 255, "floorStep": 3}
+                plan = {"mode": "build", "components": [{
+                    "component_type": "ASSEMBLY", "params": {"assembly": {"ops": [op]}},
+                }]}
+                self.assertEqual([], validate_assembly_plan(plan))
+                op[key] = value
+                result = finalize_assembly_plan_or_gap(plan, "建造原创折光匣")
+                self.assertEqual("capability_gap", result["plan_status"])
+                self.assertEqual("E_INT_RANGE", result["capability_gap"]["code"])
+                self.assertTrue(result["capability_gap"]["path"].endswith("." + key))
+                self.assertEqual(value, op[key])
+
     def test_logged_linked_buildings_missing_face_is_caught_before_preview(self):
         import json
         from pathlib import Path
         fixture = Path(__file__).resolve().parents[2] / 'src/test/resources/regressions/linked-buildings-missing-face.json'
         issues = validate_assembly_plan(json.loads(fixture.read_text(encoding='utf-8')))
         self.assertEqual(2, sum(i.code == 'E_FACE_MISSING' for i in issues))
+
+    def test_shell_scale_validates_without_changing_the_authored_geometry(self):
+        for fields, valid in (
+            ({}, True), ({"topScale": 0.85}, True), ({"topScale": 0.49}, False),
+            ({"topScale": None}, False), ({"topScale": True}, False),
+            ({"topScale": 0.85, "wallMode": "COLONNADE"}, False),
+            ({"topScale": 0.85, "openness": 0.65}, False),
+            ({"topScale": 1, "wall_mode": "open"}, True),
+        ):
+            with self.subTest(fields=fields):
+                op = {"op": "SHELL_BOX", "w": 12, "d": 12, "h": 28, "twistTurns": 0.125, **fields}
+                plan = {"mode": "build", "components": [{
+                    "component_type": "ASSEMBLY", "params": {"assembly": {"ops": [op]}},
+                }]}
+                issues = validate_assembly_plan(plan)
+                self.assertEqual([] if valid else ["E_SHELL_BOX_TOP_SCALE"], [i.code for i in issues])
+                self.assertEqual({"op": "SHELL_BOX", "w": 12, "d": 12, "h": 28, "twistTurns": 0.125, **fields}, op)
+                if not valid:
+                    out = finalize_assembly_plan_or_gap(plan, "生成折光匣，不用预设")
+                    self.assertEqual("capability_gap", out["plan_status"])
+                    self.assertEqual("E_SHELL_BOX_TOP_SCALE", out["capability_gap"]["code"])
 
     def test_resolve_requires_explicit_preset_opt_in(self):
         self.assertIsNone(resolve_preset_for_intent("原创螺旋瞭望塔"))
@@ -59,6 +113,27 @@ class AssemblyPlanValidatorTest(unittest.TestCase):
         )
         assembly = explicit_out["components"][0]["params"]["assembly"]
         self.assertEqual("spiral_watchtower", assembly.get("preset"))
+
+    def test_request_validation_rejects_a_model_selected_preset(self):
+        for request, permitted in (
+            ("生成原创折光匣", False),
+            ("不要使用 preset:spiral_watchtower", False),
+            ("preset:suspension_bridge_simple", False),
+            ("请建造 preset:spiral_watchtower", True),
+        ):
+            with self.subTest(request=request):
+                plan = {"mode": "build", "components": [{
+                    "component_type": "ASSEMBLY",
+                    "params": {"assembly": {"preset": "spiral_watchtower"}},
+                }]}
+                result = finalize_assembly_plan_or_gap(plan, request)
+                if permitted:
+                    self.assertNotEqual("capability_gap", result.get("plan_status"))
+                    self.assertEqual(plan, result)
+                else:
+                    self.assertEqual("capability_gap", result.get("plan_status"))
+                    self.assertEqual("E_ASSEMBLY_PRESET_NOT_REQUESTED", result["capability_gap"]["code"])
+                    self.assertNotIn("spiral_watchtower", str(result["capability_gap"]["suggestions"]))
 
     def test_incomplete_assembly_without_opt_in_becomes_capability_gap(self):
         plan = {
@@ -158,7 +233,8 @@ class AssemblyPlanValidatorTest(unittest.TestCase):
             [AssemblyPlanIssue("x", "E_TEST", "boom")],
         )
         self.assertIn("E_TEST", text)
-        self.assertIn("preset", text.lower())
+        self.assertIn("only if the user explicitly requested", text)
+        self.assertNotIn("spiral_watchtower", text)
 
 
 if __name__ == "__main__":

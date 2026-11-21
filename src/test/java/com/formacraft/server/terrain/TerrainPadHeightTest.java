@@ -1,6 +1,11 @@
 package com.formacraft.server.terrain;
 
+import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.server.build.StructureSupportAnalysis;
+import net.minecraft.block.Blocks;
+import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TerrainPadHeightTest {
@@ -11,6 +16,26 @@ class TerrainPadHeightTest {
         assertEquals(64,TerrainFit.padFillStart(64,65,4));
         assertEquals(64,TerrainFit.padFillStart(64,64,4));
         assertEquals(69,TerrainFit.padFillStart(64,73,4)); // Retain the shallow-fill budget.
+    }
+
+    @Test void onlyFinalGroundContactsCreateAdaptivePadding() {
+        var ground = new BlockPos(3, 4, -2);
+        var cleared = ground.east();
+        var overhang = cleared.up();
+        var detached = ground.add(12, 8, 0);
+        var stone = Blocks.STONE.getDefaultState();
+        var air = Blocks.AIR.getDefaultState();
+        var plan = List.of(
+                new PlannedBlock(ground, stone),
+                new PlannedBlock(cleared, stone),
+                new PlannedBlock(cleared, air),
+                new PlannedBlock(ground.up(), stone),
+                new PlannedBlock(overhang, stone),
+                new PlannedBlock(detached, stone));
+        var footprint = StructureSupportAnalysis.groundContacts(plan, ground.getY());
+        assertEquals(List.of(ground), footprint);
+        var pad = TerrainFit.adaptivePadOnTerrain(pos -> air, footprint, ground.getY(), stone, 1, 0, true, true);
+        assertEquals(List.of(ground.down(), ground), pad.stream().map(PlannedBlock::getPos).toList());
     }
 
     @Test void adaptivePadTouchesOnlyBearingColumnsAndRespectsSelection() {

@@ -1,6 +1,7 @@
 package com.formacraft.server.generation.component.impl;
 
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.common.patch.PatchExecutor;
 import com.formacraft.test.*;
 import net.minecraft.block.*;
@@ -38,5 +39,25 @@ class AssemblyPatchStateTest {
             new PlannedBlock(pos, Blocks.AIR.getDefaultState())));
         assertEquals(2, PatchExecutor.applyToAccess(access, BlockPos.ORIGIN, patches).applied());
         assertTrue(access.states.get(pos).isAir());
+    }
+
+    @Test void confirmedAssemblyKeepsLaterFacadeAndInteriorClear() {
+        var facade = new BlockPos(-4, 4, 3);
+        var interior = new BlockPos(0, 4, 0);
+        var glass = Blocks.WHITE_STAINED_GLASS.getDefaultState();
+        var air = Blocks.AIR.getDefaultState();
+        var patches = AssemblyPatchGenerator.toPatches(List.of(
+                new PlannedBlock(facade, air),
+                new PlannedBlock(interior, air),
+                new PlannedBlock(facade, glass)));
+        var confirmed = ConfirmedPlanIdentity.toFinalPatches(patches);
+        assertEquals(2, confirmed.size());
+
+        var origin = new BlockPos(10, 2, -32);
+        var access = new FakeBlockMutationAccess();
+        access.states.put(origin.add(interior), Blocks.STONE.getDefaultState());
+        assertEquals(2, PatchExecutor.applyToAccess(access, origin, confirmed).applied());
+        assertEquals(glass, access.states.get(origin.add(facade)));
+        assertTrue(access.states.get(origin.add(interior)).isAir());
     }
 }

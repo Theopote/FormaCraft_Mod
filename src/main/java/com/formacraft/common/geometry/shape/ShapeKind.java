@@ -18,6 +18,7 @@ public enum ShapeKind {
     ELLIPSE,
     SECTOR,
     TRIANGLE,
+    TRAPEZOID,
     /** M3：Voronoi 细胞 / Möbius 带体素近似 */
     VORONOI,
     MOBIUS,
@@ -39,6 +40,7 @@ public enum ShapeKind {
             case "ellipse", "elliptical", "oval" -> ELLIPSE;
             case "sector", "pie", "fan", "arc_sector" -> SECTOR;
             case "triangle", "tri" -> TRIANGLE;
+            case "trapezoid" -> TRAPEZOID;
             case "voronoi", "cells", "cellular", "honeycomb" -> VORONOI;
             case "mobius", "möbius", "moebius", "mobius_strip" -> MOBIUS;
             case "floating_mass", "floating_island" -> FLOATING_MASS;

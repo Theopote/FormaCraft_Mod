@@ -12,6 +12,7 @@ from ..models.llm_plan import LlmPlanValidationError, validate_llm_plan_dict
 from .assembly_plan_validator import (
     AssemblyPlanIssue,
     auto_apply_assembly_presets,
+    resolve_preset_for_intent,
     format_repair_prompt,
     validate_assembly_plan,
 )
@@ -32,7 +33,6 @@ def build_capability_gap(
     for issue in errors[:4]:
         suggestions.append(f"{issue.code}: {issue.message}")
     suggestions.extend([
-        "Prefer preset: spiral_watchtower | suspension_bridge_simple | gothic_shell_box.",
         "Use exported graph component types and port ids only.",
         "If geometry is unsupported, return plan_status=capability_gap explicitly.",
     ])
@@ -103,7 +103,9 @@ def normalize_and_validate_assembly_plan(
     plan = normalize_circulation_plan(plan)
     if apply_presets:
         plan = auto_apply_assembly_presets(plan, user_text)
-    issues = validate_assembly_plan(plan)
+    requested_preset = resolve_preset_for_intent(user_text)
+    allowed_presets = {requested_preset} if requested_preset is not None else set()
+    issues = validate_assembly_plan(plan, allowed_presets=allowed_presets)
     return plan, issues
 
 
@@ -169,7 +171,7 @@ def maybe_repair_assembly_plan(
     plan, issues = normalize_and_validate_assembly_plan(plan, user_text)
     from .fbd_capabilities import has_fbd_program
     if has_fbd_program(plan):
-        # The legacy repair prompt asks for presets; never use it to rewrite FBD.
+        # FBD uses its own typed repair contract.
         return finalize_assembly_plan_or_gap(plan, user_text)
     errors = [i for i in issues if i.severity == "ERROR"]
     if not errors:
@@ -180,7 +182,8 @@ def maybe_repair_assembly_plan(
 
     current = plan
     for attempt in range(1, ASSEMBLY_REPAIR_MAX_RETRIES + 1):
-        current_issues = [i for i in validate_assembly_plan(current) if i.severity == "ERROR"]
+        current, current_issues = normalize_and_validate_assembly_plan(current, user_text)
+        current_issues = [i for i in current_issues if i.severity == "ERROR"]
         if not current_issues:
             break
         logger.warning(

@@ -220,7 +220,7 @@ def test_model_designed_stage_p_hides_fixed_module_route():
     assert "must" not in block.lower() or "USER REQUEST is authoritative" in block
 
 
-def test_fbd_negation_does_not_expose_assembly():
+def test_fbd_negation_keeps_only_ordinary_assembly_contract():
     from app.services.generation_capability import planning_component_exposure
 
     profile = BuildingProfile(query="古典宫殿")
@@ -230,7 +230,8 @@ def test_fbd_negation_does_not_expose_assembly():
         user_request="建造一座大型古典宫殿，不要使用 FBD，使用常规构件。",
     )
     assert not exposure["context"]["explicit_fbd"]
-    assert "ASSEMBLY" not in exposure["conditional"]
+    assert "params.assembly.ops" in exposure["conditional"]["ASSEMBLY"]["requires"]
+    assert "FBD" not in exposure["conditional"]["ASSEMBLY"]["requires"]
     assert "- MODULE" not in str(exposure["conditional"])
 
 

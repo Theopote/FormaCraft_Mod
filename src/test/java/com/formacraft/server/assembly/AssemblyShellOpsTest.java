@@ -1,6 +1,11 @@
 package com.formacraft.server.assembly;
 
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.server.command.StyleVisualCases;
+import com.formacraft.server.assembly.validation.AssemblySpecNormalizer;
+import com.formacraft.server.assembly.validation.AssemblySpecValidator;
+import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
+import com.formacraft.server.generation.component.impl.AssemblyPatchGenerator;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.block.*;
 import net.minecraft.state.property.Properties;
@@ -39,6 +44,74 @@ class AssemblyShellOpsTest {
         for (var block : out) map.put(block.getPos(), block.getTargetState());
         return map;
     }
+    @Test
+    void ordinaryPlanPreservesAThirtyBlockTwistedEnvelope() throws Exception {
+        var plan = StyleVisualCases.load("twisted_shell", new BlockPos(0, 64, 0));
+        var component = plan.components().getFirst();
+        assertTrue(AssemblyPatchGenerator.usesGeneratedTerrainFootprint(component));
+        var preset = new com.formacraft.common.llm.dto.Component("ASSEMBLY", component.slotId(),
+                component.relativePosition(), component.dimensions(), List.of(),
+                Map.of("assembly", Map.of("preset", "spiral_watchtower")));
+        assertFalse(AssemblyPatchGenerator.usesGeneratedTerrainFootprint(preset));
+        var payload = AssemblyPatchGenerator.resolveAssemblyPayload(component.params());
+        var normalized = AssemblySpecNormalizer.normalize(payload).normalized();
+        var issues = AssemblySpecValidator.validate(normalized);
+        assertTrue(issues.stream().noneMatch(issue -> issue.severity() == AssemblyValidationIssue.Severity.ERROR),
+                issues::toString);
+        var spec = AssemblySpec.fromExtra(normalized);
+        assertNotNull(spec);
+        assertEquals(0.125, ((Number) spec.ops.getFirst().get("twistTurns")).doubleValue());
+        assertEquals(0.85, ((Number) spec.ops.getFirst().get("topScale")).doubleValue());
+
+        var ctx = new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null);
+        var blocks = snapshot(new MetaAssemblyEngine().executeGeometry(spec, ctx));
+        for (int y = 0; y < 29; y++) {
+            int level = y;
+            assertTrue(blocks.entrySet().stream().filter(entry -> entry.getKey().getY() == level)
+                    .filter(entry -> !entry.getValue().isAir()).count() >= 36, "Missing wall at y=" + y);
+        }
+        assertTrue(blocks.values().stream().anyMatch(state -> state.isOf(Blocks.WHITE_STAINED_GLASS)));
+        assertFalse(blocks.get(new BlockPos(0, 16, 0)).isAir());
+        assertTrue(blocks.get(new BlockPos(0, 17, 0)).isAir());
+        assertFalse(blocks.get(new BlockPos(0, 29, 0)).isAir());
+        assertEquals(29, blocks.keySet().stream().mapToInt(BlockPos::getY).max().orElseThrow());
+    }
+
+    @Test
+    void taperedTwistedShellUsesChangingSectionsForRoofFloorsAndClearing() {
+        var op = shell(0.25);
+        op.put("w", 12);
+        op.put("d", 10);
+        op.put("h", 32);
+        op.put("topScale", 0.75);
+        var result = snapshot(generate(op));
+
+        assertEquals(120, result.keySet().stream().filter(pos -> pos.getY() == 0).count());
+        assertEquals(72, result.keySet().stream().filter(pos -> pos.getY() == 33).count());
+        assertEquals(Blocks.SMOOTH_STONE.getDefaultState(), result.get(new BlockPos(0, 16, 0)));
+        assertTrue(result.get(new BlockPos(0, 17, 0)).isAir());
+        assertNull(result.get(new BlockPos(5, 33, 0)));
+    }
+
+    @Test
+    void explicitNeutralScalePreservesConstantShell() {
+        var op = shell(0.125);
+        var baseline = snapshot(generate(op));
+        op.put("topScale", 1.0);
+        assertEquals(baseline, snapshot(generate(op)));
+    }
+
+    @Test
+    void rejectsUnsupportedScaleWithoutEmittingBlocks() {
+        var op = shell(0);
+        op.put("topScale", 1.01);
+        assertTrue(assertThrows(IllegalArgumentException.class, () -> generate(op))
+                .getMessage().startsWith("E_SHELL_BOX_TOP_SCALE"));
+        op.put("topScale", 0.75);
+        op.put("wallMode", "COLONNADE");
+        assertThrows(IllegalArgumentException.class, () -> generate(op));
+    }
+
     @Test
     void colonnadeWallModePlacesCornerPostsWithoutSolidWallFill() {
         var op = shell(0);
@@ -92,6 +165,69 @@ class AssemblyShellOpsTest {
         assertEquals(Blocks.STONE_BRICKS.getDefaultState(), result.get(new BlockPos(0, 3, 7)));
         assertFalse(result.containsKey(new BlockPos(7, 3, 0)));
         assertEquals(Blocks.SMOOTH_STONE.getDefaultState(), result.get(new BlockPos(0, 4, 6)));
+    }
+
+    @Test void closedShellKeepsEvenDimensionsBeforeAndAfterQuarterTurn() {
+        var op = shell(0.25);
+        op.put("w", 12);
+        op.put("d", 10);
+        var result = snapshot(generate(op));
+        for (int y : new int[]{0, 10}) {
+            var cells = result.entrySet().stream()
+                    .filter(e -> e.getKey().getY() == y && !e.getValue().isAir())
+                    .map(Map.Entry::getKey).toList();
+            assertEquals(120, cells.size());
+            assertEquals(y == 0 ? 12 : 10, cells.stream().map(BlockPos::getX).distinct().count());
+            assertEquals(y == 0 ? 10 : 12, cells.stream().map(BlockPos::getZ).distinct().count());
+        }
+    }
+
+    @Test void diagonalDecksCoverEveryCellInsideTheRotatedFootprint() {
+        var op = shell(0);
+        op.put("twistPhase", 0.125);
+        var result = snapshot(generate(op));
+        double axis = Math.sqrt(0.5);
+        for (int x = -10; x <= 10; x++) for (int z = -10; z <= 10; z++) {
+            double localX = Math.abs((x + z) * axis);
+            double localZ = Math.abs((z - x) * axis);
+            var roofCell = new BlockPos(x, 10, z);
+            if (localX <= 7.5 && localZ <= 5.5)
+                assertEquals(Blocks.SMOOTH_STONE_SLAB.getDefaultState(), result.get(roofCell), roofCell.toShortString());
+            else assertFalse(result.containsKey(roofCell), roofCell.toShortString());
+            if (localX <= 6.5 && localZ <= 4.5) {
+                var floorCell = new BlockPos(x, 4, z);
+                assertEquals(Blocks.SMOOTH_STONE.getDefaultState(), result.get(floorCell), floorCell.toShortString());
+            }
+            if (localX < 5.5 && localZ < 3.5) {
+                var roomCell = new BlockPos(x, 3, z);
+                assertEquals(Blocks.AIR.getDefaultState(), result.get(roomCell), roomCell.toShortString());
+            }
+        }
+    }
+
+    @ParameterizedTest @ValueSource(doubles = {0.125, -0.125, 0.25})
+    void twistedWallRowsStayFaceConnected(double twist) {
+        var result = snapshot(generate(shell(twist)));
+        for (int y : new int[]{1, 2, 3, 5, 6, 7, 9}) {
+            int layer = y;
+            var pending = new HashSet<BlockPos>();
+            result.forEach((pos, state) -> {
+                if (pos.getY() == layer && !state.isAir()) pending.add(pos);
+            });
+            assertFalse(pending.isEmpty());
+            var queue = new ArrayDeque<BlockPos>();
+            var start = pending.iterator().next();
+            pending.remove(start);
+            queue.add(start);
+            while (!queue.isEmpty()) {
+                var pos = queue.remove();
+                for (var face : List.of(Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST)) {
+                    var next = pos.offset(face);
+                    if (pending.remove(next)) queue.add(next);
+                }
+            }
+            assertTrue(pending.isEmpty(), "Disconnected wall at y=" + y + ", twist=" + twist);
+        }
     }
     @ParameterizedTest @ValueSource(strings = {"NORTH", "SOUTH", "EAST", "WEST"})
     void compiledShellThenStairsCutOpeningAndKeepUpperLanding(String facing) {

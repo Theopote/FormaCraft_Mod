@@ -34,7 +34,8 @@ public record ShapeSpec(
         double voronoiEdge,
         double mobiusWidth,
         double mobiusTwist,
-        VoronoiDimension voronoiDimension
+        VoronoiDimension voronoiDimension,
+        int endWidth
 ) {
     public double effectiveRadiusX() {
         return radiusX > 0 ? radiusX : radius;
@@ -73,6 +74,15 @@ public record ShapeSpec(
         Map<String, Object> p = params != null ? params : Map.of();
 
         ShapeKind kind = ShapeKind.parse(str(p, KIND_KEYS));
+        int endWidth = 0;
+        if (kind == ShapeKind.TRAPEZOID) {
+            Object raw = p.get("end_width");
+            if (!(raw instanceof Number n) || n.doubleValue() != n.intValue()
+                    || n.intValue() < 1 || n.intValue() > w || d < 2) {
+                throw new IllegalArgumentException("E_PRIMITIVE_GEOMETRY_INVALID: trapezoid needs integer end_width between 1 and width and depth >= 2");
+            }
+            endWidth = n.intValue();
+        }
         boolean hollow = bool(p, "hollow", false);
         int thickness = clamp(intVal(p, "thickness", "wall_thickness", "wallThickness", 1), 1,
                 Math.max(1, Math.min(w, d) / 2));
@@ -115,7 +125,7 @@ public record ShapeSpec(
                 rotX, rotY, rotZ, r, topR, rx, ry, rz,
                 sectorStart, sectorSweep, triangleMode,
                 extrudeMode, voronoiCells, voronoiSeed, voronoiEdge, mobiusWidth, mobiusTwist,
-                voronoiDimension);
+                voronoiDimension, endWidth);
     }
 
     private static long longVal(Map<String, Object> p, String k1, String k2, String k3, long def) {
@@ -210,7 +220,16 @@ public record ShapeSpec(
         // An authored operation value wins over inherited values of the same parameter.
         for (String[] keys : List.of(KIND_KEYS, EXTRUDE_MODE_KEYS,
                 ROTATION_X_KEYS, ROTATION_Y_KEYS, ROTATION_Z_KEYS, RADIUS_KEYS, TOP_RADIUS_KEYS,
-                RADIUS_X_KEYS, RADIUS_Y_KEYS, RADIUS_Z_KEYS, SECTOR_START_KEYS, SECTOR_SWEEP_KEYS)) {
+                RADIUS_X_KEYS, RADIUS_Y_KEYS, RADIUS_Z_KEYS, SECTOR_START_KEYS, SECTOR_SWEEP_KEYS,
+                new String[]{"thickness", "wall_thickness", "wallThickness"},
+                new String[]{"sides", "num_sides", "numSides"},
+                new String[]{"triangle_mode", "triangleMode"},
+                new String[]{"voronoi_cells", "cell_count", "cells"},
+                new String[]{"voronoi_seed", "seed", "design_seed"},
+                new String[]{"voronoi_edge", "edge_width"},
+                new String[]{"voronoi_3d", "voronoi_dimension"},
+                new String[]{"mobius_width", "strip_width"},
+                new String[]{"mobius_twist", "twist"})) {
             if (str(override, keys) != null) {
                 for (String key : keys) merged.remove(key);
             }

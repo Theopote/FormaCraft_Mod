@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from math import isfinite
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from app.services.assembly_schema_loader import (
@@ -133,7 +132,7 @@ def auto_apply_assembly_presets(plan: Dict[str, Any], user_text: Optional[str]) 
     return plan
 
 
-def validate_assembly_plan(plan: Dict[str, Any]) -> List[AssemblyPlanIssue]:
+def validate_assembly_plan(plan: Dict[str, Any], *, allowed_presets: set[str] | None = None) -> List[AssemblyPlanIssue]:
     issues: List[AssemblyPlanIssue] = []
     if not isinstance(plan, dict):
         return issues
@@ -145,7 +144,7 @@ def validate_assembly_plan(plan: Dict[str, Any]) -> List[AssemblyPlanIssue]:
             continue
         ctype = str(comp.get("component_type") or "").upper()
         if ctype == "ASSEMBLY":
-            _validate_assembly_component(issues, comp, i)
+            _validate_assembly_component(issues, comp, i, allowed_presets)
         elif ctype.startswith("MASS_") or ctype in ("MASS_MAIN", "MAIN_MASS"):
             params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
             if isinstance(params.get("assembly"), dict):
@@ -157,7 +156,9 @@ def validate_assembly_plan(plan: Dict[str, Any]) -> List[AssemblyPlanIssue]:
     return issues
 
 
-def _validate_assembly_component(issues: List[AssemblyPlanIssue], comp: Dict[str, Any], idx: int) -> None:
+def _validate_assembly_component(
+    issues: List[AssemblyPlanIssue], comp: Dict[str, Any], idx: int, allowed_presets: set[str] | None,
+) -> None:
     params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
     if 'fbd_program' in params:
         from ..models.llm_plan import ComponentModel
@@ -184,6 +185,12 @@ def _validate_assembly_component(issues: List[AssemblyPlanIssue], comp: Dict[str
                 f"{base}.params.assembly.preset",
                 "E_UNKNOWN_PRESET",
                 f"unknown preset: {preset}",
+            ))
+        elif allowed_presets is not None and preset not in allowed_presets:
+            issues.append(AssemblyPlanIssue(
+                f"{base}.params.assembly.preset",
+                "E_ASSEMBLY_PRESET_NOT_REQUESTED",
+                "Use model-authored graph or ops unless the user explicitly requested this preset.",
             ))
         return
     for j, op in enumerate(payload.get("ops") or []):
@@ -248,10 +255,34 @@ def _validate_geometry_fields(issues: List[AssemblyPlanIssue], comp: dict, path:
         issues.append(AssemblyPlanIssue(path + '.face', "E_FACE_MISSING",
                                        "OPENINGS requires face/faces; side is not an executable face field"))
     if kind == "SHELL_BOX":
-        for key, minimum in (("w",1),("d",1),("h",2)):
-            value = comp.get(key)
-            if value is not None and (not isinstance(value, (int,float)) or isinstance(value,bool) or not isfinite(value) or int(value) != value or value < minimum):
-                issues.append(AssemblyPlanIssue(path+'.'+key, "E_INT_RANGE", f"{key} must be an integer >= {minimum}; use STAIR_SYSTEM for treads"))
+        for key, minimum, maximum in (("w", 5, 129), ("d", 5, 129), ("h", 6, 255), ("floorStep", 3, 8)):
+            if key not in comp:
+                continue
+            value = comp[key]
+            if type(value) not in (int, float) or not minimum <= value <= maximum or int(value) != value:
+                issues.append(AssemblyPlanIssue(f"{path}.{key}", "E_INT_RANGE",
+                                               f"SHELL_BOX {key} must be an integer in {minimum}..{maximum}"))
+        for key, minimum, maximum in (("twistTurns", -2, 2), ("twistPhase", 0, 1)):
+            if key not in comp:
+                continue
+            value = comp[key]
+            if type(value) not in (int, float) or not minimum <= value <= maximum:
+                issues.append(AssemblyPlanIssue(f"{path}.{key}", "E_SHELL_BOX_TWIST_RANGE",
+                                               f"SHELL_BOX {key} must be a number in {minimum}..{maximum} turns"))
+        if "topScale" in comp:
+            scale = comp["topScale"]
+            if type(scale) not in (int, float) or not 0.5 <= scale <= 1:
+                issues.append(AssemblyPlanIssue(path + ".topScale", "E_SHELL_BOX_TOP_SCALE",
+                                               "topScale must be a number in 0.5..1.0"))
+            else:
+                wall_mode = str(comp.get("wallMode", comp.get("wall_mode", ""))).strip().upper()
+                openness = comp.get("openness")
+                open_walls = wall_mode in {"COLONNADE", "OPEN", "PILLARS", "POSTS"} or (
+                    type(openness) in (int, float) and openness >= 0.65
+                )
+                if open_walls and scale != 1:
+                    issues.append(AssemblyPlanIssue(path + ".topScale", "E_SHELL_BOX_TOP_SCALE",
+                                                   "Open walls require topScale=1 or omission"))
     if kind == "STAIR_SYSTEM":
         a, b = comp.get("from"), comp.get("to")
         if not all(isinstance(p, dict) and all(isinstance(p.get(k),int) and not isinstance(p.get(k),bool) for k in ('x','y','z')) for p in (a,b)):
@@ -336,7 +367,7 @@ def format_repair_prompt(plan: Dict[str, Any], issues: List[AssemblyPlanIssue]) 
         "",
         "Rules:",
         '- Use component_type="ASSEMBLY" at top level (never nest params.assembly inside MASS_*).',
-        '- Prefer preset: { "preset": "spiral_watchtower"|"suspension_bridge_simple", "presetParams": {...} }.',
+        "- Preserve the requested geometry and valid model-authored parameters. Use a preset only if the user explicitly requested its ID.",
         '- Connection endpoints must be "ComponentId.port" using valid ports (center, top_center, bottom_center, north, ...).',
         '- If geometry is unsupported, return plan_status="capability_gap" with capability_gap{code,message,path,suggestions}.',
     ])

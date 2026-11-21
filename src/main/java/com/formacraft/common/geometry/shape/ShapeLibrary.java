@@ -132,6 +132,7 @@ public final class ShapeLibrary {
                     && ly >= -0.25;
             case SECTOR -> insideExtrudedSector(spec, lx, ly, lz);
             case TRIANGLE -> insideExtrudedTriangle(spec, lx, ly, lz);
+            case TRAPEZOID -> insideTrapezoid(spec, lx, ly, lz, 0);
             case VORONOI -> insideVoronoi(spec, lx, ly, lz, voronoiSeeds);
             case MOBIUS -> insideMobius(spec, lx, ly, lz);
             case FLOATING_MASS -> {
@@ -349,6 +350,17 @@ public final class ShapeLibrary {
                 && (lx + rx) / (rx + 1e-6) + (lz + rz) / (rz + 1e-6) <= 1.05;
     }
 
+    private static boolean insideTrapezoid(ShapeSpec spec, double x, double y, double z, double inset) {
+        double halfDepth = spec.halfZ();
+        double halfHeight = spec.halfY();
+        double slope = (spec.endWidth() - spec.width()) / (4.0 * halfDepth);
+        int rowWidth = (int) Math.round(spec.width() + 2 * slope * (z + halfDepth));
+        double center = ((spec.width() - rowWidth) & 1) == 0 ? 0 : -0.5;
+        return Math.abs(z) <= halfDepth + 0.25 - inset
+                && (spec.extrudeMode() == ShapeExtrudeMode.PLATE || Math.abs(y) <= halfHeight + 0.25 - inset)
+                && Math.abs(x - center) <= (rowWidth - 1) * 0.5 + 0.25 - inset * Math.hypot(1, slope);
+    }
+
     private static boolean insideEquilateralTriangle(double lx, double lz, double rx, double rz) {
         double h = Math.min(rz * 2, rx * 1.732);
         if (lz < -rz - 0.25 || lz > h - rz + 0.25) {
@@ -387,6 +399,7 @@ public final class ShapeLibrary {
             ShapeSpec spec, double lx, double ly, double lz, VoronoiSeeds voronoiSeeds
     ) {
         double t = spec.wallThickness();
+        if (spec.kind() == ShapeKind.TRAPEZOID) return insideTrapezoid(spec, lx, ly, lz, t);
         if (spec.kind() == ShapeKind.FLOATING_MASS) {
             double layer = ly + spec.halfY();
             if (layer < t || layer > spec.height()-1-t) return false;
@@ -422,7 +435,7 @@ public final class ShapeLibrary {
                 spec.sectorStartDeg(), spec.sectorSweepDeg(), spec.triangleMode(),
                 spec.extrudeMode(), spec.voronoiCells(), spec.voronoiSeed(),
                 spec.voronoiEdge(), spec.mobiusWidth(), spec.mobiusTwist(),
-                spec.voronoiDimension()
+                spec.voronoiDimension(), spec.endWidth()
         );
         return insideCanonical(inner, lx, ly, lz, voronoiSeeds);
     }

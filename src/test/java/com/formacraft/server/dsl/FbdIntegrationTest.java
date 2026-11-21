@@ -70,6 +70,17 @@ class FbdIntegrationTest {
         assertTrue(first.size() <= compiled.cost());
     }
 
+    @Test void closedShellTaperSurvivesFbdLoweringAndExecution() {
+        var p = program(Map.of("stmt", "emit", "id", "form", "op", "SHELL_BOX",
+                "params", Map.of("w", 12, "d", 10, "h", 30, "topScale", 0.75, "twistTurns", 0.25)));
+        var compiled = FbdCompiler.compile(p);
+        var blocks = new MetaAssemblyEngine().executeGeometry(FbdAssemblyAdapter.spec(compiled),
+                new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null,
+                        new FbdExecutionBudget(FbdLimits.DEFAULT)));
+        assertEquals(72, blocks.stream().map(PlannedBlock::getPos).filter(pos -> pos.getY() == 31).distinct().count());
+        assertTrue(blocks.size() <= compiled.cost());
+    }
+
     @Test void suppliedGeometryExamplesExecuteWithinTheirConservativeCost() throws Exception {
         var mapper = new ObjectMapper();
         for (String name : List.of("01_two_wing_library.json", "02_plinth_pavilions.json", "04_randomized_roof.json")) {
