@@ -118,18 +118,38 @@ class ComponentPlanCompilerMaterialTest {
         assertEquals("minecraft:stone_bricks", policy.styleAttributes().wallMaterial());
         assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.invalidAttribute(policy.styleAttributes()).isEmpty());
     }
-    @Test void stairFallbackAlwaysUsesActualStairBlocks() {
+    @Test void directStairTreadsReachValidationWithoutMaterialSubstitution() {
         for (String material : List.of("minecraft:gray_concrete_stairs", "minecraft:iron_block", "unknown:wood_stairs", "minecraft:dark_oak_stairs")) {
             var stair = new Component("STRUCTURE", null, new Vec3i(0,0,0), new Dimensions(3,6,5),
                     List.of("stair:straight_single_run"), Map.of("stairs", material));
             var normalized = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
                     LlmPlanTestFixtures.builder().allowCompilerSatellites(true).components(List.of(stair)).build());
-            String replacement = String.valueOf(normalized.components().getFirst().params().get("stairs"));
-            var state = com.formacraft.common.patch.BlockPatchTargetResolver.resolve(new com.formacraft.common.patch.BlockPatch(
-                    com.formacraft.common.patch.BlockPatch.PLACE, 0,0,0,replacement));
-            assertNotNull(state);
-            assertInstanceOf(net.minecraft.block.StairsBlock.class, state.getBlock());
-            if (material.equals("minecraft:dark_oak_stairs")) assertEquals(material, replacement);
+            assertEquals(material, normalized.components().getFirst().params().get("stairs"));
+        }
+    }
+
+    @Test void nestedAssemblyTreadsReachValidationWithoutMaterialSubstitution() {
+        String material = "minecraft:cracked_deepslate_brick_stairs";
+        var assembly = Map.of("ops", List.of(Map.of("op", "STAIR_SYSTEM", "stairs", material)));
+        var component = new Component("ASSEMBLY", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of(), Map.of("assembly", assembly));
+        var policy = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
+                LlmPlanTestFixtures.minimal(Map.of(), List.of(component)));
+        assertEquals(assembly, policy.components().getFirst().params().get("assembly"));
+    }
+
+    @Test void canonicalCompilerRejectsExplicitIronTread() {
+        var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of("stair:straight_single_run"), Map.of(
+                "stairs", "minecraft:iron_block", "floor", "minecraft:stone",
+                "from", Map.of("x", 0, "y", 0, "z", 0), "to", Map.of("x", 0, "y", 2, "z", 3)));
+        var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(stair));
+        try {
+            assertTrue(ComponentPlanCompiler.compile(plan).isEmpty());
+            assertEquals("E_STAIR_COMPONENT_INVALID",
+                    com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        } finally {
+            com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
         }
     }
     @Test void attachmentAndStairFloorMaterialsAlsoHaveFallbacks() {

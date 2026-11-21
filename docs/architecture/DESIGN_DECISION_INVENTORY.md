@@ -1,8 +1,12 @@
 # Design decision inventory
 
+Nested Assembly stair ops and graph components preserve explicit tread values during material preprocessing. Java resolves stair strings with the shared block-state parser and returns an Assembly diagnostic for incompatible stair material (HARD_CONSTRAINT). Omitted treads and FBD roles retain their existing resolution.
+
 Straight-stair normalization preserves explicit iron-block tread input. Java reports incompatible stair geometry through the existing capability gap (HARD_CONSTRAINT). The backend no longer substitutes stone bricks.
 
 The direct stair executor diagnoses unregistered explicit stair, floor or support blocks (HARD_CONSTRAINT). The removed cracked-stair alias table no longer replaces authored materials; absent treads still use the shared family default.
+
+Plan material preprocessing preserves explicit tread values for direct stair components and stair-tagged STRUCTURE components (FORMAT_REPAIR boundary). The executor validates block identity and shape. Legacy material fallback remains scoped to other consumers.
 
 The existing missing-stair compatibility path supplies its host floor material and leaves the tread field absent (TECHNICAL_DEFAULT). Java resolves the registered stair family. The rule applies to generated flights and does not change authored tread values.
 

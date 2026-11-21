@@ -1,6 +1,7 @@
 package com.formacraft.server.assembly;
 
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.patch.BlockPatchTargetResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -14,6 +15,10 @@ import java.util.Map;
  */
 public final class AssemblyCirculationOps {
     private AssemblyCirculationOps() {}
+
+    public static final class InvalidStairMaterial extends IllegalArgumentException {
+        private InvalidStairMaterial(String message) { super(message); }
+    }
 
     public interface Adapter {
         void put(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin, int x, int y, int z, BlockState state);
@@ -50,10 +55,17 @@ public final class AssemblyCirculationOps {
                         net.minecraft.util.Identifier.of(familyStairs)).getDefaultState();
             }
         }
-        BlockState stairMat = adapter.pick(ctx, op, "stairs", "STAIR", 0xA57470L, stairDefault);
+        Object authoredStairs = op.get("stairs");
+        BlockState stairMat = authoredStairs instanceof String name
+                ? BlockPatchTargetResolver.parse(name)
+                : adapter.pick(ctx, op, "stairs", "STAIR", 0xA57470L, stairDefault);
         BlockState supportMat = adapter.pick(ctx, op, "supportMaterial", "FOUNDATION", 0xA57472L, floorMat);
-        if (!(stairMat.getBlock() instanceof net.minecraft.block.StairsBlock) || floorMat.isAir())
-            throw new IllegalArgumentException("STAIR_SYSTEM requires stairs material and a non-air floor");
+        if (stairMat == null || !(stairMat.getBlock() instanceof net.minecraft.block.StairsBlock)) {
+            throw new InvalidStairMaterial("STAIR_SYSTEM stairs must resolve to a registered stair block: " + authoredStairs);
+        }
+        if (floorMat.isAir()) {
+            throw new InvalidStairMaterial("STAIR_SYSTEM floor must be a non-air block");
+        }
         stairMat = stairMat.with(net.minecraft.state.property.Properties.BLOCK_HALF, net.minecraft.block.enums.BlockHalf.BOTTOM)
             .with(net.minecraft.state.property.Properties.STAIR_SHAPE, net.minecraft.block.enums.StairShape.STRAIGHT);
         Direction direction = dx != 0 ? (dx > 0 ? Direction.EAST : Direction.WEST)

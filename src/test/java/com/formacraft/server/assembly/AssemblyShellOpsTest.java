@@ -54,10 +54,15 @@ class AssemblyShellOpsTest {
         var engine = new MetaAssemblyEngine();
         var implicit = engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), ctx);
         assertTrue(implicit.stream().anyMatch(block -> block.getTargetState().isOf(Blocks.SMOOTH_QUARTZ_STAIRS)));
-        op.put("stairs", "minecraft:oak_stairs");
+        op.put("stairs", "minecraft:oak_stairs[waterlogged=true]");
         var explicit = engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), ctx);
-        assertTrue(explicit.stream().anyMatch(block -> block.getTargetState().isOf(Blocks.OAK_STAIRS)));
+        assertTrue(explicit.stream().anyMatch(block -> block.getTargetState().isOf(Blocks.OAK_STAIRS)
+                && block.getTargetState().get(Properties.WATERLOGGED)));
         assertFalse(explicit.stream().anyMatch(block -> block.getTargetState().isOf(Blocks.SMOOTH_QUARTZ_STAIRS)));
+        op.put("stairs", "minecraft:cracked_deepslate_brick_stairs");
+        var issue = assertThrows(AssemblyCirculationOps.InvalidStairMaterial.class,
+                () -> engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), ctx));
+        assertTrue(issue.getMessage().contains("minecraft:cracked_deepslate_brick_stairs"));
     }
 
     @Test

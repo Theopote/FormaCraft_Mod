@@ -160,7 +160,7 @@ final class StructureAccessoryRemapRepair {
         }
         params.remove("approach_stair");
         params.remove("compiler_approach_remap");
-        if (!(params.get("stairs") instanceof String s) || !s.endsWith("_stairs")) {
+        if (!params.containsKey("stairs")) {
             String floor = resolveFloorBlock(params);
             params.putIfAbsent("floor", floor);
             params.put("stairs", resolveStairsBlock(floor));

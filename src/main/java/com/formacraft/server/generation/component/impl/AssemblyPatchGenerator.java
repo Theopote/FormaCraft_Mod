@@ -25,6 +25,7 @@ import com.formacraft.server.assembly.validation.AssemblyValidationRepairHints;
 import com.formacraft.server.assembly.validation.AssemblyValidationIssue;
 import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.server.assembly.AssemblyCirculationConstraints;
+import com.formacraft.server.assembly.AssemblyCirculationOps;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -182,6 +183,11 @@ public final class AssemblyPatchGenerator {
                     ? "components[].params.fbd_program" : "components[].params.assembly";
             return fail("E_SHELL_BOX_TOP_SCALE", failure.getMessage(), path,
                     List.of("Use topScale in 0.5..1.0 for closed walls; omit it or use 1.0 for open walls."));
+        } catch (AssemblyCirculationOps.InvalidStairMaterial failure) {
+            String path = fbd instanceof com.formacraft.common.dsl.FbdCompiler.Compilation
+                    ? "components[].params.fbd_program" : "components[].params.assembly";
+            return fail("E_ASSEMBLY_STAIR_MATERIAL", failure.getMessage(), path,
+                    List.of("Specify a registered stair block or omit stairs to use the floor family."));
         } catch (AssemblyCirculationConstraints.Conflict conflict) {
             return fail("E_ASSEMBLY_CIRCULATION_CONFLICT", conflict.getMessage(),
                     "components[].params.assembly", List.of("Separate conflicting flights and landings; generate shell/floors before stairs."));

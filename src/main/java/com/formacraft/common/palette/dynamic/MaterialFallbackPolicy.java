@@ -9,6 +9,8 @@ import java.util.*;
 
 /** Resolve planner vocabulary before validation and material protection see the plan. */
 public final class MaterialFallbackPolicy {
+    private static final Set<String> ASSEMBLY_STAIR_TYPES = Set.of("STAIR_SYSTEM", "STAIRS_SYSTEM", "STAIRCASE");
+
     private MaterialFallbackPolicy() {}
 
     public static LlmPlan normalize(LlmPlan p) {
@@ -20,17 +22,22 @@ public final class MaterialFallbackPolicy {
                 a.palette(), a.materials(), a.blockPalette(), a.primaryMaterial(), a.roofForm());
         var components = p.components() == null ? null : p.components().stream().map(c -> c == null ? null :
                 new Component(c.componentType(), c.slotId(), c.relativePosition(), c.dimensions(), c.features(),
-                        normalizeParams(c.params()))).toList();
+                        normalizeParams(c))).toList();
         return new LlmPlan(p.mode(), p.styleProfile(), p.anchor(), p.globalConstraints(), p.layout(), components,
                 p.genome(), attrs, p.proportionHints(), p.alignmentAndSymmetry(), p.targetSlotId(), p.allowedArea(),
                 p.patch(), p.planProgram(), p.planSkeleton(), p.planStatus(), p.error(), p.capabilityGap(),
                 p.playerFidelityNoticeZh(), p.distinguishingFeatures(), p.enrichmentGuard(), p.planMeta(), p.designSources());
     }
 
-    private static Map<String, Object> normalizeParams(Map<String, Object> params) {
+    private static Map<String, Object> normalizeParams(Component component) {
+        var params = component.params();
         if (params == null) return null;
+        String type = Objects.toString(component.componentType(), "").toUpperCase(Locale.ROOT);
+        boolean directStair = Set.of("STAIR_SYSTEM", "STAIRCASE", "STAIRS").contains(type)
+                || ("STRUCTURE".equals(type) && component.features() != null
+                    && component.features().stream().anyMatch(feature -> feature != null && feature.startsWith("stair:")));
         var copy = new LinkedHashMap<String, Object>();
-        params.forEach((k, v) -> copy.put(k, normalizeValue(k, v)));
+        params.forEach((k, v) -> copy.put(k, directStair && "stairs".equals(k) ? v : normalizeValue(k, v)));
         return copy;
     }
 
@@ -40,7 +47,10 @@ public final class MaterialFallbackPolicy {
         if ("fbd_program".equals(key)) return value;
         if (value instanceof Map<?, ?> map) {
             var copy = new LinkedHashMap<String, Object>();
-            map.forEach((k, v) -> copy.put(String.valueOf(k), normalizeValue(String.valueOf(k), v)));
+            boolean stair = ASSEMBLY_STAIR_TYPES.contains(Objects.toString(map.get("op"), "").trim().toUpperCase(Locale.ROOT))
+                    || ASSEMBLY_STAIR_TYPES.contains(Objects.toString(map.get("type"), "").trim().toUpperCase(Locale.ROOT));
+            map.forEach((k, v) -> copy.put(String.valueOf(k), stair && "stairs".equals(k)
+                    ? v : normalizeValue(String.valueOf(k), v)));
             return copy;
         }
         if (value instanceof List<?> list) return list.stream().map(v -> normalizeValue(key, v)).toList();
