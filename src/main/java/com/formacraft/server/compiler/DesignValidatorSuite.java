@@ -58,6 +58,7 @@ final class DesignValidatorSuite {
                 .or(() -> FacadeDesignValidator.check(plan, components))
                 .or(() -> MassDesignValidator.check(plan, components))
                 .or(() -> HostedPlateDesignValidator.check(plan, components))
+                .or(() -> HostedPlateDesignValidator.checkHostBuildingIdentity(components))
                 .or(() -> ExplicitDesignConflictValidator.check(plan, components));
     }
 }

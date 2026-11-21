@@ -508,25 +508,106 @@ public final class GenerationCompileContext {
         if (components == null) {
             return new ComponentIdIndex(byId, duplicates);
         }
+        Set<String> referencedHostIds = referencedHostIds(components);
+        // First pass: non-plate identities (host-ref index baseline).
         for (Component c : components) {
-            if (c == null) continue;
-            // Floor plates may share display labels and are not host-reference targets.
-            if (c.params() != null
-                    && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
-                continue;
-            }
+            if (c == null || isFloorPlate(c)) continue;
+            indexPut(byId, duplicates, c);
+        }
+        // Second pass: plates may share display labels UNLESS their id is referenced
+        // by host_id / target_host_id — then they must resolve uniquely for roofs etc.
+        Map<String, Component> plateById = new HashMap<>();
+        Set<String> plateDupes = new HashSet<>();
+        for (Component c : components) {
+            if (c == null || !isFloorPlate(c)) continue;
             String id = param(c, "component_id", "componentId");
-            if (id == null) continue;
-            if (duplicates.contains(id)) {
+            if (id == null || !referencedHostIds.contains(id)) continue;
+            if (plateDupes.contains(id) || duplicates.contains(id) || byId.containsKey(id)) {
+                byId.remove(id);
+                plateById.remove(id);
+                duplicates.add(id);
+                plateDupes.add(id);
                 continue;
             }
-            Component prior = byId.putIfAbsent(id, c);
+            Component prior = plateById.putIfAbsent(id, c);
             if (prior != null && prior != c) {
-                byId.remove(id);
+                plateById.remove(id);
                 duplicates.add(id);
+                plateDupes.add(id);
+            }
+        }
+        for (Map.Entry<String, Component> e : plateById.entrySet()) {
+            if (!duplicates.contains(e.getKey())) {
+                byId.put(e.getKey(), e.getValue());
             }
         }
         return new ComponentIdIndex(byId, duplicates);
+    }
+
+    private static void indexPut(Map<String, Component> byId, Set<String> duplicates, Component c) {
+        String id = param(c, "component_id", "componentId");
+        if (id == null || duplicates.contains(id)) {
+            return;
+        }
+        Component prior = byId.putIfAbsent(id, c);
+        if (prior != null && prior != c) {
+            byId.remove(id);
+            duplicates.add(id);
+        }
+    }
+
+    static boolean isFloorPlate(Component c) {
+        return c != null && c.params() != null
+                && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")));
+    }
+
+    /** host_id / target_host_id values that must resolve in the host-ref index. */
+    public static Set<String> referencedHostIds(List<Component> components) {
+        Set<String> refs = new HashSet<>();
+        if (components == null) {
+            return refs;
+        }
+        for (Component c : components) {
+            if (c == null) continue;
+            String host = param(c, "host_id", "hostId");
+            if (host != null) refs.add(host);
+            String target = param(c, "target_host_id", "targetHostId");
+            if (target != null) refs.add(target);
+        }
+        return refs;
+    }
+
+    /**
+     * Global building_id ↔ host-chain identity check (no typology required).
+     * Returns conflicting component ids when child.building_id ≠ resolved host building_id.
+     */
+    public static List<String> hostBuildingIdentityConflicts(List<Component> components) {
+        List<String> conflicts = new ArrayList<>();
+        if (components == null || components.isEmpty()) {
+            return conflicts;
+        }
+        ComponentIdIndex index = indexComponentsById(components);
+        for (Component c : components) {
+            if (c == null) continue;
+            String childBid = param(c, "building_id", "buildingId");
+            String host = param(c, "host_id", "hostId");
+            if (childBid == null || host == null) {
+                continue;
+            }
+            if (index.isAmbiguous(host)) {
+                continue; // duplicate-id gap handles this separately
+            }
+            Component hostComp = index.getUnique(host);
+            String hostBid = resolveHostBuildingId(hostComp, List.of(), Set.of(), index);
+            if (hostBid == null && hostComp == null) {
+                continue; // unresolved host — other validators
+            }
+            if (hostBid != null && !childBid.equals(hostBid)) {
+                String cid = param(c, "component_id", "componentId");
+                conflicts.add(cid != null ? cid : String.valueOf(c.componentType()));
+            }
+        }
+        return conflicts;
     }
 
     public static boolean belongsToTypologyExclusiveScope(

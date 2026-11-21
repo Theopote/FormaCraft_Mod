@@ -346,28 +346,80 @@ _OWNERSHIP_AMBIGUOUS = "AMBIGUOUS"
 _OWNERSHIP_CONFLICT = "OWNERSHIP_CONFLICT"
 
 
+def _is_floor_plate(comp: Any) -> bool:
+    if not isinstance(comp, dict):
+        return False
+    params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+    return str(params.get("extrude_mode") or "").lower() == "plate"
+
+
+def _referenced_host_ids(components: List[Any]) -> set[str]:
+    """host_id / target_host_id values that must resolve in the host-ref index."""
+    refs: set[str] = set()
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        host = _param_str(comp, "host_id", "hostId")
+        if host:
+            refs.add(host)
+        target = _param_str(comp, "target_host_id", "targetHostId")
+        if target:
+            refs.add(target)
+    return refs
+
+
 def _index_components_by_id(
     components: List[Any],
 ) -> tuple[Dict[str, Dict[str, Any]], set[str]]:
     """Unique component_id → component; duplicates omitted (no last-writer).
-    Floor plates may share display labels and are excluded from host-ref index.
+
+    Floor plates may share display labels and stay out of the host-ref index
+    unless their id is referenced by host_id / target_host_id — then they must
+    resolve uniquely (e.g. pavilion roof on pavilion_deck).
     """
     by_id: Dict[str, Dict[str, Any]] = {}
     duplicates: set[str] = set()
-    for comp in components:
-        if not isinstance(comp, dict):
-            continue
-        params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
-        if str(params.get("extrude_mode") or "").lower() == "plate":
-            continue
+    referenced = _referenced_host_ids(components)
+
+    def _put(comp: Dict[str, Any]) -> None:
         cid = _param_str(comp, "component_id", "componentId")
         if not cid or cid in duplicates:
-            continue
+            return
         prior = by_id.get(cid)
         if prior is not None and prior is not comp:
             by_id.pop(cid, None)
             duplicates.add(cid)
         else:
+            by_id[cid] = comp
+
+    for comp in components:
+        if not isinstance(comp, dict) or _is_floor_plate(comp):
+            continue
+        _put(comp)
+
+    plate_by_id: Dict[str, Dict[str, Any]] = {}
+    plate_dupes: set[str] = set()
+    for comp in components:
+        if not isinstance(comp, dict) or not _is_floor_plate(comp):
+            continue
+        cid = _param_str(comp, "component_id", "componentId")
+        if not cid or cid not in referenced:
+            continue
+        if cid in plate_dupes or cid in duplicates or cid in by_id:
+            by_id.pop(cid, None)
+            plate_by_id.pop(cid, None)
+            duplicates.add(cid)
+            plate_dupes.add(cid)
+            continue
+        prior = plate_by_id.get(cid)
+        if prior is not None and prior is not comp:
+            plate_by_id.pop(cid, None)
+            duplicates.add(cid)
+            plate_dupes.add(cid)
+        else:
+            plate_by_id[cid] = comp
+    for cid, comp in plate_by_id.items():
+        if cid not in duplicates:
             by_id[cid] = comp
     return by_id, duplicates
 

@@ -1304,13 +1304,13 @@ final class ComponentSatelliteInference {
         if (base.params() != null) {
             params.putAll(base.params());
         }
-        // Never inherit the host mass's component_id — crowns are host-referenced satellites.
-        Object hostIdentity = params.remove("component_id");
-        if (hostIdentity == null) {
-            hostIdentity = ComponentPlanTypes.getParamString(base.params(), "component_id", "componentId");
-        }
+        // Crown hosts the carrying mass — never keep the mass's own host_id/component_id.
+        params.remove("component_id");
+        params.remove("host_id");
+        params.remove("hostId");
+        String hostIdentity = ComponentPlanTypes.getParamString(base.params(), "component_id", "componentId");
         if (hostIdentity != null) {
-            params.putIfAbsent("host_id", hostIdentity);
+            params.put("host_id", hostIdentity);
             params.put("component_id", hostIdentity + "#crown");
         }
         params.put("crown_radius", radius);

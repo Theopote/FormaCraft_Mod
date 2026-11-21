@@ -1293,6 +1293,91 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(stripped, 0)
         self.assertEqual(len(out["components"]), 2)
 
+    def test_stadium_keeps_independent_pavilion_deck_and_hosted_roof(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 60, "depth": 80, "height": 28},
+                    "features": ["typology:stadium_bowl"],
+                    "params": {
+                        "component_id": "arena",
+                        "building_id": "arena_A",
+                        "typology_id": "stadium_bowl",
+                    },
+                },
+                {
+                    "component_type": "MASS_SECONDARY",
+                    "relative_position": {"x": 10, "y": 4, "z": 10},
+                    "dimensions": {"width": 10, "depth": 10, "height": 1},
+                    "features": ["pavilion_deck"],
+                    "params": {
+                        "component_id": "pavilion_deck",
+                        "building_id": "pavilion_B",
+                        "extrude_mode": "plate",
+                    },
+                },
+                {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 10, "y": 5, "z": 10},
+                    "dimensions": {"width": 10, "depth": 10, "height": 3},
+                    "features": [],
+                    "params": {
+                        "component_id": "pavilion_roof",
+                        "host_id": "pavilion_deck",
+                    },
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        ids = {c["params"]["component_id"] for c in out["components"]}
+        self.assertEqual(stripped, 0)
+        self.assertEqual(ids, {"arena", "pavilion_deck", "pavilion_roof"})
+
+    def test_referenced_plate_enters_host_index(self):
+        from app.services.typology_plan_repair import _index_components_by_id
+
+        components = [
+            {
+                "component_type": "MASS_SECONDARY",
+                "params": {
+                    "component_id": "pavilion_deck",
+                    "building_id": "pavilion_B",
+                    "extrude_mode": "plate",
+                },
+            },
+            {
+                "component_type": "ROOF",
+                "params": {
+                    "component_id": "pavilion_roof",
+                    "host_id": "pavilion_deck",
+                },
+            },
+        ]
+        by_id, duplicates = _index_components_by_id(components)
+        self.assertIn("pavilion_deck", by_id)
+        self.assertNotIn("pavilion_deck", duplicates)
+
+    def test_unreferenced_shared_plate_labels_stay_out_of_index(self):
+        from app.services.typology_plan_repair import _index_components_by_id
+
+        components = [
+            {
+                "component_type": "MASS_SECONDARY",
+                "params": {"component_id": "floor_label", "extrude_mode": "plate"},
+            },
+            {
+                "component_type": "MASS_SECONDARY",
+                "params": {"component_id": "floor_label", "extrude_mode": "plate"},
+            },
+        ]
+        by_id, duplicates = _index_components_by_id(components)
+        self.assertNotIn("floor_label", by_id)
+        self.assertNotIn("floor_label", duplicates)
+
     def test_golden_gate_module_repair_also_strips_extras(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components
 

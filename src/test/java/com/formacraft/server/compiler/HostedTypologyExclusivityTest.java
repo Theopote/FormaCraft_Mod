@@ -638,4 +638,29 @@ class HostedTypologyExclusivityTest {
         assertEquals(100, slots.get(preparedHall.slotId()).anchor().x());
         com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
     }
+
+    @Test void stadiumKeepsIndependentPavilionDeckAndHostedRoof() {
+        // P0: referenced plate must remain in host-ref index so roof inherits pavilion_B.
+        var stadium = new Component("STRUCTURE", "arena", new Vec3i(0, 0, 0),
+                new Dimensions(60, 80, 28), List.of("typology:stadium_bowl"),
+                Map.of("component_id", "arena", "building_id", "arena_A", "typology_id", "stadium_bowl"));
+        // Overlaps stadium XZ at the entrance edge but owns distinct building_id.
+        var deck = new Component("MASS_SECONDARY", "pav", new Vec3i(10, 4, 10),
+                new Dimensions(10, 10, 1), List.of("pavilion_deck"),
+                Map.of("component_id", "pavilion_deck", "building_id", "pavilion_B",
+                        "extrude_mode", "plate"));
+        var roof = new Component("ROOF", "pav", new Vec3i(10, 5, 10),
+                new Dimensions(10, 10, 3), List.of(),
+                Map.of("component_id", "pavilion_roof", "host_id", "pavilion_deck"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(stadium, deck, roof));
+        assertEquals(3, filtered.size(), "stadium + pavilion deck + roof must all survive");
+        assertTrue(filtered.stream().anyMatch(c ->
+                "pavilion_deck".equals(String.valueOf(c.params().get("component_id")))));
+        assertTrue(filtered.stream().anyMatch(c ->
+                "pavilion_roof".equals(String.valueOf(c.params().get("component_id")))),
+                "roof hosted on referenced plate must not be exclusive-filtered");
+        assertTrue(filtered.stream().anyMatch(c ->
+                "arena".equals(String.valueOf(c.params().get("component_id")))));
+    }
 }

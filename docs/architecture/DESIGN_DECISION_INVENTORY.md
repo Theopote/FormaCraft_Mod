@@ -208,6 +208,10 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `makeCrownComponent`/`alignCrownToMass` copied host `component_id` | CROWN leaked `body` → `E_DUPLICATE_COMPONENT_ID` | **Fixed (2026-11-20):** crown id = host`#crown` |
 | unique fuzzy remap ignored `building_id` | house_A lantern → house_B east_courtyard | **Fixed (2026-11-20):** building_id must match or be absent |
 | host-ref index included plates | plate display ids flagged as dup under typology | **Fixed (2026-11-20):** plates excluded from host-ref index |
+| host-ref index excluded all plates | pavilion roof on `pavilion_deck` lost host → exclusive strip | **Fixed (2026-11-21):** unreferenced plates stay out; uniquely referenced plates enter host-ref index; ambiguous referenced plates → duplicate |
+| `makeCrownComponent`/`alignCrownToMass` `putIfAbsent(host_id)` | annexed tower crown kept upstream `host_id=main` | **Fixed (2026-11-21):** force `host_id` = carrying mass; strip inherited host fields |
+| auto crown id always `mass#crown` | two id-less CROWNs on same host → `E_DUPLICATE_COMPONENT_ID` | **Fixed (2026-11-21):** `mass#crown`, then `mass#crown#2`… |
+| exact cross-building `host_id` only checked under typology exclusive | house_A lantern → house_B skipped without typology | **Fixed (2026-11-21):** global `E_HOST_BUILDING_IDENTITY_CONFLICT` in DesignValidatorSuite |
 | `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |
 | `StyleIntentResolver.detectFlavor` plan-only | local Huizhou under plan Modern got flat/glass | **Fixed (2026-11-20):** `EffectiveBuildingStyleResolver`; local/host chain first; entrance `bindDerived` inherits |
 | `EffectiveBuildingStyleResolver` local-only | authored FACADE with host_id lacked style inheritance | **Fixed (2026-11-20):** resolve via host_id chain before plan style |

@@ -1145,14 +1145,15 @@ final class ComponentSatelliteAligner {
         if (llmCrown.params() != null) {
             params.putAll(llmCrown.params());
         }
-        // Authored crowns often omit component_id; do not keep a leaked host mass id from template.
+        // Crown always hosts the carrying mass; never inherit the mass's upstream host_id.
         String massId = ComponentPlanTypes.getParamString(mass.params(), "component_id", "componentId");
-        String crownId = ComponentPlanTypes.getParamString(params, "component_id", "componentId");
-        if (massId != null && (crownId == null || massId.equals(crownId))) {
-            params.put("component_id", massId + "#crown");
-        }
         if (massId != null) {
-            params.putIfAbsent("host_id", massId);
+            params.put("host_id", massId);
+            String crownId = ComponentPlanTypes.getParamString(params, "component_id", "componentId");
+            if (crownId == null || massId.equals(crownId) || crownId.equals(massId + "#crown")
+                    || isAutoCrownIdForMass(crownId, massId)) {
+                params.put("component_id", nextCrownComponentId(massId, all, llmCrown));
+            }
         }
 
         Dimensions templateDims = template.dimensions();
@@ -1177,6 +1178,65 @@ final class ComponentSatelliteAligner {
                 params
         );
         return CrownGrammarResolver.apply(plan, aligned);
+    }
+
+    /** True when id looks like an auto-assigned crown id for {@code massId} ({@code mass#crown} or {@code mass#crown#N}). */
+    private static boolean isAutoCrownIdForMass(String crownId, String massId) {
+        if (crownId == null || massId == null) {
+            return false;
+        }
+        String prefix = massId + "#crown";
+        if (crownId.equals(prefix)) {
+            return true;
+        }
+        if (!crownId.startsWith(prefix + "#")) {
+            return false;
+        }
+        String suffix = crownId.substring(prefix.length() + 1);
+        if (suffix.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < suffix.length(); i++) {
+            if (!Character.isDigit(suffix.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Stable unique crown identity for the carrying mass. First free id is {@code massId#crown},
+     * then {@code massId#crown#2}, {@code #3}, … skipping ids already present in {@code all}
+     * (except the crown currently being aligned).
+     */
+    private static String nextCrownComponentId(String massId, List<Component> all, Component current) {
+        String base = massId + "#crown";
+        if (!crownIdTaken(base, all, current)) {
+            return base;
+        }
+        for (int n = 2; n < 10_000; n++) {
+            String candidate = base + "#" + n;
+            if (!crownIdTaken(candidate, all, current)) {
+                return candidate;
+            }
+        }
+        return base + "#" + System.identityHashCode(current);
+    }
+
+    private static boolean crownIdTaken(String id, List<Component> all, Component current) {
+        if (all == null || id == null) {
+            return false;
+        }
+        for (Component c : all) {
+            if (c == null || c == current) {
+                continue;
+            }
+            String existing = ComponentPlanTypes.getParamString(c.params(), "component_id", "componentId");
+            if (id.equals(existing)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

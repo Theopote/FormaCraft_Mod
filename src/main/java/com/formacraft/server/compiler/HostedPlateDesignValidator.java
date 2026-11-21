@@ -59,35 +59,42 @@ final class HostedPlateDesignValidator {
             return Optional.empty();
         }
         // Any component_id that can be referenced by host_id / target_host_id must be unique
-        // (roofs, crowns, decorations included). Floor plates may still share display labels.
-        java.util.HashSet<String> seen = new java.util.HashSet<>();
-        java.util.HashSet<String> duplicates = new java.util.HashSet<>();
-        for (Component c : components) {
-            if (c == null || c.params() == null) {
-                continue;
-            }
-            if ("plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
-                continue;
-            }
-            String id = paramString(c.params(), "component_id", "componentId");
-            if (id == null) {
-                continue;
-            }
-            if (!seen.add(id)) {
-                duplicates.add(id);
-            }
-        }
-        if (!duplicates.isEmpty()) {
+        // (roofs, crowns, decorations included). Unreferenced floor plates may still share
+        // display labels; referenced plates must resolve uniquely in the host-ref index.
+        var index = com.formacraft.server.generation.GenerationCompileContext.indexComponentsById(components);
+        if (!index.duplicateIds().isEmpty()) {
             return Optional.of(new CapabilityGap(
                     "E_DUPLICATE_COMPONENT_ID",
-                    "Duplicate params.component_id: " + String.join(", ", duplicates),
+                    "Duplicate params.component_id: " + String.join(", ", index.duplicateIds()),
                     "components[].params.component_id",
                     List.of(
                             "Give every host-referenceable component a unique component_id.",
-                            "host_id / attachments require unique ids — not list-order disambiguation."),
-                    java.util.Map.of("duplicate_component_ids", List.copyOf(duplicates))));
+                            "host_id / attachments require unique ids — not list-order disambiguation.",
+                            "Referenced floor plates (extrude_mode=plate) must also be unique."),
+                    java.util.Map.of("duplicate_component_ids", List.copyOf(index.duplicateIds()))));
         }
         return Optional.empty();
+    }
+
+    /**
+     * Global building_id ↔ host-chain identity (no typology required).
+     * Exact host_id hits that point at another building must fail openly.
+     */
+    static Optional<CapabilityGap> checkHostBuildingIdentity(List<Component> components) {
+        var conflicts = com.formacraft.server.generation.GenerationCompileContext
+                .hostBuildingIdentityConflicts(components);
+        if (conflicts.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new CapabilityGap(
+                "E_HOST_BUILDING_IDENTITY_CONFLICT",
+                "Component building_id contradicts host-chain building identity: "
+                        + String.join(", ", conflicts),
+                "components[].params.building_id",
+                List.of(
+                        "Keep building_id consistent with the host mass / host chain.",
+                        "Cross-building links need dedicated connection semantics, not host_id."),
+                java.util.Map.of("conflict_component_ids", List.copyOf(conflicts))));
     }
 
     /** After {@link BuildingGeometryContext#putMass}, interior plates must resolve host geometry. */
