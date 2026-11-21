@@ -45,6 +45,24 @@ class AssemblyShellOpsTest {
         return map;
     }
     @Test
+    void shellPortsFollowBaseTwistWhileCustomPortsKeepTheirCoordinates() {
+        var shell = shell(0.125);
+        shell.put("w", 12);
+        shell.put("d", 10);
+        shell.put("twistPhase", 0.25);
+        shell.put("ports", Map.of("canopy", Map.of("x", 2, "y", 0, "z", -4)));
+        var ports = AssemblyPortResolver.ports(shell);
+        assertArrayEquals(new int[]{0, 0, 5}, ports.get("east"));
+        assertArrayEquals(new int[]{-4, 0, 5}, ports.get("front_right"));
+        assertArrayEquals(new int[]{2, 0, -4}, ports.get("canopy"));
+        var blocks = snapshot(generate(shell));
+        for (String name : List.of("north", "south", "east", "west", "nw", "ne", "sw", "se")) {
+            int[] pos = ports.get(name);
+            assertEquals(Blocks.STONE_BRICKS.getDefaultState(), blocks.get(new BlockPos(pos[0], pos[1], pos[2])));
+        }
+    }
+
+    @Test
     void graphShellTopPortsUseTheEmittedDefaultHeight() {
         var shell = new HashMap<String, Object>(Map.of("id", "shell", "type", "BOX_SHELL"));
         for (int expected : List.of(18, 26)) {

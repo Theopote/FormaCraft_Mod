@@ -53,7 +53,7 @@ public final class AssemblyShellOps {
             slices[y] = colonnade ? new Slice(-halfW, halfW, -halfD, halfD)
                     : new Slice(-width / 2, width - width / 2 - 1, -depth / 2, depth - depth / 2 - 1);
         }
-        boolean hasTwist = Math.abs(twistTurns) > 0.001 || Math.abs(twistPhase) > 0.001;
+        boolean hasTwist = hasTwist(twistTurns, twistPhase);
 
         // Clear interior samples before structure (avoid wiping twisted perimeter later).
         for (int yy = 1; yy <= h; yy++) {
@@ -270,7 +270,11 @@ public final class AssemblyShellOps {
         return (int) packed;
     }
 
-    private static int[] twistXZ(int x, int z, int yy, int h, double twistTurns, double twistPhase, boolean hasTwist) {
+    static boolean hasTwist(double turns, double phase) {
+        return Math.abs(turns) > 0.001 || Math.abs(phase) > 0.001;
+    }
+
+    static int[] twistXZ(int x, int z, int yy, int h, double twistTurns, double twistPhase, boolean hasTwist) {
         if (!hasTwist) {
             return new int[]{x, z};
         }

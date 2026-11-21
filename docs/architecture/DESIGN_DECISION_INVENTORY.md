@@ -20,6 +20,8 @@ Python checks shell endpoint availability when the graph omits both footprint di
 
 Built-in graph shell ports use the same positive base edges as closed SHELL_BOX geometry (GEOMETRY). This aligns even-sized shells without changing component dimensions or overriding custom port coordinates.
 
+Built-in graph shell ports follow the shell's authored base rotation (GEOMETRY). Java uses the same rotation and voxel rounding as wall emission. Custom ports retain their supplied coordinates.
+
 Graph shell emission recognizes the same long-form dimension aliases as its port resolver (FORMAT_REPAIR). Canonical short fields take precedence and existing omission defaults are retained.
 
 Graph shell top ports and shell emission share the existing 18-block wall-height default (TECHNICAL_DEFAULT, only for omitted height in valid plans). Authored heights take precedence and the top port keeps its last-wall-row convention.

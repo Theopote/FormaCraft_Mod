@@ -1018,6 +1018,19 @@ final class AssemblyComponentEmitter {
         alias(ports, "corner_sw", "sw");
         alias(ports, "corner_se", "se");
 
+        if (type.equals("SHELL_BOX") || type.equals("BOX_SHELL")) {
+            double turns = AssemblyValueParser.clamp(AssemblyValueParser.d(comp.get("twistTurns"),
+                    AssemblyValueParser.d(comp.get("twist_turns"), 0)), -2.0, 2.0);
+            double phase = AssemblyValueParser.clamp(AssemblyValueParser.d(comp.get("twistPhase"),
+                    AssemblyValueParser.d(comp.get("twist_phase"), 0)), 0.0, 1.0);
+            if (AssemblyShellOps.hasTwist(turns, phase)) {
+                ports.replaceAll((name, point) -> {
+                    int[] rotated = AssemblyShellOps.twistXZ(point[0], point[2], 0, 1, turns, phase, true);
+                    return new int[]{rotated[0], point[1], rotated[1]};
+                });
+            }
+        }
+
         // user-defined ports override built-ins
         Object pObj = comp.get("ports");
         if (pObj instanceof Map<?, ?> pm) {
