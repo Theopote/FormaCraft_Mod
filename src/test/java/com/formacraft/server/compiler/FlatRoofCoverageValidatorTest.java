@@ -22,7 +22,16 @@ class FlatRoofCoverageValidatorTest {
                         Map.of("roof_type","flat","host_id","house")))) {
             var r = FlatRoofCoverageValidator.resolve(new SemanticComponent("ROOF",null,roof),BlockPos.ORIGIN).orElseThrow();
             assertTrue(FlatRoofCoverageValidator.check(List.of(r),patches(r,0),Set.of()).isEmpty());
-            assertTrue(FlatRoofCoverageValidator.checkHost(body(Map.of()),List.of(r),BlockPos.ORIGIN,patches(r,0),Set.of()).isPresent());
+            var missing = FlatRoofCoverageValidator.checkHost(body(Map.of()), List.of(r),
+                    BlockPos.ORIGIN, patches(r,0), Set.of()).orElseThrow();
+            var gap = FlatRoofCoverageValidator.hostCoverageGap("house", missing);
+            assertEquals("E_FLAT_ROOF_HOST_COVERAGE", gap.code());
+            assertEquals("house", gap.details().get("host_id"));
+            assertEquals("house", gap.details().get("host_part_id"));
+            assertEquals(roof.relativePosition().x() == 1 ? 9 : 56, gap.details().get("uncovered_count"));
+            assertEquals("plan", gap.details().get("coordinate_frame"));
+            assertEquals(Map.of("x", 0, "y", 7, "z", roof.relativePosition().x() == 1 ? 0 : 5),
+                    gap.details().get("first_uncovered"));
         }
         var roof = new Component("ROOF","roof",new Vec3i(1,7,1),new Dimensions(7,7,1),List.of(),
                 Map.of("roof_type","flat","host_id","house","overhang",1));

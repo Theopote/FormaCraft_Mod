@@ -38,12 +38,14 @@ final class FloatingMassSnapRepair {
                     componentId(mass), y, supportTop, supportTop);
             components.set(i, shift(mass, dy));
             String massId = componentId(mass);
+            // Full authored host tree (annex→roof→chimney), never same-slot peers.
+            var descendants = HostAttachmentTree.descendantIds(massId, components);
             for (int j = 0; j < components.size(); j++) {
                 if (j == i) continue;
                 Component c = components.get(j);
                 if (c == null || c.relativePosition() == null) continue;
-                // Only authored host attachments travel with the mass — shared slot ≠ ownership.
-                if (hostedBy(c, massId)) {
+                String cid = componentId(c);
+                if (descendants.contains(cid)) {
                     components.set(j, shift(c, dy));
                 }
             }
@@ -97,13 +99,6 @@ final class FloatingMassSnapRepair {
     private static boolean xzOverlaps(ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
         return a.minX() < b.maxX() + 1 && b.minX() < a.maxX() + 1
                 && a.minZ() < b.maxZ() + 1 && b.minZ() < a.maxZ() + 1;
-    }
-
-    private static boolean hostedBy(Component c, String massId) {
-        if (massId == null || c.params() == null) return false;
-        Object host = c.params().get("host_id");
-        if (host == null) host = c.params().get("hostId");
-        return massId.equals(String.valueOf(host));
     }
 
     private static String componentId(Component c) {

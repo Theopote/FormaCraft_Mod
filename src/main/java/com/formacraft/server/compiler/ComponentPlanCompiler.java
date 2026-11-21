@@ -577,12 +577,8 @@ public final class ComponentPlanCompiler {
                             : new BlockPos(hostAnchor.x(), hostAnchor.y(), hostAnchor.z()),
                     patches, roofClearance);
             if (uncovered.isPresent()) {
-                var missing = uncovered.get();
-                AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_HOST_COVERAGE",
-                        "平屋顶未覆盖宿主顶层：part=" + missing.source()
-                                + ", plan=" + missing.position().toShortString()
-                                + ", uncovered=" + missing.count(), "components[]",
-                        List.of("Align and size the bound roof to the host footprint; preserve explicit courtyard and L-shaped voids.")));
+                AssemblyCompileDiagnostics.set(FlatRoofCoverageValidator.hostCoverageGap(
+                        getParamString(body.params(), "component_id"), uncovered.get()));
                 return true;
             }
         }

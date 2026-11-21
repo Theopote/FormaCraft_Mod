@@ -2,6 +2,10 @@
 
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 
+Flat roof host coverage remains a Java geometry constraint. `E_FLAT_ROOF_HOST_COVERAGE` now provides the host and part IDs, missing cell count, and first missing position in plan coordinates. The diagnostic does not resize the roof or change the plan.
+
+Roof omission uses the same first nonblank parameter and alias resolution as the roof generator (FORMAT_REPAIR). A blank canonical field can defer to an authored alias, while a nonblank canonical value retains precedence. The omission check adds no default or preset.
+
 ## P0 — MASS satellite inference (Java)
 
 | Location | Trigger | Design params | Tag | Migration |
@@ -221,6 +225,9 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | `isAuthoredHostOnlyDeck` included FOUNDATION/BASE | unhosted FOUNDATION skipped → foundation realign CI fail | **Fixed (2026-11-21):** authored-host-only = TERRACE/PAVING; FOUNDATION/BASE still geometry-align |
 | `HostAliasNormalizer` after NarrowTower | camelCase facade host missed → suppress_windows | **Fixed (2026-11-21):** alias normalize right after duplicate-id scrub |
 | floating snap `sameSlotSatellite` | distant same-slot terrace dragged with mass Y | **Fixed (2026-11-21):** only `hostedBy` attachments shift |
+| floating snap direct-host only | annex moved but roof/chimney left at old Y | **Fixed (2026-11-21):** `HostAttachmentTree.descendantIds` shifts full host subtree |
+| `_fetch_remote_models` unbounded `resp.read()` | huge `/models` JSON can OOM worker | **Fixed (2026-11-21):** 1 MiB body + 500 entry caps |
+| pool-saturated error skipped ticket gate | cancelled request could still flash queue-full UI | **Fixed (2026-11-21):** `mayDeliverPreview` before saturated error send |
 | `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |
 | `StyleIntentResolver.detectFlavor` plan-only | local Huizhou under plan Modern got flat/glass | **Fixed (2026-11-20):** `EffectiveBuildingStyleResolver`; local/host chain first; entrance `bindDerived` inherits |
 | `EffectiveBuildingStyleResolver` local-only | authored FACADE with host_id lacked style inheritance | **Fixed (2026-11-20):** resolve via host_id chain before plan style |

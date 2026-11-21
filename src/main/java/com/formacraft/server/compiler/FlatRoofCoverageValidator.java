@@ -6,6 +6,7 @@ import com.formacraft.common.generation.component.util.ComponentFootprintMask;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.generation.component.util.ResolvedMassPart;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
@@ -24,6 +25,21 @@ final class FlatRoofCoverageValidator {
     }
     record Missing(String source, BlockPos position, int count) {}
     record Attachment(String host, int expectedY, int actualY) {}
+
+    static CapabilityGap hostCoverageGap(String hostId, Missing missing) {
+        BlockPos pos = missing.position();
+        var details = new LinkedHashMap<String, Object>();
+        if (hostId != null) details.put("host_id", hostId);
+        details.put("host_part_id", missing.source());
+        details.put("uncovered_count", missing.count());
+        details.put("coordinate_frame", "plan");
+        details.put("first_uncovered", Map.of("x", pos.getX(), "y", pos.getY(), "z", pos.getZ()));
+        return new CapabilityGap("E_FLAT_ROOF_HOST_COVERAGE",
+                "平屋顶未覆盖宿主顶层：part=" + missing.source()
+                        + ", plan=" + pos.toShortString() + ", uncovered=" + missing.count(), "components[]",
+                List.of("Align and size the bound roof to the host footprint; preserve explicit courtyard and L-shaped voids."),
+                details);
+    }
 
     static Optional<Attachment> attachmentMismatch(SemanticComponent roof, List<Component> components,
                                                     Map<String, Slot> slots, Slot fallback) {

@@ -24,6 +24,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ExplicitOmissionSatelliteTest {
 
+    @Test
+    void roofOmissionUsesTheSameAliasPrecedenceAsTheGenerator() {
+        for (var params : List.of(Map.<String, Object>of("roof_type", " ", "roofType", " NONE "),
+                Map.<String, Object>of("roof_type", "none", "roofType", "flat"))) {
+            var roof = new Component("ROOF", "main", new Vec3i(0, 8, 0),
+                    new Dimensions(9, 9, 1), List.of(), params);
+            assertTrue(com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(roof));
+            assertTrue(new com.formacraft.common.generation.component.impl.RoofGenerator()
+                    .generate(new com.formacraft.common.compiler.semantic.SemanticComponent("ROOF", null, roof)).isEmpty());
+        }
+        var unsupported = new Component("ROOF", "main", new Vec3i(0, 8, 0), new Dimensions(9, 9, 1),
+                List.of(), Map.of("roof_type", "unseen_shell", "roofType", "none"));
+        assertFalse(com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(unsupported));
+    }
+
     @BeforeEach
     void clearBefore() {
         AssemblyCompileDiagnostics.clear();

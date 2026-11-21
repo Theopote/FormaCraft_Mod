@@ -295,6 +295,43 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
+    void floatingMassSnapShiftsNestedHostTreeButNotForeignBuilding() {
+        var hall = new Component("MASS_MAIN", "site", new Vec3i(0, 10, 0),
+                new Dimensions(14, 14, 10), List.of(),
+                Map.of("component_id", "main_hall", "building_id", "main_hall"));
+        var annex = new Component("MASS_SECONDARY", "site", new Vec3i(16, 10, 0),
+                new Dimensions(10, 10, 8), List.of(),
+                Map.of("component_id", "annex", "building_id", "main_hall", "host_id", "main_hall"));
+        var roof = new Component("ROOF", "site", new Vec3i(16, 18, 0),
+                new Dimensions(10, 10, 3), List.of(),
+                Map.of("component_id", "annex_roof", "host_id", "annex"));
+        var chimney = new Component("CHIMNEY", "site", new Vec3i(18, 21, 2),
+                new Dimensions(2, 2, 4), List.of(),
+                Map.of("component_id", "annex_chimney", "host_id", "annex_roof"));
+        var foreignPos = new Vec3i(80, 12, 0);
+        var foreign = new Component("TERRACE", "site", foreignPos,
+                new Dimensions(8, 8, 1), List.of(),
+                Map.of("component_id", "other_deck", "building_id", "other_deck"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(hall, annex, roof, chimney, foreign)).build();
+        var repaired = FloatingMassSnapRepair.apply(plan);
+        assertEquals(0, yOf(repaired, "main_hall"));
+        assertEquals(0, yOf(repaired, "annex"));
+        assertEquals(8, yOf(repaired, "annex_roof"));
+        assertEquals(11, yOf(repaired, "annex_chimney"));
+        assertEquals(foreignPos, repaired.components().stream()
+                .filter(c -> "other_deck".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().relativePosition());
+    }
+
+    private static int yOf(com.formacraft.common.llm.dto.LlmPlan plan, String id) {
+        return plan.components().stream()
+                .filter(c -> id.equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow()
+                .relativePosition().y();
+    }
+
+    @Test
     void multipleCrownsWithoutHostIdKeepDistinctPositions() {
         var mass = new Component("MASS_MAIN", "m", new Vec3i(0, 0, 0),
                 new Dimensions(16, 16, 14), List.of(),

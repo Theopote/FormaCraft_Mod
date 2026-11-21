@@ -214,6 +214,12 @@ public final class LlmPlanPreviewBuilder {
             })) {
                 LOG.warn("plan-compile pool saturated; rejecting preview without main-thread compile");
                 deliverPreview(finish, () -> {
+                    // Same ticket generation gate as success / off-thread failure paths.
+                    if (gateTicket != null && !BuildRequestGate.mayDeliverPreview(gateTicket)) {
+                        LOG.warn("skipping pool-saturated error; ticket stale/cancelled");
+                        hbAlive.set(false);
+                        return true;
+                    }
                     hbAlive.set(false);
                     LlmPlanRoutingMetrics.recordError(
                             player == null ? null : player.getName().getString(),

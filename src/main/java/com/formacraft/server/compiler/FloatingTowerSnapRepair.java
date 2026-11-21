@@ -38,12 +38,12 @@ final class FloatingTowerSnapRepair {
                     componentId(tower), y, supportTop, supportTop);
             components.set(i, shift(tower, dy));
             String towerId = componentId(tower);
+            var descendants = HostAttachmentTree.descendantIds(towerId, components);
             for (int j = 0; j < components.size(); j++) {
                 if (j == i) continue;
                 Component c = components.get(j);
                 if (c == null || c.relativePosition() == null) continue;
-                // Only authored host attachments travel with the tower — shared slot ≠ ownership.
-                if (hostedBy(c, towerId)) {
+                if (descendants.contains(componentId(c))) {
                     components.set(j, shift(c, dy));
                 }
             }
@@ -121,13 +121,6 @@ final class FloatingTowerSnapRepair {
         // Bounds max is exclusive; expand by 1 so flush face-adjacent curtain walls count.
         return a.minX() < b.maxX() + 1 && b.minX() < a.maxX() + 1
                 && a.minZ() < b.maxZ() + 1 && b.minZ() < a.maxZ() + 1;
-    }
-
-    private static boolean hostedBy(Component c, String towerId) {
-        if (towerId == null || c.params() == null) return false;
-        Object host = c.params().get("host_id");
-        if (host == null) host = c.params().get("hostId");
-        return towerId.equals(String.valueOf(host));
     }
 
     private static String componentId(Component c) {

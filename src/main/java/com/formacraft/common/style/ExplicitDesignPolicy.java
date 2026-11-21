@@ -14,7 +14,8 @@ public final class ExplicitDesignPolicy {
         return false;
     }
     public static boolean roofDisabled(Component component) {
-        return component != null && none(component.params(), "roof_type", "roofType")
+        return component != null && com.formacraft.common.generation.component.util.RoofTypeCatalog
+                .extractExplicitParamType(component.params()).filter("none"::equalsIgnoreCase).isPresent()
                 && !Boolean.TRUE.equals(component.params().get("compiler_suppressed_roof"));
     }
     public static boolean windowsDisabled(Component component) {

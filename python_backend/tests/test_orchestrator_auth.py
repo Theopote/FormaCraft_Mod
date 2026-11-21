@@ -50,3 +50,19 @@ def test_models_allows_loopback_for_local_provider_validation():
 
     # Non-local probes stay blocked; local-provider probes may opt into loopback.
     validate_reference_url("http://127.0.0.1:11434/v1/models", allow_loopback=True)
+
+
+def test_models_read_limited_rejects_oversized_body():
+    from app.routes import models as models_route
+
+    class _Huge:
+        def __init__(self):
+            self._chunks = [b"x" * 1000, b"y" * 1000]
+
+        def read(self, n=-1):
+            if not self._chunks:
+                return b""
+            return self._chunks.pop(0)
+
+    with pytest.raises(ValueError, match="exceeds"):
+        models_route._read_limited(_Huge(), max_bytes=1500)

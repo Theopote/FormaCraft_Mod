@@ -27,6 +27,9 @@ except Exception:
     _REMOTE_MODELS_HARD_TIMEOUT_SEC = 8.0
 # 单次 urlopen 的 socket 超时（略小于硬超时）。
 _REMOTE_MODELS_SOCKET_TIMEOUT_SEC = max(2.0, _REMOTE_MODELS_HARD_TIMEOUT_SEC - 1.5)
+# Cap probe payload so a misbehaving /models endpoint cannot OOM the worker.
+_REMOTE_MODELS_MAX_BODY_BYTES = int(os.getenv("MODELS_PROBE_MAX_BODY_BYTES", str(1 * 1024 * 1024)))
+_REMOTE_MODELS_MAX_ENTRIES = int(os.getenv("MODELS_PROBE_MAX_ENTRIES", "500"))
 
 
 _FALLBACK_MODELS_BY_PROVIDER: Dict[str, List[str]] = {
@@ -100,14 +103,36 @@ def _fetch_remote_models(
 
     opener = urllib.request.build_opener(_NoRedirect)
     with opener.open(req, timeout=_REMOTE_MODELS_SOCKET_TIMEOUT_SEC) as resp:
-        body = resp.read().decode("utf-8", errors="ignore")
-        data = json.loads(body)
+        body = _read_limited(resp, _REMOTE_MODELS_MAX_BODY_BYTES)
+        try:
+            data = json.loads(body.decode("utf-8", errors="ignore"))
+        except json.JSONDecodeError as e:
+            raise ValueError(f"invalid models JSON: {e}") from e
         models_list: List[str] = []
         if isinstance(data, dict) and isinstance(data.get("data"), list):
             for item in data["data"]:
                 if isinstance(item, dict) and isinstance(item.get("id"), str):
                     models_list.append(item["id"])
+                    if len(models_list) >= _REMOTE_MODELS_MAX_ENTRIES:
+                        break
         return models_list
+
+
+def _read_limited(resp: Any, max_bytes: int) -> bytes:
+    """Read at most max_bytes from a urlopen response; raise if the body is larger."""
+    if max_bytes < 1:
+        raise ValueError("models response size limit must be positive")
+    chunks: List[bytes] = []
+    total = 0
+    while True:
+        chunk = resp.read(min(65536, max_bytes - total + 1))
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise ValueError(f"models response exceeds {max_bytes} bytes")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @router.get("/models")
