@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.palette.component.MaterialBlockFamily;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -512,30 +513,7 @@ final class StructureAccessoryRemapRepair {
 
     /** Map full blocks to a StairsBlock id (stone_bricks → stone_brick_stairs). */
     static String resolveStairsBlock(String floorBlock) {
-        if (floorBlock == null || floorBlock.isBlank()) {
-            return "minecraft:stone_brick_stairs";
-        }
-        String id = floorBlock;
-        int props = id.indexOf('[');
-        if (props >= 0) id = id.substring(0, props);
-        if (id.endsWith("_stairs")) return id;
-        if (id.endsWith("_planks")) {
-            return id.substring(0, id.length() - "_planks".length()) + "_stairs";
-        }
-        if (id.endsWith("_bricks")) {
-            return id.substring(0, id.length() - "_bricks".length()) + "_brick_stairs";
-        }
-        if (id.endsWith("_tiles")) {
-            return id.substring(0, id.length() - "_tiles".length()) + "_tile_stairs";
-        }
-        if (id.equals("minecraft:stone") || id.endsWith(":stone")) {
-            return "minecraft:stone_stairs";
-        }
-        if (id.endsWith("_block")) {
-            String stem = id.substring(0, id.length() - "_block".length());
-            return stem + "_stairs";
-        }
-        return "minecraft:stone_brick_stairs";
+        return MaterialBlockFamily.stairsOrStoneBrick(floorBlock);
     }
 
     private static boolean hasTypologyMarker(Component c) {

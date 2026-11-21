@@ -45,6 +45,22 @@ class AssemblyShellOpsTest {
         return map;
     }
     @Test
+    void assemblyStairsUseTheFloorFamilyOnlyWhenTreadsAreOmitted() {
+        var op = new HashMap<String, Object>(Map.of(
+                "op", "STAIR_SYSTEM", "floor", "minecraft:smooth_quartz",
+                "from", Map.of("x", 0, "y", 0, "z", 0),
+                "to", Map.of("x", 0, "y", 2, "z", 3)));
+        var ctx = new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null);
+        var engine = new MetaAssemblyEngine();
+        var implicit = engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), ctx);
+        assertTrue(implicit.stream().anyMatch(block -> block.getTargetState().isOf(Blocks.SMOOTH_QUARTZ_STAIRS)));
+        op.put("stairs", "minecraft:oak_stairs");
+        var explicit = engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), ctx);
+        assertTrue(explicit.stream().anyMatch(block -> block.getTargetState().isOf(Blocks.OAK_STAIRS)));
+        assertFalse(explicit.stream().anyMatch(block -> block.getTargetState().isOf(Blocks.SMOOTH_QUARTZ_STAIRS)));
+    }
+
+    @Test
     void modelAuthoredLoftProducesSlopedSurfaceAcrossSections() {
         var start = Map.of("at", Map.of("z", 0), "profilePoints",
                 List.of(Map.of("x", 0, "y", 2), Map.of("x", 8, "y", 2)));

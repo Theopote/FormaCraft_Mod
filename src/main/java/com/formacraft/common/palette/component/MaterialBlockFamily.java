@@ -8,6 +8,11 @@ import net.minecraft.util.Identifier;
 public final class MaterialBlockFamily {
     private MaterialBlockFamily() {}
     public static String stairs(String block) { return shape(block, "stairs"); }
+    public static String stairsOrStoneBrick(String block) {
+        String stairs = stairs(block);
+        return stairs != null ? stairs : "minecraft:stone_brick_stairs";
+    }
+
     public static String slab(String block) { return shape(block, "slab"); }
 
     /**

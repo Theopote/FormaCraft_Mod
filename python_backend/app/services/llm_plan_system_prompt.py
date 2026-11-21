@@ -54,6 +54,8 @@ Core rules:
   plane. Use two or more sections with the same point count (at least two), in corresponding
   order. Repeat the first point as the last only when the outline should close.
   This creates a surface. Author any needed end walls, floors or solid volumes separately.
+- For an Assembly STAIR_SYSTEM, choose a floor block. Omit stairs to use the matching
+  registered stair family when available, or specify stairs for an intentional material or state.
 - A component name or feature label does not emit geometry. For simple linear details such as
   exposed pipes, model each straight run as an optional PRIMITIVE box with params.kind="box",
   params.anchor_mode="min_corner", a material, and explicit relative_position and dimensions.

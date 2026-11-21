@@ -1,5 +1,6 @@
 package com.formacraft.server.compiler;
 
+import com.formacraft.common.palette.component.MaterialBlockFamily;
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
@@ -223,28 +224,6 @@ final class InteriorStairInferenceCompiler {
     }
 
     private static String resolveStairsMaterial(String floorBlock) {
-        if (floorBlock == null || floorBlock.isBlank()) {
-            return "minecraft:stone_brick_stairs";
-        }
-        String id = floorBlock;
-        int props = id.indexOf('[');
-        if (props >= 0) {
-            id = id.substring(0, props);
-        }
-        if (id.endsWith("_stairs")) {
-            return id;
-        }
-        if (id.endsWith("_planks")) {
-            return id.substring(0, id.length() - "_planks".length()) + "_stairs";
-        }
-        if (id.endsWith("_bricks")) {
-            // stone_bricks → stone_brick_stairs (singular brick)
-            String base = id.substring(0, id.length() - "_bricks".length());
-            return base + "_brick_stairs";
-        }
-        if (id.equals("minecraft:stone") || id.endsWith(":stone")) {
-            return "minecraft:stone_brick_stairs";
-        }
-        return "minecraft:stone_brick_stairs";
+        return MaterialBlockFamily.stairsOrStoneBrick(floorBlock);
     }
 }

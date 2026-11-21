@@ -1,5 +1,9 @@
 # Design decision inventory
 
+Ordinary stair guidance exposes floor-family tread inference and an explicit tread override (NONBINDING_HINT). The circulation example leaves the floor material to the model and preserves requested enclosure and roof choices.
+
+Assembly STAIR_SYSTEM uses a declared floor block's matching stair family as a fallback only when the stair field is absent (TECHNICAL_DEFAULT). Explicit stairs and configured palette selection keep precedence.
+
 Straight stairs, interior stair inference and structure accessory repair infer a stair block from the authored floor's registered block family only when the stair material is absent (TECHNICAL_DEFAULT). The existing stone-brick default covers families without stairs. Explicit stair block and state values reach the existing geometry executor.
 
 BuildingProfile carries optional, bounded geometry evidence for Stage P (NONBINDING_HINT). Research synthesis retains only entries citing URLs shown in its snippets. The planning model chooses form, dimensions and executable operators from the request and evidence.

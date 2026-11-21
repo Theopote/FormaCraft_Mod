@@ -41,8 +41,16 @@ public final class AssemblyCirculationOps {
         long planned = (long) (run + 1) * width * (1 + (support ? 1 : 0) + (carve ? clearH : 0))
                 + (carve ? (long) run * width * clearH : 0);
         if (planned > 100_000) throw new IllegalArgumentException("STAIR_SYSTEM exceeds 100000 planned block operations");
-        BlockState stairMat = adapter.pick(ctx, op, "stairs", "STAIR", 0xA57470L, Blocks.STONE_BRICK_STAIRS.getDefaultState());
         BlockState floorMat = adapter.pick(ctx, op, "floor", "FLOORING", 0xA57471L, Blocks.SMOOTH_STONE.getDefaultState());
+        BlockState stairDefault = Blocks.STONE_BRICK_STAIRS.getDefaultState();
+        if (!op.containsKey("stairs") && op.get("floor") instanceof String floor) {
+            String familyStairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(floor);
+            if (familyStairs != null) {
+                stairDefault = net.minecraft.registry.Registries.BLOCK.get(
+                        net.minecraft.util.Identifier.of(familyStairs)).getDefaultState();
+            }
+        }
+        BlockState stairMat = adapter.pick(ctx, op, "stairs", "STAIR", 0xA57470L, stairDefault);
         BlockState supportMat = adapter.pick(ctx, op, "supportMaterial", "FOUNDATION", 0xA57472L, floorMat);
         if (!(stairMat.getBlock() instanceof net.minecraft.block.StairsBlock) || floorMat.isAir())
             throw new IllegalArgumentException("STAIR_SYSTEM requires stairs material and a non-air floor");

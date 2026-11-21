@@ -8,6 +8,11 @@ from app.services.llm_plan_system_prompt import build_llm_plan_system_prompt
 
 
 class LlmPlanSystemPromptAuthorityTest(unittest.TestCase):
+    def test_assembly_stair_guidance_preserves_explicit_tread_choice(self):
+        prompt = build_llm_plan_system_prompt(None)
+        self.assertIn("Omit stairs to use the matching", prompt)
+        self.assertIn("specify stairs for an intentional material or state", prompt)
+
     def test_composition_bullets_are_nonbinding_examples(self):
         prompt = build_llm_plan_system_prompt(None)
         self.assertIn("NON-BINDING EXAMPLES", prompt)
