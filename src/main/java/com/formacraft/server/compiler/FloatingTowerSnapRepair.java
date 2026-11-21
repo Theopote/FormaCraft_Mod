@@ -9,12 +9,11 @@ import com.formacraft.common.llm.dto.Vec3i;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 /**
  * LLM castles often lift TOWER bases to mid-keep Y without a supporting plate, leaving
  * curtain towers floating. Snap each tower down onto the highest overlapping WALL/MASS top
- * (or y=0 when nothing supports it) and shift same-slot satellites with it.
+ * (or y=0 when nothing supports it) and shift authored host attachments with it.
  */
 final class FloatingTowerSnapRepair {
     private FloatingTowerSnapRepair() {}
@@ -39,12 +38,12 @@ final class FloatingTowerSnapRepair {
                     componentId(tower), y, supportTop, supportTop);
             components.set(i, shift(tower, dy));
             String towerId = componentId(tower);
-            String slot = tower.slotId();
             for (int j = 0; j < components.size(); j++) {
                 if (j == i) continue;
                 Component c = components.get(j);
                 if (c == null || c.relativePosition() == null) continue;
-                if (hostedBy(c, towerId) || sameSlotSatellite(c, slot, tower)) {
+                // Only authored host attachments travel with the tower — shared slot ≠ ownership.
+                if (hostedBy(c, towerId)) {
                     components.set(j, shift(c, dy));
                 }
             }
@@ -129,14 +128,6 @@ final class FloatingTowerSnapRepair {
         Object host = c.params().get("host_id");
         if (host == null) host = c.params().get("hostId");
         return towerId.equals(String.valueOf(host));
-    }
-
-    private static boolean sameSlotSatellite(Component c, String slot, Component tower) {
-        if (slot == null || !Objects.equals(slot, c.slotId())) return false;
-        if (c.relativePosition() == null || tower.relativePosition() == null) return false;
-        // Roofs / battlements authored above the tower base travel with the snap.
-        return c.relativePosition().y() >= tower.relativePosition().y()
-                && !"TOWER".equalsIgnoreCase(c.componentType());
     }
 
     private static String componentId(Component c) {

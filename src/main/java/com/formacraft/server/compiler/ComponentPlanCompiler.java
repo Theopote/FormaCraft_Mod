@@ -132,6 +132,12 @@ public final class ComponentPlanCompiler {
         plan = CourtyardRatioRepair.apply(plan);
         plan = WallThicknessFitRepair.apply(plan);
         plan = DuplicateComponentIdRepair.apply(plan);
+        // Canonicalize host_id/hostId before any repair that reads host identity
+        // (NarrowTower, floating snap, remap, etc.).
+        plan = HostAliasNormalizer.apply(plan);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return List.of();
+        }
         plan = FloorLayoutOverflowRepair.apply(plan);
         plan = PavilionOpenFrameRepair.apply(plan);
         plan = OctagonGreenhouseRepair.apply(plan);
@@ -185,10 +191,6 @@ public final class ComponentPlanCompiler {
         plan = FloatingTowerSnapRepair.apply(plan);
         plan = FloatingMassSnapRepair.apply(plan);
         plan = HostedPlateLevelRepair.apply(plan);
-        plan = HostAliasNormalizer.apply(plan);
-        if (AssemblyCompileDiagnostics.hasGap()) {
-            return List.of();
-        }
         plan = HostIdRemapRepair.apply(plan);
         plan = ExplicitDesignConflictRepair.apply(plan);
         // Land 重檐 / footprint / material intent before authored gates can hard-fail.

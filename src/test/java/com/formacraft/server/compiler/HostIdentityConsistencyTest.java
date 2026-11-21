@@ -272,6 +272,29 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
+    void floatingMassSnapDoesNotDragDistantSameSlotTerrace() {
+        var mass = new Component("MASS_MAIN", "site", new Vec3i(0, 10, 0),
+                new Dimensions(12, 12, 8), List.of(),
+                Map.of("component_id", "hall", "building_id", "hall"));
+        var deckPos = new Vec3i(80, 12, 0);
+        var deck = new Component("TERRACE", "site", deckPos,
+                new Dimensions(10, 10, 1), List.of(),
+                Map.of("component_id", "far_deck", "building_id", "far_deck"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(mass, deck)).build();
+        var repaired = FloatingMassSnapRepair.apply(plan);
+        var fixedDeck = repaired.components().stream()
+                .filter(c -> "far_deck".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(deckPos, fixedDeck.relativePosition(),
+                "distant same-slot terrace must not follow floating mass Y snap");
+        var fixedMass = repaired.components().stream()
+                .filter(c -> "hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(0, fixedMass.relativePosition().y(), "floating mass should still snap down");
+    }
+
+    @Test
     void multipleCrownsWithoutHostIdKeepDistinctPositions() {
         var mass = new Component("MASS_MAIN", "m", new Vec3i(0, 0, 0),
                 new Dimensions(16, 16, 14), List.of(),

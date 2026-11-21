@@ -77,6 +77,46 @@ class NarrowTowerStairRepairTest {
     }
 
     @Test
+    void keepsWindowsWhenFacadeUsesCamelCaseHostIdAlias() {
+        // HostAliasNormalizer runs before NarrowTower in the compiler; unit-test the
+        // same order so hostId=bell_tower is visible to the stair/window repair.
+        Component tower = new Component(
+                "MASS_MAIN",
+                "tower",
+                new Vec3i(0, 0, 0),
+                new Dimensions(7, 7, 16),
+                List.of(),
+                Map.of("component_id", "bell_tower", "hollow", true, "wall_thickness", 1)
+        );
+        Component facade = new Component(
+                "FACADE_WINDOWS",
+                "tower",
+                new Vec3i(0, 0, 0),
+                new Dimensions(7, 7, 16),
+                List.of(),
+                Map.of("hostId", "bell_tower", "window_ratio", 0.15, "faces", List.of("SOUTH"))
+        );
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .mode(LlmPlan.Mode.build)
+                .components(List.of(tower, facade))
+                .build();
+        plan = HostAliasNormalizer.apply(plan);
+        LlmPlan repaired = NarrowTowerStairRepair.apply(plan);
+        Component mass = repaired.components().stream()
+                .filter(c -> "MASS_MAIN".equals(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertNull(mass.params().get("window_style"));
+        assertFalse(Boolean.TRUE.equals(mass.params().get("suppress_windows")));
+        Component outFacade = repaired.components().stream()
+                .filter(c -> "FACADE_WINDOWS".equals(c.componentType()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("bell_tower", outFacade.params().get("host_id"));
+        assertNull(outFacade.params().get("hostId"));
+    }
+
+    @Test
     void stillSuppressesWindowsOnNarrowTowerWithoutAuthoredFacade() {
         Component tower = new Component(
                 "MASS_MAIN",

@@ -218,6 +218,9 @@ Hard-coded or inferred **architectural** choices (not pure geometry). Used as Ph
 | unhosted TERRACE/PAVING/FOUNDATION/BASE still slot-bound | `mill_channel` got `host_id=mill_mass` | **Fixed (2026-11-21):** authored-host-only for deck types |
 | `countCrownsForMass` required existing host_id | two host-less slot crowns still centered | **Fixed (2026-11-21):** count same-slot unresolved crowns with mass |
 | aligner read only `params.host_id` | camelCase `hostId` ignored → dual host fields | **Fixed (2026-11-21):** `HostAliasNormalizer` before remap; conflict → `E_HOST_ID_ALIAS_CONFLICT` |
+| `isAuthoredHostOnlyDeck` included FOUNDATION/BASE | unhosted FOUNDATION skipped → foundation realign CI fail | **Fixed (2026-11-21):** authored-host-only = TERRACE/PAVING; FOUNDATION/BASE still geometry-align |
+| `HostAliasNormalizer` after NarrowTower | camelCase facade host missed → suppress_windows | **Fixed (2026-11-21):** alias normalize right after duplicate-id scrub |
+| floating snap `sameSlotSatellite` | distant same-slot terrace dragged with mass Y | **Fixed (2026-11-21):** only `hostedBy` attachments shift |
 | `BaroqueMansionStyleRepair` ROOF `mayForceMansard` | sibling mansard unified authored hip/gable on same host | **Fixed (2026-11-20):** ROOF mansard fill requires blank `roof_type` |
 | `StyleIntentResolver.detectFlavor` plan-only | local Huizhou under plan Modern got flat/glass | **Fixed (2026-11-20):** `EffectiveBuildingStyleResolver`; local/host chain first; entrance `bindDerived` inherits |
 | `EffectiveBuildingStyleResolver` local-only | authored FACADE with host_id lacked style inheritance | **Fixed (2026-11-20):** resolve via host_id chain before plan style |

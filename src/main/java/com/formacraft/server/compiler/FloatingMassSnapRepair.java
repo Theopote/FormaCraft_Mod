@@ -9,7 +9,6 @@ import com.formacraft.common.llm.dto.Vec3i;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 /**
  * Snap floating primary masses (apartments / halls with y&gt;0 and no support) down onto
@@ -39,12 +38,12 @@ final class FloatingMassSnapRepair {
                     componentId(mass), y, supportTop, supportTop);
             components.set(i, shift(mass, dy));
             String massId = componentId(mass);
-            String slot = mass.slotId();
             for (int j = 0; j < components.size(); j++) {
                 if (j == i) continue;
                 Component c = components.get(j);
                 if (c == null || c.relativePosition() == null) continue;
-                if (hostedBy(c, massId) || sameSlotSatellite(c, slot, mass)) {
+                // Only authored host attachments travel with the mass — shared slot ≠ ownership.
+                if (hostedBy(c, massId)) {
                     components.set(j, shift(c, dy));
                 }
             }
@@ -105,13 +104,6 @@ final class FloatingMassSnapRepair {
         Object host = c.params().get("host_id");
         if (host == null) host = c.params().get("hostId");
         return massId.equals(String.valueOf(host));
-    }
-
-    private static boolean sameSlotSatellite(Component c, String slot, Component mass) {
-        if (slot == null || !Objects.equals(slot, c.slotId())) return false;
-        if (c.relativePosition() == null || mass.relativePosition() == null) return false;
-        if (isPrimaryMass(c)) return false;
-        return c.relativePosition().y() >= mass.relativePosition().y();
     }
 
     private static String componentId(Component c) {

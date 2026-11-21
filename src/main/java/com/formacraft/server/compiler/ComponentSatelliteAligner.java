@@ -1220,19 +1220,19 @@ final class ComponentSatelliteAligner {
         };
     }
 
-    /** Terraces / paving / foundations need an authored host — shared slot is not ownership. */
+    /**
+     * Independent decks/plazas need an authored host — shared slot is not ownership.
+     * FOUNDATION/BASE still align to a carrying mass for geometry without requiring host_id.
+     */
     private static boolean isAuthoredHostOnlyDeck(String type) {
-        return switch (type == null ? "" : type) {
-            case "FOUNDATION", "TERRACE", "BASE", "PAVING" -> true;
-            default -> false;
-        };
+        return "TERRACE".equals(type) || "PAVING".equals(type);
     }
 
     private static boolean shouldInjectSatelliteHostBinding(String type, String authoredHostId) {
         if (!isSatelliteAlignmentCandidate(type)) {
             return false;
         }
-        // Decks only stamp host when the plan already declared attachment.
+        // Independent decks only stamp host when the plan already declared attachment.
         if (isAuthoredHostOnlyDeck(type)) {
             return authoredHostId != null;
         }
