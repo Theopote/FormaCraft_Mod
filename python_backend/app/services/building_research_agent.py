@@ -1116,9 +1116,10 @@ def synthesize_profile_with_llm(
     if client is None:
         return None
 
+    shown_results = search_results[:4]
     snippets_block = "\n".join(
         f"- [{r.get('title', 'Ref')}] URL={r.get('url', '')} {r.get('snippet', '')[:400]}"
-        for r in search_results[:4]
+        for r in shown_results
     ) or "(no search results)"
 
     system = _research_synthesis_system_prompt()
@@ -1155,16 +1156,15 @@ def synthesize_profile_with_llm(
             response = _call()
         raw = response.choices[0].message.content
         data = json.loads(raw) if isinstance(raw, str) else {}
-        profile = profile_from_llm_dict(data, fallback_query=subject)
-        shown_urls = {str(result.get("url") or "").strip() for result in search_results[:4]} - {""}
-        profile.geometry_evidence = [
-            item for item in profile.geometry_evidence if set(item.source_urls) <= shown_urls
-        ]
-        if search_results and not profile.sources:
-            profile.sources = [
-                ProfileSource(title=r.get("title") or "", url=r.get("url") or "")
-                for r in search_results
-            ]
+        if isinstance(data, dict):
+            data.pop("sources", None)
+        sources_by_url: Dict[str, ProfileSource] = {}
+        for result in shown_results:
+            url = str(result.get("url") or "").strip()
+            if url:
+                sources_by_url.setdefault(url, ProfileSource(title=result.get("title") or "", url=url))
+        profile = profile_from_llm_dict(data, fallback_query=subject, geometry_source_urls=sources_by_url.keys())
+        profile.sources = list(sources_by_url.values())
         return profile
     except Exception as e:
         logger.warning("LLM profile synthesis failed: %s", e)

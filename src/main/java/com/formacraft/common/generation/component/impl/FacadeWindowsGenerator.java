@@ -9,6 +9,8 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.BlockPatchTargetResolver;
+import com.formacraft.common.palette.component.MaterialBlockFamily;
 import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
@@ -434,8 +436,11 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         if (explicitStyle != null) {
             String style = explicitStyle.toLowerCase(java.util.Locale.ROOT);
             if (style.contains("lattice") || style.contains("fence") || style.contains("bars")) return "minecraft:iron_bars";
-            if (style.contains("stained")) return "minecraft:blue_stained_glass";
-            if (style.contains("pane")) return "minecraft:glass_pane";
+            boolean stained = style.contains("stained");
+            boolean pane = style.contains("pane");
+            if (stained || pane) {
+                return resolveStyledGlazing(semantic, stained, pane);
+            }
         }
         // 1. 优先使用动态解析（如果 LlmPlan 有 style_attributes）
         if (semantic.styleAttributes() != null) {
@@ -476,6 +481,22 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
             }
         }
         return isLattice ? "minecraft:iron_bars" : "minecraft:glass_pane";
+    }
+
+    private static String resolveStyledGlazing(SemanticComponent semantic, boolean stained, boolean pane) {
+        var attrs = semantic.styleAttributes();
+        String glazing = attrs == null ? null
+                : attrs.resolvePaletteBlock("glazing", "window", "glass", "window_material", "window_block");
+        var state = BlockPatchTargetResolver.parse(glazing);
+        if (state != null && (!stained || state.getBlock() instanceof net.minecraft.block.StainedGlassBlock
+                || state.getBlock() instanceof net.minecraft.block.StainedGlassPaneBlock)) {
+            if (!pane || state.getBlock() instanceof net.minecraft.block.PaneBlock) return glazing;
+            String variantId = MaterialBlockFamily.pane(glazing);
+            var variant = BlockPatchTargetResolver.parse(variantId);
+            if (variant != null && variant.getBlock() instanceof net.minecraft.block.PaneBlock) return variantId;
+        }
+        if (stained) return pane ? "minecraft:blue_stained_glass_pane" : "minecraft:blue_stained_glass";
+        return "minecraft:glass_pane";
     }
 
     /** Opaque wall materials must not fill window openings as solid grey slabs. */

@@ -11,6 +11,7 @@ public final class WoodLatticeMaterial {
         Object style=params.getOrDefault("window_style",params.get("windowStyle"));
         if(style==null || !Set.of("wood_lattice","wooden_lattice","timber_lattice")
                 .contains(style.toString().toLowerCase(Locale.ROOT)))return null;
+        if (hasExplicitGlazing(params)) return null;
         String wood="";
         for(String key:List.of("lattice_material","material","frame_material")) {
             Object value=params.get(key);if(value!=null&&!value.toString().isBlank()) {wood=value.toString().trim();break;}
@@ -24,5 +25,16 @@ public final class WoodLatticeMaterial {
         if(base.contains("dark_oak"))return "minecraft:dark_oak_fence";
         if(base.contains("spruce"))return "minecraft:spruce_fence";
         return "minecraft:oak_fence";
+    }
+
+    private static boolean hasExplicitGlazing(Map<String, Object> params) {
+        boolean marked = Boolean.TRUE.equals(params.get("window_material_explicit"))
+                || Boolean.TRUE.equals(params.get("glass_explicit"));
+        if (params.get("constraint_sources") instanceof Map<?, ?> sources) {
+            String source = Objects.toString(sources.get("glass_block"), "").trim().toUpperCase(Locale.ROOT);
+            marked |= Set.of("USER_EXPLICIT", "USER", "PLAYER").contains(source);
+        }
+        return marked && List.of("glass_block", "glazing_block", "glass_material", "window_block").stream()
+                .anyMatch(key -> params.get(key) instanceof String value && !value.isBlank());
     }
 }

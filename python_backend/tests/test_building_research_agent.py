@@ -27,17 +27,20 @@ def test_geometry_evidence_reaches_planning_only_with_shown_sources():
     feature = {"feature": "Curved canopy", "geometry": "Bent shell",
                "relationship": "Connects unequal wings", "source_urls": [source["url"]]}
     unseen = {**feature, "feature": "Unsupported spire", "source_urls": ["https://example.com/unseen"]}
-    raw = json.dumps({"identity": {"name": "Example hall"}, "geometry_evidence": [feature, {}, unseen]})
+    raw = json.dumps({"identity": {"name": "Example hall"}, "geometry_evidence": [{}, *([unseen] * 8), feature, feature],
+                      "sources": [{"title": "Invented source", "url": unseen["source_urls"][0]}]})
     response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=raw))])
     profile = synthesize_profile_with_llm(object(), "test", "Example hall", "保留双翼，不要雨棚",
                                           [source], call_with_timeout=lambda *_: response)
     assert profile is not None
     assert profile.identity.name == "Example hall"
     assert [item.model_dump() for item in profile.geometry_evidence] == [feature]
+    assert [item.model_dump() for item in profile.sources] == [{"title": source["title"], "url": source["url"]}]
     for prompt in (format_profile_for_prompt(profile), build_plan_stage_user_block(profile, "保留双翼，不要雨棚")):
         assert "Connects unequal wings" in prompt
         assert source["url"] in prompt
         assert "Unsupported spire" not in prompt
+        assert "Invented source" not in prompt
     assert "geometry_evidence" not in BuildingProfile().to_prompt_dict()
 
 

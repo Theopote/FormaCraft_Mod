@@ -65,6 +65,52 @@ class Live0121RegressionTest {
         var patch = new com.formacraft.common.patch.BlockPatch("place", 0, 0, 0, target);
         assertTrue(OpeningMaterialAudit.inspect(expectations, List.of(patch)).isMatched());
     }
+
+    @Test void userLockedGlazingWinsOverWoodenLattice() {
+        var component = new Component("FACADE_WINDOWS", "slot", new Vec3i(0, 0, 0),
+                new Dimensions(5, 1, 6), List.of(), Map.of(
+                "window_style", "wooden_lattice", "lattice_material", "minecraft:birch_planks",
+                "glass_block", "minecraft:blue_stained_glass_pane",
+                "constraint_sources", Map.of("glass_block", "USER_EXPLICIT"),
+                "window_width", 1, "window_height", 2,
+                "localized_window", true, "localized_face", "SOUTH"));
+        var patches = new com.formacraft.common.generation.component.impl.FacadeWindowsGenerator()
+                .generate(new SemanticComponent("FACADE_WINDOWS", null, component));
+        assertTrue(patches.stream().anyMatch(p -> "minecraft:blue_stained_glass_pane".equals(p.targetBlock())));
+        assertFalse(patches.stream().anyMatch(p -> "minecraft:birch_fence".equals(p.targetBlock())));
+        assertTrue(OpeningMaterialAudit.isUserExplicitWindowMaterial(component));
+    }
+
+    @Test void paneStyleUsesThePlanGlazingFamilyUnlessComponentSpecifiesABlock() {
+        var params = new HashMap<String, Object>(Map.of(
+                "window_style", "pane", "window_width", 1, "window_height", 2,
+                "localized_window", true, "localized_face", "SOUTH"));
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                Map.of("glazing", "minecraft:cyan_stained_glass"), null, null, null, null);
+        var generator = new com.formacraft.common.generation.component.impl.FacadeWindowsGenerator();
+        for (String expected : List.of("minecraft:cyan_stained_glass_pane", "minecraft:red_stained_glass")) {
+            var component = new Component("FACADE_WINDOWS", "slot", new Vec3i(0, 0, 0),
+                    new Dimensions(5, 1, 6), List.of(), Map.copyOf(params));
+            var patches = generator.generate(new SemanticComponent("FACADE_WINDOWS", null, component, "DEFAULT", attrs));
+            assertTrue(patches.stream().anyMatch(p -> expected.equals(p.targetBlock())));
+            params.put("glass_block", "minecraft:red_stained_glass");
+        }
+    }
+
+    @Test void stainedWindowPreservesPaletteColorAndRequestedPaneShape() {
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                Map.of("glazing", "minecraft:orange_stained_glass"), null, null, null, null);
+        var generator = new com.formacraft.common.generation.component.impl.FacadeWindowsGenerator();
+        for (String style : List.of("stained", "stained_pane")) {
+            var component = new Component("FACADE_WINDOWS", "slot", new Vec3i(0, 0, 0),
+                    new Dimensions(5, 1, 6), List.of(), Map.of(
+                    "window_style", style, "window_width", 1, "window_height", 2,
+                    "localized_window", true, "localized_face", "SOUTH"));
+            var patches = generator.generate(new SemanticComponent("FACADE_WINDOWS", null, component, "DEFAULT", attrs));
+            String expected = "minecraft:orange_stained_glass" + (style.endsWith("_pane") ? "_pane" : "");
+            assertTrue(patches.stream().anyMatch(p -> expected.equals(p.targetBlock())));
+        }
+    }
     @Test void narrowCabinWallDoesNotReceiveGroundGlass() throws Exception {
         var cells=snapshot(compile(load("010719")),BlockPos.ORIGIN);
         var patch=com.formacraft.server.edit.WindowInsertCompiler.compile(cells,BlockPos.ORIGIN,Set.of(),2,2);

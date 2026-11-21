@@ -1,6 +1,12 @@
 # Design decision inventory
 
+Pane-style windows use a registered pane variant from the chosen glazing palette when the component omits a block (TECHNICAL_DEFAULT). Component materials take precedence, and the existing clear-pane default covers absent or unsupported palette shapes.
+
+Stained window styles use registered stained glazing from the plan palette when available (TECHNICAL_DEFAULT). A combined stained-pane style keeps the pane shape. Blue is the existing color default when compatible palette glazing is unavailable.
+
 Wood lattice window execution resolves a selected plank material to its registered fence family (GEOMETRY). Explicit fence IDs keep precedence and existing descriptive wood/default handling remains available.
+
+User-locked glazing takes precedence over the lattice material at the window surface (HARD_CONSTRAINT). Generation and the opening material audit share the same lattice resolution rule.
 
 Explicit wood-lattice fence states are preserved at emission (FORMAT_REPAIR). The opening material audit compares block identity independently of connection and waterlogged state.
 
@@ -24,7 +30,7 @@ Assembly STAIR_SYSTEM uses a declared floor block's matching stair family as a f
 
 Straight stairs, interior stair inference and structure accessory repair infer a stair block from the authored floor's registered block family only when the stair material is absent (TECHNICAL_DEFAULT). The existing stone-brick default covers families without stairs. Explicit stair block and state values reach the existing geometry executor.
 
-BuildingProfile carries optional, bounded geometry evidence for Stage P (NONBINDING_HINT). Research synthesis retains only entries citing URLs shown in its snippets. The planning model chooses form, dimensions and executable operators from the request and evidence.
+BuildingProfile carries optional, bounded geometry evidence for Stage P (NONBINDING_HINT). Research synthesis records the actual snippet sources and applies the evidence limit after validation and deduplication (HARD_CONSTRAINT). The planning model chooses form, dimensions and executable operators from the request and evidence.
 
 The Assembly repair boundary rejects candidates that drop every authored Assembly component, change unrelated components or alter the plan-wide mode, anchor, layout, constraints or palette (HARD_CONSTRAINT). Malformed masses with nested Assembly remain in repair scope. Rejected candidates retain the original diagnostic. The model owns revisions inside Assembly and can report an explicit capability gap.
 
