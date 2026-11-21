@@ -57,6 +57,8 @@ class FbdProgramTest(unittest.TestCase):
         with patch.dict('os.environ', {'LLMPLAN_FBD': 'off'}):
             self.assertEqual('', fbd_prompt_block())
         with patch.dict('os.environ', {'LLMPLAN_FBD': 'on'}):
+            self.assertEqual('', fbd_prompt_block('不要使用 FBD，生成云纹折带馆'))
+            self.assertEqual('', fbd_prompt_block('Do not use FBD for this building'))
             prompt = fbd_prompt_block()
             self.assertIn('"twistTurns":{"type":"scalar","min":-2,"max":2}', prompt)
             self.assertIn('no queries', prompt)

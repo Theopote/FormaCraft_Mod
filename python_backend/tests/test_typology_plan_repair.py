@@ -6,6 +6,32 @@ import unittest
 
 
 class TypologyPlanRepairTest(unittest.TestCase):
+    def test_landmark_compat_defaults_preserve_authored_geometry(self):
+        from app.services.typology_plan_repair import repair_migrated_landmark_components
+
+        authored = {
+            "module_id": "famen_pagoda",
+            "levels": 9,
+            "height": 31,
+            "niche_rhythm": "none",
+            "design_sources": {"levels": "AI_PLANNED", "height": "USER_EXPLICIT"},
+        }
+        position = {"x": 3, "y": 2, "z": -5}
+        dimensions = {"width": 14, "depth": 12, "height": 31}
+        plan = {"layout": {"slots": [{"slot_id": "upper", "anchor": {"x": 20, "y": 4, "z": 40}}]},
+                "components": [{"component_type": "MODULE", "slot_id": "upper",
+                                "relative_position": position, "dimensions": dimensions, "params": authored}]}
+        result, count = repair_migrated_landmark_components(plan)
+        self.assertEqual(count, 1)
+        params = result["components"][0]["params"]
+        for field in ("levels", "height", "niche_rhythm", "design_sources"):
+            self.assertEqual(params[field], authored[field])
+        self.assertEqual(params["footprint"], "octagon")
+        self.assertEqual(authored["module_id"], "famen_pagoda")
+        self.assertEqual(result["components"][0]["slot_id"], "upper")
+        self.assertEqual(result["components"][0]["relative_position"], position)
+        self.assertEqual(result["components"][0]["dimensions"], dimensions)
+
     def test_hosted_stair_typology_preserves_envelope(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
         for host_key in ("host_id", "hostId"):
@@ -121,7 +147,7 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertIn("typology:suspension_bridge", comp["features"])
         self.assertEqual(comp["params"]["typology_id"], "suspension_bridge")
         self.assertEqual(comp["params"]["reference_landmark"], "golden_gate_bridge")
-        self.assertEqual(comp["params"]["span"], 180)
+        self.assertEqual(comp["params"]["span"], 120)
 
     def test_gothic_cathedral_module_repaired_to_structure(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components

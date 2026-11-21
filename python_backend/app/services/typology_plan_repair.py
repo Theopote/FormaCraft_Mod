@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 _TYPOLOGY_EXCLUSIVE_PERIPHERALS = frozenset({"PAVING", "PATH", "COURTYARD_SPACE"})
 
-# Mirrors Java TypologyReferencePresets — applied after reference_landmark merge.
+# Mirrors Java TypologyReferencePresets: compatibility defaults precede authored values.
 _REFERENCE_PRESETS: Dict[str, Dict[str, Any]] = {
     "famen_pagoda": {
         "footprint": "octagon",
@@ -865,14 +865,14 @@ def _typology_params(
     defn = get_typology(typology_id)
     if defn and defn.default_params:
         params.update(defn.default_params)
-    if existing_params:
-        cleaned = {k: v for k, v in existing_params.items() if k not in ("module_id", "landmark")}
-        params.update(cleaned)
     if reference_landmark:
         params.setdefault("reference_landmark", reference_landmark)
         preset = _REFERENCE_PRESETS.get(reference_landmark.strip().lower())
         if preset:
             params.update(preset)
+    if existing_params:
+        cleaned = {k: v for k, v in existing_params.items() if k not in ("module_id", "landmark")}
+        params.update(cleaned)
     params["typology_id"] = typology_id
     params["structural_typology"] = typology_id
     return params
@@ -893,6 +893,7 @@ def _convert_component(
     ]
     features.append(f"typology:{typology_id}")
     return {
+        **({"slot_id": comp["slot_id"]} if "slot_id" in comp else {}),
         "component_type": "STRUCTURE",
         "relative_position": comp.get("relative_position") or {"x": 0, "y": 0, "z": 0},
         "dimensions": dims,

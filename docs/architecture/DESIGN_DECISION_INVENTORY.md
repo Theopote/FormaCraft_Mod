@@ -2,6 +2,10 @@
 
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 
+Legacy MODULE-to-typology conversion merges registry and reference defaults before authored parameters, matching Java's precedence. Previously reference defaults could replace authored geometry, such as an explicit bridge span of 120 with 180. This change narrows an existing explicit-template compatibility rule without adding defaults or authorizing a new route.
+
+The FBD prompt gate treats an existing user opt-out as authoritative even when the environment enables FBD capability guidance. This is a request constraint on prompt content and introduces no new keyword or geometry default.
+
 Flat roof host coverage remains a Java geometry constraint. `E_FLAT_ROOF_HOST_COVERAGE` now provides the host and part IDs, missing cell count, and first missing position in plan coordinates. The diagnostic does not resize the roof or change the plan.
 
 Roof omission uses the same first nonblank parameter and alias resolution as the roof generator (FORMAT_REPAIR). A blank canonical field can defer to an authored alias, while a nonblank canonical value retains precedence. The omission check adds no default or preset.

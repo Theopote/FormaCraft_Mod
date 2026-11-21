@@ -5,12 +5,15 @@ import re
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[3] / 'src/main/resources/assets/formacraft/fbd'
+_FBD_OPT_OUT = re.compile(
+    r'(?i)(?:不要(?:使用|用)?|不使用|不用|禁用|关闭)\s*(?:实验性\s*)?FBD|do not use FBD'
+)
 
 
 def requests_fbd(text: str) -> bool:
     """Use only the current human message, never the assembled schema or history."""
     text = text or ''
-    if re.search(r'(?i)(?:不要(?:使用|用)?|不使用|不用|禁用|关闭)\s*(?:实验性\s*)?FBD|do not use FBD', text):
+    if _FBD_OPT_OUT.search(text):
         return False
     return bool(re.search(r'(?i)(?<![a-z0-9_])fbd(?![a-z0-9_])|fbd_program', text))
 
@@ -23,6 +26,8 @@ def is_fbd_only_plan(plan: dict) -> bool:
 
 
 def fbd_prompt_block(user_text: str = '') -> str:
+    if _FBD_OPT_OUT.search(user_text or ''):
+        return ''
     if not requests_fbd(user_text) and (os.getenv('LLMPLAN_FBD') or 'off').strip().lower() not in ('1', 'true', 'on'):
         return ''
     signatures = json.loads((_ROOT / 'primitives_v0.json').read_text(encoding='utf-8'))
