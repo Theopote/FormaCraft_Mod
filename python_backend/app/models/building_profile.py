@@ -6,7 +6,7 @@ Research Agent 从网络检索 + 规则/LLM 归纳生成；Plan 阶段作为 Llm
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import AbstractSet, Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -156,7 +156,9 @@ def validate_building_profile(data: Any) -> BuildingProfile:
     return BuildingProfile.model_validate(data)
 
 
-def profile_from_llm_dict(data: Dict[str, Any], *, fallback_query: str = "") -> BuildingProfile:
+def profile_from_llm_dict(
+    data: Dict[str, Any], *, fallback_query: str = "", geometry_source_urls: AbstractSet[str] | None = None,
+) -> BuildingProfile:
     """Merge LLM output with defaults; tolerate partial responses."""
     base = BuildingProfile(query=fallback_query or str(data.get("query") or ""))
     if not data:
@@ -183,11 +185,22 @@ def profile_from_llm_dict(data: Dict[str, Any], *, fallback_query: str = "") -> 
             merged["sources"] = data["sources"]
         if isinstance(data.get("geometry_evidence"), list):
             evidence = []
-            for item in data["geometry_evidence"][:8]:
+            seen = set()
+            for item in data["geometry_evidence"]:
                 try:
-                    evidence.append(ProfileGeometryEvidence.model_validate(item))
+                    entry = ProfileGeometryEvidence.model_validate(item)
                 except ValidationError:
                     continue
+                urls = frozenset(entry.source_urls)
+                if geometry_source_urls is not None and not urls <= geometry_source_urls:
+                    continue
+                identity = (entry.feature, entry.geometry, entry.relationship, urls)
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                evidence.append(entry)
+                if len(evidence) == 8:
+                    break
             merged["geometry_evidence"] = evidence
         if isinstance(data.get("style_specs"), list):
             merged["style_specs"] = data["style_specs"]

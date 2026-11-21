@@ -499,7 +499,7 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
     return "\n".join(parts).strip()
 
 
-def _llm_plan_massing_prepass(client, model, system_prompt, user_prompt, req, timeout_sec):
+def _llm_plan_massing_prepass(client, model, system_prompt, user_prompt, req, timeout_sec, *, geometry_evidence=None):
     """
     B2 两阶段生成 —— 阶段1：只产出"体量/布局/风格骨架"的紧凑 JSON，用于约束阶段2的细化，
     降低单次超长 prompt 的任务过载。任何失败都返回 None 由调用方回退单阶段。
@@ -512,6 +512,11 @@ def _llm_plan_massing_prepass(client, model, system_prompt, user_prompt, req, ti
             "\"materials\" (wall / roof / accent). "
             "Do NOT output components, slots, or block ids yet. Keep it concise (< 40 lines)."
         )
+        if geometry_evidence:
+            user_prompt += (
+                "\n\nResearch geometry observations (optional evidence; explicit user requirements and omissions win):\n"
+                + json.dumps(geometry_evidence, ensure_ascii=False)
+            )
         messages = [{"role": "system", "content": instr},
                     {"role": "user", "content": user_prompt}]
         response, _label = call_chat_with_llm_plan_response_formats(
@@ -644,10 +649,17 @@ def generate_llm_plan(req: BuildRequest) -> dict:
 
         # B2 两阶段：先做体量骨架预跑，再把骨架作为约束注入细化阶段（默认关闭）。
         if _LLMPLAN_TWO_STAGE:
-            skeleton = _llm_plan_massing_prepass(client, model, system_prompt, user_prompt, req, timeout_sec)
+            from .building_plan_stage import is_research_two_phase_enabled
+
+            geometry_evidence = (
+                building_profile.to_prompt_dict().get("geometry_evidence")
+                if building_profile is not None and is_research_two_phase_enabled() else None
+            )
+            skeleton = _llm_plan_massing_prepass(client, model, system_prompt, user_prompt, req, timeout_sec,
+                                                geometry_evidence=geometry_evidence)
             if skeleton:
-                user_prompt = ("[MASSING SKELETON — refine this into a full LlmPlan; stay consistent "
-                               "with the massing/style/materials below]\n" + skeleton + "\n\n" + user_prompt)
+                user_prompt = ("[MASSING SKELETON — preliminary design; revise where the user request or "
+                               "supported geometry requires it]\n" + skeleton + "\n\n" + user_prompt)
 
         # PR-2: Research → Plan 两阶段 — profile 就绪后注入 Stage P prompt（在 massing 之后、LLM 之前）
         if building_profile is not None:

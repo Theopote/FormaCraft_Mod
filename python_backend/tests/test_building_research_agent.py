@@ -44,6 +44,25 @@ def test_geometry_evidence_reaches_planning_only_with_shown_sources():
     assert "geometry_evidence" not in BuildingProfile().to_prompt_dict()
 
 
+def test_massing_draft_receives_geometry_as_optional_evidence():
+    from app.services.ai_planner import _llm_plan_massing_prepass
+
+    request = "保留双翼，不要雨棚"
+    evidence = [{"feature": "Curved canopy", "geometry": "Bent shell",
+                 "source_urls": ["https://example.com/archive"]}]
+    response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content='{"massing": {}}'))])
+    with patch("app.services.ai_planner.call_chat_with_llm_plan_response_formats",
+               return_value=(response, "json")) as call:
+        draft = _llm_plan_massing_prepass(object(), "test", "", request, SimpleNamespace(), 1,
+                                          geometry_evidence=evidence)
+    assert draft == '{"massing": {}}'
+    prompt = call.call_args.kwargs["messages"][-1]["content"]
+    assert prompt.startswith(request)
+    assert "explicit user requirements and omissions win" in prompt
+    assert "Bent shell" in prompt
+    assert "https://example.com/archive" in prompt
+
+
 MOCK_RESULTS = [
     {
         "title": "Suzhou Museum - Wikipedia",
