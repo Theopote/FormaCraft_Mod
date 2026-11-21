@@ -54,6 +54,22 @@ def _plan_has_assembly_component(plan: Dict[str, Any]) -> bool:
     )
 
 
+def _components_outside_assembly_repair(plan: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return [
+        component for component in (plan.get("components") or [])
+        if isinstance(component, dict)
+        and str(component.get("component_type") or "").upper() != "ASSEMBLY"
+        and not (
+            isinstance(component.get("params"), dict)
+            and isinstance(component["params"].get("assembly"), dict)
+            and (
+                str(component.get("component_type") or "").upper().startswith("MASS_")
+                or str(component.get("component_type") or "").upper() == "MAIN_MASS"
+            )
+        )
+    ]
+
+
 def finalize_assembly_plan_or_gap(
     plan: Dict[str, Any],
     user_text: Optional[str],
@@ -149,7 +165,15 @@ def repair_assembly_plan_with_llm(
     normalized = normalize_fn(repaired, req)
     validate_llm_plan_dict(normalized)
     user_text = getattr(req, "userMessage", None) if req is not None else None
-    normalized, post_issues = normalize_and_validate_assembly_plan(normalized, user_text)
+    normalized, _ = normalize_and_validate_assembly_plan(normalized, user_text)
+    if str(normalized.get("plan_status") or "").strip().lower() != "capability_gap":
+        if _plan_has_assembly_component(plan) and not _plan_has_assembly_component(normalized):
+            raise ValueError("Assembly repair removed all Assembly components")
+        if _components_outside_assembly_repair(normalized) != _components_outside_assembly_repair(plan):
+            raise ValueError("Assembly repair changed components outside its repair scope")
+        for field in ("mode", "anchor", "layout", "global_constraints", "style_profile", "style_attributes"):
+            if normalized.get(field) != plan.get(field):
+                raise ValueError(f"Assembly repair changed plan-wide field: {field}")
     return normalized
 
 

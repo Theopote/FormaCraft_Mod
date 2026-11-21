@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 
 RecommendedComponentsSource = Literal["default", "research", "hint", "user", "rule"]
@@ -82,6 +82,15 @@ class ProfileSource(BaseModel):
     url: str = ""
 
 
+class ProfileGeometryEvidence(BaseModel):
+    model_config = {"str_strip_whitespace": True}
+
+    feature: str = Field(min_length=1, max_length=120)
+    geometry: str = Field(min_length=1, max_length=400)
+    relationship: Optional[str] = Field(default=None, max_length=400)
+    source_urls: List[str] = Field(min_length=1, max_length=4)
+
+
 class StyleFeatureEvidence(BaseModel):
     feature: str
     scope: str = "building"
@@ -123,6 +132,7 @@ class BuildingProfile(BaseModel):
     scale_hints: ProfileScaleHints = Field(default_factory=ProfileScaleHints)
     minecraft_strategy: ProfileMinecraftStrategy = Field(default_factory=ProfileMinecraftStrategy)
     sources: List[ProfileSource] = Field(default_factory=list)
+    geometry_evidence: List[ProfileGeometryEvidence] = Field(default_factory=list, max_length=8)
     research_notes: Optional[str] = None
     reference_blueprint: Optional[Dict[str, Any]] = None
     fidelity_tier: Optional[str] = None
@@ -132,7 +142,10 @@ class BuildingProfile(BaseModel):
 
     def to_prompt_dict(self) -> Dict[str, Any]:
         """Compact dict for LLM prompt injection."""
-        return self.model_dump(exclude_none=True)
+        payload = self.model_dump(exclude_none=True)
+        if not self.geometry_evidence:
+            payload.pop("geometry_evidence")
+        return payload
 
 
 def validate_building_profile(data: Any) -> BuildingProfile:
@@ -168,6 +181,14 @@ def profile_from_llm_dict(data: Dict[str, Any], *, fallback_query: str = "") -> 
             merged["query"] = data["query"]
         if isinstance(data.get("sources"), list):
             merged["sources"] = data["sources"]
+        if isinstance(data.get("geometry_evidence"), list):
+            evidence = []
+            for item in data["geometry_evidence"][:8]:
+                try:
+                    evidence.append(ProfileGeometryEvidence.model_validate(item))
+                except ValidationError:
+                    continue
+            merged["geometry_evidence"] = evidence
         if isinstance(data.get("style_specs"), list):
             merged["style_specs"] = data["style_specs"]
         if data.get("research_notes"):

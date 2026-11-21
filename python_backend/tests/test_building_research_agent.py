@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -15,7 +16,29 @@ from app.services.building_research_agent import (
     plan_search_queries,
     research_building_profile,
     synthesize_profile_rule_based,
+    synthesize_profile_with_llm,
 )
+
+def test_geometry_evidence_reaches_planning_only_with_shown_sources():
+    from app.services.building_plan_stage import build_plan_stage_user_block
+
+    source = {"title": "Example archive", "url": "https://example.com/archive",
+              "snippet": "The curved canopy connects two unequal wings."}
+    feature = {"feature": "Curved canopy", "geometry": "Bent shell",
+               "relationship": "Connects unequal wings", "source_urls": [source["url"]]}
+    unseen = {**feature, "feature": "Unsupported spire", "source_urls": ["https://example.com/unseen"]}
+    raw = json.dumps({"identity": {"name": "Example hall"}, "geometry_evidence": [feature, {}, unseen]})
+    response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=raw))])
+    profile = synthesize_profile_with_llm(object(), "test", "Example hall", "保留双翼，不要雨棚",
+                                          [source], call_with_timeout=lambda *_: response)
+    assert profile is not None
+    assert profile.identity.name == "Example hall"
+    assert [item.model_dump() for item in profile.geometry_evidence] == [feature]
+    for prompt in (format_profile_for_prompt(profile), build_plan_stage_user_block(profile, "保留双翼，不要雨棚")):
+        assert "Connects unequal wings" in prompt
+        assert source["url"] in prompt
+        assert "Unsupported spire" not in prompt
+    assert "geometry_evidence" not in BuildingProfile().to_prompt_dict()
 
 
 MOCK_RESULTS = [

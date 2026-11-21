@@ -64,6 +64,13 @@ class AssemblyShellOpsTest {
         assertTrue(AssemblySpecValidator.validate(Map.of("ops", List.of(Map.of("op", "LOFT_SURFACE",
                 "sections", List.of(start, shortSection))))).stream()
                 .anyMatch(issue -> issue.code().equals("E_LOFT_PROFILE_INVALID")));
+        var longerSection = Map.of("rings", List.of(List.of(
+                Map.of("x", 0, "y", 2), Map.of("x", 4, "y", 3), Map.of("x", 8, "y", 2))));
+        var mismatch = AssemblySpecValidator.validate(Map.of("ops", List.of(Map.of("op", "LOFT_SURFACE",
+                "sections", List.of(start, longerSection))))).stream()
+                .filter(issue -> issue.code().equals("E_LOFT_PROFILE_COUNT")).findFirst().orElseThrow();
+        assertEquals("$.ops[0].sections[1].rings", mismatch.path());
+        assertEquals("轮廓点数应为 2，实际为 3", mismatch.message());
     }
 
     @Test

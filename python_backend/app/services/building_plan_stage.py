@@ -269,6 +269,8 @@ def build_plan_stage_user_block(
         "",
         building_use_guidance(user_request),
         "Planning checklist (open-world — AI is the designer):",
+        "Use geometry_evidence when present as observations about shape and relationships. "
+        "Choose supported geometry operators yourself and honor the original request.",
         "",
         "Evidence-gated style feature defaults (parameter mappings, not verified geometry):",
         json.dumps(feature_defaults, ensure_ascii=False),

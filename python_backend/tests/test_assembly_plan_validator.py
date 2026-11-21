@@ -20,6 +20,7 @@ class AssemblyPlanValidatorTest(unittest.TestCase):
         }}]}
         gap = finalize_assembly_plan_or_gap(plan, "建造折光匣斜面")["capability_gap"]
         self.assertEqual("E_LOFT_PROFILE_COUNT", gap["code"])
+        self.assertEqual("Expected 2 profile points, got 3", gap["message"])
         self.assertTrue(gap["path"].endswith("sections[1].profilePoints"))
         self.assertEqual(3, len(second))
         second.pop(1)

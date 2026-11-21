@@ -1,14 +1,39 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.llm.parser.LlmPlanParser;
+import com.formacraft.common.compiler.semantic.SemanticComponent;
+import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
+import com.formacraft.server.generation.component.impl.StraightStairComponentGenerator;
 import org.junit.jupiter.api.*;
 import java.nio.file.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class Oct20AccessReplayTest {
     @BeforeAll static void setup() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
+    @Test void straightStairsUseFloorFamilyOnlyWhenTreadIsOmitted() {
+        var params = new HashMap<String, Object>(Map.of(
+                "floor", "minecraft:smooth_quartz",
+                "from", Map.of("x", 0, "y", 0, "z", 0),
+                "to", Map.of("x", 0, "y", 2, "z", 3)));
+        for (String expected : List.of("smooth_quartz_stairs", "oak_stairs")) {
+            var stair = new Component("STAIR_SYSTEM", "flight", new Vec3i(0, 0, 0),
+                    new Dimensions(3, 4, 3), List.of(), Map.copyOf(params));
+            var patches = StraightStairComponentGenerator.generate(new SemanticComponent("STAIR_SYSTEM", null, stair));
+            assertFalse(patches.isEmpty(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+            assertTrue(patches.stream().anyMatch(p -> p.targetBlock() != null
+                    && p.targetBlock().contains(expected)
+                    && (!expected.equals("oak_stairs") || p.targetBlock().contains("waterlogged=true"))));
+            params.put("stairs", "minecraft:oak_stairs[waterlogged=true]");
+        }
+    }
+
     @TestFactory Stream<DynamicTest> loggedPlans() {
         // Plan 2 historical capture stays height=8 (coplanar pyramid conflict). Compile success
         // uses the explicit repaired fixture — never rewrite the immutable LLM raw capture.

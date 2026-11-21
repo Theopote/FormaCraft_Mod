@@ -332,7 +332,7 @@ def _validate_geometry_fields(
                 point_count = len(profile)
             elif len(profile) != point_count:
                 issues.append(AssemblyPlanIssue(f"{section_path}.{field}", "E_LOFT_PROFILE_COUNT",
-                                               "Loft sections must have matching profile point counts"))
+                                               f"Expected {point_count} profile points, got {len(profile)}"))
     if kind == "OPENINGS" and not comp.get("face") and not comp.get("faces"):
         issues.append(AssemblyPlanIssue(path + '.face', "E_FACE_MISSING",
                                        "OPENINGS requires face/faces; side is not an executable face field"))
@@ -469,6 +469,8 @@ def format_repair_prompt(plan: Dict[str, Any], issues: List[AssemblyPlanIssue]) 
         "Rules:",
         '- Use component_type="ASSEMBLY" at top level (never nest params.assembly inside MASS_*).',
         "- Preserve the requested geometry and valid model-authored parameters. Use a preset only if the user explicitly requested its ID.",
+        "- Keep the Assembly geometry in the repaired plan. If it cannot be represented, return capability_gap.",
+        "- Preserve the plan mode, anchor, layout, global constraints, style profile and style attributes.",
         '- Connection endpoints must be "ComponentId.port" using valid ports (center, top_center, bottom_center, north, ...).',
         '- If geometry is unsupported, return plan_status="capability_gap" with capability_gap{code,message,path,suggestions}.',
     ])

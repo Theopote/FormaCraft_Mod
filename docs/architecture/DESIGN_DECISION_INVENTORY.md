@@ -1,6 +1,12 @@
 # Design decision inventory
 
-Ordinary planning exposes the existing LOFT_SURFACE section contract (NONBINDING_HINT). Matching ordered profiles are validated before execution (HARD_CONSTRAINT). Profile shape, placement, caps and materials remain model-authored.
+Straight stairs, interior stair inference and structure accessory repair infer a stair block from the authored floor's registered block family only when the stair material is absent (TECHNICAL_DEFAULT). The existing stone-brick default covers families without stairs. Explicit stair block and state values reach the existing geometry executor.
+
+BuildingProfile carries optional, bounded geometry evidence for Stage P (NONBINDING_HINT). Research synthesis retains only entries citing URLs shown in its snippets. The planning model chooses form, dimensions and executable operators from the request and evidence.
+
+The Assembly repair boundary rejects candidates that drop every authored Assembly component, change unrelated components or alter the plan-wide mode, anchor, layout, constraints or palette (HARD_CONSTRAINT). Malformed masses with nested Assembly remain in repair scope. Rejected candidates retain the original diagnostic. The model owns revisions inside Assembly and can report an explicit capability gap.
+
+Ordinary planning exposes the existing LOFT_SURFACE section contract (NONBINDING_HINT). Matching ordered profiles are validated before execution (HARD_CONSTRAINT). Point-count diagnostics identify the authored profile field and report expected and actual counts. Profile shape, placement, caps and materials remain model-authored.
 
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 

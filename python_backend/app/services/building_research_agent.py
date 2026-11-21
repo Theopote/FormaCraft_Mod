@@ -14,7 +14,7 @@ import os
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from ..models.building_profile import BuildingProfile, profile_from_llm_dict, RequestClassification
+from ..models.building_profile import BuildingProfile, ProfileSource, RequestClassification, profile_from_llm_dict
 from ..models.request import BuildRequest, ReferenceInput
 
 logger = logging.getLogger(__name__)
@@ -1069,6 +1069,10 @@ def _research_synthesis_system_prompt() -> str:
         "Optional weight is a relative priority from 0 to 1 within a host (zero disables defaults). "
         "Use weights only for user-requested main/accent priorities or explicit ratios; otherwise omit them. "
         "implementation_status must be unverified: research does not prove generated geometry. "
+        "Optionally include geometry_evidence: [{feature,geometry,relationship,source_urls}]. "
+        "Describe source-backed outlines, relative massing or the placement of distinctive parts. "
+        "Each entry must cite supplied snippet URLs. Omit unsupported observations and dimensions. "
+        "Keep these as observations without executor names or build instructions. "
         "Output ONLY valid JSON matching keys: query, identity{name,architect,year,style,confidence}, "
         "form{footprint,massing,stories,aspect_ratio}, "
         "structure{roof_types,facade,distinctive_elements,distinguishing_features}, "
@@ -1152,9 +1156,13 @@ def synthesize_profile_with_llm(
         raw = response.choices[0].message.content
         data = json.loads(raw) if isinstance(raw, str) else {}
         profile = profile_from_llm_dict(data, fallback_query=subject)
+        shown_urls = {str(result.get("url") or "").strip() for result in search_results[:4]} - {""}
+        profile.geometry_evidence = [
+            item for item in profile.geometry_evidence if set(item.source_urls) <= shown_urls
+        ]
         if search_results and not profile.sources:
             profile.sources = [
-                {"title": r.get("title") or "", "url": r.get("url") or ""}
+                ProfileSource(title=r.get("title") or "", url=r.get("url") or "")
                 for r in search_results
             ]
         return profile
@@ -1184,6 +1192,7 @@ def format_profile_for_prompt(
             "Model-designed landmark: research supplies evidence, not a fixed execution recipe.",
             f"Routing summary: {profile_routing_summary(profile)}",
             "Independently design massing, layout, proportions, materials and distinctive details.",
+            "Use geometry_evidence when present to identify source-backed shapes and spatial relationships.",
             "Treat recommended_components and distinguishing_features as optional evidence only.",
             "Do not substitute landmark MODULE or whole-building typology presets for your plan.",
             "Use supported components/FBD; report unsupported geometry explicitly.",

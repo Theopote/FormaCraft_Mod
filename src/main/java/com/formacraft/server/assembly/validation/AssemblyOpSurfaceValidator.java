@@ -224,17 +224,19 @@ final class AssemblyOpSurfaceValidator {
                         ));
                         Object at = sm.get("at");
                         if (at != null && !(at instanceof Map<?, ?>)) out.add(AssemblyValidationSupport.err(sp + ".at", "E_LOFT_AT_TYPE", "at 必须是对象（map）"));
-                        Object prof = sm.get("profileRings");
-                        if (prof == null) prof = sm.get("rings");
-                        if (prof == null) prof = sm.get("profilePoints");
+                        String profileKey = sm.get("profileRings") != null ? "profileRings"
+                                : sm.get("rings") != null ? "rings" : "profilePoints";
+                        Object prof = sm.get(profileKey);
+                        String profilePath = sp + "." + profileKey;
                         if (prof instanceof List<?> rings && rings.size() == 1 && rings.getFirst() instanceof List<?> ring) prof = ring;
                         if (!(prof instanceof List<?> points) || points.size() < 2
                                 || points.stream().anyMatch(point -> !(point instanceof Map<?, ?>))) {
-                            out.add(AssemblyValidationSupport.err(sp, "E_LOFT_PROFILE_INVALID", "每段需要一个至少包含两个点的轮廓"));
+                            out.add(AssemblyValidationSupport.err(profilePath, "E_LOFT_PROFILE_INVALID", "每段需要一个至少包含两个点的轮廓"));
                         } else if (pointCount == -1) {
                             pointCount = points.size();
                         } else if (pointCount != points.size()) {
-                            out.add(AssemblyValidationSupport.err(sp, "E_LOFT_PROFILE_COUNT", "各段轮廓点数必须一致"));
+                            out.add(AssemblyValidationSupport.err(profilePath, "E_LOFT_PROFILE_COUNT",
+                                    "轮廓点数应为 " + pointCount + "，实际为 " + points.size()));
                         }
                     }
                 }

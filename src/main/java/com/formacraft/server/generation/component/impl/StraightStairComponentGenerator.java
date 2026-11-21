@@ -5,6 +5,7 @@ import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.llm.dto.*;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.patch.*;
+import com.formacraft.common.palette.component.MaterialBlockFamily;
 import com.formacraft.server.assembly.*;
 import net.minecraft.block.*;
 import net.minecraft.util.math.BlockPos;
@@ -20,7 +21,8 @@ public final class StraightStairComponentGenerator {
                 && c.params().get("from") instanceof Map<?,?> && c.params().get("to") instanceof Map<?,?>
                 && (c.features()==null || c.features().stream().noneMatch(f->f!=null
                     && (f.startsWith("typology:") || f.startsWith("landmark:") || f.startsWith("module:"))))
-                && c.params().get("stairs") instanceof String stairs && stairs.endsWith("_stairs")) return true;
+                && c.params().get("stairs") instanceof String stairs
+                && stairs.split("\\[", 2)[0].trim().endsWith("_stairs")) return true;
         return "STRUCTURE".equalsIgnoreCase(c.componentType()) && c.features() != null
             && c.features().stream().filter(Objects::nonNull).anyMatch(f -> f.startsWith("stair:"));
     }
@@ -55,13 +57,14 @@ public final class StraightStairComponentGenerator {
                         op.getOrDefault("floor", "minecraft:stone_bricks")));
                 if (!floor.contains(":")) floor = "minecraft:" + floor;
                 op.put("floor", floor);
-                op.put("stairs", resolveStairsBlock(floor));
-            } else if (!(op.get("stairs") instanceof String s) || !s.endsWith("_stairs")) {
+            } else if (!op.containsKey("stairs")) {
                 String floor = String.valueOf(op.getOrDefault("floor",
                         op.getOrDefault("material", "minecraft:stone_bricks")));
                 if (!floor.contains(":")) floor = "minecraft:" + floor;
                 op.putIfAbsent("floor", floor);
-                op.put("stairs", resolveStairsBlock(floor));
+            }
+            if (!op.containsKey("stairs")) {
+                op.put("stairs", resolveStairsBlock(String.valueOf(op.get("floor"))));
             }
             int width = integer(op.getOrDefault("width", 3));
             if (point(op.get("from")).getY() > point(op.get("to")).getY()) {
@@ -166,18 +169,8 @@ public final class StraightStairComponentGenerator {
         return fallback;
     }
 
-    /** stone_bricks → stone_brick_stairs; never leave a full cube as stairs. */
+    /** Use a registered shape from the floor's family, with the existing stair default. */
     static String resolveStairsBlock(String floorBlock) {
-        if (floorBlock == null || floorBlock.isBlank()) return "minecraft:stone_brick_stairs";
-        String id = floorBlock;
-        int props = id.indexOf('[');
-        if (props >= 0) id = id.substring(0, props);
-        if (id.endsWith("_stairs")) return id;
-        if (id.endsWith("_planks")) return id.substring(0, id.length() - 7) + "_stairs";
-        if (id.endsWith("_bricks")) return id.substring(0, id.length() - 7) + "_brick_stairs";
-        if (id.endsWith("_tiles")) return id.substring(0, id.length() - 6) + "_tile_stairs";
-        if (id.equals("minecraft:stone") || id.endsWith(":stone")) return "minecraft:stone_stairs";
-        if (id.endsWith("_block")) return id.substring(0, id.length() - 6) + "_stairs";
-        return "minecraft:stone_brick_stairs";
+        return MaterialBlockFamily.stairsOrStoneBrick(floorBlock);
     }
 }
