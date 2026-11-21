@@ -2,12 +2,24 @@
   "paletteId": "PALETTE_INDUSTRIAL_STEEL_A",
   "entranceFacing": "EAST",
   "graph": {
-    "components": [],
+    "components": [
+      {
+        "id": "Landing",
+        "type": "SHELL_BOX",
+        "at": { "x": 20, "y": 0, "z": -10 },
+        "w": 4,
+        "d": 4,
+        "h": 2,
+        "wall": "smooth_stone",
+        "floor": "smooth_stone",
+        "roof": "smooth_stone"
+      }
+    ],
     "connections": [
       {
         "type": "PATH",
         "from": "Tower.saddle_left",
-        "to": { "x": 20, "y": 0, "z": -10 },
+        "to": "Landing.entrance",
         "routing": "ASTAR",
         "routingAutoLead": true
       }
@@ -41,5 +53,3 @@
     }
   }
 }
-
-

@@ -18,7 +18,6 @@ import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
-import com.formacraft.common.typology.TypologyComponentRouter;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import com.formacraft.common.terrain.TerrainStrategySampler;
