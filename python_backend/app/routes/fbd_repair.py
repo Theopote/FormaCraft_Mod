@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from ..models.request_adapter import FormaRequestAdapter
 from ..services.fbd_repair import propose_fbd_repair
+from ..services.flat_roof_repair import propose_flat_roof_repair
 
 router = APIRouter()
 
@@ -12,6 +13,18 @@ class RepairRequest(BaseModel):
     plan: dict
     diagnostic: dict
     round: int = Field(ge=1, le=2)
+
+
+@router.post('/components/flat-roof/repair')
+def repair_flat_roof(body: RepairRequest) -> dict:
+    try:
+        if body.round != 1:
+            raise ValueError("Only one proposal is allowed")
+        return propose_flat_roof_repair(body.request.to_build_request(), body.plan, body.diagnostic)
+    except ValueError:
+        raise HTTPException(status_code=422, detail='Flat roof repair proposal rejected')
+    except Exception:
+        raise HTTPException(status_code=502, detail='Flat roof repair provider unavailable')
 
 
 @router.post('/fbd/repair')
