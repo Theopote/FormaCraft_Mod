@@ -43,3 +43,10 @@ def test_models_rejects_private_base_url():
 
     with pytest.raises((ValueError, UnsafeUrlError)):
         models_route._fetch_remote_models("http://127.0.0.1:9", "")
+
+
+def test_models_allows_loopback_for_local_provider_validation():
+    from app.services.url_safety import validate_reference_url
+
+    # Non-local probes stay blocked; local-provider probes may opt into loopback.
+    validate_reference_url("http://127.0.0.1:11434/v1/models", allow_loopback=True)

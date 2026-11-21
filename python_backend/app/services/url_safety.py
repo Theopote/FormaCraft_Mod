@@ -44,20 +44,6 @@ def _normalize_host(host: str) -> str:
     return h
 
 
-def _is_ip_blocked(ip: ipaddress._BaseAddress) -> bool:
-    if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_multicast:
-        return True
-    if ip.is_reserved or ip.is_unspecified:
-        return True
-    # AWS/GCP/Azure link-local metadata
-    if isinstance(ip, ipaddress.IPv4Address):
-        if ip in ipaddress.IPv4Network("169.254.169.254/32"):
-            return True
-        if ip in ipaddress.IPv4Network("100.64.0.0/10"):  # CGNAT
-            return True
-    return False
-
-
 def _resolve_host_ips(host: str) -> Sequence[ipaddress._BaseAddress]:
     try:
         infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
@@ -82,10 +68,18 @@ def _resolve_host_ips(host: str) -> Sequence[ipaddress._BaseAddress]:
     return ips
 
 
-def validate_reference_url(url: str, *, allowed_schemes: Iterable[str] = _DEFAULT_ALLOWED_SCHEMES) -> str:
+def validate_reference_url(
+    url: str,
+    *,
+    allowed_schemes: Iterable[str] = _DEFAULT_ALLOWED_SCHEMES,
+    allow_loopback: bool = False,
+) -> str:
     """
     Validate user-supplied reference URL before server-side fetch.
     Returns normalized URL string; raises UnsafeUrlError on violation.
+
+    ``allow_loopback`` is only for explicit local LLM provider probes (Ollama/etc.);
+    reference/vision fetches must keep the default False.
     """
     raw = (url or "").strip()
     if not raw:
@@ -101,7 +95,7 @@ def validate_reference_url(url: str, *, allowed_schemes: Iterable[str] = _DEFAUL
     if not host:
         raise UnsafeUrlError("missing hostname")
 
-    if host in _BLOCKED_HOSTNAMES:
+    if host in _BLOCKED_HOSTNAMES and not allow_loopback:
         raise UnsafeUrlError(f"blocked hostname: {host}")
 
     allowlist = _env_host_allowlist()
@@ -113,20 +107,36 @@ def validate_reference_url(url: str, *, allowed_schemes: Iterable[str] = _DEFAUL
     # literal IP in URL
     try:
         ip = ipaddress.ip_address(host)
-        if _is_ip_blocked(ip):
+        if _is_ip_blocked(ip, allow_loopback=allow_loopback):
             raise UnsafeUrlError(f"blocked IP: {host}")
         return raw
     except ValueError:
         pass
 
     for ip in _resolve_host_ips(host):
-        if _is_ip_blocked(ip):
+        if _is_ip_blocked(ip, allow_loopback=allow_loopback):
             raise UnsafeUrlError(f"host {host} resolves to blocked address: {ip}")
 
     if parsed.username or parsed.password:
         raise UnsafeUrlError("userinfo in URL is not allowed")
 
     return raw
+
+
+def _is_ip_blocked(ip: ipaddress._BaseAddress, *, allow_loopback: bool = False) -> bool:
+    if allow_loopback and ip.is_loopback:
+        return False
+    if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_multicast:
+        return True
+    if ip.is_reserved or ip.is_unspecified:
+        return True
+    # AWS/GCP/Azure link-local metadata
+    if isinstance(ip, ipaddress.IPv4Address):
+        if ip in ipaddress.IPv4Network("169.254.169.254/32"):
+            return True
+        if ip in ipaddress.IPv4Network("100.64.0.0/10"):  # CGNAT
+            return True
+    return False
 
 
 def safe_http_get(
@@ -137,13 +147,15 @@ def safe_http_get(
     headers: Optional[dict[str, str]] = None,
     max_redirects: int = 3,
 ) -> requests.Response:
-    """GET with SSRF validation on each redirect hop."""
+    """GET with SSRF validation on each redirect hop and streamed body cap."""
     hdrs = headers or {"User-Agent": "FormaCraft/1.0 (architecture research)"}
     current = validate_reference_url(url)
     hop = 0
 
     while True:
-        resp = requests.get(current, timeout=timeout, headers=hdrs, allow_redirects=False)
+        resp = requests.get(
+            current, timeout=timeout, headers=hdrs, allow_redirects=False, stream=True
+        )
         if resp.status_code in (301, 302, 303, 307, 308):
             hop += 1
             if hop > max_redirects:
@@ -157,6 +169,16 @@ def safe_http_get(
             continue
 
         resp.raise_for_status()
-        if len(resp.content) > max_bytes:
-            resp._content = resp.content[:max_bytes]
+        buf = bytearray()
+        for chunk in resp.iter_content(chunk_size=min(4096, max_bytes)):
+            if not chunk:
+                continue
+            remaining = max_bytes - len(buf)
+            if remaining <= 0:
+                break
+            buf.extend(chunk[:remaining])
+            if len(buf) >= max_bytes:
+                break
+        resp.close()
+        resp._content = bytes(buf)
         return resp

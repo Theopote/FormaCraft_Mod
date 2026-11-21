@@ -2,6 +2,7 @@ package com.formacraft.server.network;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -10,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Bounded pool for plan-compile work that must not stall the Minecraft server thread.
  * World reads/writes still hop back via {@code MinecraftServer.execute}.
- * Queue is bounded; overflow runs on the caller (CallerRunsPolicy) to apply backpressure.
+ * Queue is bounded; overflow rejects explicitly — never {@code CallerRunsPolicy}.
  */
 public final class PlanCompileWorkers {
     private PlanCompileWorkers() {}
@@ -32,14 +33,27 @@ public final class PlanCompileWorkers {
             TimeUnit.MILLISECONDS,
             new ArrayBlockingQueue<>(QUEUE),
             FACTORY,
-            new ThreadPoolExecutor.CallerRunsPolicy()
+            new ThreadPoolExecutor.AbortPolicy()
     );
 
     public static ExecutorService executor() {
         return EXEC;
     }
 
+    /**
+     * Submit compile work. Throws {@link RejectedExecutionException} when the pool is saturated
+     * so callers can notify the player instead of compiling on the server thread.
+     */
     public static void submit(Runnable task) {
         EXEC.execute(task);
+    }
+
+    public static boolean trySubmit(Runnable task) {
+        try {
+            EXEC.execute(task);
+            return true;
+        } catch (RejectedExecutionException rejected) {
+            return false;
+        }
     }
 }

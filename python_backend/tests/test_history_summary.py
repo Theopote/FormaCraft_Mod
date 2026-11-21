@@ -1,4 +1,3 @@
-import asyncio
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -10,7 +9,8 @@ from app.services import llm_client
 
 
 def summarize(**fields):
-    return asyncio.run(summarize_endpoint(SummarizeRequest(**fields)))
+    # summarize_endpoint is sync so it runs on FastAPI's threadpool, not the event loop.
+    return summarize_endpoint(SummarizeRequest(**fields))
 
 
 def test_empty_transcript_does_not_create_client(monkeypatch):

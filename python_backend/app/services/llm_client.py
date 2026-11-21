@@ -52,7 +52,8 @@ _PROVIDER_BASE_URLS: Dict[str, Optional[str]] = {
     "siliconflow": "https://api.siliconflow.cn/v1",
     "ollama": "http://localhost:11434/v1",
     "lmstudio": "http://127.0.0.1:1234/v1",
-    "vllm": "http://localhost:8000/v1",
+    # Avoid 8000 — conflicts with FormaCraft FastAPI default bind.
+    "vllm": "http://localhost:8001/v1",
     "llamacpp": "http://localhost:8080/v1",
 }
 

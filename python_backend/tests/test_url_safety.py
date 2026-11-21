@@ -21,6 +21,16 @@ class UrlSafetyTest(unittest.TestCase):
         with self.assertRaises(UnsafeUrlError):
             validate_reference_url("http://127.0.0.1:8000/admin")
 
+    def test_allows_loopback_when_explicitly_opted_in(self):
+        url = validate_reference_url("http://127.0.0.1:11434/v1/models", allow_loopback=True)
+        self.assertIn("127.0.0.1", url)
+        url2 = validate_reference_url("http://localhost:11434/v1/models", allow_loopback=True)
+        self.assertIn("localhost", url2)
+
+    def test_loopback_opt_in_still_blocks_metadata(self):
+        with self.assertRaises(UnsafeUrlError):
+            validate_reference_url("http://169.254.169.254/latest/meta-data/", allow_loopback=True)
+
     def test_rejects_metadata_ip(self):
         with self.assertRaises(UnsafeUrlError):
             validate_reference_url("http://169.254.169.254/latest/meta-data/")
@@ -35,6 +45,35 @@ class UrlSafetyTest(unittest.TestCase):
         # path containing 127.0.0.1 as text is ok if host is public — host is example.com
         url = validate_reference_url("https://example.com/docs/127.0.0.1-notes")
         self.assertIn("example.com", url)
+
+    @patch("app.services.url_safety.requests.get")
+    def test_safe_http_get_streams_and_caps_body(self, mock_get):
+        from app.services.url_safety import safe_http_get
+
+        class _FakeResp:
+            status_code = 200
+            headers = {}
+            _content = b""
+
+            @property
+            def content(self):
+                return self._content
+
+            def raise_for_status(self):
+                return None
+
+            def iter_content(self, chunk_size=4096):
+                yield b"a" * 100
+                yield b"b" * 100
+
+            def close(self):
+                return None
+
+        mock_get.return_value = _FakeResp()
+        resp = safe_http_get("https://example.com/page", max_bytes=50)
+        self.assertEqual(len(resp.content), 50)
+        mock_get.assert_called()
+        self.assertTrue(mock_get.call_args.kwargs.get("stream"))
 
 
 if __name__ == "__main__":

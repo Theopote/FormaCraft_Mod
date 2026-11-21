@@ -138,7 +138,7 @@ public final class LlmPlanPreviewBuilder {
 
             BlockPos planOrigin = resolveBuildPlanOrigin(req, normalizedPlan, origin, serverWorld);
             var compileCtx = com.formacraft.server.generation.GenerationCompileContext.fromPlan(normalizedPlan, false);
-            PlanCompileWorkers.submit(() -> {
+            if (!PlanCompileWorkers.trySubmit(() -> {
                 try {
                     CompiledBuildArtifact artifact = com.formacraft.server.generation.GenerationCompileContext.runWith(
                             compileCtx, () -> {
@@ -211,7 +211,20 @@ public final class LlmPlanPreviewBuilder {
                 } finally {
                     com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
                 }
-            });
+            })) {
+                LOG.warn("plan-compile pool saturated; rejecting preview without main-thread compile");
+                deliverPreview(finish, () -> {
+                    hbAlive.set(false);
+                    LlmPlanRoutingMetrics.recordError(
+                            player == null ? null : player.getName().getString(),
+                            req,
+                            "plan_compile_pool_saturated");
+                    ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                            "服务器编译队列已满，请稍后重试（不会在主线程强制编译）。"
+                    ));
+                    return true;
+                });
+            }
         } catch (Throwable t) {
             LOG.error("scheduleBuildPreview failed before async compile", t);
             finish.accept(true);

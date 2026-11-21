@@ -31,7 +31,7 @@ def _clamp_temperature(v: Optional[float], default: float) -> float:
 
 
 @router.post("/summarize")
-async def summarize_endpoint(req: SummarizeRequest) -> Dict[str, Any]:
+def summarize_endpoint(req: SummarizeRequest) -> Dict[str, Any]:
     """
     对历史对话生成概要与标题。
     返回：

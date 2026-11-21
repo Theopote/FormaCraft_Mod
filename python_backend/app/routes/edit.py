@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 @router.post("/edit/city", deprecated=True)
-async def edit_city_endpoint(req: CityEditRequest) -> Dict[str, Any]:
+def edit_city_endpoint(req: CityEditRequest) -> Dict[str, Any]:
     """
     兼容旧 CitySpec 的整份规格编辑；新增编辑走 /build 的 LlmPlan patch。
     
@@ -41,7 +41,7 @@ async def edit_city_endpoint(req: CityEditRequest) -> Dict[str, Any]:
 
 
 @router.post("/edit/building", deprecated=True)
-async def edit_building_endpoint(req: BuildingEditRequest) -> Dict[str, Any]:
+def edit_building_endpoint(req: BuildingEditRequest) -> Dict[str, Any]:
     """
     兼容旧 BuildingSpec 的整份规格编辑；新增编辑走 /build 的 LlmPlan patch。
     

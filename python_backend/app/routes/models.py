@@ -67,17 +67,24 @@ _FALLBACK_MODELS_BY_PROVIDER: Dict[str, List[str]] = {
 }
 
 
-def _fetch_remote_models(base_url: str, api_key: str) -> List[str]:
+def _fetch_remote_models(
+    base_url: str,
+    api_key: str,
+    *,
+    allow_loopback: bool = False,
+) -> List[str]:
     """
     Fetch models list from OpenAI-compatible endpoint: GET {base_url}/models
     Note: This may block on DNS/SSL in some environments. Callers should wrap it with a hard timeout.
-    Uses url_safety to reject private/metadata hosts (SSRF).
+    Uses url_safety to reject private/metadata hosts (SSRF). Local providers may pass
+    ``allow_loopback=True`` so Ollama/LM Studio/vLLM on 127.0.0.1 can be probed.
+    Redirects are not followed automatically — each hop would need re-validation.
     """
     from ..services.url_safety import UnsafeUrlError, validate_reference_url
 
     url = base_url.rstrip("/") + "/models"
     try:
-        url = validate_reference_url(url)
+        url = validate_reference_url(url, allow_loopback=allow_loopback)
     except UnsafeUrlError as e:
         raise ValueError(f"unsafe models base_url: {e}") from e
 
@@ -85,7 +92,14 @@ def _fetch_remote_models(base_url: str, api_key: str) -> List[str]:
     req.add_header("Accept", "application/json")
     if api_key:
         req.add_header("Authorization", f"Bearer {api_key}")
-    with urllib.request.urlopen(req, timeout=_REMOTE_MODELS_SOCKET_TIMEOUT_SEC) as resp:
+
+    # Do not auto-follow redirects into unchecked private/metadata hosts.
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: N803
+            return None
+
+    opener = urllib.request.build_opener(_NoRedirect)
+    with opener.open(req, timeout=_REMOTE_MODELS_SOCKET_TIMEOUT_SEC) as resp:
         body = resp.read().decode("utf-8", errors="ignore")
         data = json.loads(body)
         models_list: List[str] = []
@@ -151,7 +165,12 @@ def models(
                 ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
                 fut = None
                 try:
-                    fut = ex.submit(_fetch_remote_models, resolved_base, api_key or "")
+                    fut = ex.submit(
+                        _fetch_remote_models,
+                        resolved_base,
+                        api_key or "",
+                        allow_loopback=is_local_provider(resolved_provider),
+                    )
                     models_list = fut.result(timeout=_REMOTE_MODELS_HARD_TIMEOUT_SEC)
                     remote_models_ok = True
                 except concurrent.futures.TimeoutError:
