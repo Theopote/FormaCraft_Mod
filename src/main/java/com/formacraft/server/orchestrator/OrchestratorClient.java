@@ -311,6 +311,18 @@ public class OrchestratorClient {
             int round, String path, Class<T> responseType) {
         try {
             var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            if (responseType == com.formacraft.server.compiler.FlatRoofRepairGuard.Proposal.class) {
+                mapper.disable(com.fasterxml.jackson.databind.MapperFeature.ALLOW_COERCION_OF_SCALARS);
+                mapper.disable(com.fasterxml.jackson.databind.DeserializationFeature.ACCEPT_FLOAT_AS_INT);
+                mapper.enable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+                mapper.enable(com.fasterxml.jackson.core.JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+                var text = mapper.coercionConfigFor(com.fasterxml.jackson.databind.type.LogicalType.Textual);
+                for (var input : java.util.List.of(com.fasterxml.jackson.databind.cfg.CoercionInputShape.Integer,
+                        com.fasterxml.jackson.databind.cfg.CoercionInputShape.Float,
+                        com.fasterxml.jackson.databind.cfg.CoercionInputShape.Boolean)) {
+                    text.setCoercion(input, com.fasterxml.jackson.databind.cfg.CoercionAction.Fail);
+                }
+            }
             var body = mapper.createObjectNode();
             body.set("request", mapper.readTree(JsonUtil.toJson(req)));
             body.set("plan", mapper.valueToTree(plan)); body.set("diagnostic", mapper.valueToTree(diagnostic));
