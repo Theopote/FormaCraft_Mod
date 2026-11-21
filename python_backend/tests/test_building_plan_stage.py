@@ -26,6 +26,17 @@ FIXTURES = Path(__file__).resolve().parent.parent / "eval" / "fixtures" / "plans
 
 
 class PlanStagePromptTest(unittest.TestCase):
+    def test_research_skeleton_and_visual_features_are_advisory(self):
+        profile = BuildingProfile(query="折光匣", form={"massing": ["two wings with a canopy"]},
+                                  minecraft_strategy={"skeleton_type": "COMPOUND"},
+                                  research_notes="[Visual] a raised canopy")
+        system, user = augment_prompts_for_plan_stage(profile, "只建单翼，不要雨棚", "base", "context")
+        self.assertIn("Consider scale_hints and minecraft_strategy.skeleton_type as evidence", system)
+        self.assertIn("represented in the plan", system)
+        self.assertIn("Use visual observations as evidence for unspecified form/materials", user)
+        self.assertIn("只建单翼，不要雨棚", user)
+        self.assertIn("two wings with a canopy", user)
+
     def test_ordinary_prompt_exposes_geometry_for_unnamed_twisted_envelope(self):
         from app.services.assembly_plan_repair import normalize_and_validate_assembly_plan
         from app.services.generation_capability import planning_component_exposure

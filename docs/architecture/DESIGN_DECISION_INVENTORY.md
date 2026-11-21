@@ -34,6 +34,8 @@ BuildingProfile carries optional, bounded geometry evidence for Stage P (NONBIND
 
 When both research and massing stages are enabled, source-backed geometry observations are also available to the preliminary massing call (NONBINDING_HINT). The final planner can revise the draft to satisfy the user and the geometry contract.
 
+Stage P treats research scale, skeleton, visual observations and distinguishing features as evidence (NONBINDING_HINT). Its system guidance no longer requires copying the researched skeleton or features.
+
 The Assembly repair boundary rejects candidates that drop every authored Assembly component, change unrelated components or alter the plan-wide mode, anchor, layout, constraints or palette (HARD_CONSTRAINT). Malformed masses with nested Assembly remain in repair scope. Rejected candidates retain the original diagnostic. The model owns revisions inside Assembly and can report an explicit capability gap.
 
 Ordinary planning exposes the existing LOFT_SURFACE section contract (NONBINDING_HINT). Matching ordered profiles are validated before execution (HARD_CONSTRAINT). Point-count diagnostics identify the authored profile field and report expected and actual counts. Profile shape, placement, caps and materials remain model-authored.

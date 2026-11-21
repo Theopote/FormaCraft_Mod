@@ -36,12 +36,12 @@ def plannable_component_types() -> Tuple[str, ...]:
 
 PLAN_STAGE_SYSTEM_ADDON = (
     "PLAN STAGE (after Building Research):\n"
-    "- Convert BuildingProfile to a valid LlmPlan JSON.\n"
+    "- Produce a valid LlmPlan JSON for the user request, using BuildingProfile as optional evidence.\n"
     "- Routing is authoritative in OPEN-WORLD RESEARCH OVERRIDE (system) — do not follow conflicting landmark hints.\n"
-    "- Copy profile.structure.distinguishing_features → plan.distinguishing_features[].\n"
+    "- Include distinguishing features that apply to the requested design and are represented in the plan.\n"
     "- Prefer directly plannable (supported) component_type values from the user message.\n"
     "- Conditional catalog types (typology_routed / fbd_or_empty) need their required params.\n"
-    "- Respect scale_hints; set layout.skeleton_type from minecraft_strategy.\n"
+    "- Consider scale_hints and minecraft_strategy.skeleton_type as evidence for unspecified geometry.\n"
     "- Do NOT output block ids; semantic components only.\n"
     "- global_constraints.symmetry MUST be one of: NONE, MIRROR_X, MIRROR_Z, RADIAL.\n"
     "- Explicit user requirements and opt-outs win for intent, form, style, materials, and dimensions.\n"
@@ -283,7 +283,7 @@ def build_plan_stage_user_block(
         "recommended_components are optional evidence only, not a required set",
         "4. dimensions ← optional scale_hints (blocks); invent reasonable sizes when null "
         "or when hints conflict with the user brief",
-        "5. style_profile ← identity.style when useful; honor identity.architect when set",
+        "5. style_profile ← consider identity.style and architect as evidence within the user's requested scope",
         "6. routing ← system OPEN-WORLD RESEARCH OVERRIDE (authoritative for executor bans)",
         "7. distinguishing_features / research_notes ← optional evidence to interpret, not copy",
     ]
@@ -307,7 +307,7 @@ def build_plan_stage_user_block(
     lines.extend([
         f"{next_idx}. Use block_palette roles in style_attributes / params.material hints when relevant",
         f"{next_idx + 1}. Apply generation_rules / detailing_rules in params and features when relevant",
-        f"{next_idx + 2}. If research_notes contain [Visual], prioritize visual observations for form/materials",
+        f"{next_idx + 2}. Use visual observations as evidence for unspecified form/materials",
         "",
     ])
     if include_registered_types:
