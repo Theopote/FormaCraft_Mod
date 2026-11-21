@@ -1,12 +1,10 @@
 package com.formacraft.server.assembly;
 
 import com.formacraft.common.generation.component.util.RevolveProfileParser;
+import com.formacraft.common.model.build.BuildingSpec;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Expands topology components into executable assembly ops.
@@ -1092,6 +1090,18 @@ final class AssemblyComponentEmitter {
         if (macro == null) return null;
 
         // 从 BuildingSpec 获取尺寸
+        Map<String, Object> basicComponent = getStringObjectMap(spec);
+
+        List<Object> comps = new ArrayList<>();
+        comps.add(basicComponent);
+        
+        // 更新 graph 或 root
+        Objects.requireNonNullElse(graph, m).put("components", comps);
+        
+        return comps;
+    }
+
+    private static @NotNull Map<String, Object> getStringObjectMap(BuildingSpec spec) {
         int w = 20, d = 30, h = 15;
         if (spec != null) {
             if (spec.getFootprint() != null) {
@@ -1102,7 +1112,7 @@ final class AssemblyComponentEmitter {
             }
             if (spec.getHeight() > 0) h = spec.getHeight();
         }
-        
+
         // 创建基本 SHELL_BOX 组件
         Map<String, Object> basicComponent = new HashMap<>();
         basicComponent.put("id", "MainVolume");
@@ -1110,17 +1120,6 @@ final class AssemblyComponentEmitter {
         basicComponent.put("w", w);
         basicComponent.put("d", d);
         basicComponent.put("h", h);
-        
-        List<Object> comps = new ArrayList<>();
-        comps.add(basicComponent);
-        
-        // 更新 graph 或 root
-        if (graph != null) {
-            graph.put("components", comps);
-        } else {
-            m.put("components", comps);
-        }
-        
-        return comps;
+        return basicComponent;
     }
 }
