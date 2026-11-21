@@ -187,7 +187,7 @@ public final class LlmPlanPreviewBuilder {
                         if (artifact == null || artifact.compilation() == null
                                 || artifact.gap() != null) {
                             if (allowRoofRepair && req != null && artifact != null && artifact.gap() != null
-                                    && "E_FLAT_ROOF_HOST_COVERAGE".equals(artifact.gap().code())) {
+                                    && com.formacraft.server.compiler.FlatRoofRepairGuard.canRequest(normalizedPlan, artifact.gap())) {
                                 var originalGap = artifact.gap();
                                 NetworkOrchestratorProvider.get().requestFlatRoofRepair(req, normalizedPlan, originalGap)
                                         .whenComplete((proposal, failure) -> server.execute(() -> {

@@ -310,12 +310,14 @@ public class OrchestratorClient {
             FormaRequest req, LlmPlan plan, com.formacraft.common.llm.dto.CapabilityGap diagnostic,
             int round, String path, Class<T> responseType) {
         try {
-            var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            if (responseType == com.formacraft.server.compiler.FlatRoofRepairGuard.Proposal.class) {
-                mapper.disable(com.fasterxml.jackson.databind.MapperFeature.ALLOW_COERCION_OF_SCALARS);
-                mapper.disable(com.fasterxml.jackson.databind.DeserializationFeature.ACCEPT_FLOAT_AS_INT);
-                mapper.enable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
-                mapper.enable(com.fasterxml.jackson.core.JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+            boolean strict = responseType == com.formacraft.server.compiler.FlatRoofRepairGuard.Proposal.class;
+            var mapper = strict ? com.fasterxml.jackson.databind.json.JsonMapper.builder()
+                    .disable(com.fasterxml.jackson.databind.MapperFeature.ALLOW_COERCION_OF_SCALARS)
+                    .disable(com.fasterxml.jackson.databind.DeserializationFeature.ACCEPT_FLOAT_AS_INT)
+                    .enable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+                    .enable(com.fasterxml.jackson.core.JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                    .build() : new com.fasterxml.jackson.databind.ObjectMapper();
+            if (strict) {
                 var text = mapper.coercionConfigFor(com.fasterxml.jackson.databind.type.LogicalType.Textual);
                 for (var input : java.util.List.of(com.fasterxml.jackson.databind.cfg.CoercionInputShape.Integer,
                         com.fasterxml.jackson.databind.cfg.CoercionInputShape.Float,

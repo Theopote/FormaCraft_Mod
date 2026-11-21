@@ -2,6 +2,8 @@
 
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 
+Flat-roof repair preflight reuses target and provenance validation before requesting a proposal (HARD_CONSTRAINT). Missing or ambiguous IDs and fully locked targets preserve the original diagnostic without a model call.
+
 Java decodes flat-roof repair proposals without scalar coercion and rejects duplicate keys or trailing JSON (HARD_CONSTRAINT). Valid proposals retain the model's exact integer rather than letting transport change its value.
 
 Flat-roof repair proposals are model-owned. The backend accepts one horizontal integer edit for one diagnosed flat roof. The Java off-thread preview path independently checks the owner, part, user provenance and edit bounds (HARD_CONSTRAINT), then compiles a candidate once with repair disabled. Width and depth proposals are capped at 256 blocks and position deltas at 256 blocks for this retry. No design defaults are added.
