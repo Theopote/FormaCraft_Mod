@@ -23,7 +23,7 @@ final class FlatRoofCoverageValidator {
             coverage = Set.copyOf(coverage);
         }
     }
-    record Missing(String source, BlockPos position, int count) {}
+    record Missing(String source, BlockPos position, int count, List<String> roofSources) {}
     record Attachment(String host, int expectedY, int actualY) {}
 
     static CapabilityGap hostCoverageGap(String hostId, Missing missing) {
@@ -31,6 +31,7 @@ final class FlatRoofCoverageValidator {
         var details = new LinkedHashMap<String, Object>();
         if (hostId != null) details.put("host_id", hostId);
         details.put("host_part_id", missing.source());
+        details.put("roof_sources", missing.roofSources());
         details.put("uncovered_count", missing.count());
         details.put("coordinate_frame", "plan");
         details.put("first_uncovered", Map.of("x", pos.getX(), "y", pos.getY(), "z", pos.getZ()));
@@ -154,7 +155,8 @@ final class FlatRoofCoverageValidator {
                         host, part.partId(), open, topY, roofSample,
                         bound.stream().map(Roof::source).toList(),
                         first, count);
-                return Optional.of(new Missing(part.partId(),first,count));
+                return Optional.of(new Missing(part.partId(), first, count,
+                        assigned.stream().map(Roof::source).distinct().sorted().toList()));
             }
         }
         return Optional.empty();
@@ -176,7 +178,7 @@ final class FlatRoofCoverageValidator {
                     && !GeneratedSurfaceCapture.occupied(finalPatches.get(pos))) {
                 count++; if (first == null) first = pos;
             }
-            if (count > 0) return Optional.of(new Missing(roof.source(), first, count));
+            if (count > 0) return Optional.of(new Missing(roof.source(), first, count, List.of(roof.source())));
         }
         return Optional.empty();
     }

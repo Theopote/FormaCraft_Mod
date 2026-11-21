@@ -9,6 +9,17 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FlatRoofCoverageValidatorTest {
+    @Test void hostGapIdentifiesOnlyRoofPiecesAssignedToTheFailingPart() {
+        var cell = Set.of(new BlockPos(0, 7, 0));
+        var left = new FlatRoofCoverageValidator.Roof("left", cell, cell, "house", "house");
+        var right = new FlatRoofCoverageValidator.Roof("right", cell, cell, "house", "house");
+        var other = new FlatRoofCoverageValidator.Roof("annex", cell, cell, "house", "house#mass_1");
+        var missing = FlatRoofCoverageValidator.checkHost(body(Map.of()), List.of(right, other, left),
+                BlockPos.ORIGIN, patches(left, 0), Set.of()).orElseThrow();
+        assertEquals(List.of("left", "right"),
+                FlatRoofCoverageValidator.hostCoverageGap("house", missing).details().get("roof_sources"));
+    }
+
     private SemanticComponent body(Map<String,Object> extra) {
         var params = new HashMap<String,Object>(Map.of("component_id","house","anchor_mode","min_corner"));
         params.putAll(extra);

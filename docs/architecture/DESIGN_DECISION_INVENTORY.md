@@ -2,6 +2,8 @@
 
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 
+Flat roof coverage diagnostics include the sources assigned to the failing host part (GEOMETRY). This adds evidence for repair without changing plan fields or adding defaults.
+
 Legacy MODULE-to-typology conversion merges registry and reference defaults before authored parameters, matching Java's precedence. Previously reference defaults could replace authored geometry, such as an explicit bridge span of 120 with 180. This change narrows an existing explicit-template compatibility rule without adding defaults or authorizing a new route.
 
 The FBD prompt gate treats an existing user opt-out as authoritative even when the environment enables FBD capability guidance. This is a request constraint on prompt content and introduces no new keyword or geometry default.
