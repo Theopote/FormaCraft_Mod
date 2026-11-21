@@ -248,4 +248,90 @@ class HostIdentityConsistencyTest {
                 Map.of("component_id", "floor_label", "extrude_mode", "plate"));
         assertTrue(HostedPlateDesignValidator.checkDuplicateComponentIds(List.of(a, b)).isEmpty());
     }
+
+    @Test
+    void independentTerraceWithoutHostStaysUnbound() {
+        var mill = new Component("MASS_MAIN", "mill", new Vec3i(0, 0, 0),
+                new Dimensions(14, 12, 10), List.of(),
+                Map.of("component_id", "mill_mass", "building_id", "mill_mass"));
+        var channelPos = new Vec3i(20, 0, 4);
+        var channel = new Component("TERRACE", "mill", channelPos,
+                new Dimensions(16, 4, 1), List.of("mill_race"),
+                Map.of("component_id", "mill_channel", "building_id", "mill_channel"));
+        var components = new java.util.ArrayList<>(List.of(mill, channel));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.copyOf(components)).build();
+        ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), Set.of());
+        var fixed = components.stream()
+                .filter(c -> "mill_channel".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertNull(fixed.params().get("host_id"),
+                "independent channel terrace must not inherit mill_mass host");
+        assertEquals(channelPos, fixed.relativePosition(),
+                "channel geometry must stay authored");
+    }
+
+    @Test
+    void multipleCrownsWithoutHostIdKeepDistinctPositions() {
+        var mass = new Component("MASS_MAIN", "m", new Vec3i(0, 0, 0),
+                new Dimensions(16, 16, 14), List.of(),
+                Map.of("component_id", "palace"));
+        var crownA = new Component("CROWN", "m", new Vec3i(2, 14, 2),
+                new Dimensions(5, 5, 6), List.of(), Map.of());
+        var crownB = new Component("CROWN", "m", new Vec3i(10, 14, 10),
+                new Dimensions(5, 5, 6), List.of(), Map.of());
+        var components = new java.util.ArrayList<>(List.of(mass, crownA, crownB));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.copyOf(components)).build();
+        ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), Set.of());
+        var crowns = components.stream()
+                .filter(c -> "CROWN".equals(c.componentType()))
+                .toList();
+        assertEquals(2, crowns.stream().map(Component::relativePosition).distinct().count(),
+                "slot-resolved multi-crown must keep authored XY");
+        assertTrue(crowns.stream().anyMatch(c -> c.relativePosition().equals(new Vec3i(2, 14, 2))));
+        assertTrue(crowns.stream().anyMatch(c -> c.relativePosition().equals(new Vec3i(10, 14, 10))));
+        assertEquals(2, crowns.stream()
+                .map(c -> String.valueOf(c.params().get("component_id")))
+                .distinct().count());
+    }
+
+    @Test
+    void hostIdAliasIsCanonicalizedToHost_id() {
+        AssemblyCompileDiagnostics.clear();
+        var mass = new Component("MASS_MAIN", "e", new Vec3i(40, 0, 0),
+                new Dimensions(10, 10, 12), List.of(),
+                Map.of("component_id", "east_tower"));
+        var roof = new Component("ROOF", "e", new Vec3i(40, 12, 0),
+                new Dimensions(10, 10, 3), List.of(),
+                Map.of("component_id", "east_roof", "hostId", "east_tower"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(mass, roof)).build();
+        var normalized = HostAliasNormalizer.apply(plan);
+        var fixed = normalized.components().stream()
+                .filter(c -> "east_roof".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("east_tower", fixed.params().get("host_id"));
+        assertNull(fixed.params().get("hostId"));
+        assertNull(AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
+    void conflictingHostIdAliasesAreRejected() {
+        AssemblyCompileDiagnostics.clear();
+        var mass = new Component("MASS_MAIN", "m", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 8), List.of(),
+                Map.of("component_id", "main"));
+        Map<String, Object> roofParams = new java.util.HashMap<>();
+        roofParams.put("component_id", "east_roof");
+        roofParams.put("host_id", "main");
+        roofParams.put("hostId", "east_tower");
+        var roof = new Component("ROOF", "m", new Vec3i(0, 8, 0),
+                new Dimensions(12, 12, 3), List.of(), roofParams);
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(mass, roof)).build();
+        HostAliasNormalizer.apply(plan);
+        assertEquals("E_HOST_ID_ALIAS_CONFLICT", AssemblyCompileDiagnostics.get().code());
+        AssemblyCompileDiagnostics.clear();
+    }
 }

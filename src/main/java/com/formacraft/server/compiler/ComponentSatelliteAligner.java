@@ -112,7 +112,11 @@ final class ComponentSatelliteAligner {
             if (ComponentSatelliteInference.isResolvedPartRoof(c, components, plan)) {
                 continue;
             }
-            Object hostId = c.params() == null ? null : c.params().get("host_id");
+            String hostId = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
+            // Decks / plazas / channels without authored host stay independent — slot ≠ ownership.
+            if (isAuthoredHostOnlyDeck(type) && hostId == null) {
+                continue;
+            }
             Component mass = massBySlot.get(slotKey);
             if (hostId != null) {
                 mass = null;
@@ -173,11 +177,13 @@ final class ComponentSatelliteAligner {
             }
             // Only geometry satellites get host/building stamps — never COURTYARD / site channels / etc.
             if (aligned != null
-                    && shouldInjectSatelliteHostBinding(type)
+                    && shouldInjectSatelliteHostBinding(type, hostId)
                     && mass.params() != null
                     && mass.params().get("component_id") != null) {
                 var params = new HashMap<String, Object>();
                 if (aligned.params() != null) params.putAll(aligned.params());
+                // Collapse any leftover camelCase alias after injection.
+                params.remove("hostId");
                 Object massComponentId = mass.params().get("component_id");
                 if (hostId != null) {
                     params.putIfAbsent("host_id", massComponentId);
@@ -185,10 +191,6 @@ final class ComponentSatelliteAligner {
                     // Geometric slot align without authored host — mark as compiler-inferred.
                     params.putIfAbsent("host_id", massComponentId);
                     params.putIfAbsent("compiler_inferred_host_id", massComponentId);
-                }
-                if ("PAVING".equals(type) && hostId == null
-                        && ComponentPlanTypes.getParamString(c.params(), "hostId") == null) {
-                    params.put("compiler_inferred_host_id", massComponentId);
                 }
                 params.putIfAbsent("building_id", mass.params().getOrDefault("building_id", mass.params().get("component_id")));
                 if (Set.of("ENTRANCE", "FACADE_WINDOWS", "ROOF", "ROOF_STRUCTURE").contains(type) && ComponentPlanTypes.hasComponentRequest(aligned.features())) {
@@ -1185,9 +1187,10 @@ final class ComponentSatelliteAligner {
             }
         }
 
-        // Single centered crown may use the mass-top template; multiple authored crowns keep XY.
+        // Single centered crown may use the mass-top template; multiple crowns on this mass keep XY.
         Vec3i position = template.relativePosition();
-        if (llmCrown.relativePosition() != null && countCrownsForMass(all, massId) > 1) {
+        if (llmCrown.relativePosition() != null
+                && countCrownsResolvingToMass(all, mass, massId) > 1) {
             position = llmCrown.relativePosition();
         }
 
@@ -1217,14 +1220,34 @@ final class ComponentSatelliteAligner {
         };
     }
 
-    private static boolean shouldInjectSatelliteHostBinding(String type) {
-        return isSatelliteAlignmentCandidate(type);
+    /** Terraces / paving / foundations need an authored host — shared slot is not ownership. */
+    private static boolean isAuthoredHostOnlyDeck(String type) {
+        return switch (type == null ? "" : type) {
+            case "FOUNDATION", "TERRACE", "BASE", "PAVING" -> true;
+            default -> false;
+        };
     }
 
-    private static int countCrownsForMass(List<Component> all, String massId) {
-        if (all == null || massId == null) {
+    private static boolean shouldInjectSatelliteHostBinding(String type, String authoredHostId) {
+        if (!isSatelliteAlignmentCandidate(type)) {
+            return false;
+        }
+        // Decks only stamp host when the plan already declared attachment.
+        if (isAuthoredHostOnlyDeck(type)) {
+            return authoredHostId != null;
+        }
+        return true;
+    }
+
+    /**
+     * Crowns that already host {@code massId}, or share the mass slot with no host yet
+     * (they will resolve to this mass during the same realign pass).
+     */
+    private static int countCrownsResolvingToMass(List<Component> all, Component mass, String massId) {
+        if (all == null || mass == null || massId == null) {
             return 0;
         }
+        String massSlot = ComponentPlanTypes.slotKey(mass);
         int n = 0;
         for (Component c : all) {
             if (c == null) continue;
@@ -1234,6 +1257,10 @@ final class ComponentSatelliteAligner {
             }
             String host = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
             if (massId.equals(host)) {
+                n++;
+                continue;
+            }
+            if (host == null && massSlot.equals(ComponentPlanTypes.slotKey(c))) {
                 n++;
             }
         }

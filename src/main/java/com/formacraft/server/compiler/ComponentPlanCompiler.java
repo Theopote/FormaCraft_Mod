@@ -185,6 +185,10 @@ public final class ComponentPlanCompiler {
         plan = FloatingTowerSnapRepair.apply(plan);
         plan = FloatingMassSnapRepair.apply(plan);
         plan = HostedPlateLevelRepair.apply(plan);
+        plan = HostAliasNormalizer.apply(plan);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return List.of();
+        }
         plan = HostIdRemapRepair.apply(plan);
         plan = ExplicitDesignConflictRepair.apply(plan);
         // Land 重檐 / footprint / material intent before authored gates can hard-fail.
