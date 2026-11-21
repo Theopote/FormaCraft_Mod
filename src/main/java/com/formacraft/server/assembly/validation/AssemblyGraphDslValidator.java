@@ -1,7 +1,7 @@
 package com.formacraft.server.assembly.validation;
 
-import com.formacraft.server.assembly.AssemblyComponentTypes;
 import com.formacraft.server.assembly.AssemblyPortResolver;
+import com.formacraft.server.assembly.schema.AssemblyComponentSchemaRegistry;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,11 +47,11 @@ public final class AssemblyGraphDslValidator {
                 byId.put(id, comp);
             }
             String type = normalizeType(comp);
-            if (!type.isBlank() && !AssemblyComponentTypes.isKnown(type)) {
-                out.add(AssemblyValidationSupport.warn(
+            if (!type.isBlank() && AssemblyComponentSchemaRegistry.findByType(type) == null) {
+                out.add(AssemblyValidationSupport.err(
                         compPath + "[" + i + "].type",
-                        "W_UNKNOWN_COMPONENT_TYPE",
-                        "未收录的 component type: " + type + "（可能无法 emit）"
+                        "E_COMPONENT_TYPE_UNSUPPORTED",
+                        "不支持的 Assembly 构件类型: " + type
                 ));
             }
         }
@@ -127,7 +127,7 @@ public final class AssemblyGraphDslValidator {
         }
         if (endpoint instanceof Map<?, ?> m) {
             Object cid = m.get("component");
-            if (cid == null) {
+            if (str(cid, "").isBlank()) {
                 cid = m.get("id");
             }
             Object port = m.get("port");

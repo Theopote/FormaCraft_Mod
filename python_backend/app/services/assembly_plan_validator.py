@@ -9,9 +9,11 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from app.services.assembly_schema_loader import (
+    assembly_component_catalog,
     compatibility_rules,
     component_ports,
     known_preset_ids,
+    load_assembly_schema,
 )
 
 KNOWN_PRESETS = known_preset_ids()
@@ -193,12 +195,38 @@ def _validate_assembly_component(
                 "Use model-authored graph or ops unless the user explicitly requested this preset.",
             ))
         return
-    for j, op in enumerate(payload.get("ops") or []):
-        if isinstance(op, dict):
-            _validate_geometry_fields(issues, op, f"{base}.params.assembly.ops[{j}]")
-    graph = payload.get("graph") if isinstance(payload.get("graph"), dict) else None
-    if graph is None and payload.get("components"):
-        graph = {"components": payload.get("components"), "connections": payload.get("connections", [])}
+    engine_ops = load_assembly_schema().get("ops") or []
+    ops = payload.get("ops", [])
+    if not isinstance(ops, list):
+        issues.append(AssemblyPlanIssue(f"{base}.params.assembly.ops", "E_OPS_NOT_ARRAY",
+                                       "Assembly ops must be an array"))
+        return
+    for j, op in enumerate(ops):
+        path = f"{base}.params.assembly.ops[{j}]"
+        if not isinstance(op, dict):
+            issues.append(AssemblyPlanIssue(path, "E_OP_NOT_OBJECT", "Assembly op must be an object"))
+            continue
+        kind = str(op.get("op") or "").strip().upper()
+        if not kind:
+            issues.append(AssemblyPlanIssue(path + ".op", "E_OP_MISSING", "Assembly op requires an op field"))
+            continue
+        if engine_ops and kind not in engine_ops:
+            issues.append(AssemblyPlanIssue(path + ".op", "E_OP_UNSUPPORTED", f"Unsupported Assembly op: {kind}"))
+            continue
+        _validate_geometry_fields(issues, op, path, kind)
+    graph = payload.get("graph")
+    graph_path = f"{base}.params.assembly.graph"
+    if "graph" in payload and not isinstance(graph, dict):
+        issues.append(AssemblyPlanIssue(graph_path, "E_GRAPH_NOT_OBJECT", "Assembly graph must be an object"))
+        return
+    if graph is not None:
+        for key in ("components", "connections"):
+            if key in payload and payload[key] != []:
+                issues.append(AssemblyPlanIssue(f"{base}.params.assembly.{key}", "E_ASSEMBLY_GRAPH_LOCATION",
+                                               "Keep all graph components and connections together in one location"))
+    if graph is None and ("components" in payload or "connections" in payload):
+        graph = payload
+        graph_path = f"{base}.params.assembly"
     if graph is None and not payload.get("ops"):
         issues.append(AssemblyPlanIssue(
             f"{base}.params.assembly",
@@ -209,48 +237,71 @@ def _validate_assembly_component(
     if not isinstance(graph, dict):
         return
     components = graph.get("components")
-    connections = graph.get("connections")
-    if not isinstance(components, list) or not components:
+    connections = graph.get("connections", [])
+    if not isinstance(connections, list):
+        issues.append(AssemblyPlanIssue(graph_path + ".connections", "E_CONNECTIONS_NOT_ARRAY",
+                                       "Assembly connections must be an array"))
+    if "components" in graph and not isinstance(components, list):
+        issues.append(AssemblyPlanIssue(graph_path + ".components", "E_COMPONENTS_NOT_ARRAY",
+                                       "Assembly components must be an array"))
+        return
+    if not components:
         if not payload.get("ops"):
             issues.append(AssemblyPlanIssue(
-                f"{base}.params.assembly.graph.components",
+                graph_path + ".components",
                 "E_ASSEMBLY_EMPTY",
                 "graph.components must be non-empty when no ops[] present",
             ))
         return
     by_id: Dict[str, Dict[str, Any]] = {}
+    catalog = assembly_component_catalog()
+    issue_count = len(issues)
     for j, c in enumerate(components):
+        path = f"{graph_path}.components[{j}]"
         if not isinstance(c, dict):
+            issues.append(AssemblyPlanIssue(path, "E_COMPONENT_NOT_OBJECT", "Assembly component must be an object"))
             continue
         cid = str(c.get("id") or "").strip()
         if cid:
             if cid in by_id:
                 issues.append(AssemblyPlanIssue(
-                    f"{base}.params.assembly.graph.components[{j}].id",
+                    path + ".id",
                     "E_DUP_COMPONENT_ID",
                     f"duplicate component id: {cid}",
                 ))
             by_id[cid] = c
-        ctype = str(c.get("type") or c.get("op") or "").strip().upper()
-        _validate_geometry_fields(issues, c, f"{base}.params.assembly.graph.components[{j}]")
+        ctype = str(c.get("type") or "").strip().upper() or str(c.get("op") or "").strip().upper()
         if not ctype:
             issues.append(AssemblyPlanIssue(
-                f"{base}.params.assembly.graph.components[{j}].type",
+                path + ".type",
                 "E_COMPONENT_TYPE_MISSING",
                 "component missing type",
             ))
+            continue
+        definition = catalog.get(ctype)
+        if catalog and definition is None:
+            issues.append(AssemblyPlanIssue(path + ".type", "E_COMPONENT_TYPE_UNSUPPORTED",
+                                           f"Unsupported Assembly component type: {ctype}"))
+            continue
+        kind = definition["type"] if definition is not None else ctype
+        if kind == "BOX_SHELL":
+            kind = "SHELL_BOX"
+        _validate_geometry_fields(issues, c, path, kind)
+    if ops and len(issues) == issue_count:
+        issues.append(AssemblyPlanIssue(graph_path + ".components", "E_ASSEMBLY_MIXED_GEOMETRY",
+                                       "Combine the intended geometry in either ops or graph components"))
     if not isinstance(connections, list):
         return
     for k, conn in enumerate(connections):
+        cp = f"{graph_path}.connections[{k}]"
         if not isinstance(conn, dict):
+            issues.append(AssemblyPlanIssue(cp, "E_CONN_NOT_OBJECT", "Assembly connection must be an object"))
             continue
-        cp = f"{base}.params.assembly.graph.connections[{k}]"
         _validate_endpoint(issues, cp + ".from", conn.get("from"), by_id, "from")
         _validate_endpoint(issues, cp + ".to", conn.get("to"), by_id, "to")
 
 
-def _validate_geometry_fields(issues: List[AssemblyPlanIssue], comp: dict, path: str) -> None:
-    kind = str(comp.get("type") or comp.get("op") or "").upper()
+def _validate_geometry_fields(issues: List[AssemblyPlanIssue], comp: dict, path: str, kind: str) -> None:
     if kind == "OPENINGS" and not comp.get("face") and not comp.get("faces"):
         issues.append(AssemblyPlanIssue(path + '.face', "E_FACE_MISSING",
                                        "OPENINGS requires face/faces; side is not an executable face field"))
@@ -301,6 +352,8 @@ def _validate_endpoint(
 ) -> None:
     parsed = _parse_endpoint(endpoint)
     if parsed is None:
+        issues.append(AssemblyPlanIssue(path, "E_ENDPOINT_COMPONENT_REQUIRED",
+                                       f"{role} must reference an Assembly component"))
         return
     comp_id, port = parsed
     if comp_id and comp_id not in by_id:
@@ -336,12 +389,10 @@ def _parse_endpoint(endpoint: Any) -> Optional[Tuple[Optional[str], Optional[str
             return comp_id.strip(), port.strip()
         return text, None
     if isinstance(endpoint, dict):
-        if "x" in endpoint or "y" in endpoint or "z" in endpoint:
-            return None
-        comp_id = endpoint.get("component") or endpoint.get("id")
+        comp_id = str(endpoint.get("component") or "").strip() or str(endpoint.get("id") or "").strip()
         port = endpoint.get("port")
-        return (str(comp_id).strip() if comp_id else None,
-                str(port).strip() if port else None)
+        if comp_id:
+            return comp_id, str(port).strip() if port else None
     return None
 
 

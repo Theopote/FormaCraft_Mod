@@ -45,6 +45,82 @@ class AssemblyShellOpsTest {
         return map;
     }
     @Test
+    void rawCoordinatesCannotSilentlyDropAGraphConnection() {
+        var graph = Map.of("components", List.of(Map.of("id", "shell", "type", "SHELL_BOX")),
+                "connections", List.of(Map.of("from", Map.of("x", 3, "y", 0, "z", 0), "to", "shell.center")));
+        var issues = AssemblySpecValidator.validate(Map.of("graph", graph));
+        assertTrue(issues.stream().anyMatch(issue -> issue.code().equals("E_ENDPOINT_COMPONENT_REQUIRED")
+                && issue.path().equals("$.graph.connections[0].from")), issues::toString);
+    }
+
+    @Test
+    void authoredGraphCannotMaskTopLevelConnections() {
+        var graph = Map.of("components", List.of(Map.of("id", "shell", "type", "SHELL_BOX")));
+        var conflict = Map.of("graph", graph,
+                "connections", List.of(Map.of("from", "shell.center", "to", "shell.top_center")));
+        var issue = AssemblySpecValidator.authoredGraphLocationIssue(
+                AssemblySpecNormalizer.normalize(conflict).normalized());
+        assertNotNull(issue);
+        assertEquals("E_ASSEMBLY_GRAPH_LOCATION", issue.code());
+        assertEquals("$.connections", issue.path());
+        assertNull(AssemblySpecValidator.authoredGraphLocationIssue(Map.of("graph", graph, "connections", List.of())));
+    }
+
+    @Test
+    void mixedGeometryCannotSilentlyDropTheGraph() {
+        var ops = List.of(Map.of("op", "SHELL_BOX", "w", 12, "d", 12, "h", 28));
+        var graph = Map.of("components", List.of(Map.of("id", "shell",
+                "type", "SHELL_BOX", "w", 12, "d", 12, "h", 28)));
+        var issues = AssemblySpecValidator.validate(Map.of("ops", ops, "graph", graph));
+        assertTrue(issues.stream().anyMatch(issue -> issue.code().equals("E_ASSEMBLY_MIXED_GEOMETRY")
+                && issue.path().equals("$.graph.components")), issues::toString);
+    }
+
+    @Test
+    void executableOpsDoNotMaskMalformedGraphComponents() {
+        var ops = List.of(Map.of("op", "SHELL_BOX", "w", 12, "d", 12, "h", 28));
+        var invalidGraph = AssemblySpecValidator.validate(Map.of("ops", ops, "graph", List.of()));
+        assertTrue(invalidGraph.stream().anyMatch(issue -> issue.code().equals("E_GRAPH_NOT_OBJECT")
+                && issue.path().equals("$.graph")), invalidGraph::toString);
+        var invalidComponents = AssemblySpecValidator.validate(Map.of("ops", ops,
+                "graph", Map.of("components", Map.of())));
+        assertTrue(invalidComponents.stream().anyMatch(issue -> issue.code().equals("E_COMPONENTS_NOT_ARRAY")
+                && issue.path().equals("$.graph.components")), invalidComponents::toString);
+    }
+
+    @Test
+    void graphRejectsConnectionsThatAreNotAnArray() {
+        var graph = Map.of("graph", Map.of(
+                "components", List.of(Map.of("id", "shell", "type", "SHELL_BOX")),
+                "connections", Map.of("from", "shell.center", "to", "other.center")));
+        var issues = AssemblySpecValidator.validate(graph);
+        assertTrue(issues.stream().anyMatch(issue -> issue.code().equals("E_CONNECTIONS_NOT_ARRAY")
+                && issue.path().equals("$.graph.connections")), issues::toString);
+    }
+
+    @Test
+    void graphRejectsUnsupportedTypesAndPreservesExactAliases() {
+        var graph = Map.of("graph", Map.of("components", List.of(
+                Map.of("id", "shell", "type", "BOX_SHELL", "w", 12, "d", 12, "h", 28),
+                Map.of("id", "offset", "type", "OFFSET_SURFACE", "source", Map.of()),
+                Map.of("id", "unknown", "type", "CUSTOM_SHELL_BOX"))));
+        var errors = AssemblySpecValidator.validate(graph).stream()
+                .filter(issue -> issue.code().equals("E_COMPONENT_TYPE_UNSUPPORTED"))
+                .map(AssemblyValidationIssue::path).toList();
+        assertEquals(List.of("$.graph.components[2].type"), errors);
+    }
+
+    @Test
+    void unsupportedOperationFailsValidationEvenWithAnExecutableShell() {
+        var plan = Map.of("ops", List.of(
+                Map.of("op", "SHELL_BOX", "w", 12, "d", 12, "h", 28),
+                Map.of("op", "NOVEL_UNSUPPORTED_OP")));
+        var issues = AssemblySpecValidator.validate(plan);
+        assertTrue(issues.stream().anyMatch(issue -> issue.code().equals("E_OP_UNSUPPORTED")
+                && issue.path().equals("$.ops[1].op")), issues::toString);
+    }
+
+    @Test
     void ordinaryPlanPreservesAThirtyBlockTwistedEnvelope() throws Exception {
         var plan = StyleVisualCases.load("twisted_shell", new BlockPos(0, 64, 0));
         var component = plan.components().getFirst();

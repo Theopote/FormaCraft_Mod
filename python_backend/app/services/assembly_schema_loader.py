@@ -40,17 +40,25 @@ def known_preset_ids() -> Set[str]:
     })
 
 
-def component_ports(comp_type: str) -> Set[str]:
-    upper = (comp_type or "").strip().upper()
+def assembly_component_catalog() -> Dict[str, Dict[str, Any]]:
+    catalog: Dict[str, Dict[str, Any]] = {}
     for item in load_assembly_schema().get("components") or []:
         if not isinstance(item, dict):
             continue
         ctype = str(item.get("type") or "").strip().upper()
-        aliases = {str(a).strip().upper() for a in (item.get("aliases") or []) if a}
-        if upper == ctype or upper in aliases or (ctype and ctype in upper):
-            ports = item.get("ports") or []
-            if isinstance(ports, list):
-                return {str(p).strip() for p in ports if p}
+        if ctype:
+            catalog[ctype] = item
+            for alias in item.get("aliases") or []:
+                if alias:
+                    catalog[str(alias).strip().upper()] = item
+    return catalog
+
+
+def component_ports(comp_type: str) -> Set[str]:
+    item = assembly_component_catalog().get((comp_type or "").strip().upper())
+    ports = item.get("ports") if item is not None else None
+    if isinstance(ports, list):
+        return {str(p).strip() for p in ports if p}
     return set(_BUILTIN_PORTS)
 
 

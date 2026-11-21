@@ -113,6 +113,11 @@ public final class AssemblyPatchGenerator {
                         instanceof com.formacraft.server.dsl.FbdPlanLowering.SourceContext source ? source : null);
         } else {
             AssemblySpecNormalizeResult norm = AssemblySpecNormalizer.normalize(assemblyObj);
+            var graphLocationIssue = AssemblySpecValidator.authoredGraphLocationIssue(norm.normalized());
+            if (graphLocationIssue != null) {
+                return failFromIssue(graphLocationIssue,
+                        List.of("Keep all graph components and connections together in one location."));
+            }
             AssemblyPresetApplier.ApplyResult presetApplied = AssemblyPresetApplier.apply(norm.normalized());
             for (AssemblyValidationIssue issue : presetApplied.issues()) {
                 if (issue.severity() == AssemblyValidationIssue.Severity.ERROR) {

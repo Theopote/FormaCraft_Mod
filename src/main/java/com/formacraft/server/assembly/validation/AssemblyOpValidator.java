@@ -1,5 +1,6 @@
 package com.formacraft.server.assembly.validation;
 
+import com.formacraft.server.assembly.schema.AssemblyComponentSchemaRegistry;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -7,6 +8,8 @@ import java.util.Set;
 
 /** Dispatches per-op validation for assembly ops lists. */
 final class AssemblyOpValidator {
+    private static final Set<String> ENGINE_OPS = Set.copyOf(AssemblyComponentSchemaRegistry.engineOps());
+
     private AssemblyOpValidator() {}
 
     static void validateOps(List<AssemblyValidationIssue> out, String path, List<?> ops) {
@@ -115,7 +118,14 @@ final class AssemblyOpValidator {
                     "verticalBands", "vBands", "bandsV"
             ));
             String op = AssemblyValidationSupport.str(m.get("op"), "").trim().toUpperCase(Locale.ROOT);
-            if (op.isBlank()) out.add(AssemblyValidationSupport.err(p + ".op", "E_OP_MISSING", "缺少 op 字段"));
+            if (op.isBlank()) {
+                out.add(AssemblyValidationSupport.err(p + ".op", "E_OP_MISSING", "缺少 op 字段"));
+                continue;
+            }
+            if (!ENGINE_OPS.contains(op)) {
+                out.add(AssemblyValidationSupport.err(p + ".op", "E_OP_UNSUPPORTED", "不支持的 Assembly 操作: " + op));
+                continue;
+            }
 
             // Common structural ops
             AssemblyOpStructuralValidator.validate(op, out, p, m);

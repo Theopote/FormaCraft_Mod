@@ -11,6 +11,118 @@ from app.services.assembly_plan_repair import finalize_assembly_plan_or_gap
 
 
 class AssemblyPlanValidatorTest(unittest.TestCase):
+    def test_connection_requires_a_component_but_accepts_relative_offsets(self):
+        connection = {"from": {"x": 3, "y": 0, "z": 0}, "to": "shell.center"}
+        payload = {"graph": {"components": [{"id": "shell", "type": "SHELL_BOX"}],
+                             "connections": [connection]}}
+        plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": payload}}]}
+        issues = validate_assembly_plan(plan)
+        self.assertEqual(["E_ENDPOINT_COMPONENT_REQUIRED"], [issue.code for issue in issues])
+        self.assertTrue(issues[0].path.endswith("connections[0].from"))
+        connection["from"] = {"component": "shell", "port": "missing_port", "x": 3}
+        self.assertEqual(["E_CONN_UNKNOWN_PORT"], [issue.code for issue in validate_assembly_plan(plan)])
+        connection["from"]["port"] = "center"
+        self.assertEqual([], validate_assembly_plan(plan))
+        self.assertEqual(3, connection["from"]["x"])
+
+    def test_nested_graph_cannot_mask_top_level_connections(self):
+        payload = {"graph": {"components": [{"id": "shell", "type": "SHELL_BOX"}]},
+                   "connections": [{"from": "shell.center", "to": "shell.top_center"}]}
+        plan = {"mode": "build", "components": [{
+            "component_type": "ASSEMBLY", "params": {"assembly": payload},
+        }]}
+        gap = finalize_assembly_plan_or_gap(plan, "生成原创折光匣")["capability_gap"]
+        self.assertEqual("E_ASSEMBLY_GRAPH_LOCATION", gap["code"])
+        self.assertEqual("components[0].params.assembly.connections", gap["path"])
+        payload["connections"] = []
+        self.assertEqual([], validate_assembly_plan(plan))
+
+    def test_mixed_geometry_reports_the_ignored_component_list(self):
+        payload = {"ops": [{"op": "SHELL_BOX"}], "graph": {
+            "components": [{"id": "offset", "type": "OFFSET_SURFACE", "source": {}}],
+        }}
+        plan = {"mode": "build", "components": [{
+            "component_type": "ASSEMBLY", "params": {"assembly": payload},
+        }]}
+        gap = finalize_assembly_plan_or_gap(plan, "生成原创折光匣")["capability_gap"]
+        self.assertEqual("E_ASSEMBLY_MIXED_GEOMETRY", gap["code"])
+        self.assertTrue(gap["path"].endswith(".graph.components"))
+        self.assertEqual([], validate_assembly_plan({"components": [{
+            "component_type": "ASSEMBLY", "params": {"assembly": {**payload, "ops": []}},
+        }]}))
+
+    def test_executable_ops_cannot_mask_malformed_graph_components(self):
+        for graph_fields, code, suffix in (
+            ({"graph": []}, "E_GRAPH_NOT_OBJECT", ".graph"),
+            ({"graph": {"components": {}}}, "E_COMPONENTS_NOT_ARRAY", ".graph.components"),
+            ({"components": None}, "E_COMPONENTS_NOT_ARRAY", ".components"),
+            ({"graph": {"components": ["shell"]}}, "E_COMPONENT_NOT_OBJECT", ".graph.components[0]"),
+        ):
+            with self.subTest(graph_fields=graph_fields):
+                payload = {"ops": [{"op": "SHELL_BOX"}], **graph_fields}
+                plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": payload}}]}
+                issues = validate_assembly_plan(plan)
+                self.assertEqual([code], [issue.code for issue in issues])
+                self.assertEqual("components[0].params.assembly" + suffix, issues[0].path)
+
+    def test_malformed_graph_connections_report_the_authored_path(self):
+        for nested in (False, True):
+            for connections, code, suffix in (
+                ({}, "E_CONNECTIONS_NOT_ARRAY", ".connections"),
+                (["shell.center"], "E_CONN_NOT_OBJECT", ".connections[0]"),
+            ):
+                with self.subTest(nested=nested, connections=connections):
+                    graph = {"components": [{"id": "shell", "type": "SHELL_BOX"}],
+                             "connections": connections}
+                    payload = {"graph": graph} if nested else graph
+                    plan = {"mode": "build", "components": [{
+                        "component_type": "ASSEMBLY", "params": {"assembly": payload},
+                    }]}
+                    gap = finalize_assembly_plan_or_gap(plan, "生成原创折光匣")["capability_gap"]
+                    self.assertEqual(code, gap["code"])
+                    prefix = "components[0].params.assembly" + (".graph" if nested else "")
+                    self.assertEqual(prefix + suffix, gap["path"])
+
+    def test_graph_repair_reports_unknown_type_with_existing_aliases_intact(self):
+        components = [
+            {"id": "shell", "type": "BOX_SHELL", "w": 12, "d": 12, "h": 28},
+            {"id": "offset", "type": "OFFSET_SURFACE", "source": {}},
+            {"id": "unknown", "type": "CUSTOM_SHELL_BOX"},
+        ]
+        plan = {"mode": "build", "components": [{
+            "component_type": "ASSEMBLY", "params": {"assembly": {"graph": {"components": components}}},
+        }]}
+        result = finalize_assembly_plan_or_gap(plan, "生成原创折光匣")
+        self.assertEqual("capability_gap", result["plan_status"])
+        self.assertEqual("E_COMPONENT_TYPE_UNSUPPORTED", result["capability_gap"]["code"])
+        self.assertTrue(result["capability_gap"]["path"].endswith("components[2].type"))
+        self.assertEqual("BOX_SHELL", components[0]["type"])
+        self.assertEqual("OFFSET_SURFACE", components[1]["type"])
+
+    def test_unknown_operation_blocks_a_partial_build(self):
+        plan = {"mode": "build", "components": [{
+            "component_type": "ASSEMBLY",
+            "params": {"assembly": {"ops": [{"op": "SHELL_BOX"}, {"op": "NOVEL_UNSUPPORTED_OP"}]}},
+        }]}
+        result = finalize_assembly_plan_or_gap(plan, "生成原创折光匣")
+        self.assertEqual("capability_gap", result["plan_status"])
+        self.assertEqual("E_OP_UNSUPPORTED", result["capability_gap"]["code"])
+        self.assertTrue(result["capability_gap"]["path"].endswith("ops[1].op"))
+
+    def test_shell_geometry_uses_the_executors_operation_selector(self):
+        for payload, path_suffix in (
+            ({"ops": [{"op": "SHELL_BOX", "type": "OTHER", "w": 4}]}, "ops[0].w"),
+            ({"graph": {"components": [{"id": "shell", "type": "BOX_SHELL", "w": 4}]}},
+             "graph.components[0].w"),
+            ({"graph": {"components": [{"id": "shell", "type": " ", "op": "SHELL_BOX", "w": 4}]}},
+             "graph.components[0].w"),
+        ):
+            with self.subTest(path=path_suffix):
+                plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": payload}}]}
+                issues = validate_assembly_plan(plan)
+                self.assertEqual(["E_INT_RANGE"], [issue.code for issue in issues])
+                self.assertTrue(issues[0].path.endswith(path_suffix))
+
     def test_shell_rotation_is_validated_without_changing_direction_or_phase(self):
         op = {"op": "SHELL_BOX", "w": 12, "d": 12, "h": 28, "twistTurns": -0.125, "twistPhase": 0.25}
         plan = {"mode": "build", "components": [{

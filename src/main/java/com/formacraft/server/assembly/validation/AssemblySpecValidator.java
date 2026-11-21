@@ -19,6 +19,18 @@ import java.util.Set;
  * - Deep geometric validity checks.
  */
 public final class AssemblySpecValidator {
+    /** Check authored graph placement before legacy presets or macros expand the payload. */
+    public static AssemblyValidationIssue authoredGraphLocationIssue(Object payload) {
+        if (!(payload instanceof Map<?, ?> root) || !(root.get("graph") instanceof Map<?, ?>)) return null;
+        for (String key : List.of("components", "connections")) {
+            if (root.containsKey(key) && !List.of().equals(root.get(key))) {
+                return AssemblyValidationSupport.err("$." + key, "E_ASSEMBLY_GRAPH_LOCATION",
+                        "请将构件与连接放在同一个构件图中");
+            }
+        }
+        return null;
+    }
+
     private AssemblySpecValidator() {}
 
     public static List<AssemblyValidationIssue> validate(Object assemblyObj) {
@@ -47,6 +59,8 @@ public final class AssemblySpecValidator {
         Object opsObj = root.get("ops");
         if (opsObj instanceof List<?> opsList) {
             AssemblyOpValidator.validateOps(out, "$.ops", opsList);
+        } else if (root.containsKey("ops")) {
+            out.add(AssemblyValidationSupport.err("$.ops", "E_OPS_NOT_ARRAY", "ops 必须是数组"));
         }
 
         // graph/components form
@@ -54,20 +68,32 @@ public final class AssemblySpecValidator {
         Map<?, ?> graph = (graphObj instanceof Map<?, ?> gm) ? gm : null;
         if (graph != null) {
             AssemblyValidationSupport.warnUnknownKeys(out, "$.graph", graph, Set.of("components", "connections"));
+        } else if (root.containsKey("graph")) {
+            out.add(AssemblyValidationSupport.err("$.graph", "E_GRAPH_NOT_OBJECT", "graph 必须是对象"));
         }
         Object compsObj = (graph != null) ? graph.get("components") : root.get("components");
         Object connsObj = (graph != null) ? graph.get("connections") : root.get("connections");
 
         Set<String> componentIds = new HashSet<>();
+        String componentPath = graph != null ? "$.graph.components" : "$.components";
         if (compsObj instanceof List<?> comps) {
-            validateComponents(out, graph != null ? "$.graph.components" : "$.components", comps, componentIds);
+            validateComponents(out, componentPath, comps, componentIds);
+            if (!comps.isEmpty() && opsObj instanceof List<?> ops && !ops.isEmpty()) {
+                out.add(AssemblyValidationSupport.err(componentPath, "E_ASSEMBLY_MIXED_GEOMETRY",
+                        "请将所需几何统一表达为 ops 或构件图"));
+            }
+        } else if ((graph != null ? graph : root).containsKey("components")) {
+            out.add(AssemblyValidationSupport.err(componentPath, "E_COMPONENTS_NOT_ARRAY", "components 必须是数组"));
         } else if (opsObj == null) {
             // If neither ops nor components exist, that's almost certainly wrong.
             out.add(AssemblyValidationSupport.err("$", "E_MISSING_OPS_OR_COMPONENTS", "extra.assembly 缺少 ops 或 graph.components/components"));
         }
 
+        String connectionPath = graph != null ? "$.graph.connections" : "$.connections";
         if (connsObj instanceof List<?> conns) {
-            validateConnections(out, graph != null ? "$.graph.connections" : "$.connections", conns, componentIds);
+            validateConnections(out, connectionPath, conns, componentIds);
+        } else if ((graph != null ? graph : root).containsKey("connections")) {
+            out.add(AssemblyValidationSupport.err(connectionPath, "E_CONNECTIONS_NOT_ARRAY", "connections 必须是数组"));
         }
 
         out.addAll(AssemblyGraphDslValidator.validate(root));

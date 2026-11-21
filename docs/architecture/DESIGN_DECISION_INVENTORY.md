@@ -6,6 +6,22 @@ Assembly repair guidance preserves the authored composition and reports unsuppor
 
 Ordinary Assembly validates explicit SHELL_BOX dimensions, floor spacing and rotation against the executor's supported ranges before repair (HARD_CONSTRAINT). Valid values pass through unchanged. Omitted fields retain the existing executor contract.
 
+Ordinary Assembly checks raw operation names against the Java engine catalog (HARD_CONSTRAINT). Python uses the exported catalog when available and reports the offending operation before repair. Java independently rejects unknown operations during plan validation.
+
+Assembly graph validation requires an exact registered geometry type or alias (HARD_CONSTRAINT). Python reads the exported Java catalog to report unsupported types before repair and to check known ports. Java validates independently before emitting geometry. The existing surface-offset executor and alias are included in the registry.
+
+Assembly graph connection lists must be arrays of objects when supplied (HARD_CONSTRAINT). Python and Java report malformed lists and entries at their authored paths so malformed links cannot silently become independent components.
+
+Assembly graph connection endpoints must reference a component (HARD_CONSTRAINT). A raw coordinate is supported as a route waypoint, while an endpoint may use coordinates as offsets on an explicit component reference. Python and Java report unusable endpoints before execution.
+
+An explicitly supplied Assembly graph must be an object and its component list must be an array of objects (HARD_CONSTRAINT). Executable raw ops do not suppress malformed graph diagnostics.
+
+Ordinary Assembly reports ambiguity when both raw ops and a nonempty component list are supplied (HARD_CONSTRAINT). The existing repair loop asks for one complete representation so execution never silently drops the other geometry.
+
+Authored Assembly graphs keep their components and connections at one location (HARD_CONSTRAINT). A nested graph cannot mask supplied top-level graph data. Java checks the input before legacy macro and preset expansion.
+
+Assembly geometry validation identifies raw ops by their executable `op` and graph components by the executor's `type`/ `op` precedence (FORMAT_REPAIR). The existing graph alias `BOX_SHELL` is checked against the same constraints as `SHELL_BOX`. The payload is preserved.
+
 Adaptive terrain padding for model-authored Assembly ops, graphs or FBD derives its footprint from final load-bearing blocks at the adapted ground elevation (GEOMETRY). Elevated overhangs and floating platforms participate in support diagnostics but do not create ground pads. Explicit flatten, stilt and preset-only paths keep their prior contracts.
 
 The ordinary planning catalog exposes model-authored Assembly ops and graphs for free-form geometry (NONBINDING_HINT). The closed SHELL_BOX example shows how to combine explicit rotation and taper without a building-name route. Dedicated FBD intent remains separate. No executor or geometric parameter is selected by the catalog.

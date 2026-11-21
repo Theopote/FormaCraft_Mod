@@ -68,9 +68,9 @@ final class AssemblyValidationSupport {
             }
             case Map<?, ?> m -> {
                 Object cid = m.get("component");
-                if (cid == null) cid = m.get("id");
-                if (cid == null) {
-                    // could be raw {x,y,z}; accept
+                if (str(cid, "").isBlank()) cid = m.get("id");
+                if (str(cid, "").isBlank()) {
+                    out.add(err(path, "E_ENDPOINT_COMPONENT_REQUIRED", "连接端点必须引用组件"));
                     return;
                 }
                 String id = str(cid, "").trim();
@@ -82,7 +82,7 @@ final class AssemblyValidationSupport {
             default -> {
             }
         }
-        out.add(err(path, "E_ENDPOINT_BAD_TYPE", "端点必须是字符串 \"A.port\" 或对象 {component/id,port,...} 或坐标 {x,y,z}"));
+        out.add(err(path, "E_ENDPOINT_BAD_TYPE", "端点必须是字符串 \"A.port\" 或引用组件的对象 {component/id,port,...}"));
     }
 
     // ---------------- helpers ----------------
