@@ -80,6 +80,11 @@ final class ComponentSatelliteAligner {
                 continue;
             }
             String type = ComponentPlanTypes.normalizeType(c.componentType());
+            // Courtyards, channels, corridors, site masses, etc. must not pick up a slot MASS host.
+            if (!isSatelliteAlignmentCandidate(type) && !isDormer(c)
+                    && !ComponentPlanTypes.isMassType(type) && !"TOWER".equals(type)) {
+                continue;
+            }
             // Small roof-top masses (palace gold finials) skip the satellite path unless centered here.
             if (ComponentPlanTypes.isMassType(type) || "TOWER".equals(type) || isDormer(c)) {
                 if (isDormer(c)) {
@@ -166,13 +171,24 @@ final class ComponentSatelliteAligner {
             if (AssemblyCompileDiagnostics.hasGap()) {
                 return;
             }
-            if (aligned != null && mass.params() != null && mass.params().get("component_id") != null) {
+            // Only geometry satellites get host/building stamps — never COURTYARD / site channels / etc.
+            if (aligned != null
+                    && shouldInjectSatelliteHostBinding(type)
+                    && mass.params() != null
+                    && mass.params().get("component_id") != null) {
                 var params = new HashMap<String, Object>();
                 if (aligned.params() != null) params.putAll(aligned.params());
-                params.putIfAbsent("host_id", mass.params().get("component_id"));
+                Object massComponentId = mass.params().get("component_id");
+                if (hostId != null) {
+                    params.putIfAbsent("host_id", massComponentId);
+                } else {
+                    // Geometric slot align without authored host — mark as compiler-inferred.
+                    params.putIfAbsent("host_id", massComponentId);
+                    params.putIfAbsent("compiler_inferred_host_id", massComponentId);
+                }
                 if ("PAVING".equals(type) && hostId == null
                         && ComponentPlanTypes.getParamString(c.params(), "hostId") == null) {
-                    params.put("compiler_inferred_host_id", mass.params().get("component_id"));
+                    params.put("compiler_inferred_host_id", massComponentId);
                 }
                 params.putIfAbsent("building_id", mass.params().getOrDefault("building_id", mass.params().get("component_id")));
                 if (Set.of("ENTRANCE", "FACADE_WINDOWS", "ROOF", "ROOF_STRUCTURE").contains(type) && ComponentPlanTypes.hasComponentRequest(aligned.features())) {
@@ -1169,15 +1185,59 @@ final class ComponentSatelliteAligner {
             }
         }
 
+        // Single centered crown may use the mass-top template; multiple authored crowns keep XY.
+        Vec3i position = template.relativePosition();
+        if (llmCrown.relativePosition() != null && countCrownsForMass(all, massId) > 1) {
+            position = llmCrown.relativePosition();
+        }
+
         Component aligned = new Component(
                 "CROWN",
                 llmCrown.slotId(),
-                template.relativePosition(),
+                position,
                 new Dimensions(crownWidth, crownWidth, crownHeight),
                 mergeFeatureLists(template.features(), llmCrown.features()),
                 params
         );
         return CrownGrammarResolver.apply(plan, aligned);
+    }
+
+    /** Types that participate in satellite↔mass geometric realignment. */
+    private static boolean isSatelliteAlignmentCandidate(String type) {
+        if (type == null) {
+            return false;
+        }
+        return switch (type) {
+            case "FACADE_WINDOWS", "ENTRANCE",
+                 "CROWN", "CUPOLA", "DOME",
+                 "FOUNDATION", "TERRACE", "BASE",
+                 "PAVING", "CHIMNEY",
+                 "DECOR_DETAIL", "DECOR", "ORNAMENT", "SIGNAGE" -> true;
+            default -> ComponentPlanTypes.isRoofType(type);
+        };
+    }
+
+    private static boolean shouldInjectSatelliteHostBinding(String type) {
+        return isSatelliteAlignmentCandidate(type);
+    }
+
+    private static int countCrownsForMass(List<Component> all, String massId) {
+        if (all == null || massId == null) {
+            return 0;
+        }
+        int n = 0;
+        for (Component c : all) {
+            if (c == null) continue;
+            String type = ComponentPlanTypes.normalizeType(c.componentType());
+            if (!"CROWN".equals(type) && !"CUPOLA".equals(type) && !"DOME".equals(type)) {
+                continue;
+            }
+            String host = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
+            if (massId.equals(host)) {
+                n++;
+            }
+        }
+        return n;
     }
 
     /** True when id looks like an auto-assigned crown id for {@code massId} ({@code mass#crown} or {@code mass#crown#N}). */

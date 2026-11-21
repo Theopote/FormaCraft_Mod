@@ -579,7 +579,11 @@ public final class GenerationCompileContext {
 
     /**
      * Global building_id ↔ host-chain identity check (no typology required).
-     * Returns conflicting component ids when child.building_id ≠ resolved host building_id.
+     * <p>
+     * Only authored <em>attachment satellites</em> (roofs, openings, crowns, decor) are checked.
+     * Nested masses, courtyards, stilts, corridors and site features may carry distinct unit
+     * {@code building_id}s while still hosting each other — those are not cross-building errors.
+     * Compiler-inferred host links are also skipped (see {@code compiler_inferred_host_id}).
      */
     public static List<String> hostBuildingIdentityConflicts(List<Component> components) {
         List<String> conflicts = new ArrayList<>();
@@ -588,11 +592,17 @@ public final class GenerationCompileContext {
         }
         ComponentIdIndex index = indexComponentsById(components);
         for (Component c : components) {
-            if (c == null) continue;
+            if (c == null || !isHostBuildingIdentityAttachment(c)) {
+                continue;
+            }
             String childBid = param(c, "building_id", "buildingId");
             String host = param(c, "host_id", "hostId");
             if (childBid == null || host == null) {
                 continue;
+            }
+            String inferred = param(c, "compiler_inferred_host_id", "compilerInferredHostId");
+            if (host.equals(inferred)) {
+                continue; // aligner technical link, not an authored cross-building claim
             }
             if (index.isAmbiguous(host)) {
                 continue; // duplicate-id gap handles this separately
@@ -608,6 +618,24 @@ public final class GenerationCompileContext {
             }
         }
         return conflicts;
+    }
+
+    /**
+     * Attachment satellites whose authored building_id must agree with the host-chain root.
+     * Mass bodies / courtyards / site connectors are excluded — they use building_id as unit id.
+     */
+    public static boolean isHostBuildingIdentityAttachment(Component c) {
+        if (c == null || c.componentType() == null) {
+            return false;
+        }
+        String type = c.componentType().trim().toUpperCase(Locale.ROOT);
+        return switch (type) {
+            case "FACADE_WINDOWS", "ENTRANCE",
+                 "CROWN", "CUPOLA", "DOME", "CHIMNEY",
+                 "DECOR_DETAIL", "DECOR", "ORNAMENT", "SIGNAGE" -> true;
+            case "ROOF", "ROOF_STRUCTURE" -> true;
+            default -> type.startsWith("ROOF");
+        };
     }
 
     public static boolean belongsToTypologyExclusiveScope(

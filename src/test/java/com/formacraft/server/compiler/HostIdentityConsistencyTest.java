@@ -130,7 +130,7 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
-    void multipleCrownsOnSameHostGetDistinctIds() {
+    void multipleCrownsOnSameHostGetDistinctIdsAndPositions() {
         var mass = new Component("MASS_MAIN", "m", new Vec3i(0, 0, 0),
                 new Dimensions(16, 16, 14), List.of(),
                 Map.of("component_id", "palace"));
@@ -144,20 +144,62 @@ class HostIdentityConsistencyTest {
         var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.copyOf(components)).build();
         ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), Set.of());
-        var ids = components.stream()
+        var crowns = components.stream()
                 .filter(c -> "CROWN".equals(c.componentType()))
+                .toList();
+        var ids = crowns.stream()
                 .map(c -> String.valueOf(c.params().get("component_id")))
                 .toList();
         assertEquals(2, ids.size());
         assertEquals(2, ids.stream().distinct().count(), "two crowns must not share one id: " + ids);
         assertTrue(ids.contains("palace#crown"), ids.toString());
         assertTrue(ids.stream().anyMatch(id -> id.startsWith("palace#crown#")), ids.toString());
-        for (Component c : components) {
-            if ("CROWN".equals(c.componentType())) {
-                assertEquals("palace", c.params().get("host_id"));
-            }
+        assertEquals(2, crowns.stream().map(Component::relativePosition).distinct().count(),
+                "authored multi-crown XY must stay distinct, got " + crowns.stream()
+                        .map(Component::relativePosition).toList());
+        assertTrue(crowns.stream().anyMatch(c -> c.relativePosition().equals(new Vec3i(2, 14, 2))));
+        assertTrue(crowns.stream().anyMatch(c -> c.relativePosition().equals(new Vec3i(10, 14, 10))));
+        for (Component c : crowns) {
+            assertEquals("palace", c.params().get("host_id"));
         }
         assertTrue(HostedPlateDesignValidator.checkDuplicateComponentIds(components).isEmpty());
+    }
+
+    @Test
+    void courtyardWithoutHostIsNotBoundToSlotMass() {
+        var north = new Component("MASS_MAIN", "n", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "north_wing", "building_id", "north_wing"));
+        var court = new Component("COURTYARD_SPACE", "n", new Vec3i(4, 0, 12),
+                new Dimensions(10, 10, 1), List.of(),
+                Map.of("component_id", "central_tianjing", "building_id", "central_tianjing"));
+        var components = new java.util.ArrayList<>(List.of(north, court));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.copyOf(components)).build();
+        ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), Set.of());
+        var fixed = components.stream()
+                .filter(c -> "central_tianjing".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertNull(fixed.params().get("host_id"),
+                "independent courtyard must not inherit slot MASS host_id");
+        assertTrue(HostedPlateDesignValidator.checkHostBuildingIdentity(components).isEmpty());
+    }
+
+    @Test
+    void nestedTierWithDistinctBuildingIdsAreNotIdentityConflicts() {
+        var tier1 = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 8), List.of(),
+                Map.of("component_id", "stupa_tier1", "building_id", "stupa_tier1"));
+        var tier2 = new Component("MASS_MAIN", "s", new Vec3i(1, 8, 1),
+                new Dimensions(10, 10, 8), List.of(),
+                Map.of("component_id", "stupa_tier2", "building_id", "stupa_tier2",
+                        "host_id", "stupa_tier1"));
+        var tier3 = new Component("MASS_MAIN", "s", new Vec3i(2, 16, 2),
+                new Dimensions(8, 8, 8), List.of(),
+                Map.of("component_id", "stupa_tier3", "building_id", "stupa_tier3",
+                        "host_id", "stupa_tier2"));
+        assertTrue(HostedPlateDesignValidator
+                .checkHostBuildingIdentity(List.of(tier1, tier2, tier3)).isEmpty());
     }
 
     @Test
