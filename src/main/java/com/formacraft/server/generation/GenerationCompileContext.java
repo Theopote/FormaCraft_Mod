@@ -410,6 +410,9 @@ public final class GenerationCompileContext {
         return hostOwn;
     }
 
+    /**
+     * Walk the full host chain (cycle-guarded) until a building_id or exclusive STRUCTURE root is found.
+     */
     private static String resolveHostBuildingId(
             Component hostComp,
             List<Component> exclusiveRoots,
@@ -418,30 +421,31 @@ public final class GenerationCompileContext {
         if (hostComp == null) {
             return null;
         }
-        String bid = param(hostComp, "building_id", "buildingId");
-        if (bid != null) {
-            return bid;
-        }
-        String hostId = param(hostComp, "component_id", "componentId");
-        if (hostId != null && exclusiveIds != null && exclusiveIds.contains(hostId)) {
-            return buildingIdOfExclusiveRoot(hostId, exclusiveRoots);
-        }
-        // Walk one hop of host_id for building_id when the direct host is a shell without bid.
-        String parent = param(hostComp, "host_id", "hostId");
-        if (parent != null && index != null && !index.isAmbiguous(parent)) {
-            Component parentComp = index.getUnique(parent);
-            if (parentComp != null) {
-                String parentBid = param(parentComp, "building_id", "buildingId");
-                if (parentBid != null) {
-                    return parentBid;
+        Set<String> seen = new HashSet<>();
+        Component cursor = hostComp;
+        while (cursor != null) {
+            String bid = param(cursor, "building_id", "buildingId");
+            if (bid != null) {
+                return bid;
+            }
+            String cid = param(cursor, "component_id", "componentId");
+            if (cid != null && exclusiveIds != null && exclusiveIds.contains(cid)) {
+                return buildingIdOfExclusiveRoot(cid, exclusiveRoots);
+            }
+            if (cid != null && !seen.add(cid)) {
+                return null; // cycle
+            }
+            String parent = param(cursor, "host_id", "hostId");
+            if (parent == null || index == null || index.isAmbiguous(parent)) {
+                if (parent != null && exclusiveIds != null && exclusiveIds.contains(parent)) {
+                    return buildingIdOfExclusiveRoot(parent, exclusiveRoots);
                 }
-                String parentId = param(parentComp, "component_id", "componentId");
-                if (parentId != null && exclusiveIds != null && exclusiveIds.contains(parentId)) {
-                    return buildingIdOfExclusiveRoot(parentId, exclusiveRoots);
-                }
-            } else if (exclusiveIds != null && exclusiveIds.contains(parent)) {
+                return null;
+            }
+            if (exclusiveIds != null && exclusiveIds.contains(parent)) {
                 return buildingIdOfExclusiveRoot(parent, exclusiveRoots);
             }
+            cursor = index.getUnique(parent);
         }
         return null;
     }
@@ -506,6 +510,11 @@ public final class GenerationCompileContext {
         }
         for (Component c : components) {
             if (c == null) continue;
+            // Floor plates may share display labels and are not host-reference targets.
+            if (c.params() != null
+                    && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
+                continue;
+            }
             String id = param(c, "component_id", "componentId");
             if (id == null) continue;
             if (duplicates.contains(id)) {

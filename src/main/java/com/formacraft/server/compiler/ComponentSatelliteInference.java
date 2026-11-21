@@ -1304,6 +1304,15 @@ final class ComponentSatelliteInference {
         if (base.params() != null) {
             params.putAll(base.params());
         }
+        // Never inherit the host mass's component_id — crowns are host-referenced satellites.
+        Object hostIdentity = params.remove("component_id");
+        if (hostIdentity == null) {
+            hostIdentity = ComponentPlanTypes.getParamString(base.params(), "component_id", "componentId");
+        }
+        if (hostIdentity != null) {
+            params.putIfAbsent("host_id", hostIdentity);
+            params.put("component_id", hostIdentity + "#crown");
+        }
         params.put("crown_radius", radius);
         params.put("crown_height", crownHeight);
         params.putIfAbsent("revolve_segments", 32);
@@ -1369,7 +1378,9 @@ final class ComponentSatelliteInference {
         for (var satellite : satellites) {
             if (satellite == null || !("ROOF".equals(wantedType) ? ComponentPlanTypes.isRoofType(ComponentPlanTypes.normalizeType(satellite.componentType()))
                     : wantedType.equals(ComponentPlanTypes.normalizeType(satellite.componentType()))) || !ComponentPlanTypes.slotKey(satellite).equals(ComponentPlanTypes.slotKey(mass))) continue;
-            if (satellite.params() != null && satellite.params().get("host_part_id") != null) continue;
+            // Skip only roofs bound to a real nested mass part — placeholder host_part_id
+            // values (e.g. "missing") must still count as the mass's roof satellite.
+            if (isBoundToResolvedMassPart(satellite, mass)) continue;
             Object host = satellite.params() == null ? null : satellite.params().get("host_id");
             if (host != null) {
                 if (host.equals(identity)) return satellite;
@@ -1394,6 +1405,26 @@ final class ComponentSatelliteInference {
     }
 
     enum HostPick { NONE, MATCH, AMBIGUOUS }
+
+    private static boolean isBoundToResolvedMassPart(Component satellite, Component mass) {
+        if (satellite == null || satellite.params() == null || mass == null) {
+            return false;
+        }
+        Object partId = satellite.params().get("host_part_id");
+        if (partId == null) {
+            return false;
+        }
+        String wanted = String.valueOf(partId).trim();
+        if (wanted.isEmpty()) {
+            return false;
+        }
+        for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(mass)) {
+            if (part != null && wanted.equals(part.partId())) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     static HostPick resolveUnboundHost(Component mass, List<Component> primary, Component satellite) {
         Object identity = mass.params() == null ? null : mass.params().get("component_id");

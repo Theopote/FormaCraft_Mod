@@ -469,6 +469,36 @@ class HostedTypologyExclusivityTest {
         com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
     }
 
+    @Test void deepHostChainCrossExclusiveBuildingIsConflict() {
+        // pagoda_A ← … ← roof claiming temple_A but nested under pagoda_B's shell/trim chain.
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+        var pagodaA = new Component("STRUCTURE", "a", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda_A", "building_id", "temple_A",
+                        "typology_id", "dense_eaves_pagoda"));
+        var pagodaB = new Component("STRUCTURE", "b", new Vec3i(80, 0, 0),
+                new Dimensions(12, 12, 40), List.of("typology:dense_eaves_pagoda"),
+                Map.of("component_id", "pagoda_B", "building_id", "temple_B",
+                        "typology_id", "dense_eaves_pagoda"));
+        var shellB = new Component("MASS_MAIN", "b", new Vec3i(80, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "shell_B", "host_id", "pagoda_B"));
+        var trimB = new Component("FACADE_WINDOWS", "b", new Vec3i(80, 0, 0),
+                new Dimensions(12, 12, 40), List.of(),
+                Map.of("component_id", "trim_B", "host_id", "shell_B"));
+        var roofA = new Component("ROOF", "b", new Vec3i(80, 40, 0),
+                new Dimensions(12, 12, 4), List.of(),
+                Map.of("component_id", "roof_A", "building_id", "temple_A", "host_id", "trim_B"));
+        var filtered = ComponentSatelliteInference.applyTypologyExclusiveFilter(
+                List.of(pagodaA, pagodaB, shellB, trimB, roofA));
+        assertTrue(filtered.stream().anyMatch(c ->
+                "roof_A".equals(String.valueOf(c.params().get("component_id")))),
+                "cross-building deep host bind must not silently strip");
+        assertEquals("E_COMPONENT_OWNERSHIP_CONFLICT",
+                com.formacraft.server.assembly.AssemblyCompileDiagnostics.get().code());
+        com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
+    }
+
     @Test void exclusiveBuildingIdHostedOnIndependentMassIsConflict() {
         // Reverse direction: pagoda_roof (temple_A) bound to mansion must not inherit mansion ownership.
         com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();

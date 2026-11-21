@@ -1061,6 +1061,65 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertIn("pagoda_roof", ids)
         self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_CONFLICT")
 
+    def test_deep_host_chain_cross_exclusive_building_is_conflict(self):
+        from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
+
+        plan = {
+            "components": [
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 0, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {
+                        "component_id": "pagoda_A",
+                        "building_id": "temple_A",
+                        "typology_id": "dense_eaves_pagoda",
+                    },
+                },
+                {
+                    "component_type": "STRUCTURE",
+                    "relative_position": {"x": 80, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": ["typology:dense_eaves_pagoda"],
+                    "params": {
+                        "component_id": "pagoda_B",
+                        "building_id": "temple_B",
+                        "typology_id": "dense_eaves_pagoda",
+                    },
+                },
+                {
+                    "component_type": "MASS_MAIN",
+                    "relative_position": {"x": 80, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "shell_B", "host_id": "pagoda_B"},
+                },
+                {
+                    "component_type": "FACADE_WINDOWS",
+                    "relative_position": {"x": 80, "y": 0, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 40},
+                    "features": [],
+                    "params": {"component_id": "trim_B", "host_id": "shell_B"},
+                },
+                {
+                    "component_type": "ROOF",
+                    "relative_position": {"x": 80, "y": 40, "z": 0},
+                    "dimensions": {"width": 12, "depth": 12, "height": 4},
+                    "features": [],
+                    "params": {
+                        "component_id": "roof_A",
+                        "building_id": "temple_A",
+                        "host_id": "trim_B",
+                    },
+                },
+            ]
+        }
+        out, stripped = strip_typology_exclusive_compositionals(plan)
+        ids = {c["params"]["component_id"] for c in out["components"]}
+        self.assertIn("roof_A", ids)
+        self.assertEqual(out["capability_gap"]["code"], "E_COMPONENT_OWNERSHIP_CONFLICT")
+
     def test_hosted_nested_structure_and_paving_strip_with_shell(self):
         from app.services.typology_plan_repair import strip_typology_exclusive_compositionals
 

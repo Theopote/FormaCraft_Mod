@@ -61,6 +61,13 @@ public final class HostIdRemapRepair {
                 out.add(c);
                 continue;
             }
+            Component candidate = byId.get(remapped.hostId());
+            if (!buildingIdsCompatible(c, candidate)) {
+                // Unique name match is still a cross-building guess — keep original + diagnose.
+                ambiguousHosts.add(host);
+                out.add(c);
+                continue;
+            }
             Map<String, Object> params = new HashMap<>(c.params());
             params.put("host_id_mapped_from", host);
             params.put("host_id", remapped.hostId());
@@ -201,5 +208,27 @@ public final class HostIdRemapRepair {
     private static boolean isHostable(Component c) {
         if (c == null || c.componentType() == null) return false;
         return HOSTABLE.contains(c.componentType().trim().toUpperCase(Locale.ROOT));
+    }
+
+    /** Remap only when building identities are absent or equal — never cross-building by name alone. */
+    private static boolean buildingIdsCompatible(Component satellite, Component host) {
+        if (satellite == null || host == null) {
+            return false;
+        }
+        String childBid = paramBid(satellite);
+        String hostBid = paramBid(host);
+        if (childBid == null || hostBid == null) {
+            return true;
+        }
+        return childBid.equals(hostBid);
+    }
+
+    private static String paramBid(Component c) {
+        if (c.params() == null) return null;
+        Object v = c.params().get("building_id");
+        if (v == null) v = c.params().get("buildingId");
+        if (v == null) return null;
+        String s = String.valueOf(v).trim();
+        return s.isEmpty() ? null : s;
     }
 }

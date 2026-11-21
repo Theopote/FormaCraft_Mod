@@ -349,11 +349,16 @@ _OWNERSHIP_CONFLICT = "OWNERSHIP_CONFLICT"
 def _index_components_by_id(
     components: List[Any],
 ) -> tuple[Dict[str, Dict[str, Any]], set[str]]:
-    """Unique component_id → component; duplicates omitted (no last-writer)."""
+    """Unique component_id → component; duplicates omitted (no last-writer).
+    Floor plates may share display labels and are excluded from host-ref index.
+    """
     by_id: Dict[str, Dict[str, Any]] = {}
     duplicates: set[str] = set()
     for comp in components:
         if not isinstance(comp, dict):
+            continue
+        params = comp.get("params") if isinstance(comp.get("params"), dict) else {}
+        if str(params.get("extrude_mode") or "").lower() == "plate":
             continue
         cid = _param_str(comp, "component_id", "componentId")
         if not cid or cid in duplicates:
@@ -416,28 +421,30 @@ def _resolve_host_building_id(
     by_id: Dict[str, Dict[str, Any]],
     duplicate_ids: set[str],
 ) -> Optional[str]:
+    """Full host-chain walk (cycle-guarded) for the resolved building_id."""
     if not host_comp:
         return None
-    bid = _param_str(host_comp, "building_id", "buildingId")
-    if bid:
-        return bid
-    host_id = _param_str(host_comp, "component_id", "componentId")
-    if host_id and host_id in exclusive_ids:
-        return _building_id_of_exclusive_root(host_id, exclusive_roots)
-    parent = _param_str(host_comp, "host_id", "hostId")
-    if not parent or parent in duplicate_ids:
-        return None
-    if parent in exclusive_ids:
-        return _building_id_of_exclusive_root(parent, exclusive_roots)
-    parent_comp = by_id.get(parent)
-    if not parent_comp:
-        return None
-    parent_bid = _param_str(parent_comp, "building_id", "buildingId")
-    if parent_bid:
-        return parent_bid
-    parent_id = _param_str(parent_comp, "component_id", "componentId")
-    if parent_id and parent_id in exclusive_ids:
-        return _building_id_of_exclusive_root(parent_id, exclusive_roots)
+    seen: set[str] = set()
+    cursor: Optional[Dict[str, Any]] = host_comp
+    while cursor is not None:
+        bid = _param_str(cursor, "building_id", "buildingId")
+        if bid:
+            return bid
+        cid = _param_str(cursor, "component_id", "componentId")
+        if cid and cid in exclusive_ids:
+            return _building_id_of_exclusive_root(cid, exclusive_roots)
+        if cid and cid in seen:
+            return None
+        if cid:
+            seen.add(cid)
+        parent = _param_str(cursor, "host_id", "hostId")
+        if not parent or parent in duplicate_ids:
+            if parent and parent in exclusive_ids:
+                return _building_id_of_exclusive_root(parent, exclusive_roots)
+            return None
+        if parent in exclusive_ids:
+            return _building_id_of_exclusive_root(parent, exclusive_roots)
+        cursor = by_id.get(parent)
     return None
 
 

@@ -1145,6 +1145,15 @@ final class ComponentSatelliteAligner {
         if (llmCrown.params() != null) {
             params.putAll(llmCrown.params());
         }
+        // Authored crowns often omit component_id; do not keep a leaked host mass id from template.
+        String massId = ComponentPlanTypes.getParamString(mass.params(), "component_id", "componentId");
+        String crownId = ComponentPlanTypes.getParamString(params, "component_id", "componentId");
+        if (massId != null && (crownId == null || massId.equals(crownId))) {
+            params.put("component_id", massId + "#crown");
+        }
+        if (massId != null) {
+            params.putIfAbsent("host_id", massId);
+        }
 
         Dimensions templateDims = template.dimensions();
         Dimensions llmDims = llmCrown.dimensions();

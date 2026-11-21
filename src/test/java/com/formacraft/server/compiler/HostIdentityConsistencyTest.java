@@ -64,6 +64,28 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
+    void uniqueCourtyardMatchAcrossBuildingsDoesNotAutoRemap() {
+        var houseA = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 8), List.of(),
+                Map.of("component_id", "house_A", "building_id", "house_A"));
+        var lantern = new Component("DECOR_DETAIL", "a", new Vec3i(0, 1, 0),
+                new Dimensions(1, 1, 2), List.of(),
+                Map.of("component_id", "lantern", "building_id", "house_A", "host_id", "courtyard"));
+        var courtB = new Component("COURTYARD", "b", new Vec3i(40, 0, 0),
+                new Dimensions(16, 16, 1), List.of(),
+                Map.of("component_id", "east_courtyard", "building_id", "house_B"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(houseA, lantern, courtB)).build();
+        var repaired = HostIdRemapRepair.apply(plan);
+        var fixed = repaired.components().stream()
+                .filter(c -> "lantern".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals("courtyard", fixed.params().get("host_id"),
+                "unique substring match must not cross building_id");
+        assertEquals("E_HOST_ID_AMBIGUOUS", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
     void styleResolverDoesNotInheritAcrossDuplicateRoofIds() {
         var a = new Component("MASS_MAIN", "a", new Vec3i(0, 0, 0),
                 new Dimensions(12, 12, 8), List.of(),
