@@ -135,7 +135,8 @@ final class ComponentEmitPass {
                                 && detail != null && detail.contains("roof_type_unsupported");
                         boolean explicitLibraryAuthority = routed.authority()
                                 == com.formacraft.common.generation.routing.GenerationAuthority.CAPTURED_LIBRARY;
-                        String extractedConstraint = geometryConstraintCode(detail);
+                        String extractedConstraint = geometryConstraintCode(routed.diagnostics().isEmpty()
+                                ? detail : routed.diagnostics().getFirst().message());
                         String gapCode;
                         if (envelopeConflict) {
                             gapCode = "E_COMPONENT_REQUEST_CONFLICT";
@@ -1167,6 +1168,10 @@ final class ComponentEmitPass {
         if (message.startsWith("E_PLAN_PATTERN_UNFIT")) return "E_PLAN_PATTERN_UNFIT";
         if (message.startsWith("E_PLAN_PATTERN_UNSUPPORTED")) return "E_PLAN_PATTERN_UNSUPPORTED";
         if (message.startsWith("E_FOOTPRINT_SHAPE_UNSUPPORTED")) return "E_FOOTPRINT_SHAPE_UNSUPPORTED";
+        if (message.startsWith("E_PRIMITIVE_SHAPE_UNSUPPORTED")) return "E_PRIMITIVE_SHAPE_UNSUPPORTED";
+        if (message.startsWith("E_PRIMITIVE_CSG_OP_UNSUPPORTED")) return "E_PRIMITIVE_CSG_OP_UNSUPPORTED";
+        if (message.startsWith("E_PRIMITIVE_CSG_INVALID")) return "E_PRIMITIVE_CSG_INVALID";
+        if (message.startsWith("E_PRIMITIVE_EXTRUDE_MODE_UNSUPPORTED")) return "E_PRIMITIVE_EXTRUDE_MODE_UNSUPPORTED";
         if (message.startsWith("E_FOOTPRINT_COMBINATION_UNSUPPORTED")) return "E_FOOTPRINT_COMBINATION_UNSUPPORTED";
         if (message.startsWith("E_PLATE_ROLE_UNSUPPORTED")) return "E_PLATE_ROLE_UNSUPPORTED";
         if (message.startsWith("E_HOST_GEOMETRY_MISSING")) return "E_HOST_GEOMETRY_MISSING";

@@ -72,20 +72,20 @@ public record ShapeSpec(
         int h = Math.max(1, height);
         Map<String, Object> p = params != null ? params : Map.of();
 
-        ShapeKind kind = ShapeKind.parse(str(p, "kind", "shape", "primitive"));
+        ShapeKind kind = ShapeKind.parse(str(p, KIND_KEYS));
         boolean hollow = bool(p, "hollow", false);
         int thickness = clamp(intVal(p, "thickness", "wall_thickness", "wallThickness", 1), 1,
                 Math.max(1, Math.min(w, d) / 2));
         int sides = clamp(intVal(p, "sides", "num_sides", "numSides", 6), 3, 24);
 
-        double rotX = dbl(p, "rotation_x_deg", "rotationXDeg", "rotate_x", 0);
-        double rotY = dbl(p, "rotation_y_deg", "rotationYDeg", "rotate_y", Double.NaN);
+        double rotX = dbl(p, ROTATION_X_KEYS[0], ROTATION_X_KEYS[1], ROTATION_X_KEYS[2], 0);
+        double rotY = dbl(p, ROTATION_Y_KEYS[0], ROTATION_Y_KEYS[1], ROTATION_Y_KEYS[2], Double.NaN);
         if (Double.isNaN(rotY)) {
-            rotY = dbl(p, "rotation_y", "rotationY", 0);
+            rotY = dbl(p, ROTATION_Y_KEYS[3], ROTATION_Y_KEYS[4], 0);
         }
-        double rotZ = dbl(p, "rotation_z_deg", "rotationZDeg", "rotate_z", 0);
+        double rotZ = dbl(p, ROTATION_Z_KEYS[0], ROTATION_Z_KEYS[1], ROTATION_Z_KEYS[2], 0);
 
-        double r = dbl(p, "radius", "r", Math.min(w, d) * 0.5);
+        double r = dbl(p, RADIUS_KEYS[0], RADIUS_KEYS[1], Math.min(w, d) * 0.5);
         double topR = dbl(p, "top_radius", "topRadius", "r_top", r * 0.25);
         double rx = dbl(p, "radius_x", "radiusX", "rx", 0);
         double ry = dbl(p, "radius_y", "radiusY", "ry", 0);
@@ -99,7 +99,7 @@ public record ShapeSpec(
         }
 
         ShapeExtrudeMode extrudeMode = ShapeExtrudeMode.parse(
-                str(p, "extrude_mode", "extrudeMode", "dimension_mode", "dimensionMode"));
+                str(p, EXTRUDE_MODE_KEYS));
         int voronoiCells = clamp(intVal(p, "voronoi_cells", "cell_count", "cells", 8), 3, 32);
         long voronoiSeed = longVal(p, "voronoi_seed", "seed", "design_seed", 0xCAFEBABEL);
         double voronoiEdge = dbl(p, "voronoi_edge", "edge_width", 0);
@@ -149,10 +149,14 @@ public record ShapeSpec(
         List<ShapeCsgOperation> out = new ArrayList<>();
 
         Object opsObj = params.get("operations");
+        if (opsObj != null && !(opsObj instanceof List<?>)) {
+            throw new IllegalArgumentException("E_PRIMITIVE_CSG_INVALID: operations must be an array");
+        }
         if (opsObj instanceof List<?> list && !list.isEmpty()) {
+            int index = 0;
             for (Object item : list) {
                 if (!(item instanceof Map<?, ?> raw)) {
-                    continue;
+                    throw new IllegalArgumentException("E_PRIMITIVE_CSG_INVALID: operations[" + index + "] must be an object");
                 }
                 Map<String, Object> m = new HashMap<>();
                 raw.forEach((k, v) -> {
@@ -163,11 +167,15 @@ public record ShapeSpec(
                 CsgOp op = CsgOp.parse(m.remove("op"));
                 ShapeSpec spec = fromParams(width, depth, height, mergeParams(params, m));
                 out.add(new ShapeCsgOperation(op, spec));
+                index++;
             }
             return out;
         }
 
         Object subtract = params.get("subtract");
+        if (subtract != null && !(subtract instanceof Map<?, ?>)) {
+            throw new IllegalArgumentException("E_PRIMITIVE_CSG_INVALID: subtract must be an object");
+        }
         if (subtract instanceof Map<?, ?> subMap) {
             Map<String, Object> base = copyWithoutCsg(params);
             out.add(new ShapeCsgOperation(CsgOp.UNION, fromParams(width, depth, height, base)));
@@ -184,8 +192,22 @@ public record ShapeSpec(
         return List.of();
     }
 
+    private static final String[] KIND_KEYS = {"kind", "shape", "primitive"};
+    private static final String[] EXTRUDE_MODE_KEYS = {"extrude_mode", "extrudeMode", "dimension_mode", "dimensionMode"};
+    private static final String[] ROTATION_X_KEYS = {"rotation_x_deg", "rotationXDeg", "rotate_x"};
+    private static final String[] ROTATION_Y_KEYS = {"rotation_y_deg", "rotationYDeg", "rotate_y", "rotation_y", "rotationY"};
+    private static final String[] ROTATION_Z_KEYS = {"rotation_z_deg", "rotationZDeg", "rotate_z"};
+    private static final String[] RADIUS_KEYS = {"radius", "r"};
+
     private static Map<String, Object> mergeParams(Map<String, Object> base, Map<String, Object> override) {
         Map<String, Object> merged = copyWithoutCsg(base);
+        // An authored operation value wins over inherited values of the same parameter.
+        for (String[] keys : List.of(KIND_KEYS, EXTRUDE_MODE_KEYS,
+                ROTATION_X_KEYS, ROTATION_Y_KEYS, ROTATION_Z_KEYS, RADIUS_KEYS)) {
+            if (str(override, keys) != null) {
+                for (String key : keys) merged.remove(key);
+            }
+        }
         merged.putAll(override);
         return merged;
     }

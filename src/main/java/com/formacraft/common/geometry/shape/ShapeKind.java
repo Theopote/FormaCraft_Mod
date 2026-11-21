@@ -42,7 +42,7 @@ public enum ShapeKind {
             case "voronoi", "cells", "cellular", "honeycomb" -> VORONOI;
             case "mobius", "möbius", "moebius", "mobius_strip" -> MOBIUS;
             case "floating_mass", "floating_island" -> FLOATING_MASS;
-            default -> BOX;
+            default -> throw new IllegalArgumentException("E_PRIMITIVE_SHAPE_UNSUPPORTED: " + raw.trim());
         };
     }
 }

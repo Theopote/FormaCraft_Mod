@@ -2,6 +2,16 @@
 
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 
+CSG child shape and extrusion aliases take precedence over inherited values for the same field (FORMAT_REPAIR). The child's authored geometry is preserved across equivalent parameter spellings, with no new defaults.
+
+Malformed PRIMITIVE CSG containers or list entries return `E_PRIMITIVE_CSG_INVALID` (HARD_CONSTRAINT). Validation stops before any voxel emission, preserving the authored operation sequence without partially applying it.
+
+Unknown explicit PRIMITIVE extrusion modes return `E_PRIMITIVE_EXTRUDE_MODE_UNSUPPORTED` (HARD_CONSTRAINT). Missing modes keep the existing solid default, and existing plate aliases retain their behavior.
+
+Explicit unknown PRIMITIVE CSG operations raise `E_PRIMITIVE_CSG_OP_UNSUPPORTED` (HARD_CONSTRAINT). The existing omitted-operation union default and accepted operation aliases remain available.
+
+Explicit unknown PRIMITIVE shape tokens now return `E_PRIMITIVE_SHAPE_UNSUPPORTED`, including CSG child shapes (HARD_CONSTRAINT). This removes the unrequested box substitution. The existing omitted-kind default and documented aliases remain accepted.
+
 The core prompt provides a PRIMITIVE box as an optional example for linear details (NONBINDING_HINT). It no longer demands variation on every repeated request. Geometry, placement, material and omission remain model or user decisions. No route or default is added.
 
 Component emission failures expose component identity, host and executor diagnostics when available. Empty native STRUCTURE output suggests a supported geometry representation (NONBINDING_HINT). The compiler retains the capability gap and does not replace the model's component.

@@ -59,6 +59,92 @@ class GeometryConstraintRound9Test {
     }
 
     @Test
+    void malformedCsgDoesNotEmitPartialOrFallbackGeometry() {
+        for (var entry : Map.<String, Map<String, Object>>of(
+                "operations[1]", Map.of("operations", Arrays.asList(Map.of("kind", "box"), null)),
+                "operations must", Map.of("operations", "subtract"),
+                "subtract must", Map.of("subtract", "cylinder")).entrySet()) {
+            AssemblyCompileDiagnostics.clear();
+            var shape = new Component("PRIMITIVE", "main", new Vec3i(0, 0, 0), new Dimensions(7, 5, 4),
+                    List.of(), entry.getValue());
+            var components = List.of(shape);
+            var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(components).build();
+            var patches = new ArrayList<BlockPatch>();
+            ComponentEmitPass.compileComponents(plan, null, null, false, components, Set.of(), Map.of(), patches,
+                    new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new ArrayList<>(), new HashSet<>(),
+                    new HashSet<>(), new HashMap<>());
+            var gap = AssemblyCompileDiagnostics.get();
+            assertNotNull(gap);
+            assertEquals("E_PRIMITIVE_CSG_INVALID", gap.code());
+            assertTrue(gap.message().contains(entry.getKey()));
+            assertTrue(patches.isEmpty());
+        }
+    }
+
+    @Test
+    void unknownExtrusionModeDoesNotEmitASolidVolume() {
+        var shape = new Component("PRIMITIVE", "main", new Vec3i(0, 0, 0), new Dimensions(7, 5, 4),
+                List.of(), Map.of("kind", "box", "extrudeMode", "ribbon_shell"));
+        var components = List.of(shape);
+        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(components).build();
+        var patches = new ArrayList<BlockPatch>();
+        ComponentEmitPass.compileComponents(plan, null, null, false, components, Set.of(), Map.of(), patches,
+                new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new ArrayList<>(), new HashSet<>(),
+                new HashSet<>(), new HashMap<>());
+        var gap = AssemblyCompileDiagnostics.get();
+        assertNotNull(gap);
+        assertEquals("E_PRIMITIVE_EXTRUDE_MODE_UNSUPPORTED", gap.code());
+        assertTrue(gap.message().contains("ribbon_shell"));
+        assertTrue(patches.isEmpty());
+    }
+
+    @Test
+    void unsupportedCsgOperationDoesNotEmitAUnion() {
+        var shape = new Component("PRIMITIVE", "main", new Vec3i(0, 0, 0), new Dimensions(7, 5, 4),
+                List.of(), Map.of("operations", List.of(Map.of("op", "union", "kind", "box"),
+                        Map.of("op", "symmetric_difference", "kind", "cylinder"))));
+        var components = List.of(shape);
+        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(components).build();
+        var patches = new ArrayList<BlockPatch>();
+        ComponentEmitPass.compileComponents(plan, null, null, false, components, Set.of(), Map.of(), patches,
+                new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new ArrayList<>(), new HashSet<>(),
+                new HashSet<>(), new HashMap<>());
+        var gap = AssemblyCompileDiagnostics.get();
+        assertNotNull(gap);
+        assertEquals("E_PRIMITIVE_CSG_OP_UNSUPPORTED", gap.code());
+        assertTrue(gap.message().contains("symmetric_difference"));
+        assertTrue(patches.isEmpty());
+        assertEquals(com.formacraft.common.geometry.shape.CsgOp.UNION,
+                com.formacraft.common.geometry.shape.CsgOp.parse(null));
+    }
+
+    @Test
+    void unknownPrimitiveShapesFailInsteadOfEmittingABox() {
+        for (var params : List.<Map<String, Object>>of(
+                Map.of("kind", "unseen_ribbon_shell"),
+                Map.of("kind", "box", "subtract", Map.of("kind", "unseen_ribbon_shell")))) {
+            AssemblyCompileDiagnostics.clear();
+            var shape = new Component("PRIMITIVE", "main", new Vec3i(0, 0, 0),
+                    new Dimensions(7, 5, 4), List.of(), params);
+            var components = List.of(shape);
+            var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(components).build();
+            var patches = new ArrayList<BlockPatch>();
+            ComponentEmitPass.compileComponents(plan, null, null, false, components, Set.of(), Map.of(), patches,
+                    new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new ArrayList<>(), new HashSet<>(),
+                    new HashSet<>(), new HashMap<>());
+            var gap = AssemblyCompileDiagnostics.get();
+            assertNotNull(gap);
+            assertEquals("E_PRIMITIVE_SHAPE_UNSUPPORTED", gap.code());
+            assertTrue(gap.message().contains("unseen_ribbon_shell"));
+            assertTrue(patches.isEmpty());
+        }
+        assertEquals(com.formacraft.common.geometry.shape.ShapeKind.BOX,
+                com.formacraft.common.geometry.shape.ShapeKind.parse(null));
+        assertEquals(com.formacraft.common.geometry.shape.ShapeKind.BOX,
+                com.formacraft.common.geometry.shape.ShapeKind.parse("rectangle"));
+    }
+
+    @Test
     void unsupportedStructureReportsItsIdentityAndGeometryRepairOptions() {
         var structure = new Component("STRUCTURE", "main", new Vec3i(2, 4, 2), new Dimensions(3, 1, 1),
                 List.of(), Map.of("component_id", "pipe_run", "structure_type", "unsupported_pipe"));

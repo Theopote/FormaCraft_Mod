@@ -19,8 +19,9 @@ public enum ShapeExtrudeMode {
         }
         String s = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
         return switch (s) {
+            case "solid" -> SOLID;
             case "plate", "2d", "slab", "flat", "footprint" -> PLATE;
-            default -> SOLID;
+            default -> throw new IllegalArgumentException("E_PRIMITIVE_EXTRUDE_MODE_UNSUPPORTED: " + s);
         };
     }
 }

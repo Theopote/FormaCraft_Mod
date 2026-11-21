@@ -124,6 +124,31 @@ class ShapeLibraryTest {
     }
 
     @Test
+    void csgChildRotationAndRadiusAliasesOverrideInheritedValues() {
+        var params = Map.<String, Object>of("kind", "cylinder", "radius", 4,
+                "rotation_x_deg", 0, "rotation_y_deg", 0, "rotation_z_deg", 0,
+                "operations", List.of(Map.of("op", "union", "r", 2, "rotate_x", 30,
+                        "rotationY", 45, "rotationZDeg", 15)));
+        var actual = ShapeSpec.parseOperations(11, 9, 7, params).getFirst().shape();
+        var expected = ShapeSpec.fromParams(11, 9, 7, Map.of("kind", "cylinder", "radius", 2,
+                "rotation_x_deg", 30, "rotation_y_deg", 45, "rotation_z_deg", 15));
+        assertEquals(expected, actual);
+        assertEquals(ShapeLibrary.generate(expected), ShapeLibrary.generate(actual));
+    }
+
+    @Test
+    void csgChildAliasesOverrideParentShapeAndExtrusion() {
+        var inherited = Map.<String, Object>of("kind", "box", "extrude_mode", "solid",
+                "operations", List.of(Map.of("op", "union", "shape", "cylinder", "dimensionMode", "plate")));
+        var canonical = Map.<String, Object>of("kind", "box", "extrude_mode", "solid",
+                "operations", List.of(Map.of("op", "union", "kind", "cylinder", "extrude_mode", "plate")));
+        var actual = ShapeLibrary.generateComposite(ShapeSpec.parseOperations(9, 9, 5, inherited));
+        assertEquals(ShapeLibrary.generateComposite(ShapeSpec.parseOperations(9, 9, 5, canonical)), actual);
+        assertTrue(!actual.isEmpty());
+        assertTrue(actual.stream().allMatch(voxel -> voxel.y() == 0));
+    }
+
+    @Test
     void csg_operations_chain() {
         int w = 12, d = 12, h = 12;
         Map<String, Object> params = Map.of(

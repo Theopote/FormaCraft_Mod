@@ -207,7 +207,11 @@ public final class UnifiedGeneratorRouter {
                 return new ComponentGeneratorAttempt(new ArrayList<>(patches), null);
             }
         } catch (Exception e) {
-            if (isRequiredComponentType(componentType)) {
+            if (isRequiredComponentType(componentType)
+                    || (e.getMessage() != null && (e.getMessage().startsWith("E_PRIMITIVE_SHAPE_UNSUPPORTED:")
+                        || e.getMessage().startsWith("E_PRIMITIVE_CSG_OP_UNSUPPORTED:")
+                        || e.getMessage().startsWith("E_PRIMITIVE_CSG_INVALID:")
+                        || e.getMessage().startsWith("E_PRIMITIVE_EXTRUDE_MODE_UNSUPPORTED:")))) {
                 FormacraftMod.LOGGER.error(
                         "UnifiedGeneratorRouter: required component generator failed for {}", componentType, e);
                 return new ComponentGeneratorAttempt(List.of(), RoutedGenerationResult.failure(
