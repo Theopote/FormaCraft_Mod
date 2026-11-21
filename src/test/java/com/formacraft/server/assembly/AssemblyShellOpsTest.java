@@ -45,6 +45,19 @@ class AssemblyShellOpsTest {
         return map;
     }
     @Test
+    void graphShellTopPortsUseTheEmittedDefaultHeight() {
+        var shell = new HashMap<String, Object>(Map.of("id", "shell", "type", "BOX_SHELL"));
+        for (int expected : List.of(18, 26)) {
+            var spec = MetaAssemblyCompiler.compile(Map.of("graph", Map.of("components", List.of(shell))), null);
+            assertNotNull(spec);
+            var op = spec.ops.stream().filter(item -> "SHELL_BOX".equals(item.get("op"))).findFirst().orElseThrow();
+            assertEquals(expected, op.get("h"));
+            assertArrayEquals(new int[]{0, expected, 0}, AssemblyPortResolver.ports(shell).get("top_center"));
+            shell.put("height", 26);
+        }
+    }
+
+    @Test
     void graphShellUsesLongFormDimensionsForGeometryAndPorts() {
         var shell = Map.<String, Object>of("id", "shell", "type", "BOX_SHELL",
                 "width", 12, "depth", 10, "height", 28, "h", 26);

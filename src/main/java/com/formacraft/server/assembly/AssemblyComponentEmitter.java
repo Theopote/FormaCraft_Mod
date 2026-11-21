@@ -424,7 +424,7 @@ final class AssemblyComponentEmitter {
                 o.put("op", "SHELL_BOX");
                 int w = AssemblyCompilerUtils.i(comp.get("w"), AssemblyCompilerUtils.i(comp.get("width"), 15));
                 int d = AssemblyCompilerUtils.i(comp.get("d"), AssemblyCompilerUtils.i(comp.get("depth"), 15));
-                int h = AssemblyCompilerUtils.i(comp.get("h"), AssemblyCompilerUtils.i(comp.get("height"), 18));
+                int h = shellHeight(comp);
                 o.put("w", w);
                 o.put("d", d);
                 o.put("h", h);
@@ -757,6 +757,9 @@ final class AssemblyComponentEmitter {
         if (comp == null) return 0;
         String type = AssemblyCompilerUtils.str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
         if (type.isBlank()) type = AssemblyCompilerUtils.str(comp.get("op"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.equals("SHELL_BOX") || type.equals("BOX_SHELL")) {
+            return shellHeight(comp);
+        }
         if (type.contains("ROOF")) {
             // ROOF_COVER: treat rise as its vertical extent for port inference
             int rise = AssemblyCompilerUtils.i(comp.get("rise"), AssemblyCompilerUtils.i(comp.get("height"), 0));
@@ -768,6 +771,10 @@ final class AssemblyComponentEmitter {
         int h = AssemblyCompilerUtils.i(comp.get("h"), AssemblyCompilerUtils.i(comp.get("height"), 0));
         return Math.max(h, 0);
         // cylinder uses height too
+    }
+
+    private static int shellHeight(Map<String, Object> comp) {
+        return AssemblyCompilerUtils.i(comp.get("h"), AssemblyCompilerUtils.i(comp.get("height"), 18));
     }
 
     static int componentWidth(Map<String, Object> comp) {
