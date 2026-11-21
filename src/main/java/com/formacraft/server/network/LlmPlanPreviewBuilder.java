@@ -6,6 +6,7 @@ import com.formacraft.server.assembly.CapabilityGapMessages;
 import com.formacraft.server.compiler.ComponentPlanCompiler;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.llm.dto.LlmPlan;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.network.FormaCraftNetworking;
 import com.formacraft.common.network.LlmPlanTerrainBounds;
@@ -111,13 +112,13 @@ public final class LlmPlanPreviewBuilder {
             Consumer<Boolean> done,
             BuildRequestGate.Ticket gateTicket
     ) {
-        scheduleBuildPreview(server, player, req, llmPlan, origin, serverWorld, hbAlive, done, gateTicket, true);
+        scheduleBuildPreview(server, player, req, llmPlan, origin, serverWorld, hbAlive, done, gateTicket, null);
     }
 
     private static void scheduleBuildPreview(
             MinecraftServer server, ServerPlayerEntity player, FormaRequest req, LlmPlan llmPlan,
             BlockPos origin, ServerWorld serverWorld, AtomicBoolean hbAlive, Consumer<Boolean> done,
-            BuildRequestGate.Ticket gateTicket, boolean allowRoofRepair
+            BuildRequestGate.Ticket gateTicket, CapabilityGap originalRoofGap
     ) {
         // Always invoke done exactly once so BuildRequestGate tickets cannot leak on exceptions.
         Consumer<Boolean> finish = onceFinish(done);
@@ -186,7 +187,7 @@ public final class LlmPlanPreviewBuilder {
                         }
                         if (artifact == null || artifact.compilation() == null
                                 || artifact.gap() != null) {
-                            if (allowRoofRepair && req != null && artifact != null && artifact.gap() != null
+                            if (originalRoofGap == null && req != null && artifact != null && artifact.gap() != null
                                     && com.formacraft.server.compiler.FlatRoofRepairGuard.canRequest(normalizedPlan, artifact.gap())) {
                                 var originalGap = artifact.gap();
                                 NetworkOrchestratorProvider.get().requestFlatRoofRepair(req, normalizedPlan, originalGap)
@@ -201,7 +202,7 @@ public final class LlmPlanPreviewBuilder {
                                                         .candidate(normalizedPlan, originalGap, failure == null ? proposal : null);
                                                 if (candidate.isPresent()) {
                                                     scheduleBuildPreview(server, player, req, candidate.get(), origin, serverWorld,
-                                                            hbAlive, finish, gateTicket, false);
+                                                            hbAlive, finish, gateTicket, originalGap);
                                                     return;
                                                 }
                                             } catch (RuntimeException invalid) {
@@ -223,7 +224,7 @@ public final class LlmPlanPreviewBuilder {
                                                 "Off-thread components[] compile failed.",
                                                 "compile",
                                                 List.of());
-                                reportCapabilityGap(player, req, hbAlive, gap);
+                                reportCapabilityGap(player, req, hbAlive, withRoofRetryFailure(originalRoofGap, gap));
                                 return true;
                             });
                             return;
@@ -238,6 +239,13 @@ public final class LlmPlanPreviewBuilder {
                     LOG.error("off-thread LlmPlan components[] compile failed (no main-thread recompile)", t);
                     server.execute(() -> deliverPreview(finish, () -> {
                         hbAlive.set(false);
+                        if (gateTicket != null && !BuildRequestGate.mayDeliverPreview(gateTicket)) return true;
+                        if (originalRoofGap != null) {
+                            reportCapabilityGap(player, req, hbAlive, withRoofRetryFailure(originalRoofGap,
+                                    new CapabilityGap("E_REPAIR_COMPILE_FAILED", "屋顶修订方案后台编译失败。",
+                                            "compile", List.of())));
+                            return true;
+                        }
                         LlmPlanRoutingMetrics.recordError((player == null ? null : player.getName().getString()), req, "off_thread_compile_failed");
                         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                                 "建筑方案编译失败（后台）。请简化请求或重试；不会在主线程重跑完整编译。"
@@ -257,6 +265,12 @@ public final class LlmPlanPreviewBuilder {
                         return true;
                     }
                     hbAlive.set(false);
+                    if (originalRoofGap != null) {
+                        reportCapabilityGap(player, req, hbAlive, withRoofRetryFailure(originalRoofGap,
+                                new CapabilityGap("E_REPAIR_COMPILE_BUSY", "服务器编译队列已满，屋顶修订未能编译。",
+                                        "compile", List.of("请稍后重试。"))));
+                        return true;
+                    }
                     LlmPlanRoutingMetrics.recordError(
                             player == null ? null : player.getName().getString(),
                             req,
@@ -271,6 +285,14 @@ public final class LlmPlanPreviewBuilder {
             LOG.error("scheduleBuildPreview failed before async compile", t);
             finish.accept(true);
         }
+    }
+
+    static CapabilityGap withRoofRetryFailure(CapabilityGap original, CapabilityGap retry) {
+        if (original == null) return retry;
+        var details = new java.util.LinkedHashMap<String, Object>();
+        if (original.details() != null) details.putAll(original.details());
+        details.put("repair_retry_failure", retry);
+        return new CapabilityGap(original.code(), original.message(), original.path(), original.suggestions(), details);
     }
 
     /** Ensure {@code done} runs at most once even if both success and error paths race. */

@@ -2,6 +2,14 @@
 
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 
+The core prompt provides a PRIMITIVE box as an optional example for linear details (NONBINDING_HINT). It no longer demands variation on every repeated request. Geometry, placement, material and omission remain model or user decisions. No route or default is added.
+
+Component emission failures expose component identity, host and executor diagnostics when available. Empty native STRUCTURE output suggests a supported geometry representation (NONBINDING_HINT). The compiler retains the capability gap and does not replace the model's component.
+
+Flat-roof retry scheduling preserves the original coverage gap when the compile queue is full or the worker throws. Stale tickets suppress delivery (HARD_CONSTRAINT). No design fields or defaults are added.
+
+If a flat-roof repair candidate fails background compilation, its diagnostic is recorded under the original coverage gap. The original remains the reported failure (HARD_CONSTRAINT), and the candidate cannot request another repair.
+
 Flat-roof repair preflight reuses target and provenance validation before requesting a proposal (HARD_CONSTRAINT). Missing or ambiguous IDs and fully locked targets preserve the original diagnostic without a model call.
 
 Java decodes flat-roof repair proposals without scalar coercion and rejects duplicate keys or trailing JSON (HARD_CONSTRAINT). Valid proposals retain the model's exact integer rather than letting transport change its value.

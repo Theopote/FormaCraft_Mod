@@ -19,6 +19,12 @@ class LlmPlanSystemPromptAuthorityTest(unittest.TestCase):
         prompt = build_llm_plan_system_prompt(None)
         self.assertIn("not a default for every building class", prompt)
 
+    def test_linear_detail_guidance_names_executable_fields_without_requiring_variation(self):
+        prompt = build_llm_plan_system_prompt(None)
+        self.assertIn('optional PRIMITIVE box with params.kind="box"', prompt)
+        self.assertIn("Use STRUCTURE only with a supported executable parameter set", prompt)
+        self.assertNotIn("Never emit identical plans", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

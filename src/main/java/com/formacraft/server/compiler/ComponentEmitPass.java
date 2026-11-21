@@ -178,6 +178,14 @@ final class ComponentEmitPass {
                                     + " id=" + ComponentPlanTypes.paramIdentity(c)
                                     + " status=" + routed.status()
                                     + " detail=" + detail;
+                        var failureDetails = new LinkedHashMap<String, Object>();
+                        failureDetails.put("component_type", c.componentType());
+                        String componentId = ComponentPlanTypes.getParamString(c.params(), "component_id");
+                        if (componentId != null) failureDetails.put("component_id", componentId);
+                        String declaredHost = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
+                        if (declaredHost != null) failureDetails.put("host_id", declaredHost);
+                        if (diagCode != null && !diagCode.isBlank()) failureDetails.put("generator_code", diagCode);
+                        if (routed.pipelineStep() != null) failureDetails.put("executor_step", routed.pipelineStep().name());
                         AssemblyCompileDiagnostics.set(new CapabilityGap(
                                 gapCode,
                                 gapMessage,
@@ -191,8 +199,11 @@ final class ComponentEmitPass {
                                         : typologyFailure
                                         ? List.of("检查 typology 参数（层数/收分/檐道）", "构件库不是必需依赖")
                                         : nativeFailure || !"E_COMPONENT_LIBRARY_FAILED".equals(gapCode)
-                                        ? List.of("检查原生门窗尺寸、材质与宿主墙面", "不需要添加构件库资产")
-                                        : List.of("修复构件 ID、适配规则或清洞约束", "无匹配库构件时应回退原生生成")));
+                                        ? ("STRUCTURE".equals(normalizedType) && "required_component_empty".equals(diagCode)
+                                            ? List.of("为该 STRUCTURE 提供支持的结构参数，或用明确的 PRIMITIVE / ASSEMBLY 几何表达该构件。")
+                                            : List.of("检查失败构件的几何参数、材质与宿主约束。"))
+                                        : List.of("修复构件 ID、适配规则或清洞约束", "无匹配库构件时应回退原生生成"),
+                                failureDetails));
                         return patchOccupancy;
                     }
                     if (routed != null && routed.degraded()) {

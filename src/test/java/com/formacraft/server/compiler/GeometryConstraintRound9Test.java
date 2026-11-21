@@ -59,6 +59,25 @@ class GeometryConstraintRound9Test {
     }
 
     @Test
+    void unsupportedStructureReportsItsIdentityAndGeometryRepairOptions() {
+        var structure = new Component("STRUCTURE", "main", new Vec3i(2, 4, 2), new Dimensions(3, 1, 1),
+                List.of(), Map.of("component_id", "pipe_run", "structure_type", "unsupported_pipe"));
+        var components = List.of(structure);
+        var plan = LlmPlanTestFixtures.builder().mode(LlmPlan.Mode.build).components(components).build();
+        var patches = new ArrayList<BlockPatch>();
+        ComponentEmitPass.compileComponents(plan, null, null, false, components, Set.of(), Map.of(), patches,
+                new ArrayList<>(), new ArrayList<>(), new HashSet<>(), new ArrayList<>(), new HashSet<>(),
+                new HashSet<>(), new HashMap<>());
+        var gap = AssemblyCompileDiagnostics.get();
+        assertNotNull(gap);
+        assertTrue(patches.isEmpty());
+        assertEquals("E_COMPONENT_GENERATION_FAILED", gap.code());
+        assertEquals("pipe_run", gap.details().get("component_id"));
+        assertEquals("required_component_empty", gap.details().get("generator_code"));
+        assertTrue(gap.suggestions().stream().anyMatch(s -> s.contains("PRIMITIVE")));
+    }
+
+    @Test
     void geometryConstraintCodePrefersDedicatedPrefixes() {
         assertEquals("E_ENTRANCE_DOOR_WIDTH",
                 ComponentPlanCompiler.geometryConstraintCode("E_ENTRANCE_DOOR_WIDTH: requested=3"));
