@@ -45,6 +45,22 @@ class AssemblyShellOpsTest {
         return map;
     }
     @Test
+    void graphShellUsesLongFormDimensionsForGeometryAndPorts() {
+        var shell = Map.<String, Object>of("id", "shell", "type", "BOX_SHELL",
+                "width", 12, "depth", 10, "height", 28, "h", 26);
+        var spec = MetaAssemblyCompiler.compile(Map.of("graph", Map.of("components", List.of(shell))), null);
+        assertNotNull(spec);
+        var op = spec.ops.stream().filter(item -> "SHELL_BOX".equals(item.get("op"))).findFirst().orElseThrow();
+        assertEquals(12, op.get("w"));
+        assertEquals(10, op.get("d"));
+        assertEquals(26, op.get("h"));
+        var ports = AssemblyPortResolver.ports(shell);
+        assertArrayEquals(new int[]{5, 0, 4}, ports.get("front_right"));
+        assertArrayEquals(new int[]{0, 26, 0}, ports.get("top_center"));
+        assertEquals(120, snapshot(generate(op)).keySet().stream().filter(pos -> pos.getY() == 0).count());
+    }
+
+    @Test
     void evenShellPortsTouchTheBaseWallCells() {
         var shell = shell(0);
         shell.put("w", 12);

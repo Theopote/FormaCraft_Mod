@@ -286,7 +286,7 @@ def _validate_assembly_component(
         kind = definition["type"] if definition is not None else ctype
         if kind == "BOX_SHELL":
             kind = "SHELL_BOX"
-        _validate_geometry_fields(issues, c, path, kind)
+        _validate_geometry_fields(issues, c, path, kind, graph_component=True)
     if ops and len(issues) == issue_count:
         issues.append(AssemblyPlanIssue(graph_path + ".components", "E_ASSEMBLY_MIXED_GEOMETRY",
                                        "Combine the intended geometry in either ops or graph components"))
@@ -301,12 +301,17 @@ def _validate_assembly_component(
         _validate_endpoint(issues, cp + ".to", conn.get("to"), by_id, "to")
 
 
-def _validate_geometry_fields(issues: List[AssemblyPlanIssue], comp: dict, path: str, kind: str) -> None:
+def _validate_geometry_fields(
+    issues: List[AssemblyPlanIssue], comp: dict, path: str, kind: str, *, graph_component: bool = False,
+) -> None:
     if kind == "OPENINGS" and not comp.get("face") and not comp.get("faces"):
         issues.append(AssemblyPlanIssue(path + '.face', "E_FACE_MISSING",
                                        "OPENINGS requires face/faces; side is not an executable face field"))
     if kind == "SHELL_BOX":
-        for key, minimum, maximum in (("w", 5, 129), ("d", 5, 129), ("h", 6, 255), ("floorStep", 3, 8)):
+        dimensions = (("w", "width", 5, 129), ("d", "depth", 5, 129),
+                      ("h", "height", 6, 255), ("floorStep", "floorStep", 3, 8))
+        for short, long, minimum, maximum in dimensions:
+            key = long if graph_component and short not in comp else short
             if key not in comp:
                 continue
             value = comp[key]

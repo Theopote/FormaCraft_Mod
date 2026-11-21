@@ -20,6 +20,8 @@ Python checks shell endpoint availability when the graph omits both footprint di
 
 Built-in graph shell ports use the same positive base edges as closed SHELL_BOX geometry (GEOMETRY). This aligns even-sized shells without changing component dimensions or overriding custom port coordinates.
 
+Graph shell emission recognizes the same long-form dimension aliases as its port resolver (FORMAT_REPAIR). Canonical short fields take precedence and existing omission defaults are retained.
+
 An explicitly supplied Assembly graph must be an object and its component list must be an array of objects (HARD_CONSTRAINT). Executable raw ops do not suppress malformed graph diagnostics.
 
 Ordinary Assembly reports ambiguity when both raw ops and a nonempty component list are supplied (HARD_CONSTRAINT). The existing repair loop asks for one complete representation so execution never silently drops the other geometry.

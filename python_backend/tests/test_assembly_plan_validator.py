@@ -11,6 +11,18 @@ from app.services.assembly_plan_repair import finalize_assembly_plan_or_gap
 
 
 class AssemblyPlanValidatorTest(unittest.TestCase):
+    def test_graph_shell_dimension_alias_is_validated_at_its_authored_path(self):
+        shell = {"type": "BOX_SHELL", "width": 4, "depth": 10, "height": 28}
+        plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": {"graph": {
+            "components": [shell],
+        }}}}]}
+        issues = validate_assembly_plan(plan)
+        self.assertEqual(["E_INT_RANGE"], [issue.code for issue in issues])
+        self.assertTrue(issues[0].path.endswith("components[0].width"))
+        shell["w"] = 12
+        self.assertEqual([], validate_assembly_plan(plan))
+        self.assertEqual(4, shell["width"])
+
     def test_shell_without_dimensions_only_exposes_axial_and_custom_ports(self):
         shell = {"id": "shell", "type": "BOX_SHELL"}
         connection = {"from": "shell.N", "to": "shell.top-center"}

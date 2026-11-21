@@ -422,9 +422,9 @@ final class AssemblyComponentEmitter {
             case "BOX_SHELL", "SHELL_BOX" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "SHELL_BOX");
-                int w = AssemblyCompilerUtils.i(comp.get("w"), 15);
-                int d = AssemblyCompilerUtils.i(comp.get("d"), 15);
-                int h = AssemblyCompilerUtils.i(comp.get("h"), 18);
+                int w = AssemblyCompilerUtils.i(comp.get("w"), AssemblyCompilerUtils.i(comp.get("width"), 15));
+                int d = AssemblyCompilerUtils.i(comp.get("d"), AssemblyCompilerUtils.i(comp.get("depth"), 15));
+                int h = AssemblyCompilerUtils.i(comp.get("h"), AssemblyCompilerUtils.i(comp.get("height"), 18));
                 o.put("w", w);
                 o.put("d", d);
                 o.put("h", h);
