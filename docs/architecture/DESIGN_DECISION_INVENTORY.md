@@ -1,5 +1,9 @@
 # Design decision inventory
 
+Straight-stair normalization preserves explicit iron-block tread input. Java reports incompatible stair geometry through the existing capability gap (HARD_CONSTRAINT). The backend no longer substitutes stone bricks.
+
+The direct stair executor diagnoses unregistered explicit stair, floor or support blocks (HARD_CONSTRAINT). The removed cracked-stair alias table no longer replaces authored materials; absent treads still use the shared family default.
+
 The existing missing-stair compatibility path supplies its host floor material and leaves the tread field absent (TECHNICAL_DEFAULT). Java resolves the registered stair family. The rule applies to generated flights and does not change authored tread values.
 
 Ordinary stair guidance exposes floor-family tread inference and an explicit tread override (NONBINDING_HINT). The circulation example leaves the floor material to the model and preserves requested enclosure and roof choices.

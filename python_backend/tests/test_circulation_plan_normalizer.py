@@ -10,6 +10,16 @@ FIXTURES = Path(__file__).resolve().parents[2] / 'src/test/resources/regressions
 
 
 class CirculationNormalizerTest(unittest.TestCase):
+    def test_explicit_iron_tread_is_preserved_for_executor_validation(self):
+        plan = {"components": [{
+            "component_type": "STRUCTURE", "features": ["stair:straight_single_run"],
+            "relative_position": {"x": 0, "y": 0, "z": 0},
+            "params": {"stairs": "minecraft:iron_block", "floor": "minecraft:stone",
+                       "from": {"x": 0, "y": 0, "z": 0}, "to": {"x": 3, "y": 2, "z": 0}},
+        }]}
+        self.assertEqual("minecraft:iron_block",
+                         normalize_circulation_plan(plan)["components"][0]["params"]["stairs"])
+
     def test_logged_stairs_stay_inside_wall_and_ring_uses_shell_center(self):
         for number in (1, 4, 6):
             source = json.loads((FIXTURES / f'stair-envelope/{number}.json').read_text(encoding='utf-8'))

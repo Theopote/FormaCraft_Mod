@@ -17,6 +17,25 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class Oct20AccessReplayTest {
     @BeforeAll static void setup() { com.formacraft.test.MinecraftRegistryTestBootstrap.initialize(); }
+    @Test void incompatibleExplicitTreadReportsAGap() {
+        assertInvalidTread("minecraft:iron_block");
+        assertInvalidTread("minecraft:cracked_deepslate_brick_stairs");
+    }
+
+    private void assertInvalidTread(String material) {
+        var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0),
+                new Dimensions(3, 4, 3), List.of("stair:straight_single_run"), Map.of(
+                "stairs", material, "floor", "minecraft:stone",
+                "from", Map.of("x", 0, "y", 0, "z", 0), "to", Map.of("x", 0, "y", 2, "z", 3)));
+        try {
+            var patches = StraightStairComponentGenerator.generate(new SemanticComponent("STRUCTURE", null, stair));
+            assertTrue(patches.isEmpty());
+            assertEquals("E_STAIR_COMPONENT_INVALID", AssemblyCompileDiagnostics.get().code());
+        } finally {
+            AssemblyCompileDiagnostics.clear();
+        }
+    }
+
     @Test void straightStairsUseFloorFamilyOnlyWhenTreadIsOmitted() {
         var params = new HashMap<String, Object>(Map.of(
                 "floor", "minecraft:smooth_quartz",

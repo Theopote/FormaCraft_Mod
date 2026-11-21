@@ -237,8 +237,6 @@ def _fit_straight_stairs(plan: dict) -> None:
             b = dict(b)
             b['z'] = a['z'] + abs(b['y'] - a['y'])
             params['to'] = b
-        if params.get('stairs') in ('minecraft:iron_block', 'iron_block'):
-            params['stairs'] = 'minecraft:stone_brick_stairs'
         identity = str(params.get('component_id') or '').lower()
         if identity.startswith(('external_stairs', 'exterior_stairs')):
             params['exterior'] = True

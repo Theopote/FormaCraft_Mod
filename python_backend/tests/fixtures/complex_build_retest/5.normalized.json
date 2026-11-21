@@ -413,7 +413,7 @@
           "z": 5
         },
         "width": 3,
-        "stairs": "minecraft:stone_brick_stairs",
+        "stairs": "minecraft:iron_block",
         "floor": "minecraft:iron_block",
         "clearHeight": 2,
         "landing_length": 2,
