@@ -2,6 +2,10 @@
 
 Hard-coded or inferred **architectural** choices (not pure geometry). Used as Phase 4–5 backlog. Line numbers are approximate — re-verify on edit.
 
+CSG child aliases for top radius, axis radii and sector angles override inherited values of the same fields (FORMAT_REPAIR). The parser and inheritance share the existing aliases and add no defaults.
+
+CSG child rotation (all three axes) and radius aliases override inherited values for the same parameter (FORMAT_REPAIR). No design defaults or supported tokens were added.
+
 CSG child shape and extrusion aliases take precedence over inherited values for the same field (FORMAT_REPAIR). The child's authored geometry is preserved across equivalent parameter spellings, with no new defaults.
 
 Malformed PRIMITIVE CSG containers or list entries return `E_PRIMITIVE_CSG_INVALID` (HARD_CONSTRAINT). Validation stops before any voxel emission, preserving the authored operation sequence without partially applying it.

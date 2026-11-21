@@ -86,13 +86,13 @@ public record ShapeSpec(
         double rotZ = dbl(p, ROTATION_Z_KEYS[0], ROTATION_Z_KEYS[1], ROTATION_Z_KEYS[2], 0);
 
         double r = dbl(p, RADIUS_KEYS[0], RADIUS_KEYS[1], Math.min(w, d) * 0.5);
-        double topR = dbl(p, "top_radius", "topRadius", "r_top", r * 0.25);
-        double rx = dbl(p, "radius_x", "radiusX", "rx", 0);
-        double ry = dbl(p, "radius_y", "radiusY", "ry", 0);
-        double rz = dbl(p, "radius_z", "radiusZ", "rz", 0);
+        double topR = dbl(p, TOP_RADIUS_KEYS, r * 0.25);
+        double rx = dbl(p, RADIUS_X_KEYS, 0);
+        double ry = dbl(p, RADIUS_Y_KEYS, 0);
+        double rz = dbl(p, RADIUS_Z_KEYS, 0);
 
-        double sectorStart = dbl(p, "sector_start_deg", "sectorStartDeg", "start_angle", 0);
-        double sectorSweep = dbl(p, "sector_sweep_deg", "sectorSweepDeg", "sweep_angle", 90);
+        double sectorStart = dbl(p, SECTOR_START_KEYS, 0);
+        double sectorSweep = dbl(p, SECTOR_SWEEP_KEYS, 90);
         String triangleMode = str(p, "triangle_mode", "triangleMode");
         if (triangleMode == null) {
             triangleMode = "right";
@@ -198,12 +198,19 @@ public record ShapeSpec(
     private static final String[] ROTATION_Y_KEYS = {"rotation_y_deg", "rotationYDeg", "rotate_y", "rotation_y", "rotationY"};
     private static final String[] ROTATION_Z_KEYS = {"rotation_z_deg", "rotationZDeg", "rotate_z"};
     private static final String[] RADIUS_KEYS = {"radius", "r"};
+    private static final String[] TOP_RADIUS_KEYS = {"top_radius", "topRadius", "r_top"};
+    private static final String[] RADIUS_X_KEYS = {"radius_x", "radiusX", "rx"};
+    private static final String[] RADIUS_Y_KEYS = {"radius_y", "radiusY", "ry"};
+    private static final String[] RADIUS_Z_KEYS = {"radius_z", "radiusZ", "rz"};
+    private static final String[] SECTOR_START_KEYS = {"sector_start_deg", "sectorStartDeg", "start_angle"};
+    private static final String[] SECTOR_SWEEP_KEYS = {"sector_sweep_deg", "sectorSweepDeg", "sweep_angle"};
 
     private static Map<String, Object> mergeParams(Map<String, Object> base, Map<String, Object> override) {
         Map<String, Object> merged = copyWithoutCsg(base);
         // An authored operation value wins over inherited values of the same parameter.
         for (String[] keys : List.of(KIND_KEYS, EXTRUDE_MODE_KEYS,
-                ROTATION_X_KEYS, ROTATION_Y_KEYS, ROTATION_Z_KEYS, RADIUS_KEYS)) {
+                ROTATION_X_KEYS, ROTATION_Y_KEYS, ROTATION_Z_KEYS, RADIUS_KEYS, TOP_RADIUS_KEYS,
+                RADIUS_X_KEYS, RADIUS_Y_KEYS, RADIUS_Z_KEYS, SECTOR_START_KEYS, SECTOR_SWEEP_KEYS)) {
             if (str(override, keys) != null) {
                 for (String key : keys) merged.remove(key);
             }
@@ -292,6 +299,10 @@ public record ShapeSpec(
             return v;
         }
         return dbl(p, k3, null, def);
+    }
+
+    private static double dbl(Map<String, Object> p, String[] keys, double def) {
+        return dbl(p, keys[0], keys[1], keys[2], def);
     }
 
     private static int clamp(int v, int min, int max) {

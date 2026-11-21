@@ -124,12 +124,28 @@ class ShapeLibraryTest {
     }
 
     @Test
+    void csgChildContourAliasesPreserveItsOwnGeometry() {
+        var parent = Map.<String, Object>of("top_radius", 4, "radius_x", 4, "radius_y", 4,
+                "radius_z", 4, "sector_start_deg", 0, "sector_sweep_deg", 90);
+        for (var kind : List.of("frustum", "sphere", "sector")) {
+            var params = new java.util.HashMap<>(parent);
+            params.put("operations", List.of(Map.of("kind", kind, "r_top", 2, "rx", 3, "radiusY", 2,
+                    "rz", 3, "start_angle", 35, "sweep_angle", 50)));
+            var actual = ShapeSpec.parseOperations(11, 9, 7, params).getFirst().spec();
+            var expected = ShapeSpec.fromParams(11, 9, 7, Map.of("kind", kind, "top_radius", 2,
+                    "radius_x", 3, "radius_y", 2, "radius_z", 3, "sector_start_deg", 35, "sector_sweep_deg", 50));
+            assertEquals(expected, actual);
+            assertEquals(ShapeLibrary.generate(expected), ShapeLibrary.generate(actual));
+        }
+    }
+
+    @Test
     void csgChildRotationAndRadiusAliasesOverrideInheritedValues() {
         var params = Map.<String, Object>of("kind", "cylinder", "radius", 4,
                 "rotation_x_deg", 0, "rotation_y_deg", 0, "rotation_z_deg", 0,
                 "operations", List.of(Map.of("op", "union", "r", 2, "rotate_x", 30,
                         "rotationY", 45, "rotationZDeg", 15)));
-        var actual = ShapeSpec.parseOperations(11, 9, 7, params).getFirst().shape();
+        var actual = ShapeSpec.parseOperations(11, 9, 7, params).getFirst().spec();
         var expected = ShapeSpec.fromParams(11, 9, 7, Map.of("kind", "cylinder", "radius", 2,
                 "rotation_x_deg", 30, "rotation_y_deg", 45, "rotation_z_deg", 15));
         assertEquals(expected, actual);
