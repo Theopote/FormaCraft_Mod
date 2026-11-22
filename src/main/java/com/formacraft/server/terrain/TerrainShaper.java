@@ -4,6 +4,7 @@ import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.server.build.BuildConstraintContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -115,45 +116,28 @@ public class TerrainShaper {
     }
 
     /**
-     * 判断方块是否为障碍物
+     * Natural clutter to clear above a build site — logs/leaves (incl. cherry/pale oak via tags)
+     * and replaceable / plant vegetation. Solid ground like {@link Blocks#GRASS_BLOCK} is never clutter.
      */
-    private static boolean isObstacle(BlockState state) {
-        return state.isOf(Blocks.OAK_LOG)
-                || state.isOf(Blocks.OAK_LEAVES)
-                || state.isOf(Blocks.SPRUCE_LOG)
-                || state.isOf(Blocks.SPRUCE_LEAVES)
-                || state.isOf(Blocks.BIRCH_LOG)
-                || state.isOf(Blocks.BIRCH_LEAVES)
-                || state.isOf(Blocks.JUNGLE_LOG)
-                || state.isOf(Blocks.JUNGLE_LEAVES)
-                || state.isOf(Blocks.ACACIA_LOG)
-                || state.isOf(Blocks.ACACIA_LEAVES)
-                || state.isOf(Blocks.DARK_OAK_LOG)
-                || state.isOf(Blocks.DARK_OAK_LEAVES)
-                || state.isOf(Blocks.MANGROVE_LOG)
-                || state.isOf(Blocks.MANGROVE_LEAVES)
-                || state.isOf(Blocks.GRASS_BLOCK)
-                || state.isOf(Blocks.SHORT_GRASS)
-                || state.isOf(Blocks.TALL_GRASS)
-                || state.isOf(Blocks.FERN)
-                || state.isOf(Blocks.LARGE_FERN)
-                || state.isOf(Blocks.DANDELION)
-                || state.isOf(Blocks.POPPY)
-                || state.isOf(Blocks.BLUE_ORCHID)
-                || state.isOf(Blocks.ALLIUM)
-                || state.isOf(Blocks.AZURE_BLUET)
-                || state.isOf(Blocks.RED_TULIP)
-                || state.isOf(Blocks.ORANGE_TULIP)
-                || state.isOf(Blocks.WHITE_TULIP)
-                || state.isOf(Blocks.PINK_TULIP)
-                || state.isOf(Blocks.OXEYE_DAISY)
-                || state.isOf(Blocks.CORNFLOWER)
-                || state.isOf(Blocks.LILY_OF_THE_VALLEY)
-                || state.isOf(Blocks.SUNFLOWER)
-                || state.isOf(Blocks.LILAC)
-                || state.isOf(Blocks.ROSE_BUSH)
-                || state.isOf(Blocks.PEONY)
+    static boolean isObstacle(BlockState state) {
+        if (state == null || state.isAir() || !state.getFluidState().isEmpty()) return false;
+        try {
+            if (state.isIn(BlockTags.LOGS) || state.isIn(BlockTags.LEAVES)) return true;
+        } catch (IllegalStateException unbound) {
+            if (TerrainSampling.isCanopyMaterial(state)) return true;
+        }
+        // Replaceable clutter (snow layers, short grass when marked replaceable, …).
+        if (state.isReplaceable()) return true;
+        // Flowers / bamboo / snow / vines are not always replaceable depending on state.
+        var block = state.getBlock();
+        return block instanceof net.minecraft.block.PlantBlock
+                || block instanceof net.minecraft.block.LeavesBlock
+                || block instanceof net.minecraft.block.SugarCaneBlock
+                || block instanceof net.minecraft.block.CactusBlock
+                || block instanceof net.minecraft.block.BambooBlock
+                || block instanceof net.minecraft.block.SnowBlock
                 || state.isOf(Blocks.VINE)
+                || state.isOf(Blocks.MOSS_CARPET)
                 || state.isOf(Blocks.BROWN_MUSHROOM)
                 || state.isOf(Blocks.RED_MUSHROOM);
     }
