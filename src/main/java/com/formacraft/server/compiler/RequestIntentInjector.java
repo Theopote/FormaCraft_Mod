@@ -5,8 +5,10 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.model.request.FormaRequest;
+import com.formacraft.common.typology.UserConstraintContract;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1112,7 +1114,7 @@ public final class RequestIntentInjector {
         if (shaftMembers == null || shaftMembers.isEmpty()) return 0;
         // Without compiler satellites, no independent ROOF will be created later.
         if (plan == null || !plan.allowCompilerSatellites()) return 0;
-        Component top = shaftMembers.get(shaftMembers.size() - 1);
+        Component top = shaftMembers.getLast();
         if (top == null || top.dimensions() == null || top.relativePosition() == null) return 0;
         String topId = BuildingHostResolver.massId(top);
         // Only an existing top-hosted ROOF covers the inferred-roof budget. Finials / banners
@@ -1787,7 +1789,7 @@ public final class RequestIntentInjector {
             diags.add(detail);
             return new StairTreadBindResult(List.of(), diags, true);
         }
-        String blockId = materials.iterator().next();
+        String blockId = materials.getFirst();
         List<StairTargetRef> targets = collectStairTargets(plan);
         if (targets.isEmpty()) {
             Map<String, Object> detail = new HashMap<>();
@@ -2097,14 +2099,7 @@ public final class RequestIntentInjector {
             }
             if (target == null || !BuildingHostResolver.isKnownDesignHostId(hosts, target)) {
                 gap = true;
-                Map<String, Object> detail = new HashMap<>();
-                detail.put("code", target == null ? "E_HEIGHT_HOST_TIE" : "E_HEIGHT_HOST_MISSING");
-                detail.put("blocks", b.blocks());
-                detail.put("roleHint", hint == null ? "" : hint);
-                if (target != null) detail.put("target", target);
-                detail.put("message", target == null
-                        ? "height host role score is not unique or missing"
-                        : "height target is not a design-constraint host");
+                Map<String, Object> detail = getStringObjectMap(b, target, hint);
                 diagnostics.add(detail);
                 continue;
             }
@@ -2122,6 +2117,18 @@ public final class RequestIntentInjector {
             out.put(target, b.blocks());
         }
         return new HeightBindResult(out, List.copyOf(envelopes), diagnostics, gap);
+    }
+
+    private static @NotNull Map<String, Object> getStringObjectMap(UserConstraintContract.HeightBinding b, String target, String hint) {
+        Map<String, Object> detail = new HashMap<>();
+        detail.put("code", target == null ? "E_HEIGHT_HOST_TIE" : "E_HEIGHT_HOST_MISSING");
+        detail.put("blocks", b.blocks());
+        detail.put("roleHint", hint == null ? "" : hint);
+        if (target != null) detail.put("target", target);
+        detail.put("message", target == null
+                ? "height host role score is not unique or missing"
+                : "height target is not a design-constraint host");
+        return detail;
     }
 
     /**

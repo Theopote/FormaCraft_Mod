@@ -1,5 +1,7 @@
 package com.formacraft.common.typology;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -716,6 +718,20 @@ public final class UserConstraintContract {
     private static String resolveStairTreadMaterialInClause(String clause) {
         if (clause == null || clause.isBlank()) return null;
         String lower = clause.toLowerCase(Locale.ROOT);
+        String best = getString(clause, lower);
+        if (best != null) return best;
+        // Explicit namespaced id only (minecraft:iron_block) — never bare tokens.
+        Matcher id = Pattern.compile("minecraft:([a-z0-9_]+)").matcher(lower);
+        while (id.find()) {
+            String full = "minecraft:" + id.group(1);
+            for (String[] group : STAIR_TREAD_MATERIAL_ALIASES) {
+                if (full.equals(group[0])) return group[0];
+            }
+        }
+        return null;
+    }
+
+    private static @Nullable String getString(String clause, String lower) {
         String best = null;
         int bestLen = -1;
         for (String[] group : STAIR_TREAD_MATERIAL_ALIASES) {
@@ -732,16 +748,7 @@ public final class UserConstraintContract {
                 }
             }
         }
-        if (best != null) return best;
-        // Explicit namespaced id only (minecraft:iron_block) — never bare tokens.
-        Matcher id = Pattern.compile("minecraft:([a-z0-9_]+)").matcher(lower);
-        while (id.find()) {
-            String full = "minecraft:" + id.group(1);
-            for (String[] group : STAIR_TREAD_MATERIAL_ALIASES) {
-                if (full.equals(group[0])) return group[0];
-            }
-        }
-        return null;
+        return best;
     }
 
     /**
