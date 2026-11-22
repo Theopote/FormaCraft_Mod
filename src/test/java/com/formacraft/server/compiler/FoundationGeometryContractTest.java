@@ -78,6 +78,8 @@ class FoundationGeometryContractTest {
         var aligned = ComponentSatelliteAligner.alignFoundationToMassForTest(foundation, mass);
         assertEquals(2, aligned.dimensions().height());
         assertEquals(6, aligned.relativePosition().y(), "plinth top meets mass floor");
+        assertEquals(new Vec3i(-1, 6, -1), aligned.relativePosition(),
+                "wider plinth must overhang evenly under the mass");
 
         Slot slot = new Slot("site", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);
         var blocks = PatchTestSnapshot.blocks(
@@ -87,6 +89,47 @@ class FoundationGeometryContractTest {
         assertFalse(blocks.containsKey(new Vec3i(1, 5, 1)), "thin plinth must not fill to terrain");
         assertTrue(blocks.values().stream().allMatch(b -> b != null && b.contains("polished_andesite")),
                 "component foundation_block must win over style palette");
+    }
+
+    @Test
+    void narrowVisiblePlinthStaysCenteredAndIsNotExpanded() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "plinth");
+        params.put("host_id", "hall");
+        params.put("plinth", true);
+        params.put("plinth_height", 2);
+        params.put("anchor_mode", "min_corner");
+        params.put("foundation_block", "minecraft:polished_andesite");
+        var mass = new Component("MASS_MAIN", "site", new Vec3i(0, 8, 0),
+                new Dimensions(10, 10, 8), List.of(),
+                Map.of("component_id", "hall", "anchor_mode", "min_corner"));
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 2), List.of("plinth"), params);
+        var aligned = ComponentSatelliteAligner.alignFoundationToMassForTest(foundation, mass);
+        assertEquals(8, aligned.dimensions().width());
+        assertEquals(8, aligned.dimensions().depth());
+        assertEquals(new Vec3i(1, 6, 1), aligned.relativePosition(),
+                "narrower plinth must inset to true center under the mass");
+
+        var components = new java.util.ArrayList<>(List.of(mass, aligned));
+        assertEquals(0, com.formacraft.common.generation.component.util.ComponentFoundationEnforcer
+                        .apply(components),
+                "visible plinth must not be expanded to cover the full mass");
+        assertEquals(8, components.get(1).dimensions().width());
+        assertEquals(8, components.get(1).dimensions().depth());
+        assertEquals(new Vec3i(1, 6, 1), components.get(1).relativePosition());
+    }
+
+    @Test
+    void sandFoundationMaterialIsRejected() {
+        AssemblyCompileDiagnostics.clear();
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(4, 4, 2), List.of(),
+                Map.of("foundation_block", "minecraft:sand", "anchor_mode", "min_corner"));
+        Slot slot = new Slot("site", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);
+        var patches = new FoundationGenerator().generate(new SemanticComponent("FOUNDATION", slot, foundation));
+        assertTrue(patches.isEmpty());
+        assertEquals("E_FOUNDATION_MATERIAL_INVALID", AssemblyCompileDiagnostics.get().code());
     }
 
     @Test

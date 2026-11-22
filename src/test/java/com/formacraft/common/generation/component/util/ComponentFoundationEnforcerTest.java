@@ -130,4 +130,20 @@ class ComponentFoundationEnforcerTest {
         var found = ComponentFootprintUtil.bounds(components.get(1));
         assertTrue(found.contains(ComponentFootprintUtil.bounds(mass)));
     }
+
+    @Test
+    void visiblePlinthIsNotExpandedOntoHostMass() {
+        var mass = new Component("MASS_MAIN", "site", new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 6), List.of(),
+                Map.of("component_id", "hall", "anchor_mode", "min_corner"));
+        var plinth = new Component("FOUNDATION", "site", new Vec3i(1, -2, 1),
+                new Dimensions(8, 8, 2), List.of("plinth"),
+                Map.of("component_id", "plinth", "host_id", "hall",
+                        "plinth", true, "anchor_mode", "min_corner"));
+        var components = new ArrayList<>(List.of(mass, plinth));
+        assertEquals(0, ComponentFoundationEnforcer.apply(components));
+        assertEquals(8, components.get(1).dimensions().width());
+        assertEquals(8, components.get(1).dimensions().depth());
+        assertEquals(new Vec3i(1, -2, 1), components.get(1).relativePosition());
+    }
 }

@@ -177,7 +177,7 @@ final class ComponentSatelliteAligner {
                         ? ExteriorStairEndpointRepair.preserveDoor(c) : alignEntranceToMass(c, mass, plan, facing);
                 case "CROWN", "CUPOLA", "DOME" -> alignCrownToMass(c, mass, plan, components);
                 case "FOUNDATION", "TERRACE", "BASE" -> alignFoundationToMass(c, mass);
-                case "PAVING" -> hostId != null && isVisiblePlinth(c, c.params())
+                case "PAVING" -> hostId != null && ComponentFootprintUtil.isVisiblePlinth(c)
                         ? alignFoundationToMass(c, mass) : c;
                 case "CHIMNEY" -> ComponentPlanTypes.isRoofType(ComponentPlanTypes.normalizeType(mass.componentType()))
                         ? alignChimneyToRoof(c, mass) : alignHostedDetail(c, mass);
@@ -531,16 +531,16 @@ final class ComponentSatelliteAligner {
                     new Dimensions(mass.dimensions().width(), mass.dimensions().depth(), height),
                     foundation.features(), params);
         }
-        // Visible 台基 / plinth: center under the host and keep authored height so the podium
-        // top meets the mass floor (do not preserve a drifted LLM XZ corner).
-        if (isVisiblePlinth(foundation, params) && mass.dimensions() != null) {
+        // Visible 台基 / plinth: true center under the host; keep authored width/depth/height.
+        // Narrower podiums must inset (not clamp to mass min-corner); wider ones overhang evenly.
+        if (ComponentFootprintUtil.isVisiblePlinth(foundation) && mass.dimensions() != null) {
             int height = Math.max(1, dims.height());
             Object ph = params.get("plinth_height");
             if (ph == null) ph = params.get("plinthHeight");
             if (ph instanceof Number n) height = Math.max(1, n.intValue());
             params.put("anchor_mode", "min_corner");
-            int ox = massOrigin.x() - Math.max(0, (dims.width() - mass.dimensions().width()) / 2);
-            int oz = massOrigin.z() - Math.max(0, (dims.depth() - mass.dimensions().depth()) / 2);
+            int ox = massOrigin.x() + (mass.dimensions().width() - dims.width()) / 2;
+            int oz = massOrigin.z() + (mass.dimensions().depth() - dims.depth()) / 2;
             int bottom = massOrigin.y() - height;
             return new Component(foundation.componentType(), foundation.slotId(),
                     new Vec3i(ox, bottom, oz),
@@ -566,22 +566,6 @@ final class ComponentSatelliteAligner {
                 new Vec3i(centered ? fp.x() - dims.width()/2 : corner ? fp.x() : massOrigin.x() - (rebased ? Math.max(0, (dims.width() - mass.dimensions().width()) / 2) : 0),
                         bottom, centered ? fp.z() - dims.depth()/2 : corner ? fp.z() : massOrigin.z() - (rebased ? Math.max(0, (dims.depth() - mass.dimensions().depth()) / 2) : 0)),
                 new Dimensions(dims.width(), dims.depth(), massOrigin.y() - bottom), foundation.features(), params);
-    }
-
-    private static boolean isVisiblePlinth(Component foundation, Map<String, Object> params) {
-        if (Boolean.TRUE.equals(params.get("plinth"))) return true;
-        if (params.containsKey("plinth_height") || params.containsKey("plinthHeight")) return true;
-        if (foundation.features() != null) {
-            for (String f : foundation.features()) {
-                if (f == null) continue;
-                String lower = f.toLowerCase(Locale.ROOT);
-                if (lower.contains("plinth") || f.contains("台基") || lower.contains("podium")
-                        || lower.contains("阶条")) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     /** Small MASS/TOWER sitting on a larger host roof plane — center like DECOR_DETAIL. */

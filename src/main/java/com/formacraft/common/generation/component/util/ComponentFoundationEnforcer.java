@@ -42,6 +42,10 @@ public final class ComponentFoundationEnforcer {
             if (!isFoundationOnly(type)) {
                 continue;
             }
+            // Visible plinths keep authored width/depth — expanding would rewrite AI design.
+            if (ComponentFootprintUtil.isVisiblePlinth(c)) {
+                continue;
+            }
             ComponentFootprintUtil.Bounds targetMass = resolveTargetMass(c, components, massesBySlot);
             if (targetMass == null) {
                 continue;

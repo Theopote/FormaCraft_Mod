@@ -5,6 +5,7 @@ import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.StyleAttributes;
 import com.formacraft.common.patch.BlockPatchTargetResolver;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.FallingBlock;
 import net.minecraft.block.FluidBlock;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EmptyBlockView;
@@ -110,8 +111,9 @@ public final class ExplicitMaterialPolicy {
 
     /**
      * Resolve an authored foundation material to a placeable BlockState string.
-     * Rejects unknown ids, air/fluids, replaceable plants, and blocks with empty
-     * collision (torch, signs, …) that cannot form structural fill or posts.
+     * Rejects unknown ids, air/fluids, replaceable plants, empty-collision blocks
+     * (torch, signs, …), and gravity/{@link FallingBlock} materials (sand, gravel, …)
+     * that would otherwise be silently remapped by {@link GravityBlockPolicy}.
      * Stilts/special members still use this gate — placeable posts need collision.
      */
     public static String resolveFoundationMaterial(String target) {
@@ -126,12 +128,16 @@ public final class ExplicitMaterialPolicy {
         return BlockStateStringUtil.fromState(state);
     }
 
-    /** HARD_CONSTRAINT: structural foundation / stilt posts need collision-bearing solids. */
+    /**
+     * HARD_CONSTRAINT: structural foundation / stilt posts need stable, collision-bearing solids.
+     * Gravity blocks are rejected here (explicit fail) rather than silently stabilized later.
+     */
     public static boolean isStructuralFoundationState(BlockState state) {
         if (state == null) return false;
         if (state.isAir() || state.getBlock() instanceof FluidBlock || !state.getFluidState().isEmpty()) {
             return false;
         }
+        if (state.getBlock() instanceof FallingBlock) return false;
         if (state.isReplaceable()) return false;
         return !state.getCollisionShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN).isEmpty();
     }

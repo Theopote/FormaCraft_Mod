@@ -165,6 +165,30 @@ public final class ComponentFootprintUtil {
         return normalized.contains("FOUNDATION") || normalized.contains("TERRACE") || normalized.equals("BASE");
     }
 
+    /**
+     * Visible 台基 / plinth: authored aesthetic podium whose width/depth must stay locked.
+     * Distinct from buried structural foundations that may expand under a host mass.
+     */
+    public static boolean isVisiblePlinth(Component component) {
+        if (component == null) return false;
+        Map<String, Object> params = component.params();
+        if (params != null) {
+            if (Boolean.TRUE.equals(params.get("plinth"))) return true;
+            if (params.containsKey("plinth_height") || params.containsKey("plinthHeight")) return true;
+        }
+        if (component.features() != null) {
+            for (String f : component.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("plinth") || f.contains("台基") || lower.contains("podium")
+                        || lower.contains("阶条")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private static String getParamString(Map<String, Object> params, String... keys) {
         if (params == null) {
             return null;
