@@ -62,6 +62,7 @@ def resolve_buildings(plan: dict) -> list[dict]:
         height = explicit_floor_height(component)
         count = _integer(params.get('floor_count') or params.get('floorCount'))
         envelope_height = int(dimensions.get('height', 1))
+        authored_height = _integer((component.get('dimensions') or {}).get('height'), envelope_height)
         fitting = min(count, (max(1, envelope_height)-1)//height+1) if count > 0 and height > 0 else 0
         result.append({'component_id': params.get('component_id'), 'slot_id': component.get('slot_id'),
                        'local_origin': origin, 'plan_origin': plan_origin, 'dimensions': dict(dimensions),
@@ -69,6 +70,7 @@ def resolve_buildings(plan: dict) -> list[dict]:
                        'roof_y_local': origin['y'] + envelope_height-1,
                        'floor_layout_fits': count <= 0 or height <= 0 or count*height <= envelope_height,
                        'floor_layout_path': f'components[{index}]',
+                       'available_floor_layout_height': authored_height,
                        'required_floor_layout_height': max(0, count) * height,
                        'coordinate_stage': 'plan', 'geometry_status': 'parameters_only',
                        'multi_mass': multi_mass_geometry(component)})

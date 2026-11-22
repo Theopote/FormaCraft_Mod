@@ -57,6 +57,16 @@ class ResolvedGeometryTest(unittest.TestCase):
         self.assertIn('capability_gap', result)
         self.assertEqual(8, result['components'][0]['dimensions']['height'])
 
+    def test_single_storey_overflow_uses_authored_height(self):
+        body = {'component_type': 'MASS_MAIN', 'dimensions': {'width': 9, 'depth': 9, 'height': 3},
+                'params': {'component_id': 'hall', 'floor_count': 1, 'floor_height': 5}}
+        result = apply_building_contract({'components': [body]}, '', finalize=True)
+        issue = result['proportion_hints']['building_contract']['diagnostics'][0]
+        self.assertEqual('E_FLOOR_ENVELOPE', issue['code'])
+        self.assertEqual(3, issue['body_height'])
+        self.assertEqual(5, issue['required_body_height'])
+        self.assertEqual(3, result['components'][0]['dimensions']['height'])
+
     def test_anchor_alias_matches_java_and_floor_metadata_is_optional(self):
         component = {'component_type':'MASS_MAIN', 'relative_position':{'x':0,'y':7,'z':0},
                      'dimensions':{'width':12,'depth':10,'height':8}, 'params':{'anchorMode':'MIN_CORNER'}}

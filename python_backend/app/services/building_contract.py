@@ -1546,9 +1546,9 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     from .resolved_geometry import resolve_buildings
     contract['resolved_buildings'] = resolve_buildings(out)
     for building in contract['resolved_buildings']:
-        if not building['floor_layout_fits']:
-            available = building['dimensions']['height']
-            required = building['required_floor_layout_height']
+        available = building['available_floor_layout_height']
+        required = building['required_floor_layout_height']
+        if required > 0 and required > available:
             contract['diagnostics'].append({
                 'code': 'E_FLOOR_ENVELOPE', 'component_id': building['component_id'],
                 'path': building['floor_layout_path'], 'body_height': available,

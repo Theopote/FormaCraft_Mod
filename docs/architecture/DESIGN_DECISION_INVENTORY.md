@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Floor envelope diagnosis compares required storey space against the authored body height rather than the effective geometry helper dimensions (HARD_CONSTRAINT). A short single storey therefore remains visible to critique.
+
 The one-round floor layout critique also accepts `E_FLOOR_ENVELOPE` diagnostics (HARD_CONSTRAINT). Feedback identifies the body and required/available height. The same acceptance guard preserves roofs and other unrelated geometry.
 
 Removed the one-block floor-band datum resize and hosted roof relocation (DESIGN_OVERRIDE). The building contract reports `E_FLOOR_ENVELOPE` for the authored overflow without changing the body or roof.
