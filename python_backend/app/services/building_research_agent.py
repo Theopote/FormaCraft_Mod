@@ -45,18 +45,11 @@ def typology_exclusive_component_note(
             f"Optional proportion_hints.typology={typology_id}. {guidance}"
         ).strip()
     ref = reference_landmark or "none"
-    note = (
-        f"structural_typology={typology_id}: output ONLY ONE STRUCTURE with "
-        f"typology:{typology_id} params; landmark_module=null (reference_landmark={ref}). "
-        "FORBID MASS_MAIN, MASS_SECONDARY, TOWER, ROOF, ENTRANCE, FOUNDATION, "
-        "FACADE_WINDOWS, DECOR_DETAIL alongside typology STRUCTURE — interpreter owns geometry."
+    return (
+        f"structural_typology={typology_id} (reference_landmark={ref}) is a research reference. "
+        f"The whole-building executor requires an explicit user request for typology:{typology_id}. "
+        "Use the active planning contract for that explicit route."
     )
-    if typology_id == "suspension_bridge":
-        note += (
-            " proportion_hints must use bridge ratios (span_to_tower_height≈4.0, "
-            "cable_sag_ratio≈0.12); do NOT emit house ratios (height_to_width, floor_cornice)."
-        )
-    return note
 
 
 def _env_str(name: str, default: str = "") -> str:
@@ -1178,7 +1171,6 @@ def format_profile_for_prompt(
 ) -> str:
     """将 BuildingProfile 格式化为 LlmPlan prompt 前置上下文。"""
     from .building_plan_stage import profile_routing_summary
-    from .typology_registry import is_compositional_typology
 
     payload = profile.to_prompt_dict()
     lines = [
@@ -1198,37 +1190,15 @@ def format_profile_for_prompt(
             "Use supported components/FBD; report unsupported geometry explicitly.",
             "",
         ])
-    elif compact_routing:
+    else:
         lines.extend([
             f"Routing summary: {profile_routing_summary(profile)}",
             "Full routing contract: OPEN-WORLD RESEARCH OVERRIDE in system prompt.",
-            "",
-            "Distinguishing features (priority over generic style keywords):",
-            "- Copy structure.distinguishing_features → plan.distinguishing_features[] and component params/features.",
+            "A type in the research profile is evidence. Use a fixed executor only with explicit user opt-in.",
             "",
         ])
-    elif is_compositional_typology(profile.minecraft_strategy.structural_typology):
-        lines.extend([typology_exclusive_component_note(profile.minecraft_strategy.structural_typology), ""])
-    else:
-        lines.extend([
-            "CRITICAL routing (typology-first):",
-            "- When minecraft_strategy.structural_typology is set → output ONE STRUCTURE with "
-            "features [\"typology:<id>\"] and params.reference_landmark if provided; "
-            "landmark_module MUST stay null.",
-            "- Typology-first plans MUST NOT include MASS_MAIN, MASS_SECONDARY, TOWER, ROOF, "
-            "ENTRANCE, FOUNDATION, FACADE_WINDOWS, or DECOR_DETAIL alongside typology STRUCTURE.",
-            "- suspension_bridge / golden_gate_bridge: proportion_hints use span_to_tower_height "
-            "and cable_sag_ratio only — never house ratios (height_to_width, floor_cornice).",
-            "- Migrated landmarks NEVER use MODULE — even if Java LANDMARK MODULE blocks suggest it.",
-            "- If landmark_module is null → compositional and/or STRUCTURE typology; do NOT use MODULE.",
-            "- MODULE allowed ONLY when landmark_module is a non-migrated preset explicitly set in this profile.",
-            "- Set proportion_hints.typology to structural_typology when present.",
-            "",
-            "CRITICAL distinguishing features (override generic style keywords):",
-            "- structure.distinguishing_features lists what makes THIS building unique.",
-            "- MUST appear in component features/params — priority above generic gothic/modern keywords.",
-            "",
-        ])
+        if not compact_routing:
+            lines.append("Include only distinguishing features relevant to the request and represented in the plan.")
     if profile.request_classification is not None:
         lines.extend([
             "Request classification (Stage 1 — authoritative for research vs generic intent):",
@@ -1252,12 +1222,12 @@ def format_profile_for_prompt(
         ])
     lines.extend([
         "Planning rules:",
-        "- Respect scale_hints when choosing dimensions (blocks).",
-        "- Map distinctive_elements to component params/features where possible.",
-        "- If reference_blueprint is present, use architectural_layers, block_palette,",
-        "  and generation_rules as the primary spatial/material guide.",
+        "- Consider scale_hints only for dimensions the user left open.",
+        "- Choose which distinctive elements belong in the requested design.",
+        "- If reference_blueprint is present, treat architectural_layers, block_palette,",
+        "  and generation_rules as evidence within the user's requested scope.",
         "- Do NOT invent unregistered component_type values.",
-        "- If research_notes conflict with user text, prefer user text for intent.",
+        "- Explicit user requirements and omissions take precedence over all research evidence.",
         "",
     ])
     return "\n".join(lines)

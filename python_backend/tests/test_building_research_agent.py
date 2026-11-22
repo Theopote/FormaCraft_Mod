@@ -44,6 +44,35 @@ def test_geometry_evidence_reaches_planning_only_with_shown_sources():
     assert "geometry_evidence" not in BuildingProfile().to_prompt_dict()
 
 
+def test_single_stage_research_keeps_blueprint_and_scale_advisory():
+    prompt = format_profile_for_prompt(BuildingProfile(
+        scale_hints={"typical_width_blocks": 30},
+        reference_blueprint={"architectural_layers": ["canopy"]},
+    ))
+    assert "dimensions the user left open" in prompt
+    assert "Explicit user requirements and omissions take precedence" in prompt
+    assert "canopy" in prompt
+    assert "primary spatial/material guide" not in prompt
+
+
+def test_legacy_long_prompt_does_not_bind_a_researched_typology():
+    profile = BuildingProfile(minecraft_strategy={"structural_typology": "suspension_bridge"})
+    prompt = format_profile_for_prompt(profile, compact_routing=False)
+    assert "explicit user opt-in" in prompt
+    assert "output ONE STRUCTURE" not in prompt
+    assert "suspension_bridge" in prompt
+
+
+def test_shared_native_typology_note_is_advisory():
+    from app.services.building_research_agent import typology_exclusive_component_note
+
+    note = typology_exclusive_component_note("suspension_bridge", "example_crossing")
+    assert "explicit user request for typology:suspension_bridge" in note
+    assert "example_crossing" in note
+    assert "ONLY ONE STRUCTURE" not in note
+    assert "cable_sag_ratio" not in note
+
+
 def test_massing_draft_receives_geometry_as_optional_evidence():
     from app.services.ai_planner import _llm_plan_massing_prepass
 

@@ -469,7 +469,8 @@ def planning_component_exposure(
     ``resolve_landmark_module_for_intent``) — never raw substring checks that
     ignore negations such as "不要使用 FBD".
     """
-    from .building_research_agent import resolve_landmark_module_for_intent
+    from .building_research_agent import resolve_explicit_structural_typology, resolve_landmark_module_for_intent
+    from .typology_registry import is_compositional_typology
     from .fbd_capabilities import requests_fbd
 
     direct = list(plannable_component_types())
@@ -478,11 +479,11 @@ def planning_component_exposure(
     model_designed = bool(getattr(mc, "model_designed_landmark", False))
     text = user_request if isinstance(user_request, str) else ""
     explicit_preset = resolve_landmark_module_for_intent(text)
-    profile_preset = str(getattr(mc, "landmark_module", None) or "").strip()
     # Model-designed landmarks never re-expose fixed MODULE, even if the text
     # mentions preset: in a negation, citation, or stale fragment.
-    has_preset = (not model_designed) and bool(profile_preset or explicit_preset)
-    has_typology = bool(str(getattr(mc, "structural_typology", None) or "").strip()) and not model_designed
+    has_preset = not model_designed and bool(explicit_preset)
+    typology = resolve_explicit_structural_typology(text)
+    has_typology = not model_designed and bool(typology and not is_compositional_typology(typology))
     wants_fbd = requests_fbd(text)
     if "ASSEMBLY" in conditional and not wants_fbd:
         conditional["ASSEMBLY"] = {
@@ -490,25 +491,17 @@ def planning_component_exposure(
             "requires": "Model-authored params.assembly.ops or params.assembly.graph with executable geometry",
         }
 
-    if model_designed:
+    if not has_preset:
         conditional.pop("MODULE", None)
-        if "STRUCTURE" in conditional:
-            conditional["STRUCTURE"] = {
-                "status": conditional["STRUCTURE"].get("status") or "typology_routed",
-                "requires": (
-                    "parametric structure_type only (colonnade/truss/spiral/...); "
-                    "typology:* and fixed landmark executors are disallowed for "
-                    "model-designed landmarks"
-                ),
-                "routes": ["parametric_structure_type"],
-            }
-    elif has_typology:
-        # Typology-first: keep STRUCTURE native route; MODULE stays out unless preset.
-        if not has_preset:
-            conditional.pop("MODULE", None)
-    else:
-        if not has_preset:
-            conditional.pop("MODULE", None)
+    if not has_typology and "STRUCTURE" in conditional:
+        conditional["STRUCTURE"] = {
+            "status": conditional["STRUCTURE"].get("status") or "typology_routed",
+            "requires": (
+                "parametric structure_type only (colonnade/truss/spiral/...); "
+                "fixed typologies require explicit user opt-in"
+            ),
+            "routes": ["parametric_structure_type"],
+        }
 
     return {
         "direct": direct,

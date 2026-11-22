@@ -72,11 +72,23 @@ PLAN_STAGE_MARKER = "PLAN STAGE (after Building Research)"
 RESEARCH_OVERRIDE_MARKER = "OPEN-WORLD RESEARCH OVERRIDE"
 
 
-def research_landmark_override_block(profile: BuildingProfile) -> str:
-    """Authoritative override for Java-side landmark MODULE prompt leakage."""
+def _authorized_research_routes(profile: BuildingProfile, user_request: str) -> tuple[str, str]:
+    from .building_research_agent import resolve_explicit_structural_typology, resolve_landmark_module_for_intent
+
     mc = profile.minecraft_strategy
     stid = (mc.structural_typology or "").strip()
     lm = (mc.landmark_module or "").strip()
+    if stid and not is_compositional_typology(stid) and resolve_explicit_structural_typology(user_request) != stid:
+        stid = ""
+    if lm and resolve_landmark_module_for_intent(user_request) != lm:
+        lm = ""
+    return stid, lm
+
+
+def research_landmark_override_block(profile: BuildingProfile, user_request: str = "") -> str:
+    """Authoritative override for Java-side landmark MODULE prompt leakage."""
+    mc = profile.minecraft_strategy
+    stid, lm = _authorized_research_routes(profile, user_request)
     ref = (mc.reference_landmark or "").strip()
 
     # Open-world default: AI designs; catalog executes. Fixed routes only via explicit preset/typology.
@@ -156,11 +168,10 @@ IGNORE all "LANDMARK MODULE ROUTING" and "AVAILABLE LANDMARK MODULES" sections i
 """
 
 
-def profile_routing_summary(profile: BuildingProfile) -> str:
+def profile_routing_summary(profile: BuildingProfile, user_request: str = "") -> str:
     """One-line routing digest for compact user prompts (full contract lives in system override)."""
     mc = profile.minecraft_strategy
-    stid = (mc.structural_typology or "").strip()
-    lm = (mc.landmark_module or "").strip()
+    stid, lm = _authorized_research_routes(profile, user_request)
     ref = (mc.reference_landmark or "").strip()
     rec = ", ".join(str(c) for c in (mc.recommended_components or []) if c)
     if mc.model_designed_landmark:
@@ -200,8 +211,8 @@ def strip_java_landmark_routing_blocks(system_prompt: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
-def apply_research_landmark_override(system_prompt: str, profile: BuildingProfile) -> str:
-    block = research_landmark_override_block(profile).strip()
+def apply_research_landmark_override(system_prompt: str, profile: BuildingProfile, user_request: str = "") -> str:
+    block = research_landmark_override_block(profile, user_request).strip()
     base = strip_java_landmark_routing_blocks(system_prompt or "")
     if RESEARCH_OVERRIDE_MARKER in base:
         base = re.sub(
@@ -255,13 +266,12 @@ def build_plan_stage_user_block(
     from .style_feature_compiler import compile_style_feature_defaults
     feature_defaults = compile_style_feature_defaults(profile)
     from .building_use_intent import building_use_guidance
-    stid = (profile.minecraft_strategy.structural_typology or "").strip()
-    lm = (profile.minecraft_strategy.landmark_module or "").strip()
+    stid, lm = _authorized_research_routes(profile, user_request)
     lines = [
         "=== STAGE P: LlmPlan from BuildingProfile ===",
         "",
         "Research is complete. Produce the final LlmPlan JSON using the profile below.",
-        f"Routing summary: {profile_routing_summary(profile)}",
+        f"Routing summary: {profile_routing_summary(profile, user_request)}",
         "Full routing contract: OPEN-WORLD RESEARCH OVERRIDE in system prompt.",
         "",
         "BuildingProfile(JSON):",
@@ -365,7 +375,7 @@ def augment_prompts_for_plan_stage(
     addon = plan_stage_system_augmentation()
     if PLAN_STAGE_MARKER not in new_system:
         new_system = (new_system + "\n\n" + addon).strip() if new_system else addon
-    new_system = apply_research_landmark_override(new_system, profile)
+    new_system = apply_research_landmark_override(new_system, profile, user_request)
 
     return new_system, new_user
 

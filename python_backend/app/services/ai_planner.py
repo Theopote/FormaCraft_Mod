@@ -602,7 +602,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
 
         building_profile = ensure_building_profile_for_plan(research_user_text, building_profile)
         if building_profile is not None:
-            system_prompt = apply_research_landmark_override(system_prompt, building_profile)
+            system_prompt = apply_research_landmark_override(system_prompt, building_profile, research_user_text)
             from .building_plan_stage import is_research_two_phase_enabled
             from .building_research_agent import format_profile_for_prompt
 

@@ -26,6 +26,23 @@ FIXTURES = Path(__file__).resolve().parent.parent / "eval" / "fixtures" / "plans
 
 
 class PlanStagePromptTest(unittest.TestCase):
+    def test_fixed_research_route_requires_current_matching_opt_in(self):
+        from app.services.building_plan_stage import research_landmark_override_block
+
+        profile = BuildingProfile(minecraft_strategy={"structural_typology": "suspension_bridge"})
+        for request in ("原创折光桥", "不要使用 typology:suspension_bridge"):
+            self.assertNotIn("You MUST output ONE STRUCTURE", research_landmark_override_block(profile, request))
+            block = build_plan_stage_user_block(profile, request)
+            self.assertNotIn("Explicit typology route:", block)
+            self.assertNotIn("STRUCTURE + typology:suspension_bridge", block)
+            self.assertIn("parametric structure_type only", block)
+        self.assertIn("You MUST output ONE STRUCTURE",
+                      research_landmark_override_block(profile, "请用 typology:suspension_bridge"))
+        preset = BuildingProfile(minecraft_strategy={"landmark_module": "eiffel_tower"})
+        self.assertNotIn("eiffel_tower", research_landmark_override_block(preset, "不用 preset:eiffel_tower"))
+        self.assertIn("eiffel_tower", research_landmark_override_block(preset, "preset:eiffel_tower"))
+        self.assertNotIn("- MODULE [", build_plan_stage_user_block(preset, "不用 preset:eiffel_tower"))
+
     def test_research_skeleton_and_visual_features_are_advisory(self):
         profile = BuildingProfile(query="折光匣", form={"massing": ["two wings with a canopy"]},
                                   minecraft_strategy={"skeleton_type": "COMPOUND"},

@@ -1,5 +1,15 @@
 # Design decision inventory
 
+Stage P routing summaries and capability exposure require current user opt-in before advertising fixed executors (HARD_CONSTRAINT). Unbound research types remain available as composition evidence.
+
+The research system override checks native typology and landmark preset IDs against the current user request before issuing fixed-executor instructions (HARD_CONSTRAINT). A stale profile alone cannot authorize the route.
+
+Shared research typology notes describe the explicit opt-in boundary (NONBINDING_HINT). They no longer prescribe a whole-building component layout or bridge ratios. Explicit routes use the active planner's execution contract.
+
+The legacy long-form research prompt applies the same explicit opt-in rule as the compact prompt (NONBINDING_HINT). A profile typology alone does not instruct the planner to select a whole-building executor.
+
+Single-stage research prompts treat scale hints, distinctive traits and reference blueprints as optional evidence within the user's requested scope (NONBINDING_HINT).
+
 Pane-style windows use a registered pane variant from the chosen glazing palette when the component omits a block (TECHNICAL_DEFAULT). Component materials take precedence, and the existing clear-pane default covers absent or unsupported palette shapes.
 
 Stained window styles use registered stained glazing from the plan palette when available (TECHNICAL_DEFAULT). A combined stained-pane style keeps the pane shape. Blue is the existing color default when compatible palette glazing is unavailable.
