@@ -619,6 +619,60 @@ class StackedTowerGeometryIntegrityTest {
         assertEquals("E_STACKED_HEIGHT_UNSUPPORTED", gap.orElseThrow().code());
     }
 
+    /**
+     * plan_meta seal × components emptiness matrix — cannot skip hard envelope checks by
+     * wiping members or forging the seal.
+     */
+    @Test
+    void envelopeAuthorityMatrixSealAndComponents() {
+        List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});
+        LlmPlan sealed = RequestIntentInjector.ensure(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(false).components(tiers).build(),
+                "建造一座高度50格的宝塔。");
+        assertFalse(sealed.hasCapabilityGap());
+
+        // valid seal × nonempty → pass
+        assertTrue(StackedEnvelopeIntegrityValidator.check(sealed, sealed.components()).isEmpty(),
+                "valid seal + members must pass");
+
+        // valid seal × empty → missing tower
+        var missing = StackedEnvelopeIntegrityValidator.check(sealed, List.of());
+        assertTrue(missing.isPresent());
+        assertEquals("E_STACKED_HEIGHT_UNSUPPORTED", missing.orElseThrow().code());
+
+        // damaged seal × empty → seal invalid (not silent pass)
+        Map<String, Object> brokenMeta = new HashMap<>(sealed.planMeta());
+        brokenMeta.put(RequestIntentInjector.STACKED_ENVELOPE_TARGETS_SEAL_META, "formacraft.forged");
+        LlmPlan damagedEmpty = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(List.of())
+                .planMeta(brokenMeta)
+                .build();
+        var damagedEmptyGap = StackedEnvelopeIntegrityValidator.check(damagedEmpty, List.of());
+        assertTrue(damagedEmptyGap.isPresent());
+        assertEquals("E_STACKED_ENVELOPE_SEAL_INVALID", damagedEmptyGap.orElseThrow().code());
+
+        // damaged seal × nonempty → seal invalid (not rescued by component height)
+        LlmPlan damagedMembers = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(sealed.components())
+                .planMeta(brokenMeta)
+                .build();
+        var damagedMembersGap = StackedEnvelopeIntegrityValidator.check(
+                damagedMembers, damagedMembers.components());
+        assertTrue(damagedMembersGap.isPresent());
+        assertEquals("E_STACKED_ENVELOPE_SEAL_INVALID", damagedMembersGap.orElseThrow().code());
+
+        // no envelope meta × empty → unconstrained pass
+        LlmPlan bare = LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(false)
+                .components(List.of())
+                .planMeta(Map.of())
+                .build();
+        assertTrue(StackedEnvelopeIntegrityValidator.check(bare, List.of()).isEmpty(),
+                "truly unconstrained empty plan must not invent envelope gaps");
+    }
+
     @Test
     void metaAndComponentModeMismatchReportsConflict() {
         List<Component> tiers = stackedTight(new int[]{8, 8, 7, 6, 5});

@@ -174,6 +174,56 @@ class StackedTowerGeometryFixtureReportTest {
                 + " gap=" + AssemblyCompileDiagnostics.get());
     }
 
+    @Test
+    void huizhouHouseFixtureCompilesWithOpeningAndFloorBands() throws Exception {
+        LlmPlan plan = load("10_huizhou_house");
+        Object promptObj = plan.planMeta() == null ? null : plan.planMeta().get("acceptance_prompt");
+        String prompt = promptObj == null ? "徽派两层民居，有门窗和楼梯。" : String.valueOf(promptObj);
+        LlmPlan sealed = RequestIntentInjector.ensure(plan, prompt);
+        assertFalse(sealed.hasCapabilityGap(), () -> String.valueOf(sealed.capabilityGap()));
+
+        AssemblyCompileDiagnostics.clear();
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(sealed, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        Map<com.formacraft.common.llm.dto.Vec3i, String> blocks = PatchTestSnapshot.blocks(patches);
+
+        Component main = sealed.components().stream()
+                .filter(c -> c != null && c.componentType() != null
+                        && c.componentType().toUpperCase(Locale.ROOT).startsWith("MASS")
+                        && c.dimensions() != null)
+                .max(Comparator.comparingInt(c -> c.dimensions().width() * c.dimensions().depth()))
+                .orElseThrow();
+        int baseY = main.relativePosition() == null ? 0 : main.relativePosition().y();
+        int height = main.dimensions().height();
+        assertTrue(height >= 6, "huizhou MASS_MAIN must stay multi-storey (h=" + height + ")");
+
+        boolean hasDoorOrOpening = blocks.values().stream().anyMatch(b -> {
+            if (b == null) return false;
+            String lower = b.toLowerCase(Locale.ROOT);
+            return lower.contains("door") || lower.contains("trapdoor") || lower.contains("glass")
+                    || lower.contains("pane");
+        }) || sealed.components().stream().anyMatch(c ->
+                c != null && c.componentType() != null
+                        && c.componentType().toUpperCase(Locale.ROOT).contains("ENTRANCE"));
+        assertTrue(hasDoorOrOpening,
+                "huizhou house with openings must keep ENTRANCE or emit door/window-like blocks");
+
+        // Solids span the mass height band (floor plate / wall / roof join), not ground-only.
+        long midBand = blocks.keySet().stream()
+                .filter(p -> p.y() >= baseY + 2 && p.y() < baseY + height)
+                .count();
+        assertTrue(midBand > 0, "expected solids inside the mass height band above y=" + (baseY + 2));
+
+        System.out.println("[fixture 10_huizhou_house] components=" + sealed.components().size()
+                + " mainH=" + height
+                + " patches=" + patches.size()
+                + " solids=" + blocks.size()
+                + " midBand=" + midBand
+                + " gap=" + AssemblyCompileDiagnostics.get());
+    }
+
     private static LlmPlan load(String fixtureId) throws Exception {
         try (InputStream in = StackedTowerGeometryFixtureReportTest.class
                 .getResourceAsStream("/regressions/live_acceptance_20/" + fixtureId + ".json")) {
