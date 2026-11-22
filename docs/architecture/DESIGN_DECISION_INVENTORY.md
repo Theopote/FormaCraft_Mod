@@ -1,5 +1,7 @@
 # Design decision inventory
 
+The ordinary roof material resolver reads the existing `roof` role in `palette`, `materials`, or `block_palette` when scalar roof material is omitted (GEOMETRY). The same lookup feeds early ID validation (HARD_CONSTRAINT); per-component roof materials still take precedence during emission.
+
 Explicit roof block IDs and states are validated before compiler material fallback (HARD_CONSTRAINT). Missing IDs and invalid states produce a field-specific `E_MATERIAL_INVALID`. Descriptive roof material vocabulary retains compatibility resolution.
 
 Roof intent repair keeps base materials in the plan and leaves same-family stair/slab shaping to the roof generator (GEOMETRY). The existing stair-shaped roof preference still reaches the executor.

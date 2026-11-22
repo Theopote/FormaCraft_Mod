@@ -3,6 +3,7 @@ package com.formacraft.common.generation.component.impl;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.StyleAttributes;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.semantic.SemanticPart;
@@ -33,6 +34,20 @@ class RoofGeneratorMaterialParamTest {
         assertEquals("minecraft:spruce_stairs",
                 RoofGenerator.resolveRoofMaterial(
                         Map.of("roof_material", "spruce_planks"), SemanticPart.ROOF));
+    }
+
+    @Test
+    void flatRoofUsesPaletteRoleUnlessComponentOverridesIt() {
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                Map.of("roof", "minecraft:smooth_quartz"), null, null, null, null);
+        for (var params : List.<Map<String, Object>>of(Map.of("roof_type", "flat"),
+                Map.of("roof_type", "flat", "roof_block", "minecraft:oak_planks"))) {
+            var roof = new Component("ROOF", null, new Vec3i(0, 5, 0),
+                    new Dimensions(7, 7, 1), List.of(), params);
+            var patches = new RoofGenerator().generate(new SemanticComponent("ROOF", null, roof, null, attrs));
+            String expected = (String) params.getOrDefault("roof_block", "minecraft:smooth_quartz");
+            assertTrue(patches.stream().anyMatch(p -> expected.equals(p.targetBlock())));
+        }
     }
 
     @Test

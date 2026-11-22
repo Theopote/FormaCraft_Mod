@@ -130,6 +130,20 @@ class ComponentPlanCompilerMaterialTest {
         }
     }
 
+    @Test void invalidRoofPaletteRoleReportsItsField() {
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, Map.of("roof", "minecraft:unknown_roof"), null, null);
+        var candidate = LlmPlanTestFixtures.builder()
+                .components(plan("minecraft:stone_bricks").components()).styleAttributes(attrs).build();
+        try {
+            assertTrue(ComponentPlanCompiler.compile(candidate).isEmpty());
+            assertEquals("E_MATERIAL_INVALID", AssemblyCompileDiagnostics.get().code());
+            assertEquals("style_attributes.block_palette.roof", AssemblyCompileDiagnostics.get().path());
+        } finally {
+            AssemblyCompileDiagnostics.clear();
+        }
+    }
+
     @Test void loggedRoofVocabularyAndUnknownAttributesUseFallbacks() {
         var policy = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
                 LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleAttributes(new StyleAttributes(null, "unknown_wall",

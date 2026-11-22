@@ -24,6 +24,10 @@ public final class ExplicitMaterialPolicy {
         if (attrs != null && invalidRoofId(attrs.roofMaterial())) {
             return Optional.of("style_attributes.roof_material");
         }
+        var paletteRoof = DynamicPaletteResolver.roofPaletteEntry(attrs);
+        if (paletteRoof != null && invalidRoofId(paletteRoof.getValue())) {
+            return Optional.of(paletteRoof.getKey());
+        }
         if (components == null) return Optional.empty();
         for (int index = 0; index < components.size(); index++) {
             Component component = components.get(index);

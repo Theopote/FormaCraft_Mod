@@ -106,6 +106,10 @@ public final class DynamicPaletteResolver {
             }
         }
         
+        var paletteRoof = roofPaletteEntry(attrs);
+        if (paletteRoof != null) {
+            return mapMaterialToBlock(paletteRoof.getValue());
+        }
         if (color != null && !color.isBlank()) {
             String blockId = resolveBlock(color, "default");
             if (blockId != null) {
@@ -113,6 +117,20 @@ public final class DynamicPaletteResolver {
             }
         }
         
+        return null;
+    }
+
+    static java.util.Map.Entry<String, String> roofPaletteEntry(StyleAttributes attrs) {
+        if (attrs == null || (attrs.roofMaterial() != null && !attrs.roofMaterial().isBlank())) return null;
+        var palettes = java.util.Arrays.asList(attrs.palette(), attrs.materials(), attrs.blockPalette());
+        var names = java.util.List.of("palette", "materials", "block_palette");
+        for (int i = 0; i < palettes.size(); i++) {
+            var palette = palettes.get(i);
+            String value = palette == null ? null : palette.get("roof");
+            if (value != null && !value.isBlank()) {
+                return java.util.Map.entry("style_attributes." + names.get(i) + ".roof", value);
+            }
+        }
         return null;
     }
     
