@@ -154,10 +154,13 @@ final class FloatingTowerSnapRepair {
         return false;
     }
 
+    /**
+     * Vertical support requires real XZ area intersection (half-open bounds).
+     * Side-flush walls may use a separate lateral connection rule — not bearing snap.
+     */
     private static boolean xzOverlaps(ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
-        // Bounds max is exclusive; expand by 1 so flush face-adjacent curtain walls count.
-        return a.minX() < b.maxX() + 1 && b.minX() < a.maxX() + 1
-                && a.minZ() < b.maxZ() + 1 && b.minZ() < a.maxZ() + 1;
+        return a.minX() < b.maxX() && b.minX() < a.maxX()
+                && a.minZ() < b.maxZ() && b.minZ() < a.maxZ();
     }
 
     private static String componentId(Component c) {

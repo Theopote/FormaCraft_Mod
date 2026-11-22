@@ -391,6 +391,46 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
+    void sideAdjacentMassIsNotTreatedAsVerticalSupport() {
+        // Half-open footprints share the X=10 face only — no bearing area.
+        var left = new Component("MASS_MAIN", "site", new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 6), List.of(),
+                Map.of("component_id", "house_a", "building_id", "house_a",
+                        "anchor_mode", "min_corner"));
+        var right = new Component("MASS_MAIN", "site", new Vec3i(10, 9, 0),
+                new Dimensions(10, 10, 6), List.of(),
+                Map.of("component_id", "house_b", "building_id", "house_b",
+                        "anchor_mode", "min_corner"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(left, right)).build();
+        var repaired = FloatingMassSnapRepair.apply(plan);
+        assertEquals(0, yOf(repaired, "house_a"));
+        assertEquals(0, yOf(repaired, "house_b"),
+                "face-adjacent neighbor must not become a false landing at y=6");
+        assertNotEquals(6, yOf(repaired, "house_b"));
+    }
+
+    @Test
+    void unhostedTowerFollowsMassSnapWhenMassDropsFirst() {
+        var mass = new Component("MASS_MAIN", "site", new Vec3i(0, 10, 0),
+                new Dimensions(12, 12, 8), List.of(),
+                Map.of("component_id", "keep", "anchor_mode", "min_corner"));
+        var tower = new Component("TOWER", "site", new Vec3i(2, 18, 2),
+                new Dimensions(6, 6, 10), List.of(),
+                Map.of("component_id", "keep_tower", "anchor_mode", "min_corner"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(mass, tower)).build();
+        // Production order: mass first, then tower.
+        var afterMass = FloatingMassSnapRepair.apply(plan);
+        assertEquals(0, yOf(afterMass, "keep"));
+        assertEquals(18, yOf(afterMass, "keep_tower"), "unhosted tower stays until tower snap");
+        var afterTower = FloatingTowerSnapRepair.apply(afterMass);
+        assertEquals(0, yOf(afterTower, "keep"));
+        assertEquals(8, yOf(afterTower, "keep_tower"),
+                "tower must re-seat on the snapped mass top, not remain at y=18");
+    }
+
+    @Test
     void modestPodiumWithoutExternalSupportIsNotSnapped() {
         var podium = new Component("MASS_MAIN", "a", new Vec3i(0, 4, 0),
                 new Dimensions(5, 5, 9), List.of(),

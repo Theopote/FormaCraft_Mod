@@ -187,8 +187,10 @@ public final class ComponentPlanCompiler {
         // Non-suspension bridge prompts must not stay locked to twin-tower suspension typology.
         plan = BridgeMisrouteRepair.apply(plan);
         plan = BridgeCompositionRepair.apply(plan);
-        plan = FloatingTowerSnapRepair.apply(plan);
+        // Stabilize primary masses first so unhosted towers re-evaluate support after hosts move.
+        // Tower-before-mass left towers parked on pre-snap mass tops once the mass dropped.
         plan = FloatingMassSnapRepair.apply(plan);
+        plan = FloatingTowerSnapRepair.apply(plan);
         plan = HostedPlateLevelRepair.apply(plan);
         plan = HostIdRemapRepair.apply(plan);
         plan = ExplicitDesignConflictRepair.apply(plan);
