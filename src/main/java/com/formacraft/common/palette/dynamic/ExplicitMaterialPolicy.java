@@ -68,6 +68,8 @@ public final class ExplicitMaterialPolicy {
             if (entry.getValue() != null && entry.getValue().contains("building_") && entry.getValue().contains("/")
                     && masses.size() > 1 && masses.stream().allMatch(c -> c.params() != null
                         && c.params().get(role) instanceof String material && canonical(material) != null)) continue;
+            if ("roof_material".equals(entry.getKey())
+                    && DynamicPaletteResolver.resolveExplicitRoofState(entry.getValue()) != null) continue;
             if (present(entry.getValue()) && DynamicPaletteResolver.mapMaterialToBlock(entry.getValue()) == null)
                 return Optional.of("style_attributes." + entry.getKey() + "=" + entry.getValue());
         }

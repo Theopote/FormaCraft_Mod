@@ -130,6 +130,16 @@ class ComponentPlanCompilerMaterialTest {
         }
     }
 
+    @Test void scalarRoofMaterialKeepsItsExplicitBlockStateDuringPreprocessing() {
+        String state = "minecraft:smooth_quartz_slab[type=top,waterlogged=true]";
+        var attrs = new StyleAttributes(null, null, "red", state, null, null, null, null);
+        var plan = LlmPlanTestFixtures.builder().styleAttributes(attrs).build();
+        var normalized = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
+        assertEquals(state, normalized.styleAttributes().roofMaterial());
+        assertTrue(com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy
+                .invalidAttribute(normalized.styleAttributes()).isEmpty());
+    }
+
     @Test void invalidRoofPaletteRoleReportsItsField() {
         var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
                 null, null, Map.of("roof", "minecraft:unknown_roof"), null, null);

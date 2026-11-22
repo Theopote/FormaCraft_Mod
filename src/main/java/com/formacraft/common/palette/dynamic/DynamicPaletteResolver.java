@@ -1,6 +1,7 @@
 package com.formacraft.common.palette.dynamic;
 
 import com.formacraft.common.llm.dto.StyleAttributes;
+import com.formacraft.common.patch.BlockPatchTargetResolver;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.List;
@@ -91,6 +92,8 @@ public final class DynamicPaletteResolver {
     private static String resolveRoof(StyleAttributes attrs) {
         String color = attrs.roofColor();
         String material = attrs.roofMaterial();
+        String state = resolveExplicitRoofState(material);
+        if (state != null) return state;
         
         if (color != null && !color.isBlank() && material != null && !material.isBlank()) {
             String blockId = resolveBlock(color, material);
@@ -108,6 +111,8 @@ public final class DynamicPaletteResolver {
         
         var paletteRoof = roofPaletteEntry(attrs);
         if (paletteRoof != null) {
+            state = resolveExplicitRoofState(paletteRoof.getValue());
+            if (state != null) return state;
             return mapMaterialToBlock(paletteRoof.getValue());
         }
         if (color != null && !color.isBlank()) {
@@ -118,6 +123,13 @@ public final class DynamicPaletteResolver {
         }
         
         return null;
+    }
+
+    static String resolveExplicitRoofState(String material) {
+        if (material == null || !material.contains("[")) return null;
+        String value = material.trim();
+        if (BlockPatchTargetResolver.parse(value) == null) return null;
+        return value.contains(":") ? value : "minecraft:" + value;
     }
 
     static java.util.Map.Entry<String, String> roofPaletteEntry(StyleAttributes attrs) {

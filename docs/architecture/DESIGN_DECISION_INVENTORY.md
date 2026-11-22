@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Roof palette and scalar roof material resolution preserve valid authored block-state properties (FORMAT_REPAIR). Explicit state values are parsed before descriptive material resolution. The roof executor retains authority over shape-specific geometry.
+
 The ordinary roof material resolver reads the existing `roof` role in `palette`, `materials`, or `block_palette` when scalar roof material is omitted (GEOMETRY). The same lookup feeds early ID validation (HARD_CONSTRAINT); per-component roof materials still take precedence during emission.
 
 Explicit roof block IDs and states are validated before compiler material fallback (HARD_CONSTRAINT). Missing IDs and invalid states produce a field-specific `E_MATERIAL_INVALID`. Descriptive roof material vocabulary retains compatibility resolution.

@@ -18,7 +18,7 @@ public final class MaterialFallbackPolicy {
         var a = p.styleAttributes();
         var attrs = a == null ? null : new StyleAttributes(a.wallColor(),
                 material(a.wallMaterial(), "wall_material"), a.roofColor(),
-                material(a.roofMaterial(), "roof_material"), material(a.accentMaterial(), "accent_material"),
+                roofMaterial(a.roofMaterial()), material(a.accentMaterial(), "accent_material"),
                 material(a.floorMaterial(), "floor_material"), a.decorativeElements(), a.customAttributes(),
                 a.palette(), a.materials(), a.blockPalette(), a.primaryMaterial(), a.roofForm());
         var components = p.components() == null ? null : p.components().stream().map(c -> c == null ? null :
@@ -28,6 +28,11 @@ public final class MaterialFallbackPolicy {
                 p.genome(), attrs, p.proportionHints(), p.alignmentAndSymmetry(), p.targetSlotId(), p.allowedArea(),
                 p.patch(), p.planProgram(), p.planSkeleton(), p.planStatus(), p.error(), p.capabilityGap(),
                 p.playerFidelityNoticeZh(), p.distinguishingFeatures(), p.enrichmentGuard(), p.planMeta(), p.designSources());
+    }
+
+    private static String roofMaterial(String requested) {
+        String state = DynamicPaletteResolver.resolveExplicitRoofState(requested);
+        return state != null ? state : material(requested, "roof_material");
     }
 
     private static Map<String, Object> normalizeParams(Component component) {
