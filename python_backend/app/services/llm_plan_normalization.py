@@ -4,7 +4,6 @@ import logging
 from typing import Any, Dict, Optional
 from ..models.request import BuildRequest
 from .legacy_spec_genome import _deep_merge
-from .planning_request_hints import _parse_levels_from_text
 from .llm_plan_component_defaults import _fill_component_params
 from .typology_plan_repair import _sanitize_landmark_modules
 from .llm_plan_layout_normalization import _normalize_global_symmetry_value, _sanitize_genome_dict, _sanitize_layout_slots
@@ -1096,7 +1095,6 @@ def _normalize_llm_plan_output(
 
     components = plan.get("components")
     if isinstance(components, list):
-        floors_hint = None
         is_chinese_style = False
         selection_dims = _selection_dimensions(req)
         selection_bounds = _selection_bounds_relative(req, plan.get("anchor") if isinstance(plan.get("anchor"), dict) else None)
@@ -1112,13 +1110,6 @@ def _normalize_llm_plan_output(
                     if not slot_id:
                         continue
                     slot_anchors[slot_id] = _normalize_vec3(slot.get("anchor"))
-        if req is not None:
-            user_text = req.userMessage or ""
-            floors_hint = _parse_levels_from_text(user_text)
-            from .building_contract import extract_requirements
-            floor_requirements = [r for r in extract_requirements(user_text) if r['property'] == 'floor_count']
-            if floor_requirements and not any(r['scope'] == 'all_main_masses' for r in floor_requirements):
-                floors_hint = None  # A named residence's floors do not belong to its chapel or workshop.
         style_profile = str(plan.get("style_profile") or "").lower()
         cultural = (plan.get("genome") or {}).get("culturalStyle") or {}
         region = str(cultural.get("region") or "").lower()
@@ -1138,6 +1129,14 @@ def _normalize_llm_plan_output(
             params = comp.get("params")
             if not isinstance(params, dict):
                 params = {}
+            if ctype in _MASS_COMPONENT_TYPES:
+                _tag_present_param_as_ai_planned(params, "floor_height", "floorHeight")
+                authored_dims = comp.get("dimensions")
+                if isinstance(authored_dims, dict):
+                    height = authored_dims.get("height")
+                    if str(height).strip().isdecimal() and int(height) > 0:
+                        sources = _ensure_component_design_sources(params)
+                        sources.setdefault("dimensions.height", "AI_PLANNED")
             _fill_component_params(params, comp, plan.get("genome", {}))
             comp["params"] = params
             comp["relative_position"] = _normalize_vec3(comp.get("relative_position"))
@@ -1163,19 +1162,6 @@ def _normalize_llm_plan_output(
                 _tag_present_param_as_ai_planned(params, "roof_type")
             elif ctype == "COURTYARD":
                 _tag_present_param_as_ai_planned(params, "plan_type", "courtyard_ratio")
-            if floors_hint:
-                if ctype in ("MASS_MAIN", "MASS_SECONDARY", "MASS_WING", "SIDE_WING", "MAIN_MASS"):
-                    params.setdefault("floor_count", floors_hint)
-                    params.setdefault("floor_height", 3)
-                    dims = comp.get("dimensions") or {}
-                    try:
-                        height = int(dims.get("height", 0))
-                    except Exception:
-                        height = 0
-                    min_height = max(3, int(params.get("floor_height", 3)) * int(params.get("floor_count", floors_hint)))
-                    if height < min_height:
-                        dims["height"] = min_height
-                        comp["dimensions"] = dims
             dims = _clamp_dimensions_to_selection(comp.get("dimensions") or dims, selection_dims)
             comp["dimensions"] = dims
             anchor_mode = _param_string(params, "anchor_mode", "anchorMode")

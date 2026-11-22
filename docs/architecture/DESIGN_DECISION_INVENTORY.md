@@ -1,5 +1,7 @@
 # Design decision inventory
 
+LlmPlan normalization records authored mass height and storey height as `AI_PLANNED` before component defaults (FORMAT_REPAIR). It no longer grows mass height from a floor-count text hint (removed DESIGN_OVERRIDE). The compiler can diagnose conflicting locked geometry.
+
 Floor layout overflow respects plan and component design-source locks on envelope height and storey height (HARD_CONSTRAINT). If the geometry cannot fit without changing locked values, the compiler reports `E_FLOOR_LAYOUT_CONFLICT` at the component path and preserves the authored layout.
 
 Office storey repair no longer rewrites authored circular footprints, storey bands, or building height from office keywords (removed DESIGN_OVERRIDE). Explicit footprint handling uses the shared host-scoped path, and floor overflow remains subject to the compiler's existing geometry checks.

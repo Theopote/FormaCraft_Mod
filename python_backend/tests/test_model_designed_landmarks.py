@@ -274,6 +274,28 @@ def test_two_model_designs_are_not_replaced_by_a_shared_template():
         assert plan == original
 
 
+@pytest.mark.parametrize("floor_key", ["floor_height", "floorHeight"])
+def test_normalization_preserves_authored_height_when_storeys_overflow(floor_key):
+    from app.models.request import BuildRequest
+    from app.services.llm_plan_normalization import _normalize_llm_plan_output
+
+    text = "设计两层办公楼。"
+    req = BuildRequest(
+        player={"name": "test", "pos": {"x": 0, "y": 64, "z": 0}, "facing": "SOUTH"},
+        world={"dimension": "minecraft:overworld"}, requestText=text, userMessage=text,
+    )
+    body = {"component_type": "MASS_MAIN", "relative_position": {"x": 0, "y": 0, "z": 0},
+            "dimensions": {"width": 12, "depth": 12, "height": 10},
+            "params": {"component_id": "atrium", "floor_count": 2, floor_key: 6}}
+    result = _normalize_llm_plan_output({"mode": "build", "components": [body]}, req)
+    mass = next(c for c in result["components"] if c["params"].get("component_id") == "atrium")
+    assert mass["dimensions"]["height"] == 10
+    assert mass["params"][floor_key] == 6
+    assert mass["params"].get("floor_height", 6) == 6
+    assert mass["params"]["design_sources"][floor_key] == "AI_PLANNED"
+    assert mass["params"]["design_sources"]["dimensions.height"] == "AI_PLANNED"
+
+
 def test_normalization_preserves_different_model_massing():
     from app.services.llm_plan_normalization import _normalize_llm_plan_output
 

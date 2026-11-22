@@ -113,7 +113,7 @@ def _fill_component_params(params: Dict[str, Any], comp: Dict[str, Any], genome:
             prog = ((genome.get("form") or {}).get("progression") or "").lower()
             if prog in ("stepping", "tapering"):
                 params["setback_ratio"] = 0.06
-        if "floor_height" not in params and dims.get("height"):
+        if "floor_height" not in params and "floorHeight" not in params and dims.get("height"):
             params["floor_height"] = max(3, int(dims.get("height", 6) / max(1, dims.get("height", 6) // 3)))
         if "wall_pattern" not in params and params.get("facade_profile") == "vertical_pilasters":
             params["wall_pattern"] = "gradient"
