@@ -358,6 +358,29 @@ def _net_height_conflicts(plan: Dict[str, Any]) -> List[dict]:
             if issue.get("code") == "E_NET_HEIGHT_CONFLICT"]
 
 
+def _components_outside_net_height_layout(plan: Dict[str, Any], targets: set[str]) -> List[dict]:
+    floor_fields = {"floor_count", "floorCount", "levels", "floor_height", "floorHeight",
+                    "ground_clear_height", "groundClearHeight"}
+    components = []
+    for component in plan.get("components", []):
+        params = component.get("params") or {}
+        if params.get("component_id") not in targets:
+            components.append(component)
+            continue
+        preserved = {key: value for key, value in params.items() if key not in floor_fields}
+        sources = preserved.get("design_sources")
+        if isinstance(sources, dict):
+            sources = {key: value for key, value in sources.items()
+                       if key not in floor_fields and key != "dimensions.height"}
+            if sources:
+                preserved["design_sources"] = sources
+            else:
+                preserved.pop("design_sources")
+        dimensions = {key: value for key, value in (component.get("dimensions") or {}).items() if key != "height"}
+        components.append({**component, "params": preserved, "dimensions": dimensions})
+    return components
+
+
 def _validate_net_height_repair_requirements(original: Dict[str, Any], revised: Dict[str, Any]) -> None:
     revised_requirements = {entry.get("id"): entry for entry in _building_contract_entries(revised, "requirements")}
     for requirement in _building_contract_entries(original, "requirements"):
@@ -513,7 +536,8 @@ def repair_llm_plan_validation(
                     + "\n- ".join(errors[:8])
                     + "\n\n"
                     + morph_hint
-                    + ("Revise the conflicting floor layout; preserve unrelated components and explicit user requirements.\n"
+                    + ("Revise only the affected body's height or storey layout. Preserve its footprint, "
+                       "materials, placement, other components and explicit user requirements.\n"
                        if net_height_conflicts else "")
                     + "Keep the plan anchor at the player position already provided; do not reset to (0,64,0).\n"
                     "Return a single corrected LlmPlan JSON object."
@@ -544,16 +568,9 @@ def repair_llm_plan_validation(
                     if repaired_norm.get("plan_status") == "capability_gap":
                         break
                     targets = {issue["component_id"] for issue in net_height_conflicts}
-                    def unrelated(candidate):
-                        return [
-                            component for component in candidate.get("components", [])
-                            if (component.get("params") or {}).get("component_id") not in targets
-                        ]
-
-                    repaired_ids = {(component.get("params") or {}).get("component_id")
-                                    for component in repaired_norm.get("components", [])}
-                    if not targets <= repaired_ids or unrelated(repaired_norm) != unrelated(normalized):
-                        raise ValueError("Net-height repair changed unrelated components or dropped its target")
+                    if (_components_outside_net_height_layout(repaired_norm, targets)
+                            != _components_outside_net_height_layout(normalized, targets)):
+                        raise ValueError("Net-height repair changed geometry or parameters outside the floor layout")
                     for field in ("mode", "anchor", "layout", "global_constraints", "style_attributes", "style_profile"):
                         if repaired_norm.get(field) != normalized.get(field):
                             raise ValueError(f"Net-height repair changed plan-wide field: {field}")

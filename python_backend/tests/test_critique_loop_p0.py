@@ -47,7 +47,8 @@ class CritiqueLoopTests(unittest.TestCase):
         plan = {**self.valid, "components": [{
             "component_type": "MASS_MAIN", "relative_position": {"x": 0, "y": 0, "z": 0},
             "dimensions": {"width": 12, "depth": 12, "height": 11}, "features": [],
-            "params": {"component_id": "atrium", "floor_count": 2, "floor_height": 5},
+            "params": {"component_id": "atrium", "floor_count": 2, "floor_height": 5,
+                       "shape": "circle", "wall_block": "minecraft:smooth_quartz"},
         }]}
         corrected = deepcopy(plan)
         corrected["components"][0]["dimensions"]["height"] = 13
@@ -56,7 +57,11 @@ class CritiqueLoopTests(unittest.TestCase):
                 "normalize_fn": lambda payload, _: apply_building_contract(payload, text)}
         violates_width = deepcopy(corrected)
         violates_width["components"][0]["dimensions"]["width"] = 14
-        for candidate, succeeds in ((corrected, True), (plan, False), (violates_width, False)):
+        changes_design = deepcopy(corrected)
+        changes_design["components"][0]["params"].update(shape="rectangle", wall_block="minecraft:bricks")
+        for candidate, succeeds in (
+            (corrected, True), (plan, False), (violates_width, False), (changes_design, False),
+        ):
             with self.subTest(succeeds=succeeds):
                 self.call.reset_mock()
                 self.call.return_value = self.response(candidate)
@@ -66,6 +71,8 @@ class CritiqueLoopTests(unittest.TestCase):
                 self.assertIn("E_NET_HEIGHT_CONFLICT at components[0] (atrium)", message)
                 self.assertEqual(13 if succeeds else 11, result["components"][0]["dimensions"]["height"])
                 self.assertEqual(12, result["components"][0]["dimensions"]["width"])
+                self.assertEqual("circle", result["components"][0]["params"]["shape"])
+                self.assertEqual("minecraft:smooth_quartz", result["components"][0]["params"]["wall_block"])
                 if succeeds:
                     self.assertNotIn("capability_gap", result)
                 else:
