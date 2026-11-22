@@ -116,6 +116,35 @@ class CritiqueLoopTests(unittest.TestCase):
                 else:
                     self.assertEqual("E_FLOOR_ENVELOPE", result["capability_gap"]["code"])
 
+    def test_floor_repair_can_trade_soft_storey_count_for_a_buildable_plan(self):
+        from app.services.building_contract import apply_building_contract
+
+        body = {"component_type": "MASS_MAIN", "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": 12, "depth": 12, "height": 9}, "features": [],
+                "params": {"component_id": "hall", "requirement_scope": "named_office",
+                           "floor_count": 2, "floor_height": 5}}
+        plan = {**self.valid, "components": [body]}
+        corrected = deepcopy(plan)
+        corrected["components"][0]["params"]["floor_count"] = 1
+        corrected["player_fidelity_notice_zh"] = "为保留高挑大厅，这版调整为一层。"
+        for text, soft in (("尽量做成两层办公楼。", True), ("必须做成两层办公楼。", False)):
+            with self.subTest(text=text):
+                self.call.reset_mock()
+                self.call.return_value = self.response(corrected)
+                opts = {**self.options, "user_text": text,
+                        "normalize_fn": lambda payload, _: apply_building_contract(payload, text)}
+                result = repair.repair_llm_plan_validation(plan, self.player_req, **opts)
+                self.call.assert_called_once()
+                self.assertEqual(1 if soft else 2, result["components"][0]["params"]["floor_count"])
+                if soft:
+                    self.assertNotIn("capability_gap", result)
+                    self.assertEqual(corrected["player_fidelity_notice_zh"], result["player_fidelity_notice_zh"])
+                    final = apply_building_contract(result, text, finalize=True)
+                    self.assertNotIn("capability_gap", final)
+                    self.assertEqual(result["player_fidelity_notice_zh"], final["player_fidelity_notice_zh"])
+                else:
+                    self.assertEqual("E_FLOOR_ENVELOPE", result["capability_gap"]["code"])
+
     def test_one_round_preserves_design_before_profile_fallback(self):
         self.call.return_value = self.response(self.valid)
         self.options['building_profile'] = self.profile

@@ -384,6 +384,8 @@ def _components_outside_floor_layout(plan: Dict[str, Any], targets: set[str]) ->
 def _validate_floor_layout_repair_requirements(original: Dict[str, Any], revised: Dict[str, Any]) -> None:
     revised_requirements = {entry.get("id"): entry for entry in _building_contract_entries(revised, "requirements")}
     for requirement in _building_contract_entries(original, "requirements"):
+        if requirement.get("priority") == "soft":
+            continue
         if requirement.get("status") != "planned" and not (
             requirement.get("property") == "net_height" and requirement.get("status") == "mismatch"
         ):
@@ -537,7 +539,9 @@ def repair_llm_plan_validation(
                     + "\n\n"
                     + morph_hint
                     + ("Revise only the affected body's height or storey layout. Preserve its footprint, "
-                       "materials, placement, other components and explicit user requirements.\n"
+                       "materials, placement, other components and hard user requirements. "
+                       "If you adjust a soft storey-count preference, explain the trade-off briefly in Chinese "
+                       "using player_fidelity_notice_zh.\n"
                        if floor_layout_conflicts else "")
                     + "Keep the plan anchor at the player position already provided; do not reset to (0,64,0).\n"
                     "Return a single corrected LlmPlan JSON object."
@@ -583,6 +587,15 @@ def repair_llm_plan_validation(
                 if preserve_fbd and not has_fbd_program(repaired_norm) and repaired_norm.get('plan_status') != 'capability_gap':
                     repaired_errors = ["FBD repair must preserve procedural authority; do not replace the program with another building"]
                 if not repaired_errors:
+                    if floor_layout_conflicts and any(
+                        entry.get("property") == "floor_count" and entry.get("status") == "preference_adjusted"
+                        for entry in _building_contract_entries(repaired_norm, "requirements")
+                    ):
+                        notice = repaired.get("player_fidelity_notice_zh")
+                        repaired_norm["player_fidelity_notice_zh"] = (
+                            notice.strip()[:200] if isinstance(notice, str) and notice.strip()
+                            else "为使楼层能放进主体，方案调整了建议层数。请在预览中确认。"
+                        )
                     logger.info("LlmPlan recovered via LLM validation repair")
                     _record_quality(
                         repaired_norm, user_text=user_text, parse_ok=True, fidelity_ok=True, reason="repaired"

@@ -22,7 +22,22 @@ import static org.junit.jupiter.api.Assertions.*;
 class PlanIntentFidelityRepairTest {
 
     @Test
+    void softStoreyPreferenceDoesNotUndoARevisedLayout() {
+        var mass = new Component("MASS_MAIN", null, new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 9), List.of(),
+                Map.of("component_id", "hall", "floor_count", 1, "floor_height", 5));
+        for (String prefix : List.of("尽量", "必须")) {
+            String text = prefix + "做成两层办公楼。";
+            var plan = LlmPlanTestFixtures.builder().components(List.of(mass))
+                    .planMeta(Map.of("request_intent", Map.of("original_text", text))).build();
+            var repaired = PlanIntentFidelityRepair.apply(plan);
+            assertEquals(prefix.equals("尽量") ? 1 : 2, repaired.components().getFirst().params().get("floor_count"));
+        }
+    }
+
+    @Test
     void roofIntentPrefersScalarMaterialOverPaletteRole() {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
         var attrs = new StyleAttributes(null, null, null, "minecraft:smooth_quartz",
                 null, null, null, null, Map.of("roof", "minecraft:oak_planks"),
                 null, null, null, null);

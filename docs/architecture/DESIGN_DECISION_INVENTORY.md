@@ -1,5 +1,7 @@
 # Design decision inventory
 
+An explicitly qualified `尽量` storey count is a soft preference (NONBINDING_HINT). Bounded floor-layout critique can revise it and provide a preview notice. Unqualified counts retain their existing validation (HARD_CONSTRAINT), and Java does not reapply the soft count as an explicit total.
+
 Floor envelope diagnosis compares required storey space against the authored body height rather than the effective geometry helper dimensions (HARD_CONSTRAINT). A short single storey therefore remains visible to critique.
 
 The one-round floor layout critique also accepts `E_FLOOR_ENVELOPE` diagnostics (HARD_CONSTRAINT). Feedback identifies the body and required/available height. The same acceptance guard preserves roofs and other unrelated geometry.

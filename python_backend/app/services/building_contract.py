@@ -652,11 +652,16 @@ def _extract_global_requirements(text: str) -> list[dict]:
         for match in matches:
             groups.setdefault(_numeric_subject(text, match), []).append(match)
         for subject, group in groups.items():
+            strict_matches = [m for m in group if key != 'floor_count' or not re.search(
+                r'尽量\s*(?:做成|做|建成|建|保持)?\s*$', text[:m.start()])]
+            soft_preference = not strict_matches
+            group = strict_matches or group
             values = {NUMBERS[m[1]] if m[1] in NUMBERS else int(m[1]) for m in group}
             result.append({'id': f'req_{key}' + ('_' + subject if subject != 'all_main_masses' else ''), 'property': key, 'value': next(iter(values)) if len(values) == 1 else None,
                        'unit': 'floors' if key == 'floor_count' else 'blocks', 'source': 'user_explicit',
                        'source_text': [m[0] for m in group], 'scope': subject if len(values) == 1 else 'unresolved',
-                       'priority': 'hard', 'status': 'pending' if len(values) == 1 and subject != 'element_scope' else 'unsupported_scope'})
+                       'priority': 'soft' if soft_preference else 'hard',
+                       'status': 'pending' if len(values) == 1 and subject != 'element_scope' else 'unsupported_scope'})
     # 破风 / 三角山墙屋顶 is a Japanese pediment cue — do NOT force western gable
     # (pattern 山墙屋顶 previously false-triggered req_roof_gable).
     # Only explicit 双坡/人字顶 should hard-require roof_type=gable.
@@ -1320,7 +1325,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 targets.extend(uniq)
             if incomplete or not targets:
                 requirement['status'] = 'unverified' if not design_hosts else 'unresolved_binding'
-                if design_hosts:
+                if design_hosts and requirement.get('priority') != 'soft':
                     contract['diagnostics'].append({
                         'code': 'E_REQUIREMENT_SCOPE',
                         'scope': scope,
@@ -1338,7 +1343,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                     # Distinct buildings sharing a singular named alias — fail closed.
                     # Plural role classes (wing) and stacked storeys are coherent above.
                     requirement['status'] = 'unverified' if not design_hosts else 'unresolved_binding'
-                    if design_hosts:
+                    if design_hosts and requirement.get('priority') != 'soft':
                         contract['diagnostics'].append({
                             'code': 'E_REQUIREMENT_SCOPE',
                             'scope': scope,
@@ -1354,7 +1359,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                     sided = _filter_hosts_by_wing_side(targets, clause)
                     if sided is None:
                         requirement['status'] = 'unverified' if not design_hosts else 'unresolved_binding'
-                        if design_hosts:
+                        if design_hosts and requirement.get('priority') != 'soft':
                             contract['diagnostics'].append({
                                 'code': 'E_REQUIREMENT_SCOPE',
                                 'scope': scope,
@@ -1371,7 +1376,7 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 else masses
             )
             requirement['status'] = 'unverified' if not pool else 'unresolved_binding'
-            if pool:
+            if pool and requirement.get('priority') != 'soft':
                 contract['diagnostics'].append({
                     'code': 'E_REQUIREMENT_SCOPE',
                     'scope': scope,
@@ -1538,7 +1543,9 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                             if c['params'].get(key, mass['params'].get(key) if key == 'roof_block' else None) != expected]
         else:
             continue
-        requirement['status'] = 'mismatch' if invalid else 'planned'
+        requirement['status'] = (
+            ('preference_adjusted' if requirement['priority'] == 'soft' else 'mismatch') if invalid else 'planned'
+        )
         requirement['target_components'] = sorted(target_ids)
         requirement['mismatched_components'] = invalid
     _clamp_entrance_door_widths(components)

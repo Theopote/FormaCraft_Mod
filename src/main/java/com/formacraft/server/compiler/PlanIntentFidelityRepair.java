@@ -206,7 +206,9 @@ final class PlanIntentFidelityRepair {
             boolean explicitTotal = before.endsWith("共") || before.endsWith("总计") || before.endsWith("层数为");
             boolean localFloor = mentions.group().startsWith("第") || before.endsWith("在")
                     || !explicitTotal && after.matches("(?s)^(?:凸出|突出|外挑|悬挑|向外|设有|设置|之间|[与和]\\s*(?:第\\s*)?[一二两三四五六七八九0-9]+\\s*层).*");
-            mentions.appendReplacement(totals, localFloor ? " " : Matcher.quoteReplacement(mentions.group()));
+            boolean softPreference = before.matches("(?s).*尽量\\s*(?:做成|做|建成|建|保持)?$");
+            mentions.appendReplacement(totals,
+                    localFloor || softPreference ? " " : Matcher.quoteReplacement(mentions.group()));
         }
         mentions.appendTail(totals);
         lower = totals.toString();
