@@ -90,4 +90,44 @@ class ComponentFoundationEnforcerTest {
         assertTrue(found.contains(massBounds.expandHorizontal(2)));
         assertTrue(found.maxZ() >= massBounds.maxZ() + 2);
     }
+
+    @Test
+    void hostlessSoleSecondaryDoesNotExpand() {
+        var bridge = new Component("MASS_SECONDARY", "site", new Vec3i(40, 4, 0),
+                new Dimensions(12, 3, 1), List.of(),
+                Map.of("component_id", "bridge", "anchor_mode", "min_corner"));
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(2, 2, 1), List.of(),
+                Map.of("component_id", "pad", "anchor_mode", "min_corner"));
+        var components = new ArrayList<>(List.of(bridge, foundation));
+        assertEquals(0, ComponentFoundationEnforcer.apply(components));
+        assertEquals(foundation, components.get(1));
+    }
+
+    @Test
+    void hostlessSolePrimaryRequiresXzOverlap() {
+        var mass = new Component("MASS_MAIN", "site", new Vec3i(40, 0, 0),
+                new Dimensions(10, 10, 6), List.of(),
+                Map.of("component_id", "hall", "anchor_mode", "min_corner"));
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(2, 2, 1), List.of(),
+                Map.of("component_id", "pad", "anchor_mode", "min_corner"));
+        var components = new ArrayList<>(List.of(mass, foundation));
+        assertEquals(0, ComponentFoundationEnforcer.apply(components));
+        assertEquals(foundation, components.get(1));
+    }
+
+    @Test
+    void hostlessOverlappingPrimaryStillExpands() {
+        var mass = new Component("MASS_MAIN", "site", new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 6), List.of(),
+                Map.of("component_id", "hall", "anchor_mode", "min_corner"));
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(1, -1, 1),
+                new Dimensions(2, 2, 1), List.of(),
+                Map.of("component_id", "pad", "anchor_mode", "min_corner"));
+        var components = new ArrayList<>(List.of(mass, foundation));
+        assertEquals(1, ComponentFoundationEnforcer.apply(components));
+        var found = ComponentFootprintUtil.bounds(components.get(1));
+        assertTrue(found.contains(ComponentFootprintUtil.bounds(mass)));
+    }
 }

@@ -13,7 +13,8 @@ import java.util.Map;
 
 /**
  * Expands FOUNDATION footprints so they cover associated MASS_MAIN (+ margin).
- * Hostless foundations with multiple same-slot masses are left authored — slot ≠ ownership.
+ * Hostless foundations expand only onto primary masses with XZ overlap —
+ * never onto distant sole MASS_SECONDARY decks/bridges, and never the slot-wide union.
  */
 public final class ComponentFoundationEnforcer {
 
@@ -29,7 +30,7 @@ public final class ComponentFoundationEnforcer {
         if (components == null || components.isEmpty()) {
             return 0;
         }
-        Map<String, List<Component>> massesBySlot = collectMassesBySlot(components);
+        Map<String, List<Component>> massesBySlot = collectPrimaryMassesBySlot(components);
 
         int expanded = 0;
         for (int i = 0; i < components.size(); i++) {
@@ -59,16 +60,21 @@ public final class ComponentFoundationEnforcer {
         return expanded;
     }
 
-    private static Map<String, List<Component>> collectMassesBySlot(List<Component> components) {
+    /** Hostless auto-expand candidates: MASS_MAIN only (bridges/decks are MASS_SECONDARY). */
+    private static Map<String, List<Component>> collectPrimaryMassesBySlot(List<Component> components) {
         Map<String, List<Component>> massesBySlot = new HashMap<>();
         for (Component c : components) {
             if (c == null) continue;
-            String type = normalizeType(c.componentType());
-            if (!ComponentFootprintUtil.isMassType(type)) continue;
+            if (!isPrimaryMassType(c.componentType())) continue;
             if (ComponentFootprintUtil.bounds(c) == null) continue;
             massesBySlot.computeIfAbsent(ComponentFootprintUtil.slotKey(c), k -> new ArrayList<>()).add(c);
         }
         return massesBySlot;
+    }
+
+    private static boolean isPrimaryMassType(String type) {
+        String normalized = normalizeType(type);
+        return "MASS_MAIN".equals(normalized) || "MAIN_MASS".equals(normalized);
     }
 
     private static ComponentFootprintUtil.Bounds resolveTargetMass(
@@ -91,15 +97,18 @@ public final class ComponentFoundationEnforcer {
         }
         List<Component> candidates = massesBySlot.getOrDefault(
                 ComponentFootprintUtil.slotKey(foundation), List.of());
+        var foundationBounds = ComponentFootprintUtil.bounds(foundation);
+        if (foundationBounds == null) return null;
         if (candidates.size() == 1) {
-            return ComponentFootprintUtil.bounds(candidates.get(0));
+            var massBounds = ComponentFootprintUtil.bounds(candidates.get(0));
+            // Sole primary mass still needs XZ proximity — do not span empty ground.
+            if (massBounds == null || !xzAreaOverlaps(foundationBounds, massBounds)) return null;
+            return massBounds;
         }
         if (candidates.size() <= 1) {
             return null;
         }
         // Multiple primary masses: expand only onto a uniquely overlapping body.
-        var foundationBounds = ComponentFootprintUtil.bounds(foundation);
-        if (foundationBounds == null) return null;
         Component unique = null;
         for (Component mass : candidates) {
             var massBounds = ComponentFootprintUtil.bounds(mass);

@@ -187,24 +187,32 @@ final class ComponentEmitPass {
                         if (declaredHost != null) failureDetails.put("host_id", declaredHost);
                         if (diagCode != null && !diagCode.isBlank()) failureDetails.put("generator_code", diagCode);
                         if (routed.pipelineStep() != null) failureDetails.put("executor_step", routed.pipelineStep().name());
-                        AssemblyCompileDiagnostics.set(new CapabilityGap(
-                                gapCode,
-                                gapMessage,
-                                "components[]",
-                                envelopeConflict
-                                        ? List.of("移除 component_request 或设置 allow_envelope_attach=true",
-                                                "禁止静默跳过显式库请求")
-                                        : authorityConflict
-                                        ? List.of("Align generation_authority with component hints and payload",
-                                                "Do not silently fall back to another executor")
-                                        : typologyFailure
-                                        ? List.of("检查 typology 参数（层数/收分/檐道）", "构件库不是必需依赖")
-                                        : nativeFailure || !"E_COMPONENT_LIBRARY_FAILED".equals(gapCode)
-                                        ? ("STRUCTURE".equals(normalizedType) && "required_component_empty".equals(diagCode)
-                                            ? List.of("为该 STRUCTURE 提供支持的结构参数，或用明确的 PRIMITIVE / ASSEMBLY 几何表达该构件。")
-                                            : List.of("检查失败构件的几何参数、材质与宿主约束。"))
-                                        : List.of("修复构件 ID、适配规则或清洞约束", "无匹配库构件时应回退原生生成"),
-                                failureDetails));
+                        // Keep generator-authored specific gaps (e.g. E_FOUNDATION_HEIGHT_LIMIT)
+                        // instead of overwriting with a generic empty-component failure.
+                        CapabilityGap priorGap = AssemblyCompileDiagnostics.get();
+                        if (priorGap == null
+                                || priorGap.code() == null
+                                || priorGap.code().isBlank()
+                                || "E_COMPONENT_GENERATION_FAILED".equals(priorGap.code())) {
+                            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                                    gapCode,
+                                    gapMessage,
+                                    "components[]",
+                                    envelopeConflict
+                                            ? List.of("移除 component_request 或设置 allow_envelope_attach=true",
+                                                    "禁止静默跳过显式库请求")
+                                            : authorityConflict
+                                            ? List.of("Align generation_authority with component hints and payload",
+                                                    "Do not silently fall back to another executor")
+                                            : typologyFailure
+                                            ? List.of("检查 typology 参数（层数/收分/檐道）", "构件库不是必需依赖")
+                                            : nativeFailure || !"E_COMPONENT_LIBRARY_FAILED".equals(gapCode)
+                                            ? ("STRUCTURE".equals(normalizedType) && "required_component_empty".equals(diagCode)
+                                                ? List.of("为该 STRUCTURE 提供支持的结构参数，或用明确的 PRIMITIVE / ASSEMBLY 几何表达该构件。")
+                                                : List.of("检查失败构件的几何参数、材质与宿主约束。"))
+                                            : List.of("修复构件 ID、适配规则或清洞约束", "无匹配库构件时应回退原生生成"),
+                                    failureDetails));
+                        }
                         return patchOccupancy;
                     }
                     if (routed != null && routed.degraded()) {

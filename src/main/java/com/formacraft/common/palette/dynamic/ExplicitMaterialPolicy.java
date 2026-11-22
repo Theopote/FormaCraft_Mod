@@ -6,6 +6,8 @@ import com.formacraft.common.llm.dto.StyleAttributes;
 import com.formacraft.common.patch.BlockPatchTargetResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.FluidBlock;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.EmptyBlockView;
 
 import java.util.*;
 
@@ -90,12 +92,9 @@ public final class ExplicitMaterialPolicy {
                 String key = String.valueOf(entry.getKey());
                 if (entry.getValue() instanceof String text) {
                     if ("foundation_block".equals(key)) {
+                        // Protect-set keys must match emit-pass canonical(patch) identity.
                         String resolved = resolveFoundationMaterial(text);
-                        if (resolved != null) {
-                            targets.add(resolved);
-                            int bracket = resolved.indexOf('[');
-                            if (bracket > 0) targets.add(resolved.substring(0, bracket));
-                        }
+                        if (resolved != null) add(targets, resolved);
                     } else if (Set.of("wall_block", "floor_block", "roof_block", "material", "block",
                             "trim_block", "glass_block", "glazing_block", "glass_material").contains(key)) {
                         add(targets, text);
@@ -111,7 +110,9 @@ public final class ExplicitMaterialPolicy {
 
     /**
      * Resolve an authored foundation material to a placeable BlockState string.
-     * Rejects unknown ids, air and fluids — valid registry ids that cannot bear load.
+     * Rejects unknown ids, air/fluids, replaceable plants, and blocks with empty
+     * collision (torch, signs, …) that cannot form structural fill or posts.
+     * Stilts/special members still use this gate — placeable posts need collision.
      */
     public static String resolveFoundationMaterial(String target) {
         if (target == null || target.isBlank()) return null;
@@ -120,10 +121,19 @@ public final class ExplicitMaterialPolicy {
         String candidate = mapped != null ? mapped : (text.contains(":") ? text : "minecraft:" + text);
         BlockState state = BlockPatchTargetResolver.parse(candidate);
         if (state == null) return null;
-        if (state.isAir() || state.getBlock() instanceof FluidBlock || !state.getFluidState().isEmpty()) {
-            return null;
-        }
+        if (!isStructuralFoundationState(state)) return null;
+        // Emit-facing identity; protect-set collect() re-canonicalizes for postprocess keys.
         return BlockStateStringUtil.fromState(state);
+    }
+
+    /** HARD_CONSTRAINT: structural foundation / stilt posts need collision-bearing solids. */
+    public static boolean isStructuralFoundationState(BlockState state) {
+        if (state == null) return false;
+        if (state.isAir() || state.getBlock() instanceof FluidBlock || !state.getFluidState().isEmpty()) {
+            return false;
+        }
+        if (state.isReplaceable()) return false;
+        return !state.getCollisionShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN).isEmpty();
     }
 
     public static String canonical(String target) {

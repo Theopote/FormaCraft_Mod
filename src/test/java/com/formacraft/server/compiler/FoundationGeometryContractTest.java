@@ -144,6 +144,18 @@ class FoundationGeometryContractTest {
     }
 
     @Test
+    void torchFoundationMaterialIsRejected() {
+        AssemblyCompileDiagnostics.clear();
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(4, 4, 2), List.of(),
+                Map.of("foundation_block", "minecraft:torch", "anchor_mode", "min_corner"));
+        Slot slot = new Slot("site", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);
+        var patches = new FoundationGenerator().generate(new SemanticComponent("FOUNDATION", slot, foundation));
+        assertTrue(patches.isEmpty());
+        assertEquals("E_FOUNDATION_MATERIAL_INVALID", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
     void foundationBlockStatePropertiesArePreserved() {
         AssemblyCompileDiagnostics.clear();
         var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
