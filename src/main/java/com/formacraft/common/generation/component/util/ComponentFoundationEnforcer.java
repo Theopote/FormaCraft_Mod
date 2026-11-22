@@ -13,6 +13,7 @@ import java.util.Map;
 
 /**
  * Expands FOUNDATION footprints so they cover associated MASS_MAIN (+ margin).
+ * Hostless foundations with multiple same-slot masses are left authored — slot ≠ ownership.
  */
 public final class ComponentFoundationEnforcer {
 
@@ -28,11 +29,7 @@ public final class ComponentFoundationEnforcer {
         if (components == null || components.isEmpty()) {
             return 0;
         }
-        Map<String, ComponentFootprintUtil.Bounds> massBySlot = collectMassBounds(components);
-        if (massBySlot.isEmpty()) {
-            return 0;
-        }
-        ComponentFootprintUtil.Bounds allMassUnion = unionAll(massBySlot.values());
+        Map<String, List<Component>> massesBySlot = collectMassesBySlot(components);
 
         int expanded = 0;
         for (int i = 0; i < components.size(); i++) {
@@ -44,18 +41,7 @@ public final class ComponentFoundationEnforcer {
             if (!isFoundationOnly(type)) {
                 continue;
             }
-            ComponentFootprintUtil.Bounds targetMass = null;
-            Object host = c.params() == null ? null : c.params().get("host_id");
-            if (host != null) {
-                for (Component body : components) {
-                    if (body != null && body.params() != null && host.equals(body.params().get("component_id"))) {
-                        targetMass = ComponentFootprintUtil.bounds(body);
-                        break;
-                    }
-                }
-            } else {
-                targetMass = resolveTargetMass(c, massBySlot, allMassUnion);
-            }
+            ComponentFootprintUtil.Bounds targetMass = resolveTargetMass(c, components, massesBySlot);
             if (targetMass == null) {
                 continue;
             }
@@ -73,45 +59,60 @@ public final class ComponentFoundationEnforcer {
         return expanded;
     }
 
-    private static Map<String, ComponentFootprintUtil.Bounds> collectMassBounds(List<Component> components) {
-        Map<String, ComponentFootprintUtil.Bounds> massBySlot = new HashMap<>();
+    private static Map<String, List<Component>> collectMassesBySlot(List<Component> components) {
+        Map<String, List<Component>> massesBySlot = new HashMap<>();
         for (Component c : components) {
-            if (c == null) {
-                continue;
-            }
+            if (c == null) continue;
             String type = normalizeType(c.componentType());
-            if (!ComponentFootprintUtil.isMassType(type)) {
-                continue;
-            }
-            ComponentFootprintUtil.Bounds b = ComponentFootprintUtil.bounds(c);
-            if (b == null) {
-                continue;
-            }
-            String slot = ComponentFootprintUtil.slotKey(c);
-            massBySlot.merge(slot, b, ComponentFootprintUtil.Bounds::union);
+            if (!ComponentFootprintUtil.isMassType(type)) continue;
+            if (ComponentFootprintUtil.bounds(c) == null) continue;
+            massesBySlot.computeIfAbsent(ComponentFootprintUtil.slotKey(c), k -> new ArrayList<>()).add(c);
         }
-        return massBySlot;
+        return massesBySlot;
     }
 
     private static ComponentFootprintUtil.Bounds resolveTargetMass(
             Component foundation,
-            Map<String, ComponentFootprintUtil.Bounds> massBySlot,
-            ComponentFootprintUtil.Bounds allMassUnion
+            List<Component> components,
+            Map<String, List<Component>> massesBySlot
     ) {
-        String slot = ComponentFootprintUtil.slotKey(foundation);
-        ComponentFootprintUtil.Bounds inSlot = massBySlot.get(slot);
-        if (inSlot != null) {
-            return inSlot;
+        Object host = foundation.params() == null ? null : foundation.params().get("host_id");
+        if (host == null && foundation.params() != null) {
+            host = foundation.params().get("hostId");
         }
-        return allMassUnion;
+        if (host != null) {
+            for (Component body : components) {
+                if (body != null && body.params() != null
+                        && host.equals(body.params().get("component_id"))) {
+                    return ComponentFootprintUtil.bounds(body);
+                }
+            }
+            return null;
+        }
+        List<Component> candidates = massesBySlot.getOrDefault(
+                ComponentFootprintUtil.slotKey(foundation), List.of());
+        if (candidates.size() == 1) {
+            return ComponentFootprintUtil.bounds(candidates.get(0));
+        }
+        if (candidates.size() <= 1) {
+            return null;
+        }
+        // Multiple primary masses: expand only onto a uniquely overlapping body.
+        var foundationBounds = ComponentFootprintUtil.bounds(foundation);
+        if (foundationBounds == null) return null;
+        Component unique = null;
+        for (Component mass : candidates) {
+            var massBounds = ComponentFootprintUtil.bounds(mass);
+            if (massBounds == null || !xzAreaOverlaps(foundationBounds, massBounds)) continue;
+            if (unique != null) return null;
+            unique = mass;
+        }
+        return unique == null ? null : ComponentFootprintUtil.bounds(unique);
     }
 
-    private static ComponentFootprintUtil.Bounds unionAll(Iterable<ComponentFootprintUtil.Bounds> bounds) {
-        ComponentFootprintUtil.Bounds union = null;
-        for (ComponentFootprintUtil.Bounds b : bounds) {
-            union = union == null ? b : union.union(b);
-        }
-        return union;
+    private static boolean xzAreaOverlaps(ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
+        return a.minX() < b.maxX() && b.minX() < a.maxX()
+                && a.minZ() < b.maxZ() && b.minZ() < a.maxZ();
     }
 
     private static Component expandToCover(

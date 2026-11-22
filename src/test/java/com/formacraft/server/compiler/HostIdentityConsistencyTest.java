@@ -391,6 +391,27 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
+    void stackedMassesWithoutHostSnapConsistentlyRegardlessOfListOrder() {
+        var lower = new Component("MASS_MAIN", "site", new Vec3i(0, 8, 0),
+                new Dimensions(12, 12, 6), List.of(),
+                Map.of("component_id", "podium", "building_id", "stack",
+                        "anchor_mode", "min_corner"));
+        var upper = new Component("MASS_MAIN", "site", new Vec3i(1, 14, 1),
+                new Dimensions(10, 10, 6), List.of(),
+                Map.of("component_id", "hall", "building_id", "stack",
+                        "anchor_mode", "min_corner"));
+        var forward = FloatingMassSnapRepair.apply(LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true).components(List.of(lower, upper)).build());
+        var reverse = FloatingMassSnapRepair.apply(LlmPlanTestFixtures.builder()
+                .allowCompilerSatellites(true).components(List.of(upper, lower)).build());
+        assertEquals(0, yOf(forward, "podium"));
+        assertEquals(6, yOf(forward, "hall"), "upper must reseat on snapped lower top");
+        assertEquals(yOf(forward, "podium"), yOf(reverse, "podium"));
+        assertEquals(yOf(forward, "hall"), yOf(reverse, "hall"),
+                "[A,B] and [B,A] must converge for overlapping stacked masses");
+    }
+
+    @Test
     void sideAdjacentMassIsNotTreatedAsVerticalSupport() {
         // Half-open footprints share the X=10 face only — no bearing area.
         var left = new Component("MASS_MAIN", "site", new Vec3i(0, 0, 0),

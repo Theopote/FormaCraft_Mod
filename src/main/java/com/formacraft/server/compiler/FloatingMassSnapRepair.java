@@ -7,6 +7,7 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Vec3i;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -15,10 +16,9 @@ import java.util.Set;
  * Snap floating primary masses (apartments / halls with y&gt;0 and no support) down onto
  * foundations or y=0 so buildings land instead of hovering above terrain.
  * <p>
- * Independent multi-building plans are snapped per mass. Intentionally stacked masses
- * (sitting on another mass / stilts / floating markers) keep authored elevation.
- * Hosted plinths ({@code host_id} → this mass) are satellites, not landing pads — they
- * must not pull a raised body down. Modest podiums without external support also keep Y.
+ * Primary masses are processed bottom-up by authored Y so stacked bodies without
+ * {@code host_id} converge to the same result regardless of list order.
+ * Hosted plinths ({@code host_id} → this mass) are satellites, not landing pads.
  */
 final class FloatingMassSnapRepair {
     /**
@@ -32,17 +32,26 @@ final class FloatingMassSnapRepair {
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         List<Component> components = new ArrayList<>(plan.components());
-        boolean changed = false;
+        List<Integer> massOrder = new ArrayList<>();
         for (int i = 0; i < components.size(); i++) {
             Component mass = components.get(i);
             if (mass == null || mass.relativePosition() == null || mass.dimensions() == null) continue;
             if (!isPrimaryMass(mass)) continue;
+            massOrder.add(i);
+        }
+        // Bottom-up: lower supports settle before upper bodies read them.
+        massOrder.sort(Comparator
+                .comparingInt((Integer i) -> components.get(i).relativePosition().y())
+                .thenComparingInt(i -> i));
+
+        boolean changed = false;
+        for (int i : massOrder) {
+            Component mass = components.get(i);
             int y = mass.relativePosition().y();
             if (y <= 0) continue;
             if (preservesAuthoredElevation(mass)) continue;
             String massId = componentId(mass);
             // Raised halls/towers keep an authored plinth under them (host_id → this mass).
-            // That plinth is not a reason to flatten the body onto terrain.
             if (hasHostedPlinth(massId, components)) continue;
             int supportTop = supportTopY(mass, massId, components);
             if (y <= supportTop) continue;
@@ -53,7 +62,6 @@ final class FloatingMassSnapRepair {
                     "FloatingMassSnapRepair: {} y={} → {} (supportTop={})",
                     massId, y, supportTop, supportTop);
             components.set(i, shift(mass, dy));
-            // Full authored host tree by index (incl. host_id attachments without component_id).
             var descendants = HostAttachmentTree.descendantIndices(massId, components);
             java.util.BitSet shifted = new java.util.BitSet();
             shifted.set(i);
@@ -82,12 +90,10 @@ final class FloatingMassSnapRepair {
         for (Component c : components) {
             if (c == null || c == mass || c.relativePosition() == null || c.dimensions() == null) continue;
             if (!isSupport(c)) continue;
-            // Satellites that declare this mass as host are plinths/attachments, not landing pads.
             if (hostsMass(c, massId)) continue;
             var b = ComponentFootprintUtil.bounds(c);
             if (b == null || !xzOverlaps(massBounds, b)) continue;
             int top = c.relativePosition().y() + Math.max(1, c.dimensions().height());
-            // Only surfaces that meet the mass from below (or flush) count as support.
             if (top > massY) continue;
             best = Math.max(best, top);
         }
@@ -101,7 +107,6 @@ final class FloatingMassSnapRepair {
         return host != null && massId.equals(String.valueOf(host));
     }
 
-    /** Authored FOUNDATION/BASE satellites imply a deliberate raised body, not a float bug. */
     private static boolean hasHostedPlinth(String massId, List<Component> components) {
         if (massId == null) return false;
         for (Component c : components) {
@@ -120,7 +125,6 @@ final class FloatingMassSnapRepair {
                 || "MASS_MAIN".equals(t) || "MAIN_MASS".equals(t) || "MASS_SECONDARY".equals(t)) {
             return true;
         }
-        // Authored pier posts / trunks under a raised deck (stilts, treehouses, water platforms).
         if ("PRIMITIVE".equals(t) || "STRUCTURE".equals(t) || "DECOR_DETAIL".equals(t)
                 || "DECOR".equals(t) || "DETAIL".equals(t)) {
             if (com.formacraft.common.generation.component.util.StructuralSupportPolicy.isColumn(c.params())) {
@@ -136,7 +140,6 @@ final class FloatingMassSnapRepair {
         return false;
     }
 
-    /** Stilts / floating / raised markers keep authored Y (design authority). */
     private static boolean preservesAuthoredElevation(Component c) {
         if (c.params() != null) {
             if (Boolean.TRUE.equals(c.params().get("stilts"))
@@ -166,10 +169,6 @@ final class FloatingMassSnapRepair {
         return false;
     }
 
-    /**
-     * Vertical support requires real XZ area intersection (half-open bounds).
-     * Face-adjacent contact alone must not count as a bearing surface.
-     */
     private static boolean xzOverlaps(ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
         return a.minX() < b.maxX() && b.minX() < a.maxX()
                 && a.minZ() < b.maxZ() && b.minZ() < a.maxZ();

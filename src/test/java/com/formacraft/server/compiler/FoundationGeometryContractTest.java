@@ -8,8 +8,10 @@ import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import com.formacraft.test.PatchTestSnapshot;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -27,6 +29,11 @@ class FoundationGeometryContractTest {
     @BeforeAll
     static void bootstrap() {
         MinecraftRegistryTestBootstrap.initialize();
+    }
+
+    @AfterEach
+    void clearDiagnostics() {
+        AssemblyCompileDiagnostics.clear();
     }
 
     @Test
@@ -97,5 +104,57 @@ class FoundationGeometryContractTest {
                         && p.targetBlock().contains("polished_andesite")),
                 "AI-authored foundation_block must reach BlockPatch");
         assertEquals(3 * 6 * 6, patches.size());
+    }
+
+    @Test
+    void heightAtLimitEmitsFullPrism() {
+        AssemblyCompileDiagnostics.clear();
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(2, 2, FoundationGenerator.MAX_FOUNDATION_HEIGHT), List.of(),
+                Map.of("foundation_block", "minecraft:stone_bricks", "anchor_mode", "min_corner"));
+        Slot slot = new Slot("site", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);
+        var patches = new FoundationGenerator().generate(new SemanticComponent("FOUNDATION", slot, foundation));
+        assertEquals(FoundationGenerator.MAX_FOUNDATION_HEIGHT * 4, patches.size());
+        assertNull(AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
+    void heightAboveLimitFailsWithoutSilentTruncation() {
+        AssemblyCompileDiagnostics.clear();
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(2, 2, FoundationGenerator.MAX_FOUNDATION_HEIGHT + 1), List.of(),
+                Map.of("foundation_block", "minecraft:stone_bricks", "anchor_mode", "min_corner"));
+        Slot slot = new Slot("site", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);
+        var patches = new FoundationGenerator().generate(new SemanticComponent("FOUNDATION", slot, foundation));
+        assertTrue(patches.isEmpty());
+        assertNotNull(AssemblyCompileDiagnostics.get());
+        assertEquals("E_FOUNDATION_HEIGHT_LIMIT", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void airFoundationMaterialIsRejected() {
+        AssemblyCompileDiagnostics.clear();
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(4, 4, 2), List.of(),
+                Map.of("foundation_block", "minecraft:air", "anchor_mode", "min_corner"));
+        Slot slot = new Slot("site", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);
+        var patches = new FoundationGenerator().generate(new SemanticComponent("FOUNDATION", slot, foundation));
+        assertTrue(patches.isEmpty());
+        assertEquals("E_FOUNDATION_MATERIAL_INVALID", AssemblyCompileDiagnostics.get().code());
+    }
+
+    @Test
+    void foundationBlockStatePropertiesArePreserved() {
+        AssemblyCompileDiagnostics.clear();
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(2, 2, 2), List.of(),
+                Map.of("foundation_block", "minecraft:oak_log[axis=x]", "anchor_mode", "min_corner"));
+        Slot slot = new Slot("site", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null);
+        var patches = new FoundationGenerator().generate(new SemanticComponent("FOUNDATION", slot, foundation));
+        assertFalse(patches.isEmpty());
+        assertTrue(patches.stream().allMatch(p -> p.targetBlock() != null
+                        && p.targetBlock().contains("oak_log")
+                        && p.targetBlock().contains("axis=x")),
+                "authored BlockState properties must survive generation: " + patches.getFirst().targetBlock());
     }
 }

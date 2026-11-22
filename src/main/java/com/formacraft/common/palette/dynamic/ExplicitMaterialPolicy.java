@@ -1,13 +1,20 @@
 package com.formacraft.common.palette.dynamic;
 
+import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.StyleAttributes;
 import com.formacraft.common.patch.BlockPatchTargetResolver;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.FluidBlock;
+
 import java.util.*;
 
 /** Locks actual emitted materials, without treating style defaults as explicit choices. */
 public final class ExplicitMaterialPolicy {
     private ExplicitMaterialPolicy() {}
+
+    private static final Set<String> EXPLICIT_BLOCK_KEYS = Set.of(
+            "wall_block", "floor_block", "roof_block", "foundation_block");
 
     public static Optional<String> invalidAttribute(StyleAttributes attrs) {
         return invalidAttribute(attrs, List.of());
@@ -53,9 +60,16 @@ public final class ExplicitMaterialPolicy {
         if (value instanceof Map<?, ?> map) {
             for (var entry : map.entrySet()) {
                 String childPath = path + "." + entry.getKey();
-                if (Set.of("wall_block", "floor_block", "roof_block").contains(String.valueOf(entry.getKey()))
-                        && entry.getValue() != null && canonical(String.valueOf(entry.getValue())) == null)
-                    return Optional.of(childPath + "=" + entry.getValue());
+                String key = String.valueOf(entry.getKey());
+                if (EXPLICIT_BLOCK_KEYS.contains(key) && entry.getValue() != null) {
+                    String text = String.valueOf(entry.getValue());
+                    if ("foundation_block".equals(key)) {
+                        if (resolveFoundationMaterial(text) == null)
+                            return Optional.of(childPath + "=" + text);
+                    } else if (canonical(text) == null) {
+                        return Optional.of(childPath + "=" + text);
+                    }
+                }
                 if (entry.getValue() instanceof Map<?, ?> || entry.getValue() instanceof List<?>) {
                     var invalid = invalidBlocks(entry.getValue(), childPath);
                     if (invalid.isPresent()) return invalid;
@@ -73,19 +87,49 @@ public final class ExplicitMaterialPolicy {
     private static void collect(Set<String> targets, Object value) {
         if (value instanceof Map<?, ?> map) {
             for (var entry : map.entrySet()) {
-                if (Set.of("wall_block", "floor_block", "roof_block", "material", "block", "trim_block",
-                        "glass_block", "glazing_block", "glass_material").contains(String.valueOf(entry.getKey()))
-                        && entry.getValue() instanceof String text) add(targets, text);
-                else if (entry.getValue() instanceof Map<?, ?> || entry.getValue() instanceof List<?>) collect(targets, entry.getValue());
+                String key = String.valueOf(entry.getKey());
+                if (entry.getValue() instanceof String text) {
+                    if ("foundation_block".equals(key)) {
+                        String resolved = resolveFoundationMaterial(text);
+                        if (resolved != null) {
+                            targets.add(resolved);
+                            int bracket = resolved.indexOf('[');
+                            if (bracket > 0) targets.add(resolved.substring(0, bracket));
+                        }
+                    } else if (Set.of("wall_block", "floor_block", "roof_block", "material", "block",
+                            "trim_block", "glass_block", "glazing_block", "glass_material").contains(key)) {
+                        add(targets, text);
+                    }
+                } else if (entry.getValue() instanceof Map<?, ?> || entry.getValue() instanceof List<?>) {
+                    collect(targets, entry.getValue());
+                }
             }
         } else if (value instanceof List<?> list) {
             for (var entry : list) collect(targets, entry);
         }
     }
 
+    /**
+     * Resolve an authored foundation material to a placeable BlockState string.
+     * Rejects unknown ids, air and fluids — valid registry ids that cannot bear load.
+     */
+    public static String resolveFoundationMaterial(String target) {
+        if (target == null || target.isBlank()) return null;
+        String text = target.trim();
+        String mapped = DynamicPaletteResolver.mapMaterialToBlock(text);
+        String candidate = mapped != null ? mapped : (text.contains(":") ? text : "minecraft:" + text);
+        BlockState state = BlockPatchTargetResolver.parse(candidate);
+        if (state == null) return null;
+        if (state.isAir() || state.getBlock() instanceof FluidBlock || !state.getFluidState().isEmpty()) {
+            return null;
+        }
+        return BlockStateStringUtil.fromState(state);
+    }
+
     public static String canonical(String target) {
         var state = BlockPatchTargetResolver.parse(target);
         if (state != null) {
+            // Keep historical BlockState.toString() identity for emit-pass protect sets.
             return state.toString();
         }
         // Accept planner aliases (stone_brick_slabs → stone_brick_slab) before hard-fail.

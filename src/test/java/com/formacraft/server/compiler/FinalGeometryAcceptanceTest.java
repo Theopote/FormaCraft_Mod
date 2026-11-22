@@ -138,13 +138,27 @@ class FinalGeometryAcceptanceTest {
         assertEquals(foundationPos, fixed.relativePosition());
         assertNull(fixed.params().get("host_id"));
 
-        // Aligner ownership is the contract under test. Later footprint expansion may widen the
-        // pad, but must not relocate the authored origin under the first mass alone.
+        // Hostless multi-mass foundations must keep authored footprint — enforcer must not
+        // expand them onto the slot-wide mass union under house_left.
+        var componentsForEnforce = new ArrayList<>(List.of(left, right, foundation));
+        assertEquals(0, com.formacraft.common.generation.component.util.ComponentFoundationEnforcer
+                        .apply(componentsForEnforce),
+                "ambiguous hostless foundation must not auto-expand onto multiple masses");
+        var kept = componentsForEnforce.stream()
+                .filter(c -> "mystery_foundation".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(foundationPos, kept.relativePosition());
+        assertEquals(1, kept.dimensions().width());
+        assertEquals(1, kept.dimensions().depth());
+
         var blocks = PatchTestSnapshot.blocks(compile(List.of(left, right, foundation)));
         assertFalse(blocks.isEmpty(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
         assertTrue(blocks.containsKey(foundationPos)
                         || blocks.keySet().stream().anyMatch(p -> p.x() == 20 && p.z() == 5),
                 "authored midpoint must remain covered after compile");
+        assertTrue(blocks.keySet().stream().noneMatch(p -> p.x() == 5 && p.y() == -1 && p.z() == 5
+                        && blocks.get(p) != null && blocks.get(p).contains("cobble")),
+                "must not spill foundation material under house_left center");
     }
 
     private static int measuredInteriorClear(int height) {

@@ -3,14 +3,15 @@ package com.formacraft.common.generation.component.impl;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
-import com.formacraft.common.palette.dynamic.DynamicPaletteResolver;
 import com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.semantic.SemanticPart;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,14 +22,13 @@ import java.util.Set;
 /**
  * FoundationGenerator（基础生成器）
  *
- * 生成建筑基础/地基。声明高度必须与输出高度一致（GEOMETRY）：
- * 可见台基保持对齐器给出的薄厚度；承重基础按对齐后的完整高度填充，
- * 不再对非桩式基础静默截断到 5 格。
+ * 声明高度必须与输出高度一致（GEOMETRY）。超过资源上限时明确失败，不静默截断。
+ * 显式 foundation_block / material 优先于风格调色板，并保留合法 BlockState 属性。
  */
 public class FoundationGenerator implements ComponentGenerator {
 
     /** Resource / world safety bound — not an aesthetic plinth default. */
-    private static final int MAX_FOUNDATION_HEIGHT = 64;
+    public static final int MAX_FOUNDATION_HEIGHT = 64;
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
@@ -48,8 +48,18 @@ public class FoundationGenerator implements ComponentGenerator {
         int width = Math.max(1, d.width());
         int depth = Math.max(1, d.depth());
         boolean stilts = isStilts(c.params());
-        // Honor the aligned / authored height. Silent Math.min(5) left voids under raised masses.
-        int height = Math.max(1, Math.min(MAX_FOUNDATION_HEIGHT, d.height()));
+        int requestedHeight = Math.max(1, d.height());
+        if (requestedHeight > MAX_FOUNDATION_HEIGHT) {
+            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                    "E_FOUNDATION_HEIGHT_LIMIT",
+                    "Foundation height " + requestedHeight + " exceeds resource limit "
+                            + MAX_FOUNDATION_HEIGHT + "; refusing silent truncation.",
+                    "components[]",
+                    List.of("Reduce foundation height to ≤ " + MAX_FOUNDATION_HEIGHT,
+                            "Or split into staged structural supports.")));
+            return List.of();
+        }
+        int height = requestedHeight;
 
         String styleProfile = semantic.styleProfile();
         if (styleProfile == null || styleProfile.isBlank()) {
@@ -57,6 +67,9 @@ public class FoundationGenerator implements ComponentGenerator {
         }
 
         String block = resolveFoundationBlock(c, styleProfile, semantic);
+        if (block == null) {
+            return List.of();
+        }
 
         var footprint = stilts
                 ? com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(c, width, depth)
@@ -64,8 +77,6 @@ public class FoundationGenerator implements ComponentGenerator {
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // Discrete load-bearing posts: 3×3 on rectangular pads; angular rim only
-                    // when the footprint itself is non-rectangular (octagon / cut-corner).
                     if (stilts) {
                         boolean rectangular = footprint == null
                                 || com.formacraft.common.generation.component.util.OpenFramePolicy
@@ -103,7 +114,7 @@ public class FoundationGenerator implements ComponentGenerator {
 
     /**
      * Component-authored material first, then style palette.
-     * Invalid / unmapped ids fall through to palette (HARD_CONSTRAINT legality).
+     * Explicit invalid / non-bearing materials fail with a capability gap (HARD_CONSTRAINT).
      */
     private static String resolveFoundationBlock(Component c, String styleProfile, SemanticComponent semantic) {
         Map<String, Object> params = c.params();
@@ -114,16 +125,17 @@ public class FoundationGenerator implements ComponentGenerator {
                 if (raw == null) continue;
                 String text = String.valueOf(raw).trim();
                 if (text.isEmpty() || "null".equalsIgnoreCase(text)) continue;
-                String mapped = DynamicPaletteResolver.mapMaterialToBlock(text);
-                if (mapped != null && !mapped.isBlank()) {
-                    return mapped;
+                String resolved = ExplicitMaterialPolicy.resolveFoundationMaterial(text);
+                if (resolved != null) {
+                    return resolved;
                 }
-                String withNs = text.contains(":") ? text : "minecraft:" + text;
-                String canonical = ExplicitMaterialPolicy.canonical(withNs);
-                if (canonical != null) {
-                    int bracket = canonical.indexOf('[');
-                    return bracket > 0 ? canonical.substring(0, bracket) : canonical;
-                }
+                AssemblyCompileDiagnostics.set(new CapabilityGap(
+                        "E_FOUNDATION_MATERIAL_INVALID",
+                        "Foundation material is not a valid load-bearing block: " + text,
+                        "components[].FOUNDATION.params." + key,
+                        List.of("Use a solid registered block id (BlockState properties allowed).",
+                                "Air, fluids and unknown ids are not accepted for foundations.")));
+                return null;
             }
         }
         if (stilts) {
@@ -135,6 +147,10 @@ public class FoundationGenerator implements ComponentGenerator {
             block = PaletteLibrary.resolveBlock(
                     SemanticPart.WALL_BASE, styleProfile, semantic.styleAttributes());
         }
-        return block != null && !block.isBlank() ? block : "minecraft:stone_bricks";
+        if (block == null || block.isBlank()) {
+            return "minecraft:stone_bricks";
+        }
+        String resolved = ExplicitMaterialPolicy.resolveFoundationMaterial(block);
+        return resolved != null ? resolved : "minecraft:stone_bricks";
     }
 }

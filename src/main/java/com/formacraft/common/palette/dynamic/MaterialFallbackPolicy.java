@@ -72,6 +72,12 @@ public final class MaterialFallbackPolicy {
         if ((key.endsWith("_block") || key.endsWith("_material")
                 || Set.of("material", "block", "floor", "supportMaterial").contains(key)) && value instanceof String) {
             String text = String.valueOf(value);
+            // Explicit foundation materials must not silently become stone_bricks — leave
+            // unresolvable values for ExplicitMaterialPolicy / FoundationGenerator rejection.
+            if ("foundation_block".equals(key)) {
+                String foundation = ExplicitMaterialPolicy.resolveFoundationMaterial(text);
+                return foundation != null ? foundation : value;
+            }
             String mapped = DynamicPaletteResolver.mapMaterialToBlock(text);
             if (mapped != null) {
                 return stabilizeMaterial(mapped, key);
