@@ -23,9 +23,13 @@ def test_geometry_evidence_reaches_planning_only_with_shown_sources():
     from app.services.building_plan_stage import build_plan_stage_user_block
 
     source = {"title": "Example archive", "url": "https://example.com/archive",
-              "snippet": "The curved canopy connects two unequal wings."}
+              "snippet": "The pale copper curved canopy connects two unequal wings. "
+                         "It spans 50 to 60 percent of the main wing width."}
     feature = {"feature": "Curved canopy", "geometry": "Bent shell",
-               "relationship": "Connects unequal wings", "source_urls": [source["url"]]}
+               "relationship": "Connects unequal wings", "source_urls": [source["url"]],
+               "relative_proportion": {"comparison": "canopy span / main wing width",
+                                       "minimum": 0.5, "maximum": 0.6},
+               "material_or_color": "pale copper"}
     unseen = {**feature, "feature": "Unsupported spire", "source_urls": ["https://example.com/unseen"]}
     raw = json.dumps({"identity": {"name": "Example hall"}, "geometry_evidence": [{}, *([unseen] * 8), feature, feature],
                       "sources": [{"title": "Invented source", "url": unseen["source_urls"][0]}]})
@@ -38,10 +42,23 @@ def test_geometry_evidence_reaches_planning_only_with_shown_sources():
     assert [item.model_dump() for item in profile.sources] == [{"title": source["title"], "url": source["url"]}]
     for prompt in (format_profile_for_prompt(profile), build_plan_stage_user_block(profile, "保留双翼，不要雨棚")):
         assert "Connects unequal wings" in prompt
+        assert "canopy span / main wing width" in prompt
+        assert "pale copper" in prompt
         assert source["url"] in prompt
         assert "Unsupported spire" not in prompt
         assert "Invented source" not in prompt
     assert "geometry_evidence" not in BuildingProfile().to_prompt_dict()
+
+
+def test_geometry_observation_without_measurements_keeps_them_unknown():
+    from app.models.building_profile import profile_from_llm_dict
+
+    feature = {"feature": "Upper screen", "geometry": "Porous surface",
+               "source_urls": ["https://example.com/archive"]}
+    invalid = {**feature, "relative_proportion": {"comparison": "screen / base width",
+                                                  "minimum": 0.8, "maximum": 0.4}}
+    profile = profile_from_llm_dict({"geometry_evidence": [invalid, feature]})
+    assert profile.to_prompt_dict()["geometry_evidence"] == [feature]
 
 
 def test_single_stage_research_keeps_blueprint_and_scale_advisory():

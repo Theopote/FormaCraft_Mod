@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Building research can attach source-backed relative proportion ranges and material or color observations to geometry evidence (NONBINDING_HINT). The existing URL admission check applies to each observation. Unknown measurements stay absent, and the LLM chooses the executable geometry and materials.
+
 Explicit interior clearance is checked against authored storey bands and envelope height (HARD_CONSTRAINT). The contract no longer changes them to fit (removed DESIGN_OVERRIDE). The LlmPlan critique loop gets one attempt for this conflict and retains the original layout with structured diagnostics on failure.
 
 Net-height repair must satisfy the original clearance requirement on the same targets and preserve any previously satisfied building requirements, including those on the repaired mass (HARD_CONSTRAINT).

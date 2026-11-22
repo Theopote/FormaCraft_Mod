@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import AbstractSet, Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 
 RecommendedComponentsSource = Literal["default", "research", "hint", "user", "rule"]
@@ -82,12 +82,28 @@ class ProfileSource(BaseModel):
     url: str = ""
 
 
+class ProfileRelativeProportion(BaseModel):
+    model_config = {"str_strip_whitespace": True}
+
+    comparison: str = Field(min_length=1, max_length=160)
+    minimum: float = Field(gt=0, allow_inf_nan=False, strict=True)
+    maximum: float = Field(gt=0, allow_inf_nan=False, strict=True)
+
+    @model_validator(mode="after")
+    def validate_range(self) -> ProfileRelativeProportion:
+        if self.maximum < self.minimum:
+            raise ValueError("maximum must be at least minimum")
+        return self
+
+
 class ProfileGeometryEvidence(BaseModel):
     model_config = {"str_strip_whitespace": True}
 
     feature: str = Field(min_length=1, max_length=120)
     geometry: str = Field(min_length=1, max_length=400)
     relationship: Optional[str] = Field(default=None, max_length=400)
+    relative_proportion: Optional[ProfileRelativeProportion] = None
+    material_or_color: Optional[str] = Field(default=None, min_length=1, max_length=200)
     source_urls: List[str] = Field(min_length=1, max_length=4)
 
 
@@ -194,7 +210,9 @@ def profile_from_llm_dict(
                 urls = frozenset(entry.source_urls)
                 if geometry_source_urls is not None and not urls <= geometry_source_urls:
                     continue
-                identity = (entry.feature, entry.geometry, entry.relationship, urls)
+                proportion = entry.relative_proportion
+                identity = (entry.feature, entry.geometry, entry.relationship, urls, entry.material_or_color,
+                            proportion.model_dump_json() if proportion is not None else None)
                 if identity in seen:
                     continue
                 seen.add(identity)

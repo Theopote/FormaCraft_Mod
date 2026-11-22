@@ -1064,6 +1064,9 @@ def _research_synthesis_system_prompt() -> str:
         "implementation_status must be unverified: research does not prove generated geometry. "
         "Optionally include geometry_evidence: [{feature,geometry,relationship,source_urls}]. "
         "Describe source-backed outlines, relative massing or the placement of distinctive parts. "
+        "An entry may include relative_proportion:{comparison,minimum,maximum} with a named numerator "
+        "and denominator and a source-supported dimensionless range (equal bounds for a documented ratio). "
+        "An entry may include material_or_color describing the observed material or color of that feature. "
         "Each entry must cite supplied snippet URLs. Omit unsupported observations and dimensions. "
         "Keep these as observations without executor names or build instructions. "
         "Output ONLY valid JSON matching keys: query, identity{name,architect,year,style,confidence}, "
@@ -1184,7 +1187,8 @@ def format_profile_for_prompt(
             "Model-designed landmark: research supplies evidence, not a fixed execution recipe.",
             f"Routing summary: {profile_routing_summary(profile)}",
             "Independently design massing, layout, proportions, materials and distinctive details.",
-            "Use geometry_evidence when present to identify source-backed shapes and spatial relationships.",
+            "Use geometry_evidence as observations about shapes, relationships, proportions and materials. "
+            "Missing measurements remain unknown; choose block dimensions and materials for the current request.",
             "Treat recommended_components and distinguishing_features as optional evidence only.",
             "Do not substitute landmark MODULE or whole-building typology presets for your plan.",
             "Use supported components/FBD; report unsupported geometry explicitly.",
