@@ -6,6 +6,7 @@ import com.formacraft.common.llm.dto.Layout;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.Slot;
+import com.formacraft.common.llm.dto.StyleAttributes;
 import com.formacraft.common.llm.dto.Vec3i;
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +20,19 @@ import static org.junit.jupiter.api.Assertions.*;
  * Round-14 fidelity: explicit footprints, request_intent corpus, double-eave host scope.
  */
 class PlanIntentFidelityRepairTest {
+
+    @Test
+    void roofIntentPrefersScalarMaterialOverPaletteRole() {
+        var attrs = new StyleAttributes(null, null, null, "minecraft:smooth_quartz",
+                null, null, null, null, Map.of("roof", "minecraft:oak_planks"),
+                null, null, null, null);
+        var roof = new Component("ROOF", null, new Vec3i(0, 5, 0),
+                new Dimensions(9, 11, 1), List.of(), Map.of("roof_type", "flat"));
+        var plan = LlmPlanTestFixtures.builder().components(List.of(roof)).styleAttributes(attrs).build();
+
+        var repaired = PlanIntentFidelityRepair.enrich(plan, roof);
+        assertEquals("minecraft:smooth_quartz", repaired.params().get("roof_block"));
+    }
 
     @Test
     void pitchedRoofRetainsAuthoredBaseMaterialForGeometryExecution() {

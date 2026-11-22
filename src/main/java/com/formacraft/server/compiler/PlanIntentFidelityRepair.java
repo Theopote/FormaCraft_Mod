@@ -974,6 +974,9 @@ final class PlanIntentFidelityRepair {
     private static String roofBlockFromStyle(LlmPlan plan) {
         if (plan == null || plan.styleAttributes() == null) return null;
         StyleAttributes a = plan.styleAttributes();
+        String resolved = com.formacraft.common.palette.dynamic.DynamicPaletteResolver.resolve(
+                com.formacraft.common.semantic.SemanticPart.ROOF, a);
+        if (resolved != null) return resolved;
         String fromPalette = a.resolvePaletteBlock("roof", "roof_slope", "roof_stairs", "roof_trim", "roof_ridge");
         if (fromPalette != null) return stabilizeBlock(fromPalette);
         if (a.roofMaterial() != null && !a.roofMaterial().isBlank()) {
