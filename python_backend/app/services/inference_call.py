@@ -1,31 +1,57 @@
 """Synchronous inference waiting policy, independent of planning and routing."""
 import concurrent.futures
 import os
+import threading
 from typing import Optional
 
 from ..models.request import BuildRequest
 
+# Bounded shared pool: timed-out work may keep a worker busy until the underlying
+# call returns, but we never spawn a new OS thread per request.
+try:
+    _TIMEOUT_POOL_WORKERS = max(1, int(os.getenv("LLM_TIMEOUT_POOL_WORKERS", "8")))
+except Exception:
+    _TIMEOUT_POOL_WORKERS = 8
+
+_TIMEOUT_POOL = concurrent.futures.ThreadPoolExecutor(
+    max_workers=_TIMEOUT_POOL_WORKERS,
+    thread_name_prefix="llm-timeout",
+)
+_TIMEOUT_SLOTS = threading.BoundedSemaphore(_TIMEOUT_POOL_WORKERS)
+
+
+class TimeoutPoolSaturatedError(RuntimeError):
+    """Raised when every timeout-guard worker is already busy."""
+
 
 def call_with_timeout(fn, timeout_sec: float):
     """Bound caller waiting time; running threads are not forcibly cancelled."""
-    ex = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    fut = None
+    if not _TIMEOUT_SLOTS.acquire(blocking=False):
+        raise TimeoutPoolSaturatedError(
+            f"timeout worker pool saturated (max_workers={_TIMEOUT_POOL_WORKERS})"
+        )
+
+    def work():
+        try:
+            return fn()
+        finally:
+            _TIMEOUT_SLOTS.release()
+
     try:
-        fut = ex.submit(fn)
+        fut = _TIMEOUT_POOL.submit(work)
+    except Exception:
+        _TIMEOUT_SLOTS.release()
+        raise
+
+    try:
         return fut.result(timeout=timeout_sec)
     except concurrent.futures.TimeoutError as e:
-        if fut is not None:
-            try:
-                fut.cancel()
-            except Exception:
-                pass
-        raise TimeoutError(f"LLM call timed out after {timeout_sec}s") from e
-    finally:
         try:
-            ex.shutdown(wait=False, cancel_futures=True)
+            fut.cancel()
         except Exception:
             pass
-
+        # Slot stays held until the still-running worker finishes.
+        raise TimeoutError(f"LLM call timed out after {timeout_sec}s") from e
 
 
 # Environment values are captured at import time, matching the existing policy.

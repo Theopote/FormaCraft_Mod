@@ -31,6 +31,11 @@ class UrlSafetyTest(unittest.TestCase):
         with self.assertRaises(UnsafeUrlError):
             validate_reference_url("http://169.254.169.254/latest/meta-data/", allow_loopback=True)
 
+    def test_loopback_opt_in_still_blocks_metadata_hostname(self):
+        # allow_loopback must not exempt cloud metadata hostnames.
+        with self.assertRaises(UnsafeUrlError):
+            validate_reference_url("http://metadata.google.internal/computeMetadata/v1/", allow_loopback=True)
+
     def test_rejects_metadata_ip(self):
         with self.assertRaises(UnsafeUrlError):
             validate_reference_url("http://169.254.169.254/latest/meta-data/")

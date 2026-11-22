@@ -18,9 +18,13 @@ import requests
 logger = logging.getLogger(__name__)
 
 _DEFAULT_ALLOWED_SCHEMES = frozenset({"http", "https"})
-_BLOCKED_HOSTNAMES = frozenset({
+# Only these may be exempted by allow_loopback (local LLM probes).
+_LOOPBACK_HOSTNAMES = frozenset({
     "localhost",
     "localhost.localdomain",
+})
+# Always blocked — never covered by allow_loopback (cloud metadata etc.).
+_BLOCKED_HOSTNAMES = frozenset({
     "metadata.google.internal",
 })
 
@@ -95,7 +99,9 @@ def validate_reference_url(
     if not host:
         raise UnsafeUrlError("missing hostname")
 
-    if host in _BLOCKED_HOSTNAMES and not allow_loopback:
+    if host in _BLOCKED_HOSTNAMES:
+        raise UnsafeUrlError(f"blocked hostname: {host}")
+    if host in _LOOPBACK_HOSTNAMES and not allow_loopback:
         raise UnsafeUrlError(f"blocked hostname: {host}")
 
     allowlist = _env_host_allowlist()
