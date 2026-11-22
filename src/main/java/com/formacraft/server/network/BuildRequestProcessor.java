@@ -11,6 +11,8 @@ import com.formacraft.common.orchestrator.AiPlanResult;
 import com.formacraft.server.network.compat.LegacyBuildingEditHandler;
 import com.formacraft.server.network.compat.LegacySpecPreviewHandler;
 import com.formacraft.server.orchestrator.OrchestratorClient;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
@@ -34,7 +36,17 @@ public final class BuildRequestProcessor {
 
     public static void register() {
         ServerPlayNetworking.registerGlobalReceiver(ReferenceImageChunk.ID, (payload, context) ->
-                context.server().execute(() -> REFERENCE_IMAGES.accept(context.player().getUuid(), payload)));
+                context.server().execute(() -> {
+                    ServerPlayerEntity player = context.player();
+                    if (player == null) return;
+                    if (BuildRequestGate.checkPermission(player, context.server()) != null) return;
+                    REFERENCE_IMAGES.accept(player.getUuid(), payload);
+                }));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            ServerPlayerEntity player = handler.getPlayer();
+            if (player != null) REFERENCE_IMAGES.clear(player.getUuid());
+        });
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> REFERENCE_IMAGES.clearAll());
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.RequestBuildPayload.ID, (payload, context) ->
                 context.server().execute(() -> {
                     ServerPlayerEntity player = context.player();

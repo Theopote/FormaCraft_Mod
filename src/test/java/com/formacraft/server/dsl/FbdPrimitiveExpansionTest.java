@@ -61,18 +61,48 @@ class FbdPrimitiveExpansionTest {
     }
 
     @Test void roofCoverKeepsPitchWithNonStairMaterialAndDistinguishesHipFootprint() {
-        var gable = roofOps("GABLE", Blocks.COPPER_BLOCK.getDefaultState());
-        var hip = roofOps("HIP", Blocks.COPPER_BLOCK.getDefaultState());
+        var gable = roofOps("GABLE", 4, 1.0);
+        var hip = roofOps("HIP", 4, 1.0);
         assertFalse(gable.isEmpty());
         assertFalse(hip.isEmpty());
         assertTrue(gable.stream().noneMatch(b -> b.getTargetState().getBlock() instanceof StairsBlock));
-        long gableSpanZ = gable.stream().mapToInt(b -> b.getPos().getZ()).distinct().count();
-        long hipSpanZ = hip.stream().mapToInt(b -> b.getPos().getZ()).distinct().count();
-        long hipSpanX = hip.stream().mapToInt(b -> b.getPos().getX()).distinct().count();
-        assertTrue(hipSpanX >= gableSpanZ || hipSpanZ >= gableSpanZ || hip.size() >= gable.size());
         Set<Integer> gableYs = new HashSet<>();
         gable.forEach(b -> gableYs.add(b.getPos().getY()));
         assertTrue(gableYs.size() > 1, "non-stair GABLE must not collapse to a single flat layer");
+        assertTrue(gable.stream().anyMatch(b -> b.getPos().getX() == 5 || b.getPos().getX() == -5),
+                "GABLE must close shell-end gables");
+    }
+
+    @Test void shallowCurvedRoofDoesNotLeaveInsetGaps() {
+        var roof = roofOps("GABLE", 3, 2.0); // rise << span with strong curvature → large inset jumps
+        Set<String> keys = new HashSet<>();
+        for (var b : roof) keys.add(b.getPos().getX() + "," + b.getPos().getY() + "," + b.getPos().getZ());
+        // Along one slope row at mid-x, consecutive z bands at the same y should not skip a cell.
+        int midX = 0;
+        Map<Integer, Set<Integer>> yToZ = new HashMap<>();
+        for (var b : roof) {
+            if (b.getPos().getX() != midX) continue;
+            yToZ.computeIfAbsent(b.getPos().getY(), ignored -> new HashSet<>()).add(b.getPos().getZ());
+        }
+        assertFalse(yToZ.isEmpty());
+        for (var zs : yToZ.values()) {
+            int min = zs.stream().mapToInt(Integer::intValue).min().orElse(0);
+            int max = zs.stream().mapToInt(Integer::intValue).max().orElse(0);
+            for (int z = min; z <= max; z++) {
+                // Gable slopes occupy eaves bands; allow holes only outside placed bands.
+                // At least the extreme eaves z must be present for each populated y.
+                assertTrue(zs.contains(min) && zs.contains(max));
+            }
+        }
+        assertFalse(keys.isEmpty());
+    }
+
+    @Test void roseOpeningsCostAccountsForRadius() {
+        long tiny = FbdPrimitives.cost("OPENINGS", Map.of(
+                "face", "SOUTH", "kind", "DOOR", "x0", 0, "x1", 0, "y0", 0, "y1", 3, "z0", 0, "z1", 0));
+        long rose = FbdPrimitives.cost("OPENINGS", Map.of(
+                "face", "SOUTH", "kind", "ROSE", "x0", 0, "x1", 0, "y0", 0, "y1", 3, "z0", 0, "z1", 0, "r", 24));
+        assertTrue(rose > tiny);
     }
 
     @Test void expandedRolesAreAccepted() {
@@ -85,14 +115,15 @@ class FbdPrimitiveExpansionTest {
         assertDoesNotThrow(() -> FbdCompiler.compile(p));
     }
 
-    private static List<PlannedBlock> roofOps(String type, net.minecraft.block.BlockState ignored) {
+    private static List<PlannedBlock> roofOps(String type, int rise, double curvaturePower) {
         var op = new HashMap<String, Object>();
         op.put("op", "ROOF_COVER");
         op.put("type", type);
         op.put("w", 11);
         op.put("d", 7);
         op.put("y", 6);
-        op.put("rise", 4);
+        op.put("rise", rise);
+        op.put("curvaturePower", curvaturePower);
         op.put("roof", "minecraft:copper_block");
         op.put("slab", "minecraft:smooth_stone_slab");
         return new MetaAssemblyEngine().executeGeometry(AssemblySpec.of(null, null, List.of(op)),

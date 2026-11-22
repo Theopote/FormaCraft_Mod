@@ -30,4 +30,20 @@ class ReferenceImageUploadsTest {
         request.setReferences(List.of(reference));
         assertFalse(uploads.resolve(owner, request));
     }
+
+    @Test void clearRemovesPendingUploadAndClearAllEmptiesQueue() {
+        var uploads = new ReferenceImageUploads();
+        var owner = UUID.randomUUID();
+        var token = UUID.randomUUID();
+        byte[] bytes = new byte[24];
+        uploads.accept(owner, new ReferenceImageChunk(token, bytes.length, 0, Arrays.copyOfRange(bytes, 0, 12)));
+        assertEquals(1, uploads.pendingCount());
+        uploads.clear(owner);
+        assertEquals(0, uploads.pendingCount());
+        uploads.accept(owner, new ReferenceImageChunk(token, bytes.length, 0, Arrays.copyOfRange(bytes, 0, 12)));
+        uploads.accept(UUID.randomUUID(), new ReferenceImageChunk(UUID.randomUUID(), bytes.length, 0, Arrays.copyOfRange(bytes, 0, 12)));
+        assertEquals(2, uploads.pendingCount());
+        uploads.clearAll();
+        assertEquals(0, uploads.pendingCount());
+    }
 }

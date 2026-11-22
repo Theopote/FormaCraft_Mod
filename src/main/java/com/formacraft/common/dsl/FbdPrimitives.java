@@ -48,6 +48,10 @@ public final class FbdPrimitives {
             case "SURFACE_PATTERN", "OPENINGS" -> {
                 boolean alongX = Set.of("NORTH", "SOUTH").contains(String.valueOf(p.get("face")));
                 long span = alongX ? distance(p, "x0", "x1") : distance(p, "z0", "z1");
+                // ROSE can exceed the declared face box via radius r.
+                if ("ROSE".equalsIgnoreCase(String.valueOf(p.get("kind")))) {
+                    span = Math.max(span, 2 * number(p, "r", number(p, "radius", 0)) + 1);
+                }
                 yield product(span, distance(p, "y0", "y1"), number(p, "thickness", 1) + number(p, "ring", 1) + 2);
             }
             case "SHELL_BOX" -> {

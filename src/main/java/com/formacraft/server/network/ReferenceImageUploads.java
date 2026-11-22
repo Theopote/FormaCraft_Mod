@@ -29,6 +29,7 @@ final class ReferenceImageUploads {
     }
 
     void accept(UUID owner, ReferenceImageChunk chunk) {
+        if (owner == null || chunk == null) return;
         expire();
         int length = chunk.length();
         int offset = chunk.offset();
@@ -71,9 +72,22 @@ final class ReferenceImageUploads {
         return true;
     }
 
+    void clear(UUID owner) {
+        if (owner != null) pending.remove(owner);
+    }
+
+    void clearAll() {
+        pending.clear();
+    }
+
+    /** Test helper. */
+    int pendingCount() {
+        expire();
+        return pending.size();
+    }
+
     private void expire() {
         long now = System.nanoTime();
         pending.values().removeIf(upload -> now - upload.started >= TTL_NANOS);
     }
-
 }

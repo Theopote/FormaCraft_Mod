@@ -128,6 +128,7 @@ public final class AssemblySolidOps {
         // Non-stair roof materials keep the pitched silhouette with full blocks — never silent FLAT.
         boolean ridgeAlongX = w >= d;
         int spanX = x1 - x0, spanZ = z1 - z0;
+        int prevInsetX = 0, prevInsetZ = 0;
         for (int step = 0; step < rise; step++) {
             double t = (double) step / Math.max(1, rise - 1);
             double curvedT = Math.pow(t, curvaturePower);
@@ -146,20 +147,64 @@ public final class AssemblySolidOps {
             BlockState sE = facing(roof, Direction.EAST, stairs);
             BlockState sW = facing(roof, Direction.WEST, stairs);
 
+            // Bridge inset jumps on shallow/curved roofs so slopes do not leave light gaps.
             if (hip || ridgeAlongX) {
-                for (int x = xx0; x <= xx1; x++) {
-                    MetaAssemblyEngine.meterSample(ctx);
-                    int finalY = y + (cornerLiftY > 0 && (x == xx0 || x == xx1) ? cornerLiftY : 0);
-                    adapter.put(out, ctx, origin, x, finalY, zz0, sS);
-                    adapter.put(out, ctx, origin, x, finalY, zz1, sN);
+                for (int zi = prevInsetZ; zi <= insetZ; zi++) {
+                    int za = z0 + zi, zb = z1 - zi;
+                    for (int x = xx0; x <= xx1; x++) {
+                        MetaAssemblyEngine.meterSample(ctx);
+                        int finalY = y + (cornerLiftY > 0 && (x == xx0 || x == xx1) ? cornerLiftY : 0);
+                        adapter.put(out, ctx, origin, x, finalY, za, sS);
+                        adapter.put(out, ctx, origin, x, finalY, zb, sN);
+                    }
                 }
             }
             if (hip || !ridgeAlongX) {
-                for (int z = zz0; z <= zz1; z++) {
-                    MetaAssemblyEngine.meterSample(ctx);
-                    int finalY = y + (cornerLiftY > 0 && (z == zz0 || z == zz1) ? cornerLiftY : 0);
-                    adapter.put(out, ctx, origin, xx0, finalY, z, sE);
-                    adapter.put(out, ctx, origin, xx1, finalY, z, sW);
+                for (int xi = prevInsetX; xi <= insetX; xi++) {
+                    int xa = x0 + xi, xb = x1 - xi;
+                    for (int z = zz0; z <= zz1; z++) {
+                        MetaAssemblyEngine.meterSample(ctx);
+                        int finalY = y + (cornerLiftY > 0 && (z == zz0 || z == zz1) ? cornerLiftY : 0);
+                        adapter.put(out, ctx, origin, xa, finalY, z, sE);
+                        adapter.put(out, ctx, origin, xb, finalY, z, sW);
+                    }
+                }
+            }
+            prevInsetX = insetX;
+            prevInsetZ = insetZ;
+        }
+
+        if (!hip) {
+            fillGableEnds(out, ctx, origin, adapter, ridgeAlongX, hx, hz, yBase, rise, curvaturePower, roof);
+        }
+    }
+
+    /** Close triangular gables on the shell ends (exclude overhang). */
+    private static void fillGableEnds(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin,
+                                      Adapter adapter, boolean ridgeAlongX, int hx, int hz,
+                                      int yBase, int rise, double curvaturePower, BlockState roof) {
+        if (ridgeAlongX) {
+            int half = Math.max(1, hz);
+            for (int z = -hz; z <= hz; z++) {
+                double u = Math.abs(z) / (double) half;
+                int yTop = yBase + (int) Math.round(Math.pow(1.0 - u, curvaturePower) * rise);
+                for (int y = yBase; y <= yTop; y++) {
+                    for (int xEnd : new int[]{-hx, hx}) {
+                        MetaAssemblyEngine.meterSample(ctx);
+                        adapter.put(out, ctx, origin, xEnd, y, z, roof);
+                    }
+                }
+            }
+        } else {
+            int half = Math.max(1, hx);
+            for (int x = -hx; x <= hx; x++) {
+                double u = Math.abs(x) / (double) half;
+                int yTop = yBase + (int) Math.round(Math.pow(1.0 - u, curvaturePower) * rise);
+                for (int y = yBase; y <= yTop; y++) {
+                    for (int zEnd : new int[]{-hz, hz}) {
+                        MetaAssemblyEngine.meterSample(ctx);
+                        adapter.put(out, ctx, origin, x, y, zEnd, roof);
+                    }
                 }
             }
         }
