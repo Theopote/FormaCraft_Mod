@@ -172,17 +172,16 @@ public class FormaCraftCommands {
                     return 1;
                 }));
 
-        // 确认建造命令
+        // 确认建造命令（专用服复验建造权限；降权后不得再 force 落盘）
         dispatcher.register(literal("forma_confirm")
-                // 允许普通玩家确认自己当前的预览（不需要 OP 权限）
-                .requires(source -> source.getEntity() instanceof ServerPlayerEntity)
+                .requires(source -> source.getEntity() instanceof ServerPlayerEntity
+                        && FormaCommandPermissions.mayBuild(source))
                 .executes(ctx -> executeFormaConfirm(ctx.getSource(), false))
                 .then(literal("force")
                         .executes(ctx -> executeFormaConfirm(ctx.getSource(), true))));
 
-        // 取消预览命令
+        // 取消预览命令：始终允许玩家清理自己的预览，不要求建造权限
         dispatcher.register(literal("forma_cancel")
-                // 允许普通玩家取消自己当前的预览（不需要 OP 权限）
                 .requires(source -> source.getEntity() instanceof ServerPlayerEntity)
                 .executes(ctx -> {
                     ServerPlayerEntity player = ctx.getSource().getPlayer();
@@ -586,6 +585,14 @@ public class FormaCraftCommands {
         ServerPlayerEntity player = source.getPlayer();
         if (player == null) {
             source.sendError(Text.translatable("formacraft.command.players_only"));
+            return 0;
+        }
+        // Re-check at execute time: preview may have been created before an OP demotion.
+        if (!FormaCommandPermissions.mayBuild(source)) {
+            var server = source.getServer();
+            int required = com.formacraft.server.config.ServerLlmConfig.requireBuildPermissionLevel(
+                    server != null && server.isDedicated());
+            source.sendError(Text.translatable("formacraft.build.error.permission", required));
             return 0;
         }
 

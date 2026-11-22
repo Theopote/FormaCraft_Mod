@@ -14,9 +14,10 @@ final class BuildingAssetCommands {
     private BuildingAssetCommands() {}
     static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         dispatcher.register(literal("forma_assets")
+                .requires(FormaCommandPermissions::mayBuild)
                 .then(literal("list").executes(ctx -> list(ctx.getSource(),0))
                         .then(argument("page",IntegerArgumentType.integer(1,10001)).executes(ctx -> list(ctx.getSource(),IntegerArgumentType.getInteger(ctx,"page")-1))))
-                .then(literal("preview").requires(source -> source.hasPermissionLevel(2))
+                .then(literal("preview")
                         .then(argument("id",StringArgumentType.word()).executes(ctx -> preview(ctx.getSource(),StringArgumentType.getString(ctx,"id")))))
                 .then(literal("restore").then(argument("id",StringArgumentType.word()).executes(ctx -> restore(ctx.getSource(),StringArgumentType.getString(ctx,"id"))))));
     }

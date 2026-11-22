@@ -33,6 +33,7 @@ final class PortableBackupCommands {
             });
         } }
         dispatcher.register(literal("forma_backup")
+                .requires(FormaCommandPermissions::mayBuild)
                 .then(literal("export_recipe").then(argument("id",StringArgumentType.word()).executes(ctx -> export(ctx.getSource(),StringArgumentType.getString(ctx,"id"),true))))
                 .then(literal("export_lock").then(argument("id",StringArgumentType.word()).executes(ctx -> export(ctx.getSource(),StringArgumentType.getString(ctx,"id"),false))))
                 .then(literal("inspect").then(argument("file",StringArgumentType.word()).executes(ctx -> inspect(ctx.getSource(),StringArgumentType.getString(ctx,"file")))))
