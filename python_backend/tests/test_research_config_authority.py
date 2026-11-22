@@ -44,12 +44,15 @@ def test_planner_uses_current_agent_setting_without_legacy_snapshot(monkeypatch,
 
 
 @pytest.mark.parametrize("visual_ready", [False, True])
-def test_attached_image_requests_vision_even_when_web_research_is_off(monkeypatch, visual_ready):
-    url = "https://example.com/reference.png"
+@pytest.mark.parametrize("kind,url,source", [
+    ("image_url", "https://example.com/reference.png", "https://example.com/reference.png"),
+    ("image_base64", "data:image/png;base64,abc", "formacraft:attached-image"),
+])
+def test_attached_image_requests_vision_even_when_web_research_is_off(monkeypatch, visual_ready, kind, url, source):
     monkeypatch.setenv("BUILDING_RESEARCH", "off")
     monkeypatch.setattr(ai_planner, "get_client", lambda req: object())
     monkeypatch.setattr(ai_planner, "_call_with_timeout", lambda call, timeout: call())
-    sources = [{"title": "vision", "url": url}] if visual_ready else []
+    sources = [{"title": "vision", "url": source}] if visual_ready else []
     profile_call = Mock(return_value=BuildingProfile(sources=sources))
     monkeypatch.setattr(research, "research_building_profile", profile_call)
 
@@ -59,7 +62,7 @@ def test_attached_image_requests_vision_even_when_web_research_is_off(monkeypatc
     monkeypatch.setattr(research, "ensure_building_profile_for_plan", stop_after_research)
     req = BuildRequest(player={"name": "test", "pos": {"x": 0, "y": 64, "z": 0}, "facing": "SOUTH"},
                        world={"dimension": "minecraft:overworld"}, requestText="Build an original hall",
-                       references=[{"type": "image_url", "content": url}])
+                       references=[{"type": kind, "content": url}])
     if visual_ready:
         with pytest.raises(ResearchStageComplete):
             ai_planner.generate_llm_plan(req)

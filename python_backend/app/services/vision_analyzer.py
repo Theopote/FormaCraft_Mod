@@ -174,12 +174,16 @@ def _rule_based_visual_from_caption(caption: str, url: str = "") -> VisualAnalys
     )
 
 
+def vision_source_url(image_url: str | None) -> str | None:
+    return "formacraft:attached-image" if image_url and image_url.startswith("data:image/") else image_url
+
+
 def _visual_from_llm_json(data: Dict[str, Any], image_urls: List[str]) -> VisualAnalysis:
     blueprint = parse_reference_blueprint(data)
     if blueprint is not None:
         visual = _visual_from_blueprint(blueprint, source="vision_llm")
         if image_urls:
-            visual.sources = [{"title": "vision", "url": image_urls[0]}]
+            visual.sources = [{"title": "vision", "url": vision_source_url(image_urls[0])}]
         return visual
 
     return VisualAnalysis(
@@ -194,7 +198,7 @@ def _visual_from_llm_json(data: Dict[str, Any], image_urls: List[str]) -> Visual
         typical_height_blocks=data.get("typical_height_blocks"),
         confidence=float(data.get("confidence") or 0.65),
         notes=data.get("notes"),
-        sources=[{"title": "vision", "url": image_urls[0]}] if image_urls else [],
+        sources=[{"title": "vision", "url": vision_source_url(image_urls[0])}] if image_urls else [],
     )
 
 

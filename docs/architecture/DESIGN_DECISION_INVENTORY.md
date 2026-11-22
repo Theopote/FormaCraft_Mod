@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Local chat reference images use bounded, player-owned chunks and a single-use build reference token (HARD_CONSTRAINT). Only the visual analysis call receives inline image bytes. Planner context uses visual observations and an opaque source label (NONBINDING_HINT).
+
 Chat image URL attachments use existing build references. An unreadable image produces `E_REFERENCE_IMAGE_UNAVAILABLE` before text-only planning (HARD_CONSTRAINT). Successful visual observations remain advisory (NONBINDING_HINT).
 
 Raw sweep and tension cable ops report out-of-range authored values for fields clamped by the executor (HARD_CONSTRAINT). Omitted values retain executor defaults, and matching alias precedence preserves valid parameters.
