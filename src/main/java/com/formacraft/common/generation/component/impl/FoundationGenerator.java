@@ -3,6 +3,7 @@ package com.formacraft.common.generation.component.impl;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+import com.formacraft.common.generation.CompileCapabilityDiagnostics;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -11,7 +12,6 @@ import com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.semantic.SemanticPart;
-import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +50,7 @@ public class FoundationGenerator implements ComponentGenerator {
         boolean stilts = isStilts(c.params());
         int requestedHeight = Math.max(1, d.height());
         if (requestedHeight > MAX_FOUNDATION_HEIGHT) {
-            AssemblyCompileDiagnostics.set(new CapabilityGap(
+            CompileCapabilityDiagnostics.set(new CapabilityGap(
                     "E_FOUNDATION_HEIGHT_LIMIT",
                     "Foundation height " + requestedHeight + " exceeds resource limit "
                             + MAX_FOUNDATION_HEIGHT + "; refusing silent truncation.",
@@ -129,7 +129,7 @@ public class FoundationGenerator implements ComponentGenerator {
                 if (resolved != null) {
                     return resolved;
                 }
-                AssemblyCompileDiagnostics.set(new CapabilityGap(
+                CompileCapabilityDiagnostics.set(new CapabilityGap(
                         "E_FOUNDATION_MATERIAL_INVALID",
                         "Foundation material is not a valid load-bearing block: " + text,
                         "components[].FOUNDATION.params." + key,
