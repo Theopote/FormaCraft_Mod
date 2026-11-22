@@ -68,7 +68,8 @@ public class PreviewStorage {
 
     /**
      * 存储玩家的建筑结构（记录维度与 digest）。
-     * Clears any prior BuildingSpec — callers that have a spec must {@link #storeBuildingSpec} after.
+     * Clears prior BuildingSpec / FBD source plan / quality report / skeleton —
+     * callers that have replacements must store them after this call.
      */
     public static void storeStructure(ServerPlayerEntity player, GeneratedStructure structure) {
         if (player != null && structure != null) {
@@ -77,6 +78,8 @@ public class PreviewStorage {
             hasPreview.put(uuid, false);
             skeletonLayouts.remove(uuid);
             buildingSpecs.remove(uuid);
+            sourcePlans.remove(uuid);
+            qualityReports.remove(uuid);
             metas.put(uuid, buildMeta(player, structure, nextGeneration(uuid)));
             FormacraftMod.LOGGER.debug("Stored preview structure for player {}: {} blocks at {}",
                     player.getName().getString(),
