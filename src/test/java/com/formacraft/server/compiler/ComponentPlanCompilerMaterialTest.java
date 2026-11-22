@@ -256,6 +256,97 @@ class ComponentPlanCompilerMaterialTest {
                 "op design_sources must remain provenance, not a remapped block id");
     }
 
+    @Test void requestIntentInjectorSealsExplicitIronStairFromUserText() {
+        Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("stairs", "minecraft:oak_stairs");
+        params.put("floor", "minecraft:oak_planks");
+        params.put("from", Map.of("x", 0, "y", 0, "z", 0));
+        params.put("to", Map.of("x", 0, "y", 2, "z", 3));
+        var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of("stair:straight_single_run"), params);
+        var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(stair));
+        var sealed = RequestIntentInjector.ensure(plan, "建造一座塔楼，楼梯踏面使用铁块。");
+        var sealedParams = sealed.components().getFirst().params();
+        assertEquals("minecraft:iron_block", sealedParams.get("stairs"));
+        assertTrue(com.formacraft.common.typology.UserConstraintContract
+                .isServerVerified(sealedParams, "stairs"));
+        try {
+            assertTrue(ComponentPlanCompiler.compile(sealed).isEmpty());
+            assertEquals("E_STAIR_COMPONENT_INVALID",
+                    AssemblyCompileDiagnostics.get().code());
+        } finally {
+            AssemblyCompileDiagnostics.clear();
+        }
+    }
+
+    @Test void ambiguousStairTargetsDoNotGuessHostForExplicitTread() {
+        var a = new Component("STRUCTURE", "a", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of("stair:straight_single_run"), Map.of(
+                "stairs", "minecraft:oak_stairs",
+                "from", Map.of("x", 0, "y", 0, "z", 0),
+                "to", Map.of("x", 0, "y", 2, "z", 3)));
+        var b = new Component("STRUCTURE", "b", new Vec3i(8, 0, 0), new Dimensions(3, 4, 3),
+                List.of("stair:straight_single_run"), Map.of(
+                "stairs", "minecraft:spruce_stairs",
+                "from", Map.of("x", 0, "y", 0, "z", 0),
+                "to", Map.of("x", 0, "y", 2, "z", 3)));
+        var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(a, b));
+        var sealed = RequestIntentInjector.ensure(plan, "楼梯踏面使用铁块。");
+        assertNotNull(sealed.capabilityGap());
+        assertEquals("E_STAIR_TREAD_HOST_SCOPE", sealed.capabilityGap().code());
+        assertFalse(com.formacraft.common.typology.UserConstraintContract
+                .isServerVerified(sealed.components().getFirst().params(), "stairs"));
+        assertFalse(com.formacraft.common.typology.UserConstraintContract
+                .isServerVerified(sealed.components().get(1).params(), "stairs"));
+    }
+
+    @Test void nestedAssemblyOpDoesNotInheritParentStairsSeal() {
+        Map<String, Object> parent = new java.util.LinkedHashMap<>();
+        parent.put("stairs", "minecraft:iron_block");
+        com.formacraft.common.typology.UserConstraintContract.stampVerified(parent, "stairs");
+        Map<String, Object> op = new java.util.LinkedHashMap<>();
+        op.put("op", "STAIR_SYSTEM");
+        op.put("stairs", "minecraft:iron_block");
+        op.put("floor", "minecraft:iron_block");
+        op.put("from", Map.of("x", 0, "y", 0, "z", 0));
+        op.put("to", Map.of("x", 0, "y", 2, "z", 3));
+        parent.put("assembly", Map.of("ops", List.of(op)));
+        var component = new Component("ASSEMBLY", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of(), parent);
+        var revised = com.formacraft.common.palette.dynamic.StairTreadMaterialRevision.apply(
+                com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
+                        LlmPlanTestFixtures.minimal(Map.of(), List.of(component))));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> outAssembly = (Map<String, Object>) revised.components().getFirst().params().get("assembly");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> ops = (List<Map<String, Object>>) outAssembly.get("ops");
+        Object stairs = ops.getFirst().get("stairs");
+        assertTrue(stairs instanceof String s && s.contains("_stairs"),
+                "nested op without its own seal must still revise despite parent seal: " + stairs);
+    }
+
+    @Test void requestIntentInjectorSealsNestedAssemblyStairFromUserText() {
+        Map<String, Object> op = new java.util.LinkedHashMap<>();
+        op.put("op", "STAIR_SYSTEM");
+        op.put("stairs", "minecraft:oak_stairs");
+        op.put("floor", "minecraft:oak_planks");
+        op.put("from", Map.of("x", 0, "y", 0, "z", 0));
+        op.put("to", Map.of("x", 0, "y", 2, "z", 3));
+        var component = new Component("ASSEMBLY", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of(), Map.of("assembly", Map.of("ops", List.of(op))));
+        var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(component));
+        var sealed = RequestIntentInjector.ensure(plan, "楼梯用铁块。");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> assembly = (Map<String, Object>) sealed.components().getFirst().params().get("assembly");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> ops = (List<Map<String, Object>>) assembly.get("ops");
+        assertEquals("minecraft:iron_block", ops.getFirst().get("stairs"));
+        assertTrue(com.formacraft.common.typology.UserConstraintContract
+                .isServerVerified(ops.getFirst(), "stairs"));
+        assertFalse(com.formacraft.common.typology.UserConstraintContract
+                .isServerVerified(sealed.components().getFirst().params(), "stairs"));
+    }
+
     @Test void llmInferredInvalidIronTreadIsRevisedToExecutableStairs() {
         var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
                 List.of("stair:straight_single_run"), Map.of(

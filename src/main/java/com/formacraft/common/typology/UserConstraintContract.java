@@ -647,6 +647,114 @@ public final class UserConstraintContract {
     }
 
     /**
+     * One player-authored stair tread material cue from real request text.
+     * Classification: HARD_CONSTRAINT — server extracts the literal; never trust LLM design_sources.
+     */
+    public record StairTreadBinding(String blockId, String sourceText, int matchStart, int matchEnd) {}
+
+    /**
+     * Stair-scoped material aliases (longer phrases first). Only phrases that appear with an
+     * explicit stair/tread cue mint a binding — not bare wall/floor material mentions.
+     */
+    private static final String[][] STAIR_TREAD_MATERIAL_ALIASES = {
+            {"minecraft:iron_block", "铁块", "铁质", "iron_block", "iron block", "iron"},
+            {"minecraft:oak_stairs", "橡木楼梯", "oak_stairs", "oak stairs"},
+            {"minecraft:spruce_stairs", "云杉楼梯", "spruce_stairs", "spruce stairs"},
+            {"minecraft:stone_brick_stairs", "石砖楼梯", "stone_brick_stairs", "stone brick stairs"},
+            {"minecraft:cobblestone_stairs", "圆石楼梯", "cobblestone_stairs", "cobblestone stairs"},
+            {"minecraft:brick_stairs", "红砖楼梯", "brick_stairs", "brick stairs"},
+            {"minecraft:oak_planks", "橡木板", "橡木", "oak_planks", "oak planks", "oak"},
+            {"minecraft:spruce_planks", "云杉木板", "云杉", "spruce_planks", "spruce planks", "spruce"},
+            {"minecraft:stone_bricks", "石砖", "stone_bricks", "stone bricks", "stone brick"},
+            {"minecraft:cobblestone", "圆石", "cobblestone"},
+            {"minecraft:bricks", "红砖", "砖块", "bricks", "brick"},
+    };
+
+    private static final Pattern STAIR_TREAD_DOMAIN = Pattern.compile(
+            "楼梯(?:的)?(?:踏面|踏板|材料|材质)?|踏面|踏板"
+                    + "|stair(?:s)?(?:\\s+treads?)?(?:\\s+materials?)?",
+            Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
+    /**
+     * Parse explicit stair-tread material cues from player text.
+     * Requires a stair/tread domain cue in the same clause as a known material literal.
+     */
+    public static List<StairTreadBinding> parseExplicitStairTreadBindings(String userText) {
+        List<StairTreadBinding> out = new ArrayList<>();
+        if (userText == null || userText.isBlank()) return out;
+        Matcher domain = STAIR_TREAD_DOMAIN.matcher(userText);
+        while (domain.find()) {
+            if (!omitCueAuthorized(userText, domain.start())) continue;
+            String clause = omitClauseWindow(userText, domain.start(), domain.end());
+            if (stairTreadClauseNegated(clause)) continue;
+            String blockId = resolveStairTreadMaterialInClause(clause);
+            if (blockId == null) continue;
+            // Dedup identical block ids from overlapping domain hits in the same clause.
+            boolean dup = false;
+            for (StairTreadBinding existing : out) {
+                if (blockId.equals(existing.blockId())
+                        && existing.matchStart() <= domain.end()
+                        && existing.matchEnd() >= domain.start()) {
+                    dup = true;
+                    break;
+                }
+            }
+            if (dup) continue;
+            out.add(new StairTreadBinding(blockId, clause, domain.start(), domain.end()));
+        }
+        return out;
+    }
+
+    private static boolean stairTreadClauseNegated(String clause) {
+        if (clause == null || clause.isBlank()) return true;
+        String t = clause.toLowerCase(Locale.ROOT);
+        return clause.contains("不要") || clause.contains("别用") || clause.contains("不需要")
+                || clause.contains("禁止") || t.contains("without ") || t.contains("no ")
+                || t.contains("don't ") || t.contains("do not ") || t.contains("not use");
+    }
+
+    private static String resolveStairTreadMaterialInClause(String clause) {
+        if (clause == null || clause.isBlank()) return null;
+        String lower = clause.toLowerCase(Locale.ROOT);
+        String best = null;
+        int bestLen = -1;
+        for (String[] group : STAIR_TREAD_MATERIAL_ALIASES) {
+            String block = group[0];
+            for (int i = 1; i < group.length; i++) {
+                String phrase = group[i];
+                if (phrase == null || phrase.isBlank()) continue;
+                String p = phrase.toLowerCase(Locale.ROOT);
+                if (clause.contains(phrase) || lower.contains(p)) {
+                    if (phrase.length() > bestLen) {
+                        bestLen = phrase.length();
+                        best = block;
+                    }
+                }
+            }
+        }
+        if (best != null) return best;
+        // Explicit namespaced id only (minecraft:iron_block) — never bare tokens.
+        Matcher id = Pattern.compile("minecraft:([a-z0-9_]+)").matcher(lower);
+        while (id.find()) {
+            String full = "minecraft:" + id.group(1);
+            for (String[] group : STAIR_TREAD_MATERIAL_ALIASES) {
+                if (full.equals(group[0])) return group[0];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Write the authoritative stair tread block id and seal it as USER_EXPLICIT.
+     * Classification: HARD_CONSTRAINT — values come from server-checked player text.
+     */
+    public static void applyVerifiedStairTread(Map<String, Object> params, String blockId) {
+        if (params == null || blockId == null || blockId.isBlank()) return;
+        params.put("stairs", blockId.trim());
+        stampVerified(params, "stairs");
+    }
+
+    /**
      * Apply a verified local omission onto mass params and seal the relevant keys.
      * Classification: HARD_CONSTRAINT — values come from server-checked player text.
      */

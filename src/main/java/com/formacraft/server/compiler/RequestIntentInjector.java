@@ -169,6 +169,11 @@ public final class RequestIntentInjector {
                         ? com.formacraft.common.typology.UserConstraintContract
                         .parseDesignOmitBindings(text)
                         : List.of();
+        List<com.formacraft.common.typology.UserConstraintContract.StairTreadBinding> stairTreads =
+                authorizeFromText
+                        ? com.formacraft.common.typology.UserConstraintContract
+                        .parseExplicitStairTreadBindings(text)
+                        : List.of();
         List<Component> hosts = new ArrayList<>();
         for (Component c : plan.components()) {
             // Design seals only on building-level masses — never plates / attached / bare STRUCTURE.
@@ -221,8 +226,11 @@ public final class RequestIntentInjector {
                         envApplied.envelopeModeByMass());
             }
         }
+        StairTreadBindResult stairResult = resolveStairTreadBindings(plan, stairTreads, authorizeFromText);
         if (authorizeFromText && (heightResult.capabilityGap() || omitResult.capabilityGap() || envelopeGap
+                || stairResult.capabilityGap()
                 || !heightResult.diagnostics().isEmpty() || !omitResult.diagnostics().isEmpty()
+                || !stairResult.diagnostics().isEmpty()
                 || !envelopeDiags.isEmpty() || !primaryDiags.isEmpty())) {
             Map<String, Object> meta = plan.planMeta() == null
                     ? new HashMap<>()
@@ -235,24 +243,31 @@ public final class RequestIntentInjector {
             diags.addAll(heightResult.diagnostics());
             diags.addAll(envelopeDiags);
             diags.addAll(omitResult.diagnostics());
+            diags.addAll(stairResult.diagnostics());
             meta.put("scope_diagnostics", diags);
             plan = withMeta(plan, meta);
-            if (heightResult.capabilityGap() || omitResult.capabilityGap() || envelopeGap) {
+            if (heightResult.capabilityGap() || omitResult.capabilityGap() || envelopeGap
+                    || stairResult.capabilityGap()) {
                 List<Map<String, Object>> allDiags = new ArrayList<>();
                 allDiags.addAll(heightResult.diagnostics());
                 allDiags.addAll(envelopeDiags);
                 allDiags.addAll(omitResult.diagnostics());
+                allDiags.addAll(stairResult.diagnostics());
                 boolean heightConflict = allDiags.stream().anyMatch(d ->
                         d != null && "E_HEIGHT_HOST_CONFLICT".equals(String.valueOf(d.get("code"))));
+                boolean stairScope = stairResult.capabilityGap()
+                        && !heightResult.capabilityGap() && !omitResult.capabilityGap() && !envelopeGap;
                 String code = envelopeGap
                         ? "E_STACKED_HEIGHT_UNSUPPORTED"
                         : (heightConflict
                         ? "E_HEIGHT_HOST_CONFLICT"
+                        : (stairScope
+                        ? "E_STAIR_TREAD_HOST_SCOPE"
                         : (heightResult.capabilityGap() && omitResult.capabilityGap()
                         ? "E_DESIGN_CONSTRAINT_HOST_SCOPE"
                         : (heightResult.capabilityGap()
                         ? "E_DESIGN_HEIGHT_HOST_SCOPE"
-                        : "E_DESIGN_OMIT_HOST_SCOPE")));
+                        : "E_DESIGN_OMIT_HOST_SCOPE"))));
                 plan = withCapabilityGap(plan,
                         new com.formacraft.common.llm.dto.CapabilityGap(
                                 code,
@@ -260,9 +275,14 @@ public final class RequestIntentInjector {
                                         ? "同一建筑存在互相冲突的高度硬约束"
                                         : (envelopeGap
                                         ? "堆叠塔楼整体高度无法在保留分层关系下执行"
-                                        : "局部高度或设计省略无法唯一绑定宿主，或与计划目标不一致"),
+                                        : (stairScope
+                                        ? "明确的楼梯踏面材料无法唯一绑定到楼梯构件或 STAIR_SYSTEM 操作"
+                                        : "局部高度或设计省略无法唯一绑定宿主，或与计划目标不一致")),
                                 "RequestIntentInjector.applyServerConstraintsToComponents",
-                                List.of("clarify building host", "use ordinal building_N or unique name"),
+                                List.of(stairScope
+                                        ? "keep a single stair target or name the flight uniquely"
+                                        : "clarify building host",
+                                        "use ordinal building_N or unique name"),
                                 Map.of("diagnostics", allDiags)));
             }
         }
@@ -337,7 +357,11 @@ public final class RequestIntentInjector {
                 out.add(c);
             }
         }
-        return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+        if (changed) {
+            plan = PlanComponentRewrite.withComponents(plan, out);
+        }
+        // Stair tread seals run after height/omit strip+restamp so nested op seals survive.
+        return applyStairTreadSeals(plan, stairResult, authorizeFromText);
     }
 
     /**
@@ -1720,6 +1744,183 @@ public final class RequestIntentInjector {
             List<Map<String, Object>> diagnostics,
             boolean capabilityGap
     ) {}
+
+    /**
+     * Unique bind of a player stair-tread material onto one direct stair component or one
+     * nested STAIR_SYSTEM op. Ambiguous or missing targets become capability gaps — never guess.
+     */
+    private record StairSealTarget(int componentIndex, Integer opIndex, String blockId) {}
+
+    private record StairTreadBindResult(
+            List<StairSealTarget> targets,
+            List<Map<String, Object>> diagnostics,
+            boolean capabilityGap
+    ) {
+        private StairTreadBindResult {
+            targets = targets == null ? List.of() : List.copyOf(targets);
+            diagnostics = diagnostics == null ? List.of() : List.copyOf(diagnostics);
+        }
+    }
+
+    private record StairTargetRef(int componentIndex, Integer opIndex) {}
+
+    static StairTreadBindResult resolveStairTreadBindings(
+            LlmPlan plan,
+            List<com.formacraft.common.typology.UserConstraintContract.StairTreadBinding> bindings,
+            boolean authorizeFromText
+    ) {
+        if (!authorizeFromText || bindings == null || bindings.isEmpty()) {
+            return new StairTreadBindResult(List.of(), List.of(), false);
+        }
+        LinkedHashSet<String> materials = new LinkedHashSet<>();
+        for (var b : bindings) {
+            if (b != null && b.blockId() != null && !b.blockId().isBlank()) {
+                materials.add(b.blockId().trim());
+            }
+        }
+        List<Map<String, Object>> diags = new ArrayList<>();
+        if (materials.size() != 1) {
+            Map<String, Object> detail = new HashMap<>();
+            detail.put("code", "E_STAIR_TREAD_MATERIAL_CONFLICT");
+            detail.put("materials", List.copyOf(materials));
+            detail.put("message", "conflicting explicit stair tread materials in the request");
+            diags.add(detail);
+            return new StairTreadBindResult(List.of(), diags, true);
+        }
+        String blockId = materials.iterator().next();
+        List<StairTargetRef> targets = collectStairTargets(plan);
+        if (targets.isEmpty()) {
+            Map<String, Object> detail = new HashMap<>();
+            detail.put("code", "E_STAIR_TREAD_TARGET_MISSING");
+            detail.put("blockId", blockId);
+            detail.put("message", "explicit stair tread material has no stair component or STAIR_SYSTEM op");
+            diags.add(detail);
+            return new StairTreadBindResult(List.of(), diags, true);
+        }
+        if (targets.size() != 1) {
+            Map<String, Object> detail = new HashMap<>();
+            detail.put("code", "E_STAIR_TREAD_TARGET_AMBIGUOUS");
+            detail.put("blockId", blockId);
+            detail.put("targetCount", targets.size());
+            detail.put("message", "explicit stair tread material cannot uniquely bind a stair target");
+            diags.add(detail);
+            return new StairTreadBindResult(List.of(), diags, true);
+        }
+        StairTargetRef only = targets.getFirst();
+        return new StairTreadBindResult(
+                List.of(new StairSealTarget(only.componentIndex(), only.opIndex(), blockId)),
+                List.of(),
+                false);
+    }
+
+    static List<StairTargetRef> collectStairTargets(LlmPlan plan) {
+        List<StairTargetRef> out = new ArrayList<>();
+        if (plan == null || plan.components() == null) return out;
+        List<Component> comps = plan.components();
+        for (int i = 0; i < comps.size(); i++) {
+            Component c = comps.get(i);
+            if (c == null) continue;
+            if (com.formacraft.common.palette.dynamic.StairComponentIdentity.isStairComponent(c)) {
+                out.add(new StairTargetRef(i, null));
+                continue;
+            }
+            if (c.componentType() == null
+                    || !"ASSEMBLY".equalsIgnoreCase(c.componentType().trim())
+                    || c.params() == null) {
+                continue;
+            }
+            Object assembly = c.params().get("assembly");
+            if (!(assembly instanceof Map<?, ?> asm)) continue;
+            Object opsObj = asm.get("ops");
+            if (!(opsObj instanceof List<?> ops)) continue;
+            for (int oi = 0; oi < ops.size(); oi++) {
+                Object op = ops.get(oi);
+                if (!(op instanceof Map<?, ?> om)) continue;
+                String kind = Objects.toString(om.get("op"), Objects.toString(om.get("type"), ""))
+                        .trim().toUpperCase(Locale.ROOT);
+                if ("STAIR_SYSTEM".equals(kind) || "STAIRS_SYSTEM".equals(kind) || "STAIRCASE".equals(kind)) {
+                    out.add(new StairTargetRef(i, oi));
+                }
+            }
+        }
+        return out;
+    }
+
+    static LlmPlan applyStairTreadSeals(
+            LlmPlan plan, StairTreadBindResult stairResult, boolean authorizeFromText) {
+        if (!authorizeFromText || plan == null || stairResult == null || stairResult.targets().isEmpty()) {
+            return plan;
+        }
+        List<Component> comps = plan.components();
+        if (comps == null || comps.isEmpty()) return plan;
+        List<Component> out = new ArrayList<>(comps);
+        boolean changed = false;
+        for (StairSealTarget target : stairResult.targets()) {
+            if (target == null || target.blockId() == null || target.blockId().isBlank()) continue;
+            int ci = target.componentIndex();
+            if (ci < 0 || ci >= out.size()) continue;
+            Component c = out.get(ci);
+            if (c == null) continue;
+            Map<String, Object> params = c.params() == null
+                    ? new HashMap<>()
+                    : new HashMap<>(c.params());
+            if (target.opIndex() == null) {
+                com.formacraft.common.typology.UserConstraintContract
+                        .applyVerifiedStairTread(params, target.blockId());
+                out.set(ci, new Component(
+                        c.componentType(), c.slotId(), c.relativePosition(),
+                        c.dimensions(), c.features(), params));
+                changed = true;
+                continue;
+            }
+            Object assemblyObj = params.get("assembly");
+            if (!(assemblyObj instanceof Map<?, ?> asmRaw)) continue;
+            Map<String, Object> assembly = deepCopyMap(asmRaw);
+            Object opsObj = assembly.get("ops");
+            if (!(opsObj instanceof List<?> opsRaw)) continue;
+            List<Object> ops = new ArrayList<>(opsRaw.size());
+            for (Object op : opsRaw) {
+                if (op instanceof Map<?, ?> om) ops.add(deepCopyMap(om));
+                else ops.add(op);
+            }
+            int oi = target.opIndex();
+            if (oi < 0 || oi >= ops.size() || !(ops.get(oi) instanceof Map<?, ?>)) continue;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> op = (Map<String, Object>) ops.get(oi);
+            com.formacraft.common.typology.UserConstraintContract
+                    .applyVerifiedStairTread(op, target.blockId());
+            ops.set(oi, op);
+            assembly.put("ops", ops);
+            params.put("assembly", assembly);
+            out.set(ci, new Component(
+                    c.componentType(), c.slotId(), c.relativePosition(),
+                    c.dimensions(), c.features(), params));
+            changed = true;
+        }
+        return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> deepCopyMap(Map<?, ?> raw) {
+        Map<String, Object> copy = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> e : raw.entrySet()) {
+            if (e.getKey() == null) continue;
+            Object v = e.getValue();
+            if (v instanceof Map<?, ?> nested) {
+                copy.put(String.valueOf(e.getKey()), deepCopyMap(nested));
+            } else if (v instanceof List<?> list) {
+                List<Object> copied = new ArrayList<>(list.size());
+                for (Object item : list) {
+                    if (item instanceof Map<?, ?> nm) copied.add(deepCopyMap(nm));
+                    else copied.add(item);
+                }
+                copy.put(String.valueOf(e.getKey()), copied);
+            } else {
+                copy.put(String.valueOf(e.getKey()), v);
+            }
+        }
+        return copy;
+    }
 
     /**
      * Whole-building height for stacked storeys — never copy onto each tier's dimensions.height.

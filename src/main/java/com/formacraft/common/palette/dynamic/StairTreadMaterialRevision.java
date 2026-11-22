@@ -165,8 +165,10 @@ public final class StairTreadMaterialRevision {
             String requested
     ) {
         if (isRegisteredStairs(requested)) return requested;
-        boolean userExplicit = isSealedUserExplicitStairs(materialScope)
-                || isSealedUserExplicitStairs(componentParams);
+        // Direct stair components: materialScope is the component params.
+        // Nested STAIR_SYSTEM ops: materialScope is the op node only — never inherit a parent
+        // Assembly component's stairs seal.
+        boolean userExplicit = isSealedUserExplicitStairs(materialScope);
         String familyFromRequested = MaterialBlockFamily.stairs(requested);
         if (isRegisteredStairs(familyFromRequested)) {
             FormacraftMod.LOGGER.info(
