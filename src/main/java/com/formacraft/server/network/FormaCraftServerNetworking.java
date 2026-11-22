@@ -46,13 +46,18 @@ public final class FormaCraftServerNetworking {
                     ServerPlayNetworking.send(player, new com.formacraft.common.network.ComponentSourceNetworking.Response(payload.token(), JsonUtil.toJson(page)));
                 }));
 
-        // Player disconnect: drop tickets + bound plans + build-request quota for that player only.
+        // Player disconnect: drop tickets, previews, site state, and request quotas for that player.
         net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register(
                 (handler, server) -> {
                     ServerPlayerEntity player = handler.getPlayer();
                     if (player != null) {
+                        java.util.UUID id = player.getUuid();
                         com.formacraft.server.patch.PatchPreviewService.cancelAll(player);
                         BuildRequestGate.releaseAll(player);
+                        PreviewStorage.clear(id);
+                        com.formacraft.server.state.PlayerProtectedZoneStorage.clear(id);
+                        com.formacraft.server.state.PlayerOutlineStorage.clear(id);
+                        OrchestratorProxyHandler.clearPlayer(id);
                     }
                 });
 

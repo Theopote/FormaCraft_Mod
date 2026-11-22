@@ -341,16 +341,37 @@ public class PreviewStorage {
      */
     public static void clear(ServerPlayerEntity player) {
         if (player != null) {
-            UUID uuid = player.getUuid();
-            lastStructures.remove(uuid);
-            hasPreview.put(uuid, false);
-            skeletonLayouts.remove(uuid);
-            qualityReports.remove(uuid);
-            metas.remove(uuid);
-            buildingSpecs.remove(uuid);
-            sourcePlans.remove(uuid);
-            nextGeneration(uuid); // cancel tombstone — do not reset the counter
+            clear(player.getUuid());
         }
+    }
+
+    /**
+     * Drop the active preview for a player UUID (disconnect cleanup).
+     * Advances the generation counter as a tombstone so a stale confirm snapshot
+     * cannot {@link #restoreSnapshot} a cancelled preview.
+     */
+    public static void clear(UUID uuid) {
+        if (uuid == null) return;
+        lastStructures.remove(uuid);
+        hasPreview.put(uuid, false);
+        skeletonLayouts.remove(uuid);
+        qualityReports.remove(uuid);
+        metas.remove(uuid);
+        buildingSpecs.remove(uuid);
+        sourcePlans.remove(uuid);
+        nextGeneration(uuid); // cancel tombstone — do not reset the counter
+    }
+
+    /** Full wipe on server stop so integrated clients cannot leak previews across worlds. */
+    public static void clearAll() {
+        lastStructures.clear();
+        hasPreview.clear();
+        skeletonLayouts.clear();
+        qualityReports.clear();
+        metas.clear();
+        buildingSpecs.clear();
+        sourcePlans.clear();
+        previewGenerations.clear();
     }
 
     public static boolean hasPreview(ServerPlayerEntity player) {

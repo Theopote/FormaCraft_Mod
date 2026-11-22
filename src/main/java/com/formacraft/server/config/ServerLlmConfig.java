@@ -1,6 +1,8 @@
 package com.formacraft.server.config;
 
 import com.formacraft.common.model.request.FormaRequest;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
@@ -41,6 +43,47 @@ public final class ServerLlmConfig {
         request.setLlmBaseUrl(value("FORMACRAFT_LLM_BASE_URL", "llmBaseUrl"));
         request.setLlmProvider(value("FORMACRAFT_LLM_PROVIDER", "llmProvider"));
         request.setModel(value("FORMACRAFT_LLM_MODEL", "model"));
+    }
+
+    /**
+     * Dedicated proxy {@code /summarize}: drop client {@code apiKey}/{@code llmBaseUrl}
+     * (and provider/model) then inject server credentials. Integrated servers pass through.
+     */
+    public static String rewriteProxySummarizeJson(String raw, boolean dedicated) {
+        if (!dedicated) {
+            return raw == null || raw.isBlank() ? "{\"transcript\":\"\"}" : raw;
+        }
+        JsonObject obj;
+        try {
+            if (raw == null || raw.isBlank()) {
+                obj = new JsonObject();
+            } else {
+                obj = JsonParser.parseString(raw).getAsJsonObject();
+            }
+        } catch (Exception e) {
+            obj = new JsonObject();
+            if (raw != null && !raw.isBlank()) {
+                obj.addProperty("transcript", raw);
+            }
+        }
+        obj.remove("apiKey");
+        obj.remove("llmBaseUrl");
+        obj.remove("llmProvider");
+        obj.remove("model");
+        putIfPresent(obj, "apiKey", value("FORMACRAFT_API_KEY", "apiKey"));
+        putIfPresent(obj, "llmBaseUrl", value("FORMACRAFT_LLM_BASE_URL", "llmBaseUrl"));
+        putIfPresent(obj, "llmProvider", value("FORMACRAFT_LLM_PROVIDER", "llmProvider"));
+        putIfPresent(obj, "model", value("FORMACRAFT_LLM_MODEL", "model"));
+        if (!obj.has("transcript") || obj.get("transcript").isJsonNull()) {
+            obj.addProperty("transcript", "");
+        }
+        return obj.toString();
+    }
+
+    private static void putIfPresent(JsonObject obj, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            obj.addProperty(key, value);
+        }
     }
 
     /** Shared secret for Python orchestrator {@code X-FormaCraft-Secret} header. */

@@ -1037,6 +1037,11 @@ public class BuildExecutionService {
             PatchHistoryManager.clearAll();
             com.formacraft.server.build.PlayerMutationLedger.get().clearAll();
             com.formacraft.server.edit.BuildingEditTransactionStore.clearForTest();
+            // Per-player in-memory previews / site state must not survive world switches.
+            com.formacraft.server.preview.PreviewStorage.clearAll();
+            com.formacraft.server.state.PlayerProtectedZoneStorage.clearAll();
+            com.formacraft.server.state.PlayerOutlineStorage.clearAll();
+            com.formacraft.server.network.OrchestratorProxyHandler.clearAll();
         });
         ServerTickEvents.END_WORLD_TICK.register((ServerWorld world) -> BuildExecutionService.getInstance().onWorldTick(world));
         // Low-frequency reclaim of expired preview tickets / bound plans while idle.

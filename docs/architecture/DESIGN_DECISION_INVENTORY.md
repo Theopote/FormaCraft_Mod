@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Raw sweep and tension cable ops report out-of-range authored values for fields clamped by the executor (HARD_CONSTRAINT). Omitted values retain executor defaults, and matching alias precedence preserves valid parameters.
+
 Ordinary LlmPlan exposes existing spline sweep and tension cable geometry (NONBINDING_HINT). Python diagnoses malformed raw path points, cable anchors and sag without rewriting valid parameters (HARD_CONSTRAINT). These operations share bounded in-place Assembly repair.
 
 Approximate total heights such as `约高 20 格` and `高 20 格左右` do not mint Java height seals (NONBINDING_HINT). A successful floor-layout critique that changes body height carries a preview notice. Explicit exact heights retain the existing server constraint.

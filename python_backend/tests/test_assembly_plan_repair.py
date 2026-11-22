@@ -31,6 +31,23 @@ class AssemblyPlanRepairTest(unittest.TestCase):
         self.assertTrue(issues[0].path.endswith("ops[0].points[1]"))
         self.assertTrue(issues[1].path.endswith("ops[1].sag"))
 
+    def test_sweep_and_cable_report_parameters_that_would_be_clamped(self):
+        start, end = {"x": 0, "y": 4, "z": 0}, {"x": 8, "y": 4, "z": 0}
+        sweep = {"op": "SPLINE_SWEEP", "points": [start, end], "radius": 24,
+                 "samplesPerBlock": 40, "thickness": 8}
+        cable = {"op": "TENSION_CABLE", "from": start, "to": end,
+                 "count": 32, "spacing": 64, "thickness": 5}
+        plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": {"ops": [sweep, cable]}}}]}
+        self.assertEqual([], validate_assembly_plan(plan))
+        sweep.update(radius=25, samplesPerBlock=1)
+        cable.update(count=33, thickness=True)
+        before = deepcopy(plan)
+        issues = validate_assembly_plan(plan)
+        self.assertEqual(["E_INT_RANGE"] * 4, [issue.code for issue in issues])
+        self.assertEqual(["samplesPerBlock", "radius", "thickness", "count"],
+                         [issue.path.rsplit(".", 1)[1] for issue in issues])
+        self.assertEqual(before, plan)
+
     def test_bezier_control_grid_is_preserved_and_incomplete_grid_reports_path(self):
         grid = [[{"x": x, "y": 8 if z in (3, 6) else 0, "z": z}
                  for z in (0, 3, 6, 9)] for x in (0, 3, 6, 9)]

@@ -45,6 +45,16 @@ public final class PlayerOutlineStorage {
 
     public static void clear(ServerPlayerEntity player) {
         if (player == null) return;
-        PER_PLAYER.remove(player.getUuid());
+        clear(player.getUuid());
+    }
+
+    public static void clear(UUID playerId) {
+        if (playerId == null) return;
+        PER_PLAYER.remove(playerId);
+    }
+
+    /** Drop every player's outline (server stop / world unload). */
+    public static void clearAll() {
+        PER_PLAYER.clear();
     }
 }

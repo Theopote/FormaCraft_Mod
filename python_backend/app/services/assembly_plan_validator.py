@@ -302,6 +302,15 @@ def _validate_assembly_component(
         _validate_endpoint(issues, cp + ".to", conn.get("to"), by_id, "to")
 
 
+def _validate_optional_int_ranges(issues, comp, path, ranges) -> None:
+    for key, alias, minimum, maximum in ranges:
+        field = key if comp.get(key) is not None else alias
+        value = comp.get(field)
+        if value is not None and (type(value) is not int or not minimum <= value <= maximum):
+            issues.append(AssemblyPlanIssue(f"{path}.{field}", "E_INT_RANGE",
+                                           f"{field} must be an integer in {minimum}..{maximum}"))
+
+
 def _validate_geometry_fields(
     issues: List[AssemblyPlanIssue], comp: dict, path: str, kind: str, *, graph_component: bool = False,
 ) -> None:
@@ -322,6 +331,10 @@ def _validate_geometry_fields(
         if profile is not None and str(profile).strip().upper() not in {"SPHERE", "RECT", "POLYGON"}:
             issues.append(AssemblyPlanIssue(path + ".profile", "E_SPLINE_PROFILE_VALUE",
                                            "Use a supported SPHERE, RECT or POLYGON sweep profile"))
+        _validate_optional_int_ranges(issues, comp, path, (
+            ("samplesPerBlock", "samplesPerBlock", 2, 40), ("r", "radius", 1, 24),
+            ("thickness", "thickness", 1, 8), ("connectMaxStep", "connectMaxStep", 1, 8),
+        ))
     if not graph_component and kind == "TENSION_CABLE":
         for key in ("from", "to"):
             point = comp.get(key)
@@ -333,6 +346,10 @@ def _validate_geometry_fields(
         if sag is not None and (type(sag) is not int or sag < 1):
             issues.append(AssemblyPlanIssue(f"{path}.{sag_key}", "E_CABLE_SAG_INVALID",
                                            "Use positive integer sag, or CONNECTOR_LINE for a straight member"))
+        _validate_optional_int_ranges(issues, comp, path, (
+            ("thickness", "thickness", 1, 5), ("cableCount", "count", 1, 32),
+            ("cableSpacing", "spacing", 1, 64),
+        ))
     if kind == "BEZIER_SURFACE" and not graph_component:
         points = comp.get("points")
         if isinstance(points, list) and len(points) == 4 and all(
@@ -345,13 +362,9 @@ def _validate_geometry_fields(
         ):
             issues.append(AssemblyPlanIssue(path + ".points", "E_BEZIER_POINTS_INVALID",
                                            "Provide 16 integer x/y/z control points or a 4×4 grid"))
-        for key, alias, minimum, maximum in (("uSamples", "u", 2, 512), ("vSamples", "v", 2, 512),
-                                              ("thickness", "thickness", 1, 9)):
-            field = key if comp.get(key) is not None else alias
-            value = comp.get(field)
-            if value is not None and (type(value) is not int or not minimum <= value <= maximum):
-                issues.append(AssemblyPlanIssue(f"{path}.{field}", "E_INT_RANGE",
-                                               f"{field} must be an integer in {minimum}..{maximum}"))
+        _validate_optional_int_ranges(issues, comp, path, (
+            ("uSamples", "u", 2, 512), ("vSamples", "v", 2, 512), ("thickness", "thickness", 1, 9),
+        ))
         if comp.get("connectSamples") is not None and type(comp["connectSamples"]) is not bool:
             issues.append(AssemblyPlanIssue(path + ".connectSamples", "E_BOOL_TYPE",
                                            "connectSamples must be a boolean"))
