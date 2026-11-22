@@ -93,6 +93,33 @@ class FloorLayoutOverflowRepairTest {
     }
 
     @Test
+    void modelPlannedHeightAndStoreyBandsArePreservedWhenTheyFit() {
+        assertPlannedLayoutPreserved(14, false);
+    }
+
+    @Test
+    void conflictingModelPlannedHeightAndStoreyBandsReportGapWithoutRewriting() {
+        assertPlannedLayoutPreserved(10, true);
+    }
+
+    private static void assertPlannedLayoutPreserved(int height, boolean conflict) {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0), new Dimensions(12, 12, height), List.of(),
+                Map.of("component_id", "atrium", "floor_count", 2, "floorHeight", 6,
+                        "design_sources", Map.of("dimensions.height", "AI_PLANNED",
+                                "floor_height", "AI_PLANNED")));
+        LlmPlan plan = LlmPlanTestFixtures.builder().components(List.of(mass)).build();
+        LlmPlan out = FloorLayoutOverflowRepair.apply(plan);
+
+        assertEquals(List.of(mass), out.components());
+        assertEquals(conflict, out.hasCapabilityGap());
+        if (conflict) {
+            assertEquals("E_FLOOR_LAYOUT_CONFLICT", out.capabilityGap().code());
+            assertEquals("components[0]", out.capabilityGap().path());
+        }
+    }
+
+    @Test
     void softFloorHeightMayClampIntoSealedEnvelope() {
         Map<String, Object> params = new HashMap<>();
         params.put("component_id", "tower");

@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Floor layout overflow respects plan and component design-source locks on envelope height and storey height (HARD_CONSTRAINT). If the geometry cannot fit without changing locked values, the compiler reports `E_FLOOR_LAYOUT_CONFLICT` at the component path and preserves the authored layout.
+
 Office storey repair no longer rewrites authored circular footprints, storey bands, or building height from office keywords (removed DESIGN_OVERRIDE). Explicit footprint handling uses the shared host-scoped path, and floor overflow remains subject to the compiler's existing geometry checks.
 
 The ordinary LlmPlan normalization entrypoint checks fixed landmark modules and registered native STRUCTURE typologies against the current human message before migration and again after all normalization and repair stages (HARD_CONSTRAINT). Unauthorized routes become a capability gap. Explicit landmark presets retain compatibility conversion.
