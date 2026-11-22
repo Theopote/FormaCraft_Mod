@@ -1225,21 +1225,6 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                 mass['params']['requirement_scope'] = 'building_' + direction
     for mass in masses:
         own = [r for r in requirements if r['scope'] in ('all_main_masses', mass['params'].get('requirement_scope'))]
-        # A one-cell-short model envelope is a roof/floor datum discrepancy.
-        # Preserve declared storeys and spacing; never shrink them to fit.
-        fh, count = mass['params'].get('floor_height'), mass['params'].get('floor_count')
-        dims = mass.get('dimensions') or {}
-        if (not any(r['property'] == 'net_height' for r in own)
-                and type(fh) is int and type(count) is int and fh > 0 and count > 0
-                and dims.get('height') == fh * count - 1):
-            old_top = mass['relative_position']['y'] + dims['height']
-            dims['height'] += 1
-            mass['params']['envelope_source'] = 'floor_band_datum'
-            for roof in components:
-                if (roof.get('component_type') in ('ROOF','ROOF_STRUCTURE')
-                        and roof['params'].get('host_id') == mass['params']['component_id']
-                        and roof.get('relative_position',{}).get('y') in (old_top-1,old_top)):
-                    roof['relative_position']['y'] += 1
         if any(r['property'] == 'glass_block' for r in own):
             mass['params']['glass_block'] = 'minecraft:glass'
             for child in components:
@@ -1562,7 +1547,14 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
     contract['resolved_buildings'] = resolve_buildings(out)
     for building in contract['resolved_buildings']:
         if not building['floor_layout_fits']:
-            contract['diagnostics'].append({'code': 'E_FLOOR_ENVELOPE', 'component_id': building['component_id']})
+            available = building['dimensions']['height']
+            required = building['required_floor_layout_height']
+            contract['diagnostics'].append({
+                'code': 'E_FLOOR_ENVELOPE', 'component_id': building['component_id'],
+                'path': building['floor_layout_path'], 'body_height': available,
+                'required_body_height': required,
+                'message': f'Floor layout requires {required} blocks; the body provides {available}.',
+            })
     failures = [r for r in requirements if r['status'] == 'mismatch']
     previous_gap = out.get('capability_gap') or {}
     if previous_gap.get('code') == 'E_BUILDING_CONTRACT' \

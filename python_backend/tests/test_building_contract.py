@@ -14,6 +14,19 @@ def mass(identity='house', x=0):
 
 
 class BuildingContractTest(unittest.TestCase):
+    def test_short_storey_envelope_keeps_body_and_roof_in_place(self):
+        body = mass('atrium')
+        body['dimensions']['height'] = 9
+        body['params']['design_sources'] = {'dimensions.height': 'AI_PLANNED'}
+        roof = {'component_type': 'ROOF', 'relative_position': {'x': 0, 'y': 9, 'z': 0},
+                'dimensions': {'width': 15, 'depth': 13, 'height': 1},
+                'params': {'host_id': 'atrium', 'roof_type': 'flat'}}
+        plan = apply_building_contract({'components': [body, roof]}, '设计一座逆光悬庭。', finalize=True)
+        self.assertEqual(9, plan['components'][0]['dimensions']['height'])
+        self.assertEqual(9, plan['components'][1]['relative_position']['y'])
+        self.assertEqual('capability_gap', plan['plan_status'])
+        self.assertIn('E_FLOOR_ENVELOPE', str(plan['capability_gap']))
+
     def test_net_height_is_validated_without_resizing_authored_mass(self):
         body = mass('atrium')
         text = '室内净高5格。'

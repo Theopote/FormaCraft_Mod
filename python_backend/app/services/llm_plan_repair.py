@@ -353,12 +353,12 @@ def _building_contract_entries(plan: Dict[str, Any], field: str) -> List[dict]:
     return [entry for entry in entries if isinstance(entry, dict)] if isinstance(entries, list) else []
 
 
-def _net_height_conflicts(plan: Dict[str, Any]) -> List[dict]:
+def _floor_layout_conflicts(plan: Dict[str, Any]) -> List[dict]:
     return [issue for issue in _building_contract_entries(plan, "diagnostics")
-            if issue.get("code") == "E_NET_HEIGHT_CONFLICT"]
+            if issue.get("code") in {"E_NET_HEIGHT_CONFLICT", "E_FLOOR_ENVELOPE"}]
 
 
-def _components_outside_net_height_layout(plan: Dict[str, Any], targets: set[str]) -> List[dict]:
+def _components_outside_floor_layout(plan: Dict[str, Any], targets: set[str]) -> List[dict]:
     floor_fields = {"floor_count", "floorCount", "levels", "floor_height", "floorHeight",
                     "ground_clear_height", "groundClearHeight"}
     components = []
@@ -381,7 +381,7 @@ def _components_outside_net_height_layout(plan: Dict[str, Any], targets: set[str
     return components
 
 
-def _validate_net_height_repair_requirements(original: Dict[str, Any], revised: Dict[str, Any]) -> None:
+def _validate_floor_layout_repair_requirements(original: Dict[str, Any], revised: Dict[str, Any]) -> None:
     revised_requirements = {entry.get("id"): entry for entry in _building_contract_entries(revised, "requirements")}
     for requirement in _building_contract_entries(original, "requirements"):
         if requirement.get("status") != "planned" and not (
@@ -393,7 +393,7 @@ def _validate_net_height_repair_requirements(original: Dict[str, Any], revised: 
             current.get(field) != requirement.get(field)
             for field in ("property", "value", "scope", "target_components")
         ):
-            raise ValueError(f"Net-height repair lost building requirement: {requirement.get('id')}")
+            raise ValueError(f"Floor-layout repair lost building requirement: {requirement.get('id')}")
 
 
 def _try_validate(normalized: Dict[str, Any], user_text: str = "") -> Optional[List[str]]:
@@ -406,11 +406,11 @@ def _try_validate(normalized: Dict[str, Any], user_text: str = "") -> Optional[L
 
         assert_plan_semantics(normalized, user_text or "")
         consistency = component_consistency_errors(normalized) or []
-        net_height_errors = [
+        floor_layout_errors = [
             f"{issue['code']} at {issue['path']} ({issue['component_id']}): {issue['message']}"
-            for issue in _net_height_conflicts(normalized)
+            for issue in _floor_layout_conflicts(normalized)
         ]
-        combined = net_height_errors + list(cap_errors or []) + list(consistency)
+        combined = floor_layout_errors + list(cap_errors or []) + list(consistency)
         return combined or None
     except LlmPlanValidationError as exc:
         return list(exc.errors)
@@ -483,7 +483,7 @@ def repair_llm_plan_validation(
     preserve_open_design = (not fixed_executor_route) or model_designed
     normalized = resolve_delegated_entrances(normalize_fn(plan, req), user_text)
     normalized, _cap = apply_stage_b_capability_repair(normalized, user_text or "")
-    net_height_conflicts = _net_height_conflicts(normalized)
+    floor_layout_conflicts = _floor_layout_conflicts(normalized)
     preserve_design = bool(component_consistency_errors(normalized))
     errors = _try_validate(normalized, user_text)
     if preserve_fbd and not has_fbd_program(normalized) and normalized.get('plan_status') != 'capability_gap':
@@ -503,7 +503,7 @@ def repair_llm_plan_validation(
     ):
         from ..models.llm_plan_json_schema import call_chat_with_llm_plan_response_formats
 
-        for attempt in range(1, 2 if net_height_conflicts else 3):
+        for attempt in range(1, 2 if floor_layout_conflicts else 3):
             try:
                 if preserve_open_design:
                     rec = []
@@ -538,7 +538,7 @@ def repair_llm_plan_validation(
                     + morph_hint
                     + ("Revise only the affected body's height or storey layout. Preserve its footprint, "
                        "materials, placement, other components and explicit user requirements.\n"
-                       if net_height_conflicts else "")
+                       if floor_layout_conflicts else "")
                     + "Keep the plan anchor at the player position already provided; do not reset to (0,64,0).\n"
                     "Return a single corrected LlmPlan JSON object."
                 )
@@ -564,13 +564,13 @@ def repair_llm_plan_validation(
                 repaired_norm = resolve_delegated_entrances(normalize_fn(repaired, req), user_text)
                 preserve_design = preserve_design or bool(component_consistency_errors(repaired_norm))
                 repaired_errors = _try_validate(repaired_norm, user_text)
-                if net_height_conflicts:
+                if floor_layout_conflicts:
                     if repaired_norm.get("plan_status") == "capability_gap":
                         break
-                    targets = {issue["component_id"] for issue in net_height_conflicts}
-                    if (_components_outside_net_height_layout(repaired_norm, targets)
-                            != _components_outside_net_height_layout(normalized, targets)):
-                        raise ValueError("Net-height repair changed geometry or parameters outside the floor layout")
+                    targets = {issue["component_id"] for issue in floor_layout_conflicts}
+                    if (_components_outside_floor_layout(repaired_norm, targets)
+                            != _components_outside_floor_layout(normalized, targets)):
+                        raise ValueError("Floor-layout repair changed geometry or parameters outside the floor layout")
                     for field in (
                         "mode", "anchor", "layout", "global_constraints", "style_attributes", "style_profile",
                         "plan_program", "plan_skeleton", "patch", "target_slot_id", "allowed_area",
@@ -578,8 +578,8 @@ def repair_llm_plan_validation(
                         "plan_meta",
                     ):
                         if repaired_norm.get(field) != normalized.get(field):
-                            raise ValueError(f"Net-height repair changed plan-wide field: {field}")
-                    _validate_net_height_repair_requirements(normalized, repaired_norm)
+                            raise ValueError(f"Floor-layout repair changed plan-wide field: {field}")
+                    _validate_floor_layout_repair_requirements(normalized, repaired_norm)
                 if preserve_fbd and not has_fbd_program(repaired_norm) and repaired_norm.get('plan_status') != 'capability_gap':
                     repaired_errors = ["FBD repair must preserve procedural authority; do not replace the program with another building"]
                 if not repaired_errors:
@@ -588,7 +588,7 @@ def repair_llm_plan_validation(
                         repaired_norm, user_text=user_text, parse_ok=True, fidelity_ok=True, reason="repaired"
                     )
                     return repaired_norm
-                if not net_height_conflicts:
+                if not floor_layout_conflicts:
                     normalized, errors = repaired_norm, repaired_errors
             except (TypeError, ValueError):
                 logger.exception("LlmPlan repair round %d returned invalid data", attempt)
@@ -596,12 +596,12 @@ def repair_llm_plan_validation(
                 logger.exception("LlmPlan repair round %d failed; stopping remote repair", attempt)
                 break
 
-    if net_height_conflicts:
-        first = net_height_conflicts[0]
+    if floor_layout_conflicts:
+        first = floor_layout_conflicts[0]
         return {**normalized, "plan_status": "capability_gap", "capability_gap": {
             "code": first["code"], "message": first["message"], "path": first["path"],
             "suggestions": ["Revise the floor layout while preserving explicit user requirements."],
-            "details": {"conflicts": net_height_conflicts},
+            "details": {"conflicts": floor_layout_conflicts},
         }}
 
     # Directed re-plan from high-confidence request intent before emitting a hard gap.

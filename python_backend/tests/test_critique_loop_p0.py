@@ -83,6 +83,39 @@ class CritiqueLoopTests(unittest.TestCase):
                 else:
                     self.assertEqual("E_NET_HEIGHT_CONFLICT", result["capability_gap"]["code"])
 
+    def test_floor_envelope_repair_rejects_roof_relocation(self):
+        from app.services.building_contract import apply_building_contract
+
+        text = "设计一座原创观景厅。"
+        body = {"component_type": "MASS_MAIN", "relative_position": {"x": 0, "y": 0, "z": 0},
+                "dimensions": {"width": 12, "depth": 12, "height": 9}, "features": [],
+                "params": {"component_id": "hall", "floor_count": 2, "floor_height": 5}}
+        roof = {"component_type": "ROOF", "relative_position": {"x": 0, "y": 9, "z": 0},
+                "dimensions": {"width": 12, "depth": 12, "height": 1}, "features": [],
+                "params": {"component_id": "roof", "host_id": "hall", "roof_type": "flat"}}
+        plan = {**self.valid, "components": [body, roof]}
+        corrected = deepcopy(plan)
+        corrected["components"][0]["params"]["floor_height"] = 4
+        shifted_roof = deepcopy(corrected)
+        shifted_roof["components"][1]["relative_position"]["y"] = 10
+        opts = {**self.options, "user_text": text,
+                "normalize_fn": lambda payload, _: apply_building_contract(payload, text)}
+        for candidate, succeeds in ((corrected, True), (shifted_roof, False)):
+            with self.subTest(succeeds=succeeds):
+                self.call.reset_mock()
+                self.call.return_value = self.response(candidate)
+                result = repair.repair_llm_plan_validation(plan, self.player_req, **opts)
+                self.call.assert_called_once()
+                prompt = self.call.call_args.kwargs["messages"][-1]["content"]
+                self.assertIn("E_FLOOR_ENVELOPE at components[0] (hall)", prompt)
+                self.assertIn("requires 10 blocks; the body provides 9", prompt)
+                self.assertEqual(9, result["components"][1]["relative_position"]["y"])
+                self.assertEqual(4 if succeeds else 5, result["components"][0]["params"]["floor_height"])
+                if succeeds:
+                    self.assertNotIn("capability_gap", result)
+                else:
+                    self.assertEqual("E_FLOOR_ENVELOPE", result["capability_gap"]["code"])
+
     def test_one_round_preserves_design_before_profile_fallback(self):
         self.call.return_value = self.response(self.valid)
         self.options['building_profile'] = self.profile

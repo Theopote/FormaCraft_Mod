@@ -1,5 +1,9 @@
 # Design decision inventory
 
+The one-round floor layout critique also accepts `E_FLOOR_ENVELOPE` diagnostics (HARD_CONSTRAINT). Feedback identifies the body and required/available height. The same acceptance guard preserves roofs and other unrelated geometry.
+
+Removed the one-block floor-band datum resize and hosted roof relocation (DESIGN_OVERRIDE). The building contract reports `E_FLOOR_ENVELOPE` for the authored overflow without changing the body or roof.
+
 Roof intent enrichment uses the canonical roof material resolver before the legacy palette-role fallback (FORMAT_REPAIR). Scalar roof material takes precedence over the standard palette roof role consistently with emission.
 
 Roof palette and scalar roof material resolution preserve valid authored block-state properties (FORMAT_REPAIR). Explicit state values are parsed before descriptive material resolution. The roof executor retains authority over shape-specific geometry.

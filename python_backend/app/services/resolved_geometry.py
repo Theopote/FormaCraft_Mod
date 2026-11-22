@@ -50,7 +50,7 @@ def mass_center(component: dict) -> tuple[float, float]:
 def resolve_buildings(plan: dict) -> list[dict]:
     slots = {s.get('slot_id'): s for s in (plan.get('layout') or {}).get('slots', []) if isinstance(s, dict)}
     result = []
-    for component in plan.get('components') or []:
+    for index, component in enumerate(plan.get('components') or []):
         if component.get('component_type') != 'MASS_MAIN':
             continue
         params, dimensions = component.get('params') or {}, body_dimensions(component)
@@ -68,6 +68,8 @@ def resolve_buildings(plan: dict) -> list[dict]:
                        'floor_ys_local': [origin['y'] + n*height for n in range(fitting)],
                        'roof_y_local': origin['y'] + envelope_height-1,
                        'floor_layout_fits': count <= 0 or height <= 0 or count*height <= envelope_height,
+                       'floor_layout_path': f'components[{index}]',
+                       'required_floor_layout_height': max(0, count) * height,
                        'coordinate_stage': 'plan', 'geometry_status': 'parameters_only',
                        'multi_mass': multi_mass_geometry(component)})
     return result
