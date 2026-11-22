@@ -4,6 +4,7 @@ Used by generate_llm_plan() repair loop and golden_eval.
 """
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -304,6 +305,34 @@ def _validate_assembly_component(
 def _validate_geometry_fields(
     issues: List[AssemblyPlanIssue], comp: dict, path: str, kind: str, *, graph_component: bool = False,
 ) -> None:
+    if not graph_component and kind in {"SPLINE_SWEEP", "SPLINE_TUBE"}:
+        points = comp.get("points")
+        if not isinstance(points, list) or len(points) < 2:
+            issues.append(AssemblyPlanIssue(path + ".points", "E_SPLINE_POINTS_MIN2",
+                                           "Provide at least two ordered local points"))
+        else:
+            for index, point in enumerate(points):
+                if not isinstance(point, dict) or any(
+                    type(point.get(axis)) not in (int, float) or not -math.inf < point[axis] < math.inf
+                    for axis in ("x", "y", "z")
+                ):
+                    issues.append(AssemblyPlanIssue(f"{path}.points[{index}]", "E_SPLINE_POINT_INVALID",
+                                                   "Provide finite local x/y/z coordinates"))
+        profile = comp.get("profile")
+        if profile is not None and str(profile).strip().upper() not in {"SPHERE", "RECT", "POLYGON"}:
+            issues.append(AssemblyPlanIssue(path + ".profile", "E_SPLINE_PROFILE_VALUE",
+                                           "Use a supported SPHERE, RECT or POLYGON sweep profile"))
+    if not graph_component and kind == "TENSION_CABLE":
+        for key in ("from", "to"):
+            point = comp.get(key)
+            if not isinstance(point, dict) or any(type(point.get(axis)) is not int for axis in ("x", "y", "z")):
+                issues.append(AssemblyPlanIssue(f"{path}.{key}", f"E_CABLE_{key.upper()}_INVALID",
+                                               "Provide an integer local x/y/z cable anchor"))
+        sag_key = "sag" if comp.get("sag") is not None else "droop"
+        sag = comp.get(sag_key)
+        if sag is not None and (type(sag) is not int or sag < 1):
+            issues.append(AssemblyPlanIssue(f"{path}.{sag_key}", "E_CABLE_SAG_INVALID",
+                                           "Use positive integer sag, or CONNECTOR_LINE for a straight member"))
     if kind == "BEZIER_SURFACE" and not graph_component:
         points = comp.get("points")
         if isinstance(points, list) and len(points) == 4 and all(

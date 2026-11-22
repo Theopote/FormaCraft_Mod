@@ -104,6 +104,25 @@ class AssemblyShellOpsTest {
     }
 
     @Test
+    void aSweepAndCableUseModelAuthoredPathsAndSharedAnchors() {
+        var start = Map.of("x", 0, "y", 4, "z", 0);
+        var end = Map.of("x", 8, "y", 4, "z", 0);
+        var sweep = Map.of("op", "SPLINE_SWEEP", "points", List.of(start, Map.of("x", 4, "y", 7, "z", 0), end),
+                "profile", "SPHERE", "r", 1, "material", "minecraft:white_concrete");
+        var cable = Map.of("op", "TENSION_CABLE", "from", start, "to", end, "sag", 2,
+                "material", "minecraft:iron_bars");
+        var payload = Map.of("ops", List.of(sweep, cable));
+        assertTrue(AssemblySpecValidator.validate(payload).stream()
+                .noneMatch(issue -> issue.severity() == AssemblyValidationIssue.Severity.ERROR));
+        var context = new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null);
+        var blocks = snapshot(new MetaAssemblyEngine().executeGeometry(AssemblySpec.fromExtra(payload), context));
+        assertEquals(Blocks.WHITE_CONCRETE.getDefaultState(), blocks.get(new BlockPos(4, 7, 0)));
+        assertEquals(Blocks.IRON_BARS.getDefaultState(), blocks.get(new BlockPos(4, 2, 0)));
+        assertEquals(Blocks.IRON_BARS.getDefaultState(), blocks.get(new BlockPos(0, 4, 0)));
+        assertEquals(Blocks.IRON_BARS.getDefaultState(), blocks.get(new BlockPos(8, 4, 0)));
+    }
+
+    @Test
     void bezierPatchesWithSharedControlsProduceMatchingCurvedEdges() {
         var context = new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null);
         var engine = new MetaAssemblyEngine();

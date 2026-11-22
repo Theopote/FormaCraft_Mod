@@ -119,7 +119,9 @@ def _surface_repair_scope(plan: Dict[str, Any], issues: List[AssemblyPlanIssue])
             return set()
         component_index, op_index = map(int, match.groups())
         op = plan["components"][component_index]["params"]["assembly"]["ops"][op_index]
-        if str(op.get("op", "")).upper() not in {"BEZIER_SURFACE", "REVOLVE_SURFACE", "LOFT_SURFACE"}:
+        if str(op.get("op", "")).upper() not in {
+            "BEZIER_SURFACE", "REVOLVE_SURFACE", "LOFT_SURFACE", "SPLINE_SWEEP", "SPLINE_TUBE", "TENSION_CABLE",
+        }:
             return set()
         scope.add((component_index, op_index))
     return scope
@@ -168,7 +170,7 @@ def repair_assembly_plan_with_llm(
     repair_user = format_repair_prompt(plan, issues)
     surface_scope = _surface_repair_scope(plan, issues)
     if surface_scope:
-        repair_user += "\nOnly edit the surface operations at the listed paths. Preserve all other operations, positions and components."
+        repair_user += "\nOnly edit the geometry operations at the listed paths. Preserve all other operations, positions and components."
     repair_messages = list(messages)
     repair_messages.append({"role": "assistant", "content": json.dumps(plan, ensure_ascii=False)})
     repair_messages.append({"role": "user", "content": repair_user})

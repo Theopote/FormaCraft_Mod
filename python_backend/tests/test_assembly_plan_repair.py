@@ -14,6 +14,23 @@ from app.services.assembly_plan_validator import AssemblyPlanIssue, validate_ass
 
 
 class AssemblyPlanRepairTest(unittest.TestCase):
+    def test_sweep_and_cable_keep_geometry_and_diagnose_bad_inputs(self):
+        start, end = {"x": 0, "y": 4, "z": 0}, {"x": 8, "y": 4, "z": 0}
+        sweep = {"op": "SPLINE_SWEEP", "points": [start, {"x": 4, "y": 7, "z": 0}, end],
+                 "profile": "SPHERE", "r": 1}
+        cable = {"op": "TENSION_CABLE", "from": start, "to": end, "sag": 2}
+        plan = {"components": [{"component_type": "ASSEMBLY",
+                                "params": {"assembly": {"ops": [sweep, cable]}}}]}
+        before = deepcopy(plan)
+        self.assertEqual([], validate_assembly_plan(plan))
+        self.assertEqual(before, plan)
+        sweep["points"][1] = {"x": 4, "y": 7}
+        cable["sag"] = 0
+        issues = validate_assembly_plan(plan)
+        self.assertEqual(["E_SPLINE_POINT_INVALID", "E_CABLE_SAG_INVALID"], [issue.code for issue in issues])
+        self.assertTrue(issues[0].path.endswith("ops[0].points[1]"))
+        self.assertTrue(issues[1].path.endswith("ops[1].sag"))
+
     def test_bezier_control_grid_is_preserved_and_incomplete_grid_reports_path(self):
         grid = [[{"x": x, "y": 8 if z in (3, 6) else 0, "z": z}
                  for z in (0, 3, 6, 9)] for x in (0, 3, 6, 9)]

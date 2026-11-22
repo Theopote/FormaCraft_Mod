@@ -69,6 +69,13 @@ Core rules:
   interior controls shape the curvature. To join patches, share the same four control
   points along their common edge and use matching edge sample counts.
   Optional uSamples/vSamples are integers 2..512, thickness is 1..9, and material sets the surface block.
+- Use ASSEMBLY ops SPLINE_SWEEP to follow a curved path through two or more ordered local
+  points [{x,y,z}, ...]. For a rounded sweep use profile="SPHERE", r (integer 1..24)
+  and material. Use connectSamples=true if adjacent samples need joining.
+- Use TENSION_CABLE for a sagging span between local integer from/to {x,y,z} anchors.
+  sag is a positive number of blocks below the straight line at midspan; thickness is an
+  integer 1..5. For a straight diagonal member use CONNECTOR_LINE rather than sag=0.
+  Place supports and the deck separately and align cable ends with the intended anchors.
 - For an Assembly STAIR_SYSTEM, choose a floor block. Omit stairs to use the matching
   registered stair family when available, or specify stairs for an intentional material or state.
 - A component name or feature label does not emit geometry. For simple linear details such as
