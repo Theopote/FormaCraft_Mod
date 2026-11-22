@@ -27,6 +27,15 @@ import java.util.UUID;
 public final class FormaCraftServerNetworking {
     private FormaCraftServerNetworking() {}
 
+    /** Same dedicated-server OP gate as chat builds; sends a client error and returns true when denied. */
+    private static boolean denyUnauthorizedBuild(ServerPlayerEntity player, net.minecraft.server.MinecraftServer server) {
+        BuildRequestGate.Rejection denied = BuildRequestGate.checkPermission(player, server);
+        if (denied == null) return false;
+        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                denied.message().getString()));
+        return true;
+    }
+
     public static void registerC2S() {
         FormaCraftNetworking.registerPayloadTypesC2S();
         // 服务端也需要注册 S2C payload types（用于编码回包）。否则可能出现“服务端处理了但发不出包”，客户端只能超时。
@@ -66,6 +75,7 @@ public final class FormaCraftServerNetworking {
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PatchUndoPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
+            if (denyUnauthorizedBuild(player, context.server())) return;
             if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
                 var result = com.formacraft.server.build.MutationHistoryFacade.undo(player);
                 sendPatchHistoryResult(player, "undo", result);
@@ -74,6 +84,7 @@ public final class FormaCraftServerNetworking {
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PatchRedoPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
+            if (denyUnauthorizedBuild(player, context.server())) return;
             if (player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw) {
                 var result = com.formacraft.server.build.MutationHistoryFacade.redo(player);
                 sendPatchHistoryResult(player, "redo", result);
@@ -83,6 +94,7 @@ public final class FormaCraftServerNetworking {
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PatchConfirmPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
+            if (denyUnauthorizedBuild(player, context.server())) return;
             com.formacraft.server.patch.PatchPreviewService.confirm(
                     player, payload.previewTicketId(), payload.force());
         }));
@@ -102,6 +114,7 @@ public final class FormaCraftServerNetworking {
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.RequestPatchPreviewPayload.ID, (payload, context) -> CommunityPlacementHandler.dispatch(payload,context,() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
+            if (denyUnauthorizedBuild(player, context.server())) return;
             CommunityPlacementHandler.invalidate(context.server(),player.getUuid());
             if (!(player.getEntityWorld() instanceof net.minecraft.server.world.ServerWorld sw)) return;
 

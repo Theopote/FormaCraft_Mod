@@ -111,6 +111,13 @@ public final class PatchPreviewService {
         if (!(player.getEntityWorld() instanceof ServerWorld sw)) {
             return null;
         }
+        // Defense-in-depth: C2S handlers must check too; keep world-write paths gated here.
+        var denied = com.formacraft.server.network.BuildRequestGate.checkPermission(player, sw.getServer());
+        if (denied != null) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    denied.message().getString()));
+            return null;
+        }
 
         // Contract: compile → filter → normalize → freeze/merge → quality → issue ticket.
         // Quality report, ticket patches, client preview, and Apply share the same final set.
@@ -256,6 +263,12 @@ public final class PatchPreviewService {
     public static boolean confirm(ServerPlayerEntity player, UUID ticketId, boolean force) {
         if (player == null || ticketId == null) return false;
         if (!(player.getEntityWorld() instanceof ServerWorld sw)) return false;
+        var denied = com.formacraft.server.network.BuildRequestGate.checkPermission(player, sw.getServer());
+        if (denied != null) {
+            ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                    denied.message().getString()));
+            return false;
+        }
 
         PreviewTicket pending = PreviewTicketStorage.get(ticketId);
         if (pending == null || !player.getUuid().equals(pending.playerId())) {

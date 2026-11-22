@@ -143,14 +143,25 @@ public final class BuildRequestGate {
         }
     }
 
-    public static AdmitResult tryAdmit(ServerPlayerEntity player, MinecraftServer server) {
+    /**
+     * Shared OP/permission gate for build, patch preview/confirm, and undo/redo.
+     * @return rejection when unauthorized; {@code null} when allowed
+     */
+    public static Rejection checkPermission(ServerPlayerEntity player, MinecraftServer server) {
         if (player == null || server == null) {
-            return AdmitResult.reject(new Rejection(Text.translatable("formacraft.build.error.internal")));
+            return new Rejection(Text.translatable("formacraft.build.error.internal"));
         }
-
         int required = ServerLlmConfig.requireBuildPermissionLevel(server.isDedicated());
         if (required > 0 && !player.hasPermissionLevel(required)) {
-            return AdmitResult.reject(new Rejection(Text.translatable("formacraft.build.error.permission", required)));
+            return new Rejection(Text.translatable("formacraft.build.error.permission", required));
+        }
+        return null;
+    }
+
+    public static AdmitResult tryAdmit(ServerPlayerEntity player, MinecraftServer server) {
+        Rejection denied = checkPermission(player, server);
+        if (denied != null) {
+            return AdmitResult.reject(denied);
         }
 
         UUID id = player.getUuid();
