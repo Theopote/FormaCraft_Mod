@@ -3,6 +3,7 @@ from unittest.mock import Mock
 import pytest
 
 from app.models.request import BuildRequest
+from app.models.building_profile import BuildingProfile
 from app.services import ai_planner, building_research_agent as research
 
 
@@ -40,3 +41,29 @@ def test_planner_uses_current_agent_setting_without_legacy_snapshot(monkeypatch,
     with pytest.raises(ResearchStageComplete):
         ai_planner.generate_llm_plan(req)
     assert profile_call.call_count == expected_calls
+
+
+@pytest.mark.parametrize("visual_ready", [False, True])
+def test_attached_image_requests_vision_even_when_web_research_is_off(monkeypatch, visual_ready):
+    url = "https://example.com/reference.png"
+    monkeypatch.setenv("BUILDING_RESEARCH", "off")
+    monkeypatch.setattr(ai_planner, "get_client", lambda req: object())
+    monkeypatch.setattr(ai_planner, "_call_with_timeout", lambda call, timeout: call())
+    sources = [{"title": "vision", "url": url}] if visual_ready else []
+    profile_call = Mock(return_value=BuildingProfile(sources=sources))
+    monkeypatch.setattr(research, "research_building_profile", profile_call)
+
+    def stop_after_research(*args):
+        raise ResearchStageComplete()
+
+    monkeypatch.setattr(research, "ensure_building_profile_for_plan", stop_after_research)
+    req = BuildRequest(player={"name": "test", "pos": {"x": 0, "y": 64, "z": 0}, "facing": "SOUTH"},
+                       world={"dimension": "minecraft:overworld"}, requestText="Build an original hall",
+                       references=[{"type": "image_url", "content": url}])
+    if visual_ready:
+        with pytest.raises(ResearchStageComplete):
+            ai_planner.generate_llm_plan(req)
+    else:
+        plan = ai_planner.generate_llm_plan(req)
+        assert plan["capability_gap"]["code"] == "E_REFERENCE_IMAGE_UNAVAILABLE"
+    profile_call.assert_called_once()

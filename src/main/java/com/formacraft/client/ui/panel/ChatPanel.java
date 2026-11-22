@@ -186,7 +186,7 @@ public class ChatPanel extends BasePanel {
 
         int btnX = innerX + innerW - SEND_BUTTON_SIZE - 1;
         int btnY = inputY + inputAreaHeight - SEND_BUTTON_SIZE - 1;
-        int stopY = btnY - STOP_BUTTON_SIZE - 1;
+        int stopY = btnY - SEND_BUTTON_SIZE - STOP_BUTTON_SIZE - 2;
 
         int inputBoxX = innerX + 1;
         int inputBoxY = inputY + 1 + selectionHintHeight;
@@ -215,6 +215,8 @@ public class ChatPanel extends BasePanel {
     // 原版风格按钮（与 SettingsPanel 保持一致：ButtonWidget 渲染）
     private ButtonWidget sendButton;
     private ButtonWidget stopButton;
+    private ButtonWidget referenceButton;
+    private String referenceImageUrl;
 
     // Prompt 模式：默认 BUILD（不再显示按钮，直接使用默认模式）
     private PromptMode promptMode = PromptMode.BUILD;
@@ -248,6 +250,36 @@ public class ChatPanel extends BasePanel {
                 .dimensions(0, 0, STOP_BUTTON_SIZE, STOP_BUTTON_SIZE)
                 .tooltip(Tooltip.of(Text.translatable("formacraft.chat.stop.tooltip")))
                 .build();
+        referenceButton = ButtonWidget.builder(Text.literal("+"), b -> toggleReferenceImage())
+                .dimensions(0, 0, SEND_BUTTON_SIZE, SEND_BUTTON_SIZE)
+                .build();
+    }
+
+    private void toggleReferenceImage() {
+        if (referenceImageUrl != null) {
+            referenceImageUrl = null;
+            return;
+        }
+        String value = client.keyboard.getClipboard().strip();
+        if (isReferenceImageUrl(value)) {
+            referenceImageUrl = value;
+        } else {
+            messages.add(ChatMessage.error(Text.translatable("formacraft.chat.reference.invalid").getString()));
+            scrollOffset = 0;
+        }
+    }
+
+    private static boolean isReferenceImageUrl(String value) {
+        if (value.length() > com.formacraft.common.model.request.FormaRequestCompactor.MAX_REFERENCE_CONTENT_CHARS) {
+            return false;
+        }
+        try {
+            var uri = java.net.URI.create(value);
+            return ("https".equalsIgnoreCase(uri.getScheme()) || "http".equalsIgnoreCase(uri.getScheme()))
+                    && uri.getHost() != null && uri.getUserInfo() == null;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     private double getScaledMouseX() {
@@ -577,6 +609,9 @@ public class ChatPanel extends BasePanel {
         sendButton.visible = true;
         sendButton.active = true;
         sendButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
+        referenceButton.setPosition(bounds.btnX(), bounds.btnY() - SEND_BUTTON_SIZE - 1);
+        referenceButton.setMessage(Text.literal(referenceImageUrl == null ? "+" : "×"));
+        referenceButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
 
         stopButton.setPosition(bounds.btnX(), bounds.stopY());
         stopButton.visible = generating;
@@ -617,7 +652,8 @@ public class ChatPanel extends BasePanel {
 
         // 与 MultilineTextInput.render 一致：maxLinesVisible = (height - 8) / lineHeight
         int inputBoxH = CHAT_INPUT_BOX_VERTICAL_PAD + visible * lineHeight;
-        return inputBoxH + 2 + selectionHintHeight;
+        int buttonsHeight = SEND_BUTTON_SIZE * 2 + STOP_BUTTON_SIZE + 4;
+        return Math.max(buttonsHeight, inputBoxH + 2 + selectionHintHeight);
     }
     
     /**
@@ -627,6 +663,11 @@ public class ChatPanel extends BasePanel {
     protected boolean drawCustomTooltip(DrawContext ctx, double mouseX, double mouseY) {
         initWidgets();
 
+        if (referenceButton.isMouseOver(mouseX, mouseY)) {
+            String key = referenceImageUrl == null ? "formacraft.chat.reference.add" : "formacraft.chat.reference.remove";
+            drawTooltipCompat(ctx, List.of(Text.translatable(key)), (int) mouseX, (int) mouseY);
+            return true;
+        }
         if (sendButton != null && sendButton.visible && sendButton.isMouseOver(mouseX, mouseY)) {
             drawTooltipCompat(ctx,
                         java.util.Collections.singletonList(Text.translatable("formacraft.chat.send.tooltip")),
@@ -664,6 +705,11 @@ public class ChatPanel extends BasePanel {
         boolean generating = currentPrinter != null;
 
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
+        referenceButton.setPosition(bounds.btnX(), bounds.btnY() - SEND_BUTTON_SIZE - 1);
+        if (HudClickSupport.click(referenceButton, click)) {
+            blurInput();
+            return true;
+        }
         stopButton.setPosition(bounds.btnX(), bounds.stopY());
         stopButton.visible = generating;
         stopButton.active = generating;
@@ -962,6 +1008,15 @@ public class ChatPanel extends BasePanel {
 
         FormaRequest req = com.formacraft.client.ui.panel.chat.ChatBuildRequestFactory.fromChat(
                 text, effectiveMode, sessionId, history);
+        if (referenceImageUrl != null) {
+            var references = new ArrayList<com.formacraft.common.model.request.ReferenceInput>();
+            references.add(new com.formacraft.common.model.request.ReferenceInput(
+                    "image_url", referenceImageUrl, null));
+            for (var reference : req.getReferences()) {
+                if (!referenceImageUrl.equals(reference.getContent())) references.add(reference);
+            }
+            req.setReferences(references);
+        }
         BlockPos origin = req.getPlayerPos();
 
         // 记录 origin，确保 confirm 时与预览一致
@@ -978,6 +1033,7 @@ public class ChatPanel extends BasePanel {
         scrollOffset = 0;
 
         FormaCraftClientNetworking.sendBuildRequest(req);
+        referenceImageUrl = null;
 
         // 本地等待计时：第 1 秒即开始跳动，不依赖服务端心跳
         startElapsedTicker(pendingRequestToken);

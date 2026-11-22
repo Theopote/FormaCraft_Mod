@@ -22,7 +22,7 @@ public final class FormaRequestCompactor {
 
     private static final int MAX_CHAT_MESSAGES = 8;
     private static final int MAX_CHAT_LINE_CHARS = 400;
-    private static final int MAX_REFERENCE_CONTENT_CHARS = 512;
+    public static final int MAX_REFERENCE_CONTENT_CHARS = 512;
 
     private FormaRequestCompactor() {}
 

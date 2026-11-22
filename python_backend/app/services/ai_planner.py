@@ -527,6 +527,10 @@ def generate_llm_plan(req: BuildRequest) -> dict:
     search_ms = 0.0
     building_profile = None
     research_user_text = _research_user_text(req, user_prompt)
+    image_reference = next(
+        (ref for ref in (req.references or []) if ref.type.strip().lower() == "image_url"),
+        None,
+    )
 
     if research_user_text:
         _t_search = time.monotonic()
@@ -542,7 +546,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
                 apply_research_landmark_override,
             )
 
-            if research_user_text and is_building_research_enabled():
+            if research_user_text and (image_reference is not None or is_building_research_enabled()):
                 building_profile = _call_with_timeout(
                     lambda: research_building_profile(
                         research_user_text,
@@ -561,6 +565,20 @@ def generate_llm_plan(req: BuildRequest) -> dict:
         except Exception as e:
             logger.warning("Failed building research: %s", e)
         search_ms = (time.monotonic() - _t_search) * 1000.0
+
+    if image_reference is not None and not (
+        building_profile is not None and any(
+            source.title == "vision" and source.url == image_reference.normalized_image_url()
+            for source in building_profile.sources
+        )
+    ):
+        return {
+            "mode": "build", "anchor": req.player.pos.model_dump(), "plan_status": "capability_gap",
+            "capability_gap": {
+                "code": "E_REFERENCE_IMAGE_UNAVAILABLE", "path": "references",
+                "message": "无法分析参考图片。请检查图片链接和视觉模型，或移除参考图后仅使用文字重试。",
+            },
+        }
 
     try:
         from .building_research_agent import ensure_building_profile_for_plan

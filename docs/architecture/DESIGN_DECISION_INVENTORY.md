@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Chat image URL attachments use existing build references. An unreadable image produces `E_REFERENCE_IMAGE_UNAVAILABLE` before text-only planning (HARD_CONSTRAINT). Successful visual observations remain advisory (NONBINDING_HINT).
+
 Raw sweep and tension cable ops report out-of-range authored values for fields clamped by the executor (HARD_CONSTRAINT). Omitted values retain executor defaults, and matching alias precedence preserves valid parameters.
 
 Ordinary LlmPlan exposes existing spline sweep and tension cable geometry (NONBINDING_HINT). Python diagnoses malformed raw path points, cable anchors and sag without rewriting valid parameters (HARD_CONSTRAINT). These operations share bounded in-place Assembly repair.
