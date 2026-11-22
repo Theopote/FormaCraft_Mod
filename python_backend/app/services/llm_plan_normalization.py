@@ -1031,8 +1031,13 @@ def _normalize_llm_plan_output(
 ) -> Dict[str, Any]:
     if not isinstance(raw, dict):
         return raw
-    from .landmark_design_policy import reject_fixed_landmark_plan
+    from .building_research_agent import resolve_landmark_module_for_intent
+    from .landmark_design_policy import reject_fixed_landmark_plan, reject_unrequested_fixed_routes
     rejected = reject_fixed_landmark_plan(raw, building_profile)
+    if rejected is not None:
+        return rejected
+    user_message = getattr(req, "userMessage", None) or ""
+    rejected = reject_unrequested_fixed_routes(raw, user_message)
     if rejected is not None:
         return rejected
     from .fbd_capabilities import is_fbd_only_plan
@@ -1204,7 +1209,8 @@ def _normalize_llm_plan_output(
                     }
             filtered_components.append(comp)
         plan["components"] = filtered_components
-        _sanitize_landmark_modules(plan, req, building_profile)
+        if resolve_landmark_module_for_intent(user_message):
+            _sanitize_landmark_modules(plan, req)
 
     gc = plan.get("global_constraints")
     if isinstance(gc, dict):

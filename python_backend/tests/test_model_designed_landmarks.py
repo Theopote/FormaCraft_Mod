@@ -290,6 +290,34 @@ def test_normalization_preserves_different_model_massing():
         assert mass["dimensions"]["width"] == width
 
 
+@pytest.mark.parametrize("user_message", [
+    "设计原创圆厅",
+    "设计原创圆厅，不要使用 preset:temple_of_heaven",
+    "preset:eiffel_tower",
+])
+def test_unrequested_landmark_module_cannot_be_converted(user_message):
+    from types import SimpleNamespace
+    from app.services.llm_plan_normalization import _normalize_llm_plan_output
+
+    body = {"component_type": "MASS_MAIN", "relative_position": {"x": 0, "y": 0, "z": 0},
+            "dimensions": {"width": 12, "depth": 8, "height": 10}, "params": {"component_id": "body"}}
+    fixed = {"component_type": "MODULE", "features": ["landmark:temple_of_heaven"]}
+    req = SimpleNamespace(userMessage=user_message, requestText="preset:temple_of_heaven")
+    result = _normalize_llm_plan_output({"mode": "build", "components": [body, fixed]}, req)
+    assert result["capability_gap"]["code"] == "FIXED_LANDMARK_PRESET_DISALLOWED"
+    assert result["capability_gap"]["path"] == "components[1]"
+    assert result["components"] == [body]
+
+
+def test_matching_explicit_preset_can_use_landmark_module():
+    from app.services.landmark_design_policy import reject_unrequested_fixed_routes
+
+    plan = {"components": [{"component_type": "MODULE", "features": ["landmark:eiffel_tower"]}]}
+    assert reject_unrequested_fixed_routes(plan, "preset:eiffel_tower") is None
+    assert reject_unrequested_fixed_routes(plan, "设计原创塔楼") is not None
+    assert reject_unrequested_fixed_routes(plan, "不要使用 preset:eiffel_tower") is not None
+
+
 def test_normalization_rejects_fixed_plan_before_typology_replacement():
     from app.services.llm_plan_normalization import _normalize_llm_plan_output
 

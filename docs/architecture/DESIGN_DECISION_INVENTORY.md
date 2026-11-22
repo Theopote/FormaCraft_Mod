@@ -1,5 +1,7 @@
 # Design decision inventory
 
+The ordinary LlmPlan normalization entrypoint checks fixed landmark modules and registered native STRUCTURE typologies against the current human message before migration (HARD_CONSTRAINT). Unauthorized routes become a capability gap. Explicit landmark presets retain compatibility conversion.
+
 Legacy context routing accepts only an exact preset ID from the current user message (HARD_CONSTRAINT). Research routing is expressed by the planning contract without duplicating a profile-derived authoritative block.
 
 Stage P routing summaries and capability exposure require current user opt-in before advertising fixed executors (HARD_CONSTRAINT). Unbound research types remain available as composition evidence.
