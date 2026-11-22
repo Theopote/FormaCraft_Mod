@@ -286,15 +286,8 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
                  "(world SOUTH -> NORTH, NORTH -> SOUTH, EAST -> WEST, WEST -> EAST), not to value.")
     parts.append("Give every component a unique params.component_id. MASS_MAIN owns its building. "
                  "For attached roofs, facades and interior stairs, params.host_id must reference that MASS_MAIN's "
-                 "component_id; slot_id is a coordinate frame, not identity. Write slot_id at the component top level, never only inside params. "
-                 "Use shape='rectangle' and plan_type='none' for rectangular shells, including closed Gothic shells. "
-                 "All attached components share their host slot_id. relative_position is LOCAL to that slot; "
-                 "never repeat layout.slots[].anchor in component coordinates. "
-                 "For a building centered at slot anchor (-15,0,0), its center-anchored MASS_MAIN uses local (0,0,0). "
-                 "Residential MASS_MAIN must be hollow with usable rooms; void_ratio describes facade openness, not solid room fill. "
-                 "Prefer floor_height=4 for housing without explicit height constraints, with height >= floor_count * floor_height. "
-                 "Use one-block floor plates at the host's floor_height multiples, normal residential walls one block thick "
-                 "unless the user asks otherwise, and physically attach chimney/eave details to the host roof or walls. "
+                 "component_id. Attached components share their host's top-level slot_id. "
+                 "Attach supported details to their intended surfaces. "
                  "Do not guess a single host for bridges.")
     user_text = (req.userMessage or "") if req is not None else ""
     if any(token in user_text.lower() for token in ("楼梯", "stair")):
@@ -304,9 +297,7 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
             "For linked buildings prefer separate MASS_MAIN shells, plate floors and a plate bridge. "
             "Every STAIR_SYSTEM operation requires direct from/to endpoint objects; flights[] is not supported. "
             "SHELL_BOX requires h>=6 and cannot represent a one-block bridge deck; use a plate component. "
-            "Respect requested width/depth/floor count/floor height; relative_position.y is the bottom block Y, "
-            "not the vertical center. Use unique slot_id values for separate buildings and their satellites. "
-            "Use explicit anchor_mode='min_corner' consistently for placed shells, roofs and floors. "
+            "Respect requested width, depth, floor count and floor height. "
             "Do not place a column/railing component_request on MASS_MAIN or ROOF: use separate DECOR_DETAIL. "
             "Keep walls continuous except deliberate doors/windows; do not carve an entire perimeter band. "
             "Preserve roof form and roof omissions specified in the request. "

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..models.request import BuildRequest
-from .assembly_schema_loader import compatibility_rules, known_preset_ids, load_assembly_schema
+from .assembly_schema_loader import load_assembly_schema
 
 
 _CORE = """You are Formacraft Core, a Minecraft architectural planning engine.
@@ -14,9 +14,12 @@ You ONLY output structured JSON following the LlmPlan schema.
 
 Core rules:
 - Coordinate system: X/Z = horizontal plane, Y = vertical height.
-- All positions are relative to the provided anchor (0,0,0).
-- MASS_* defaults to footprint center unless params.anchor_mode="min_corner".
-- Facade/entrance/roof/paving use the minimum corner of the component box.
+- For build components, relative_position is local to the top-level slot_id's anchor.
+  Slot anchors are offsets from the plan anchor; do not include that offset again in
+  relative_position. Without a slot, positions are relative to the plan anchor.
+- For building shells, Y is the bottom block. MASS_* defaults to footprint center
+  in X/Z unless params.anchor_mode="min_corner". Facade/entrance/roof/paving use the
+  minimum corner of the component box.
 - Use semantic components (MASS_MAIN, ROOF, ENTRANCE, FACADE_WINDOWS, ASSEMBLY, MODULE, STRUCTURE, …), NOT blocks.
 - Building TYPE decides composition — never force every request into a house kit.
   The bullets below are NON-BINDING EXAMPLES of composition strategies (constraint illustrations),
@@ -98,37 +101,17 @@ not a default for every building class.
 """
 
 
-def _assembly_catalog_block() -> str:
-    """Compact MetaAssembly catalog so the model sees presets/types without the Java client prompt pack."""
+def _assembly_geometry_index() -> str:
+    """List executable Assembly types without repeating their detailed schemas."""
     schema = load_assembly_schema()
-    presets = sorted(known_preset_ids())
-    comps = schema.get("components") or []
-    lines: list[str] = [
-        "ASSEMBLY COMPONENT LIBRARY (use when freeform/ASSEMBLY is required):",
-        f"- presets: {', '.join(presets) if presets else '(none)'}",
-    ]
-    shown = 0
-    for item in comps:
-        if not isinstance(item, dict):
-            continue
-        ctype = str(item.get("type") or "").strip()
-        if not ctype:
-            continue
-        req = item.get("requiredParams") or []
-        ports = item.get("ports") or []
-        req_s = ",".join(str(x) for x in req[:8]) if isinstance(req, list) else ""
-        port_s = ",".join(str(x) for x in ports[:10]) if isinstance(ports, list) else ""
-        lines.append(f"- {ctype}: required=[{req_s}] ports=[{port_s}]")
-        shown += 1
-        if shown >= 24:
-            lines.append(f"- ... (+{max(0, len(comps) - shown)} more component types in schema)")
-            break
-    rules = compatibility_rules()
-    if rules:
-        lines.append("Compatibility notes:")
-        for rule in rules[:8]:
-            lines.append(f"- {rule}")
-    return "\n".join(lines)
+    types = [item["type"] for item in schema.get("components") or []
+             if isinstance(item, dict) and item.get("type")]
+    if not types:
+        return ""
+    return (
+        "ASSEMBLY GEOMETRY INDEX: " + ", ".join(types)
+        + '\nUse either assembly.ops or assembly.graph. Graph connections use "ComponentId.port" endpoints.'
+    )
 
 
 def build_llm_plan_system_prompt(req: BuildRequest | None = None) -> str:
@@ -140,4 +123,4 @@ def build_llm_plan_system_prompt(req: BuildRequest | None = None) -> str:
         extra = "\nMode PATCH: output an incremental patch plan only; do not rebuild the whole building.\n"
     elif mode == "MODIFY_REGION":
         extra = "\nMode MODIFY_REGION: only modify the selected region; leave everything else unchanged.\n"
-    return _CORE + extra + "\n" + _SCHEMA_HINT.strip() + "\n\n" + _assembly_catalog_block() + "\n"
+    return _CORE + extra + "\n" + _SCHEMA_HINT.strip() + "\n\n" + _assembly_geometry_index() + "\n"

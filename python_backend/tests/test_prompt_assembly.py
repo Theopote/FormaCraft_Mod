@@ -39,9 +39,7 @@ def test_user_message_with_marker_not_truncated():
     assert "truncated" not in user
     assert marker_text in user
     assert "Formacraft Core" in system
-    assert "ASSEMBLY COMPONENT LIBRARY" in system
-    assert "LlmPlan JSON shape" in system
-    assert "ASSEMBLY COMPONENT LIBRARY" in system
+    assert "ASSEMBLY GEOMETRY INDEX" in system
     assert "LlmPlan JSON shape" in system
 
 
@@ -54,6 +52,38 @@ def test_client_system_and_user_prompt_ignored():
     assert "INJECTED_SYS" not in system
     assert "INJECTED_USR" not in user
     assert "real intent" in user
+
+
+def test_ordinary_geometry_prompt_preserves_contracts_without_residential_defaults(monkeypatch):
+    from app.services import ai_planner
+
+    monkeypatch.setattr(ai_planner, "_LLMPLAN_INJECT_CULTURE_RAG", False)
+    req = _req(userMessage="设计一座逆光悬庭，不要屋顶")
+    system = build_llm_plan_system_prompt(req)
+    context = ai_planner._llm_plan_context_block(req)
+    for token in ("BEZIER_SURFACE", "REVOLVE_SURFACE", "LOFT_SURFACE", "min_corner", "ComponentId.port"):
+        assert token in system
+    assert "ports=[" not in system
+    assert "- presets:" not in system
+    assert "params.host_id" in context
+    assert "roof_type='none'" in context
+    assert "floor_height=4" not in context
+    assert "normal residential walls" not in context
+
+
+def test_stair_guidance_preserves_build_component_coordinate_conventions(monkeypatch):
+    from app.services import ai_planner
+
+    monkeypatch.setattr(ai_planner, "_LLMPLAN_INJECT_CULTURE_RAG", False)
+    req = _req(userMessage="设计两栋带楼梯并用空中连廊相连的建筑")
+    system = build_llm_plan_system_prompt(req)
+    context = ai_planner._llm_plan_context_block(req)
+    assert "Slot anchors are offsets from the plan anchor" in system
+    assert "Without a slot, positions are relative to the plan anchor" in system
+    assert "defaults to footprint center" in system
+    assert "Endpoints are local to relative_position" in context
+    assert "share their host's top-level slot_id" in context
+    assert "anchor_mode='min_corner'" not in context
 
 
 def test_spatial_constraints_appended_to_user_prompt():

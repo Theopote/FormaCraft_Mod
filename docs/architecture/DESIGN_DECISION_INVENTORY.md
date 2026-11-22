@@ -1,5 +1,9 @@
 # Design decision inventory
 
+The default prompt centralizes slot-relative coordinates and component anchor conventions (GEOMETRY). Stair guidance describes flight-local endpoints without imposing a common anchor mode on shells, roofs or floor plates.
+
+The default planning prompt replaces its expanded Assembly catalog with an index of executable types (NONBINDING_HINT). Raw geometry contracts and graph endpoint syntax remain visible. Shared request context no longer proposes residential wall thickness, storey height or rectangular styling for every request.
+
 When Assembly diagnostics identify only raw Bézier, revolve or loft op parameters, repair candidates may edit those ops in place (HARD_CONSTRAINT). Other operations and component geometry must match the prior plan. An out-of-scope candidate retains the original diagnostics.
 
 Ordinary LlmPlan exposes the existing BEZIER_SURFACE input contract and shared-edge guidance (NONBINDING_HINT). Raw Assembly ops validate the control grid and sampling parameters without rewriting them (HARD_CONSTRAINT). Patch placement, curvature and material remain model-authored.
