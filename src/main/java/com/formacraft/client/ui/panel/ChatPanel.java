@@ -984,7 +984,21 @@ public class ChatPanel extends BasePanel {
 
         // C2S sends raw user text + structured constraints. System prompt is assembled
         // by the Python orchestrator (avoids client injection and "USER REQUEST:" truncation).
-        if (text.isEmpty()) return;
+        List<String> history = getStrings();
+
+        FormaRequest req = com.formacraft.client.ui.panel.chat.ChatBuildRequestFactory.fromChat(
+                text, effectiveMode, sessionId, history);
+        if (referenceImageUrl != null) {
+            var references = new ArrayList<com.formacraft.common.model.request.ReferenceInput>();
+            references.add(new com.formacraft.common.model.request.ReferenceInput(
+                    "image_url", referenceImageUrl, null));
+            for (var reference : req.getReferences()) {
+                if (!referenceImageUrl.equals(reference.getContent())) references.add(reference);
+            }
+            req.setReferences(references);
+        }
+        if (!FormaCraftClientNetworking.sendBuildRequest(req)) return;
+        referenceImageUrl = null;
 
         // 追加玩家消息（显示原始输入，避免聊天内容被“系统拼接”污染）
         messages.add(new ChatMessage(text, true));
@@ -1003,20 +1017,6 @@ public class ChatPanel extends BasePanel {
 
         notifyComponentCatalogStatus(text);
 
-        // 构造历史（限制长度，避免 C2S 包超过 32767 字符）
-        List<String> history = getStrings();
-
-        FormaRequest req = com.formacraft.client.ui.panel.chat.ChatBuildRequestFactory.fromChat(
-                text, effectiveMode, sessionId, history);
-        if (referenceImageUrl != null) {
-            var references = new ArrayList<com.formacraft.common.model.request.ReferenceInput>();
-            references.add(new com.formacraft.common.model.request.ReferenceInput(
-                    "image_url", referenceImageUrl, null));
-            for (var reference : req.getReferences()) {
-                if (!referenceImageUrl.equals(reference.getContent())) references.add(reference);
-            }
-            req.setReferences(references);
-        }
         BlockPos origin = req.getPlayerPos();
 
         // 记录 origin，确保 confirm 时与预览一致
@@ -1031,9 +1031,6 @@ public class ChatPanel extends BasePanel {
         pendingStartMs = System.currentTimeMillis();
         messages.add(ChatMessage.thinking(formatThinkingElapsed(basePhase, 0)));
         scrollOffset = 0;
-
-        FormaCraftClientNetworking.sendBuildRequest(req);
-        referenceImageUrl = null;
 
         // 本地等待计时：第 1 秒即开始跳动，不依赖服务端心跳
         startElapsedTicker(pendingRequestToken);

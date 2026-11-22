@@ -9,6 +9,24 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FormaRequestCompactorTest {
 
+    @Test void imageAttachmentAndUserTextSurvivePacketCompaction() {
+        var request = new FormaRequest();
+        String url = "https://example.com/reference.png?width=640&height=480";
+        request.setReferences(List.of(new ReferenceInput("image_url", url, null)));
+        request.setUserMessage("参考图里的轮廓，不要屋顶。");
+        request.setRequestText("context ".repeat(5000));
+        var buffer = new net.minecraft.network.PacketByteBuf(io.netty.buffer.Unpooled.buffer());
+        try {
+            com.formacraft.common.network.packet.RequestBuildPacket.write(buffer, request);
+            var decoded = com.formacraft.common.network.packet.RequestBuildPacket.read(buffer);
+            org.junit.jupiter.api.Assertions.assertEquals(request.getUserMessage(), decoded.getUserMessage());
+            org.junit.jupiter.api.Assertions.assertEquals("image_url", decoded.getReferences().getFirst().getType());
+            org.junit.jupiter.api.Assertions.assertEquals(url, decoded.getReferences().getFirst().getContent());
+        } finally {
+            buffer.release();
+        }
+    }
+
     @Test void escapedPromptFitsActualSerializedBudgetAndRoundTrips() {
         FormaRequest req = new FormaRequest();
         req.setUserMessage("生成福建土楼三栋");
