@@ -22,10 +22,16 @@ public final class AssemblyVoxelBridgeOps {
             int h,
             BlockState s
     ) {
-        int half = thickness / 2;
-        for (int x = -half; x <= half; x++) {
-            for (int z = -half; z <= half; z++) {
-                for (int y = 0; y < h; y++) {
+        // Exact thickness×thickness footprint. Odd thicknesses stay centered;
+        // even thicknesses bias +X/+Z by one (2 → [0,1], 4 → [-1,2]) instead of
+        // the old half=t/2 loop that drew (t+1)×(t+1) for every even t.
+        int t = Math.max(1, thickness);
+        int min = -(t - 1) / 2;
+        int max = t / 2;
+        int height = Math.max(1, h);
+        for (int x = min; x <= max; x++) {
+            for (int z = min; z <= max; z++) {
+                for (int y = 0; y < height; y++) {
                     placer.place(cx + x, cy + y, cz + z, s);
                 }
             }

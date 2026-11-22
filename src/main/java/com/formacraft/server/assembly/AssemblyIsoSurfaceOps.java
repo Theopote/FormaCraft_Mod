@@ -83,9 +83,11 @@ public final class AssemblyIsoSurfaceOps {
         double R = adapter.d(op.get("R"), adapter.d(op.get("majorR"), 12.0));
         double rr = adapter.d(op.get("r2"), adapter.d(op.get("minorR"), 4.0));
 
+        MetaAssemblyEngine.assertClearBoxWithinBudget(ctx, x0, y0, z0, x1, y1, z1);
         for (int x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
             for (int y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) {
                 for (int z = Math.min(z0, z1); z <= Math.max(z0, z1); z++) {
+                    MetaAssemblyEngine.meterSample(ctx);
                     double fx = x + 0.5;
                     double fy = y + 0.5;
                     double fz = z + 0.5;
@@ -152,9 +154,11 @@ public final class AssemblyIsoSurfaceOps {
         int ay0 = Math.min(y0, y1), ay1 = Math.max(y0, y1);
         int az0 = Math.min(z0, z1), az1 = Math.max(z0, z1);
 
+        MetaAssemblyEngine.assertClearBoxWithinBudget(ctx, ax0, ay0, az0, ax1, ay1, az1);
         for (int x = ax0; x < ax1; x++) {
             for (int y = ay0; y < ay1; y++) {
                 for (int z = az0; z < az1; z++) {
+                    MetaAssemblyEngine.meterSample(ctx);
                     double[][] p8 = cubeCorners(x, y, z);
                     double[] v8 = new double[8];
                     for (int i = 0; i < 8; i++) {

@@ -101,7 +101,14 @@ public class MetaAssemblyGenerator implements StructureGenerator {
         }
 
         MetaAssemblyEngine engine = new MetaAssemblyEngine();
-        List<PlannedBlock> blocks = engine.execute(as, new MetaAssemblyEngine.Context(world, origin, entrance, paletteId));
+        List<PlannedBlock> blocks;
+        try {
+            blocks = engine.execute(as, new MetaAssemblyEngine.Context(world, origin, entrance, paletteId));
+        } catch (com.formacraft.common.dsl.FbdException budget) {
+            LOG.warn("MetaAssembly budget/geometry reject: {}", budget.diagnostic());
+            return new GeneratedStructure(null, origin,
+                    "MetaAssembly (budget exceeded: " + budget.getMessage() + ")", List.of());
+        }
         String desc = "MetaAssembly v1";
         return new GeneratedStructure(null, origin, desc, blocks);
     }

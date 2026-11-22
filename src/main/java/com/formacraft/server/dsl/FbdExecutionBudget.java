@@ -18,6 +18,8 @@ public final class FbdExecutionBudget {
 
     public FbdExecutionBudget(FbdLimits limits) { this.limits = limits; }
 
+    public long writeLimit() { return limits.writes(); }
+
     public void operation(String node, String instance, String path) { this.node = node; this.instance = instance; this.path = path; }
 
     public void beforeWrite(BlockPos position) {

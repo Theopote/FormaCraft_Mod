@@ -42,16 +42,22 @@ public final class AssemblySurfaceOps {
 
         int uN = adapter.clamp(adapter.i(op.get("uSamples"), adapter.i(op.get("u"), 24)), 2, 512);
         int vN = adapter.clamp(adapter.i(op.get("vSamples"), adapter.i(op.get("v"), 24)), 2, 512);
+        MetaAssemblyEngine.assertSurfaceGridWithinBudget(uN + 1, vN + 1, "ops[].BEZIER_SURFACE");
         int thick = adapter.clamp(adapter.i(op.get("thickness"), 1), 1, 9);
         boolean connect = adapter.bool(op.get("connectSamples"), true);
 
         BlockState mat = adapter.pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0xA57480L, Blocks.QUARTZ_BLOCK.getDefaultState());
+
+        // Grid samples + connect beams re-hit the same voxels (endpoints and thickness overlap).
+        java.util.HashSet<Long> seen = new java.util.HashSet<>();
+        AssemblyVoxelBridgeOps.VoxelPlacer placer = dedupPlacer(out, ctx, origin, adapter, seen);
 
         int[][][] grid = new int[uN + 1][vN + 1][3];
         for (int iu = 0; iu <= uN; iu++) {
             double u = iu / (double) uN;
             double[] bu = AssemblyBezierSurfaceOps.bezierBasis3(u);
             for (int iv = 0; iv <= vN; iv++) {
+                MetaAssemblyEngine.meterSample(ctx);
                 double v = iv / (double) vN;
                 double[] bv = AssemblyBezierSurfaceOps.bezierBasis3(v);
                 double x = 0, y = 0, z = 0;
@@ -70,24 +76,12 @@ public final class AssemblySurfaceOps {
                 grid[iu][iv][0] = xi;
                 grid[iu][iv][1] = yi;
                 grid[iu][iv][2] = zi;
-                adapter.placePrism(out, ctx, origin, xi, yi, zi, thick, 1, mat);
+                AssemblyVoxelBridgeOps.placePrism(placer, xi, yi, zi, thick, 1, mat);
             }
         }
 
         if (connect) {
-            for (int iu = 0; iu <= uN; iu++) {
-                for (int iv = 0; iv <= vN; iv++) {
-                    int x = grid[iu][iv][0], y = grid[iu][iv][1], z = grid[iu][iv][2];
-                    if (iu + 1 <= uN) {
-                        int[] b = grid[iu + 1][iv];
-                        adapter.placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
-                    }
-                    if (iv + 1 <= vN) {
-                        int[] b = grid[iu][iv + 1];
-                        adapter.placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
-                    }
-                }
-            }
+            AssemblyVoxelBridgeOps.connectSurfaceGrid(placer, grid, uN, vN, thick, mat);
         }
     }
 
@@ -114,6 +108,9 @@ public final class AssemblySurfaceOps {
         int nTheta = (int) Math.round(seg * (angleDeg / 360.0));
         nTheta = adapter.clamp(nTheta, 3, 512);
         int nP = profile.size();
+        MetaAssemblyEngine.assertSurfaceGridWithinBudget(nTheta + 1, nP, "ops[].REVOLVE_SURFACE");
+        java.util.HashSet<Long> seen = new java.util.HashSet<>();
+        AssemblyVoxelBridgeOps.VoxelPlacer placer = dedupPlacer(out, ctx, origin, adapter, seen);
         int[][][] grid = new int[nTheta + 1][nP][3];
 
         for (int it = 0; it <= nTheta; it++) {
@@ -122,6 +119,7 @@ public final class AssemblySurfaceOps {
             double cs = Math.cos(theta);
             double sn = Math.sin(theta);
             for (int ip = 0; ip < nP; ip++) {
+                MetaAssemblyEngine.meterSample(ctx);
                 int[] pr = profile.get(ip);
                 double r = pr[0];
                 double y = pr[1];
@@ -131,7 +129,7 @@ public final class AssemblySurfaceOps {
                 grid[it][ip][0] = x;
                 grid[it][ip][1] = yy;
                 grid[it][ip][2] = z;
-                adapter.placePrism(out, ctx, origin, x, yy, z, thick, 1, mat);
+                AssemblyVoxelBridgeOps.placePrism(placer, x, yy, z, thick, 1, mat);
             }
         }
         if (connect) {
@@ -140,11 +138,11 @@ public final class AssemblySurfaceOps {
                     int x = grid[it][ip][0], y = grid[it][ip][1], z = grid[it][ip][2];
                     if (it + 1 <= nTheta) {
                         int[] b = grid[it + 1][ip];
-                        adapter.placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                        AssemblyVoxelBridgeOps.placeBeamLine(placer, x, y, z, b[0], b[1], b[2], thick, 1, mat);
                     }
                     if (ip + 1 < nP) {
                         int[] b = grid[it][ip + 1];
-                        adapter.placeBeamLine(out, ctx, origin, x, y, z, b[0], b[1], b[2], thick, 1, mat);
+                        AssemblyVoxelBridgeOps.placeBeamLine(placer, x, y, z, b[0], b[1], b[2], thick, 1, mat);
                     }
                 }
             }
@@ -188,9 +186,12 @@ public final class AssemblySurfaceOps {
         if (!ok) return;
 
         int uN = adapter.clamp(adapter.i(op.get("uSamples"), adapter.i(op.get("u"), 24)), 2, 512);
+        MetaAssemblyEngine.assertSurfaceGridWithinBudget(uN + 1, nP, "ops[].LOFT_SURFACE");
         int thick = adapter.clamp(adapter.i(op.get("thickness"), 1), 1, 9);
         boolean connect = adapter.bool(op.get("connectSamples"), true);
         BlockState mat = adapter.pick(ctx, op, "material", "PRIMARY_STRUCTURE", 0x0E11F3L, Blocks.QUARTZ_BLOCK.getDefaultState());
+        java.util.HashSet<Long> seen = new java.util.HashSet<>();
+        AssemblyVoxelBridgeOps.VoxelPlacer placer = dedupPlacer(out, ctx, origin, adapter, seen);
 
         for (int si = 0; si < sections.size() - 1; si++) {
             LoftSection a = sections.get(si);
@@ -202,6 +203,7 @@ public final class AssemblySurfaceOps {
                 double oy = AssemblyBezierOps.lerp(a.y, b.y, t);
                 double oz = AssemblyBezierOps.lerp(a.z, b.z, t);
                 for (int ip = 0; ip < nP; ip++) {
+                    MetaAssemblyEngine.meterSample(ctx);
                     int[] pa = a.profile.get(ip);
                     int[] pb = b.profile.get(ip);
                     double px = AssemblyBezierOps.lerp(pa[0], pb[0], t);
@@ -212,7 +214,7 @@ public final class AssemblySurfaceOps {
                     grid[iu][ip][0] = x;
                     grid[iu][ip][1] = y;
                     grid[iu][ip][2] = z;
-                    adapter.placePrism(out, ctx, origin, x, y, z, thick, 1, mat);
+                    AssemblyVoxelBridgeOps.placePrism(placer, x, y, z, thick, 1, mat);
                 }
             }
             if (connect) {
@@ -221,11 +223,11 @@ public final class AssemblySurfaceOps {
                         int x = grid[iu][ip][0], y = grid[iu][ip][1], z = grid[iu][ip][2];
                         if (iu + 1 <= uN) {
                             int[] bb = grid[iu + 1][ip];
-                            adapter.placeBeamLine(out, ctx, origin, x, y, z, bb[0], bb[1], bb[2], thick, 1, mat);
+                            AssemblyVoxelBridgeOps.placeBeamLine(placer, x, y, z, bb[0], bb[1], bb[2], thick, 1, mat);
                         }
                         if (ip + 1 < nP) {
                             int[] bb = grid[iu][ip + 1];
-                            adapter.placeBeamLine(out, ctx, origin, x, y, z, bb[0], bb[1], bb[2], thick, 1, mat);
+                            AssemblyVoxelBridgeOps.placeBeamLine(placer, x, y, z, bb[0], bb[1], bb[2], thick, 1, mat);
                         }
                     }
                 }
@@ -494,6 +496,9 @@ public final class AssemblySurfaceOps {
         int capWidthDef = adapter.clamp(adapter.i(op.get("capWidth"), adapter.i(op.get("cap_width"), 0)), 0, 9);
         BlockState capMatDef = adapter.pick(ctx, op, "capMaterial", "FACADE_TRIM", 0xBEEF1102L, matDef);
 
+        java.util.HashSet<Long> seen = new java.util.HashSet<>();
+        AssemblyVoxelBridgeOps.VoxelPlacer placer = dedupPlacer(out, ctx, origin, adapter, seen);
+
         java.util.HashMap<String, PatchData> byId = new java.util.HashMap<>();
         java.util.ArrayList<PatchData> patches = new java.util.ArrayList<>();
         java.util.HashMap<String, SeamRef> seamMap = new java.util.HashMap<>();
@@ -522,6 +527,7 @@ public final class AssemblySurfaceOps {
 
             int uN = adapter.clamp(adapter.i(pm.get("uSamples"), adapter.i(pm.get("u"), uDef)), 2, 512);
             int vN = adapter.clamp(adapter.i(pm.get("vSamples"), adapter.i(pm.get("v"), vDef)), 2, 512);
+            MetaAssemblyEngine.assertSurfaceGridWithinBudget(uN + 1, vN + 1, "ops[].BEZIER_SURFACE_SET.patches");
             int thick = adapter.clamp(adapter.i(pm.get("thickness"), thickDef), 1, 9);
             boolean connect = adapter.bool(pm.get("connectSamples"), connectDef);
             BlockState mat = (pm.get("material") != null)
@@ -533,11 +539,12 @@ public final class AssemblySurfaceOps {
             patches.add(pd);
             byId.put(id, pd);
             for (int iu = 0; iu <= uN; iu++) for (int iv = 0; iv <= vN; iv++) {
+                MetaAssemblyEngine.meterSample(ctx);
                 int x = grid[iu][iv][0], y = grid[iu][iv][1], z = grid[iu][iv][2];
-                adapter.placePrism(out, ctx, origin, x, y, z, thick, 1, mat);
+                AssemblyVoxelBridgeOps.placePrism(placer, x, y, z, thick, 1, mat);
             }
             if (connect) {
-                adapter.connectSurfaceGrid(out, ctx, origin, grid, uN, vN, thick, mat);
+                AssemblyVoxelBridgeOps.connectSurfaceGrid(placer, grid, uN, vN, thick, mat);
             }
 
             if (stitch) {
@@ -549,7 +556,7 @@ public final class AssemblySurfaceOps {
                         seamMap.put(sig, new SeamRef(pd, e));
                     } else {
                         int seamThick = Math.min(other.patch.thick, pd.thick);
-                        stitchEdge(out, ctx, origin, other.patch, other.edge, pd, e, seamThick, matDef, capWidthDef, capMatDef, adapter);
+                        stitchEdge(other.patch, other.edge, pd, e, seamThick, matDef, capWidthDef, capMatDef, placer);
                     }
                     seamList.add(new SeamRef(pd, e));
                 }
@@ -596,8 +603,8 @@ public final class AssemblySurfaceOps {
                     SeamRef b = seamList.get(bestJ);
                     if (best <= (double) stitchEps * stitchEps) {
                         int seamThick = Math.min(a.patch.thick, b.patch.thick);
-                        stitchEdgeResampled(out, ctx, origin, a.patch, a.edge, b.patch, b.edge, bestReverse,
-                                seamThick, matDef, (stitchSamples > 0) ? stitchSamples : -1, stitchResample, capWidthDef, capMatDef, adapter);
+                        stitchEdgeResampled(a.patch, a.edge, b.patch, b.edge, bestReverse,
+                                seamThick, matDef, (stitchSamples > 0) ? stitchSamples : -1, stitchResample, capWidthDef, capMatDef, placer);
                         used.add(ka);
                         long kb = (((long) b.patch.hashCode()) << 8) ^ b.edge.ordinal();
                         used.add(kb);
@@ -654,8 +661,8 @@ public final class AssemblySurfaceOps {
                 BlockState linkCapMat = (lm.get("capMaterial") != null)
                         ? adapter.pick(ctx, lm, "capMaterial", "FACADE_TRIM", 0xBEEF1202L ^ (li * 1315423911), capMatDef)
                         : capMatDef;
-                stitchEdgeResampledRange(out, ctx, origin, a, ea, a0t, a1t, b, eb, b0t, b1t, reverse, linkThick, matDef,
-                        (linkSamples > 0) ? linkSamples : -1, linkResample, linkCapW, linkCapMat, adapter);
+                stitchEdgeResampledRange(a, ea, a0t, a1t, b, eb, b0t, b1t, reverse, linkThick, matDef,
+                        (linkSamples > 0) ? linkSamples : -1, linkResample, linkCapW, linkCapMat, placer);
             }
         }
 
@@ -674,11 +681,11 @@ public final class AssemblySurfaceOps {
                     if (a == null) continue;
                     if (c + 1 < ids.get(r).size()) {
                         PatchData b = resolvePatch(byId, patches, ids.get(r).get(c + 1));
-                        if (b != null) stitchEdge(out, ctx, origin, a, Edge.U1, b, Edge.U0, Math.min(a.thick, b.thick), matDef, capWidthDef, capMatDef, adapter);
+                        if (b != null) stitchEdge(a, Edge.U1, b, Edge.U0, Math.min(a.thick, b.thick), matDef, capWidthDef, capMatDef, placer);
                     }
                     if (r + 1 < ids.size() && c < ids.get(r + 1).size()) {
                         PatchData b = resolvePatch(byId, patches, ids.get(r + 1).get(c));
-                        if (b != null) stitchEdge(out, ctx, origin, a, Edge.V1, b, Edge.V0, Math.min(a.thick, b.thick), matDef, capWidthDef, capMatDef, adapter);
+                        if (b != null) stitchEdge(a, Edge.V1, b, Edge.V0, Math.min(a.thick, b.thick), matDef, capWidthDef, capMatDef, placer);
                     }
                 }
             }
@@ -826,9 +833,8 @@ public final class AssemblySurfaceOps {
         return AssemblySeamMathOps.edgeSignature(n, reverse, i -> edgePoint(p, e, i));
     }
 
-    private static void stitchEdge(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin,
-                                   PatchData a, Edge ea, PatchData b, Edge eb, int thick, BlockState mat,
-                                   int capWidth, BlockState capMat, Adapter adapter) {
+    private static void stitchEdge(PatchData a, Edge ea, PatchData b, Edge eb, int thick, BlockState mat,
+                                   int capWidth, BlockState capMat, AssemblyVoxelBridgeOps.VoxelPlacer placer) {
         int nA = edgeCount(a, ea);
         int nB = edgeCount(b, eb);
         AssemblyStitchOps.stitchEdge(
@@ -841,9 +847,9 @@ public final class AssemblySurfaceOps {
                 capWidth,
                 capMat,
                 (x0, y0, z0, x1, y1, z1, thickness, beamH, state) ->
-                        adapter.placeBeamLine(out, ctx, origin, x0, y0, z0, x1, y1, z1, thickness, beamH, state),
+                        AssemblyVoxelBridgeOps.placeBeamLine(placer, x0, y0, z0, x1, y1, z1, thickness, beamH, state),
                 (cx, cy, cz, thickness, h, state) ->
-                        adapter.placePrism(out, ctx, origin, cx, cy, cz, thickness, h, state)
+                        AssemblyVoxelBridgeOps.placePrism(placer, cx, cy, cz, thickness, h, state)
         );
     }
 
@@ -891,10 +897,9 @@ public final class AssemblySurfaceOps {
         return AssemblyEdgeSamplingOps.edgePointAtRange(n, i -> edgePoint(p, e, i), t, t0, t1);
     }
 
-    private static void stitchEdgeResampled(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin,
-                                            PatchData a, Edge ea, PatchData b, Edge eb, boolean reverse,
+    private static void stitchEdgeResampled(PatchData a, Edge ea, PatchData b, Edge eb, boolean reverse,
                                             int thick, BlockState mat, int stitchSamples, boolean resample,
-                                            int capWidth, BlockState capMat, Adapter adapter) {
+                                            int capWidth, BlockState capMat, AssemblyVoxelBridgeOps.VoxelPlacer placer) {
         int nA = edgeCount(a, ea);
         int nB = edgeCount(b, eb);
         AssemblyStitchOps.stitchEdgeResampled(
@@ -912,18 +917,17 @@ public final class AssemblySurfaceOps {
                 capWidth,
                 capMat,
                 (x0, y0, z0, x1, y1, z1, thickness, beamH, state) ->
-                        adapter.placeBeamLine(out, ctx, origin, x0, y0, z0, x1, y1, z1, thickness, beamH, state),
+                        AssemblyVoxelBridgeOps.placeBeamLine(placer, x0, y0, z0, x1, y1, z1, thickness, beamH, state),
                 (cx, cy, cz, thickness, h, state) ->
-                        adapter.placePrism(out, ctx, origin, cx, cy, cz, thickness, h, state)
+                        AssemblyVoxelBridgeOps.placePrism(placer, cx, cy, cz, thickness, h, state)
         );
     }
 
-    private static void stitchEdgeResampledRange(List<PlannedBlock> out, MetaAssemblyEngine.Context ctx, BlockPos origin,
-                                                 PatchData a, Edge ea, double a0, double a1,
+    private static void stitchEdgeResampledRange(PatchData a, Edge ea, double a0, double a1,
                                                  PatchData b, Edge eb, double b0, double b1,
                                                  boolean reverse,
                                                  int thick, BlockState mat, int stitchSamples, boolean resample,
-                                                 int capWidth, BlockState capMat, Adapter adapter) {
+                                                 int capWidth, BlockState capMat, AssemblyVoxelBridgeOps.VoxelPlacer placer) {
         int nA = edgeCount(a, ea);
         int nB = edgeCount(b, eb);
         AssemblyStitchOps.stitchEdgeResampledRange(
@@ -941,10 +945,23 @@ public final class AssemblySurfaceOps {
                 capWidth,
                 capMat,
                 (x0, y0, z0, x1, y1, z1, thickness, beamH, state) ->
-                        adapter.placeBeamLine(out, ctx, origin, x0, y0, z0, x1, y1, z1, thickness, beamH, state),
+                        AssemblyVoxelBridgeOps.placeBeamLine(placer, x0, y0, z0, x1, y1, z1, thickness, beamH, state),
                 (cx, cy, cz, thickness, h, state) ->
-                        adapter.placePrism(out, ctx, origin, cx, cy, cz, thickness, h, state)
+                        AssemblyVoxelBridgeOps.placePrism(placer, cx, cy, cz, thickness, h, state)
         );
+    }
+
+    /** Skip duplicate local voxels before {@link Adapter#put} (and thus before write-budget metering). */
+    private static AssemblyVoxelBridgeOps.VoxelPlacer dedupPlacer(
+            List<PlannedBlock> out,
+            MetaAssemblyEngine.Context ctx,
+            BlockPos origin,
+            Adapter adapter,
+            java.util.Set<Long> seen) {
+        return (x, y, z, state) -> {
+            if (!seen.add(AssemblySeamMathOps.packXYZ(x, y, z))) return;
+            adapter.put(out, ctx, origin, x, y, z, state);
+        };
     }
 
     private static Edge parseEdge(String s) {

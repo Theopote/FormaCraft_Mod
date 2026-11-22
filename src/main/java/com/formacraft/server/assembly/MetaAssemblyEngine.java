@@ -322,17 +322,20 @@ public final class MetaAssemblyEngine {
     }
 
     private List<PlannedBlock> executeOperations(AssemblySpec spec, Context ctx) {
+        // Plain ASSEMBLY paths historically passed null budget — that allowed CLEAR_BOX / surface
+        // ops to allocate unbounded PlannedBlocks. Always meter with FbdLimits.DEFAULT.
+        Context exec = withWriteBudget(ctx);
         List<PlannedBlock> out = new ArrayList<>();
         Deque<BlockPos> originStack = new ArrayDeque<>();
         List<AssemblyCirculationConstraints.Flight> flights = new ArrayList<>();
-        BlockPos curOrigin = ctx.origin;
+        BlockPos curOrigin = exec.origin;
         for (Map<String, Object> op : spec.ops) {
-            if (ctx.fbdBudget != null) ctx.fbdBudget.operation(
+            if (exec.fbdBudget != null) exec.fbdBudget.operation(
                     (String) op.get("_fbd_node"), (String) op.get("_fbd_instance"), (String) op.get("_fbd_path"));
             int start = out.size();
-            curOrigin = applyOp(out, ctx, originStack, curOrigin, op);
+            curOrigin = applyOp(out, exec, originStack, curOrigin, op);
             // Only the typed FBD execution route may attach compiler-origin provenance.
-            if (ctx.fbdBudget != null && op.get("_fbd_node") instanceof String node) {
+            if (op.get("_fbd_node") instanceof String node) {
                 String component = (String) op.get("_fbd_component");
                 String path = (String) op.get("_fbd_path");
                 var source = new com.formacraft.common.build.GeometrySource(component,
@@ -351,6 +354,14 @@ public final class MetaAssemblyEngine {
         return out;
     }
 
+    /** Attach {@link com.formacraft.common.dsl.FbdLimits#DEFAULT} when callers omitted a budget. */
+    static Context withWriteBudget(Context ctx) {
+        if (ctx == null) return null;
+        if (ctx.fbdBudget != null) return ctx;
+        return new Context(ctx.world, ctx.origin, ctx.entranceFacing, ctx.paletteId,
+                new com.formacraft.server.dsl.FbdExecutionBudget(com.formacraft.common.dsl.FbdLimits.DEFAULT));
+    }
+
     private BlockPos applyOp(List<PlannedBlock> out, Context ctx, Deque<BlockPos> originStack, BlockPos curOrigin, Map<String, Object> op) {
         if (op == null || op.isEmpty()) return curOrigin;
         String name = str(op.get("op"), "").toUpperCase(Locale.ROOT);
@@ -362,19 +373,21 @@ public final class MetaAssemblyEngine {
                 int dy = i(op.get("dy"), 0);
                 int dz = i(op.get("dz"), 0);
                 originStack.push(curOrigin);
-                if (ctx.fbdBudget != null) {
-                    try {
-                        // FBD frames inherit component facing; legacy Assembly offsets retain their old semantics.
-                        BlockPos translated = PlacementUtil.local(BlockPos.ORIGIN, ctx.entranceFacing, dx, dy, dz);
-                        dx = translated.getX(); dy = translated.getY(); dz = translated.getZ();
-                        return new BlockPos(Math.addExact(curOrigin.getX(), dx), Math.addExact(curOrigin.getY(), dy),
-                                Math.addExact(curOrigin.getZ(), dz));
-                    } catch (ArithmeticException overflow) {
-                        throw new com.formacraft.common.dsl.FbdException("arithmetic_error", "geometry",
-                                (String) op.get("_fbd_node"), (String) op.get("_fbd_path"), "Frame coordinate overflow");
-                    }
+                // GEOMETRY: frame offsets are local to entranceFacing, same as put().
+                // Plain ASSEMBLY previously used world-axis add, so non-SOUTH buildings
+                // rotated child geometry but not the frame translation (misalignment).
+                try {
+                    BlockPos translated = PlacementUtil.local(BlockPos.ORIGIN, ctx.entranceFacing, dx, dy, dz);
+                    return new BlockPos(
+                            Math.addExact(curOrigin.getX(), translated.getX()),
+                            Math.addExact(curOrigin.getY(), translated.getY()),
+                            Math.addExact(curOrigin.getZ(), translated.getZ()));
+                } catch (ArithmeticException overflow) {
+                    throw new com.formacraft.common.dsl.FbdException("arithmetic_error", "geometry",
+                            (String) op.get("_fbd_node"),
+                            op.get("_fbd_path") instanceof String path ? path : "ops[].PUSH_ORIGIN",
+                            "Frame coordinate overflow");
                 }
-                return curOrigin.add(dx, dy, dz);
             }
             case "POP_ORIGIN" -> {
                 if (!originStack.isEmpty()) return originStack.pop();
@@ -383,6 +396,7 @@ public final class MetaAssemblyEngine {
             case "CLEAR_BOX" -> {
                 int x0 = i(op.get("x0"), 0), y0 = i(op.get("y0"), 0), z0 = i(op.get("z0"), 0);
                 int x1 = i(op.get("x1"), 0), y1 = i(op.get("y1"), 0), z1 = i(op.get("z1"), 0);
+                assertClearBoxWithinBudget(ctx, x0, y0, z0, x1, y1, z1);
                 fillBox(out, ctx, curOrigin, x0, y0, z0, x1, y1, z1, Blocks.AIR.getDefaultState());
             }
             case "ANCHOR_FOOTPRINT" -> {
@@ -668,20 +682,59 @@ public final class MetaAssemblyEngine {
 
     private static void put(List<PlannedBlock> out, Context ctx, BlockPos origin, int x, int y, int z, BlockState s) {
         if (s == null) return;
-        if (ctx.fbdBudget != null) {
-            long reach = Math.max(Math.abs((long) x), Math.abs((long) z));
-            if ((long) origin.getX() - reach < Integer.MIN_VALUE || (long) origin.getX() + reach > Integer.MAX_VALUE
-                    || (long) origin.getZ() - reach < Integer.MIN_VALUE || (long) origin.getZ() + reach > Integer.MAX_VALUE
-                    || (long) origin.getY() + y < Integer.MIN_VALUE || (long) origin.getY() + y > Integer.MAX_VALUE)
-                throw new com.formacraft.common.dsl.FbdException("arithmetic_error", "geometry", null, "", "Coordinate overflow");
-        }
+        long reach = Math.max(Math.abs((long) x), Math.abs((long) z));
+        if ((long) origin.getX() - reach < Integer.MIN_VALUE || (long) origin.getX() + reach > Integer.MAX_VALUE
+                || (long) origin.getZ() - reach < Integer.MIN_VALUE || (long) origin.getZ() + reach > Integer.MAX_VALUE
+                || (long) origin.getY() + y < Integer.MIN_VALUE || (long) origin.getY() + y > Integer.MAX_VALUE)
+            throw new com.formacraft.common.dsl.FbdException("arithmetic_error", "geometry", null, "", "Coordinate overflow");
         BlockPos p = PlacementUtil.local(origin, ctx.entranceFacing, x, y, z);
         if (ctx.fbdBudget != null) ctx.fbdBudget.beforeWrite(p);
         out.add(new PlannedBlock(p, PlacementUtil.rotateState(s, ctx.entranceFacing)));
     }
 
     public static void meterSample(Context ctx) {
-        if (ctx.fbdBudget != null) ctx.fbdBudget.sample();
+        if (ctx != null && ctx.fbdBudget != null) ctx.fbdBudget.sample();
+    }
+
+    /** Reject CLEAR_BOX volumes that cannot fit under the write budget (HARD_CONSTRAINT / resource cap). */
+    static void assertClearBoxWithinBudget(Context ctx, int x0, int y0, int z0, int x1, int y1, int z1) {
+        long w = Math.abs((long) x1 - x0) + 1L;
+        long h = Math.abs((long) y1 - y0) + 1L;
+        long d = Math.abs((long) z1 - z0) + 1L;
+        long limit = ctx != null && ctx.fbdBudget != null
+                ? ctx.fbdBudget.writeLimit()
+                : com.formacraft.common.dsl.FbdLimits.DEFAULT.writes();
+        long volume;
+        try {
+            volume = Math.multiplyExact(Math.multiplyExact(w, h), d);
+        } catch (ArithmeticException overflow) {
+            throw com.formacraft.common.dsl.FbdException.budget(
+                    "geometry", null, "ops[].CLEAR_BOX", "candidate_writes", limit, Long.MAX_VALUE);
+        }
+        if (volume > limit) {
+            throw com.formacraft.common.dsl.FbdException.budget(
+                    "geometry", null, "ops[].CLEAR_BOX", "candidate_writes", limit, volume);
+        }
+    }
+
+    /**
+     * Joint surface-grid cap (HARD_CONSTRAINT). Individual u/v clamps of 512 still allow
+     * ~262k sample cells; require uExtent * vExtent at most {@link #MAX_SURFACE_GRID_CELLS}.
+     */
+    public static final int MAX_SURFACE_GRID_CELLS = 65_536;
+
+    public static void assertSurfaceGridWithinBudget(int uExtent, int vExtent, String path) {
+        long cells;
+        try {
+            cells = Math.multiplyExact(Math.max(0, uExtent), Math.max(0, vExtent));
+        } catch (ArithmeticException overflow) {
+            throw com.formacraft.common.dsl.FbdException.budget(
+                    "geometry", null, path, "surface_grid", MAX_SURFACE_GRID_CELLS, Long.MAX_VALUE);
+        }
+        if (cells > MAX_SURFACE_GRID_CELLS) {
+            throw com.formacraft.common.dsl.FbdException.budget(
+                    "geometry", null, path, "surface_grid", MAX_SURFACE_GRID_CELLS, cells);
+        }
     }
 
     private static void fillBox(List<PlannedBlock> out, Context ctx, BlockPos origin, int x0, int y0, int z0, int x1, int y1, int z1, BlockState s) {

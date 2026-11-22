@@ -142,10 +142,16 @@ final class AssemblyFacadeCompiler {
 
         MetaAssemblyEngine engine = new MetaAssemblyEngine();
         AssemblySpec facadeSpec = AssemblySpec.of(spec.paletteId, spec.entranceFacing, ops);
-        List<PlannedBlock> blocks = engine.execute(
-                facadeSpec,
-                new MetaAssemblyEngine.Context(world, origin, entranceDir, spec.paletteId)
-        );
+        List<PlannedBlock> blocks;
+        try {
+            blocks = engine.execute(
+                    facadeSpec,
+                    new MetaAssemblyEngine.Context(world, origin, entranceDir, spec.paletteId)
+            );
+        } catch (com.formacraft.common.dsl.FbdException budget) {
+            FormacraftMod.LOGGER.warn("AssemblyFacadeCompiler: budget/geometry reject: {}", budget.diagnostic());
+            return List.of();
+        }
         if (blocks.isEmpty()) {
             return List.of();
         }
