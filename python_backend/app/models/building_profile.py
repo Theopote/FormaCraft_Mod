@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import AbstractSet, Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationError, ValidatorFunctionWrapHandler, field_validator, model_validator
 
 
 RecommendedComponentsSource = Literal["default", "research", "hint", "user", "rule"]
@@ -101,19 +101,20 @@ class ProfileGeometryEvidence(BaseModel):
 
     feature: str = Field(min_length=1, max_length=120)
     geometry: str = Field(min_length=1, max_length=400)
-    relationship: Optional[str] = Field(default=None, max_length=400)
+    relationship: Optional[str] = Field(default=None, min_length=1, max_length=400)
     relative_proportion: Optional[ProfileRelativeProportion] = None
     material_or_color: Optional[str] = Field(default=None, min_length=1, max_length=200)
     source_urls: List[str] = Field(min_length=1, max_length=4)
 
-    @field_validator("material_or_color", mode="before")
+    @field_validator("material_or_color", "relationship", mode="wrap")
     @classmethod
-    def discard_invalid_optional_material(cls, value: Any) -> Optional[str]:
-        if isinstance(value, str):
-            value = value.strip()
-            if 1 <= len(value) <= 200:
-                return value
-        return None
+    def discard_invalid_optional_description(
+        cls, value: Any, validate: ValidatorFunctionWrapHandler,
+    ) -> Optional[str]:
+        try:
+            return validate(value)
+        except ValidationError:
+            return None
 
     @field_validator("relative_proportion", mode="before")
     @classmethod
