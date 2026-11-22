@@ -64,6 +64,19 @@ def test_geometry_observation_without_measurements_keeps_them_unknown():
     assert profile.to_prompt_dict()["geometry_evidence"] == [feature]
 
 
+def test_invalid_material_keeps_valid_geometry_and_source_checks():
+    from app.models.building_profile import profile_from_llm_dict
+
+    url = "https://example.com/archive"
+    evidence = {"feature": "Upper screen", "geometry": "Porous surface", "source_urls": [url],
+                "relative_proportion": {"comparison": "screen / base width", "minimum": 0.4, "maximum": 0.8}}
+    for material in ("   ", {"color": "copper"}, "x" * 201):
+        item = {**evidence, "material_or_color": material}
+        unseen = {**item, "source_urls": ["https://example.com/unseen"]}
+        profile = profile_from_llm_dict({"geometry_evidence": [unseen, item]}, geometry_source_urls={url})
+        assert profile.to_prompt_dict()["geometry_evidence"] == [evidence]
+
+
 def test_single_stage_research_keeps_blueprint_and_scale_advisory():
     prompt = format_profile_for_prompt(BuildingProfile(
         scale_hints={"typical_width_blocks": 30},

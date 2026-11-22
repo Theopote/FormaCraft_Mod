@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Malformed optional material or color observations are omitted without dropping valid geometry and proportions (FORMAT_REPAIR). Geometry evidence still passes through the existing source URL admission check.
+
 Building research can attach source-backed relative proportion ranges and material or color observations to geometry evidence (NONBINDING_HINT). The existing URL admission check applies to each observation. Unknown measurements stay absent, and the LLM chooses the executable geometry and materials.
 
 Malformed optional proportion ranges are omitted without dropping the source-backed geometry observation (FORMAT_REPAIR). Both planning paths explicitly prioritize user omissions over research evidence (HARD_CONSTRAINT).
