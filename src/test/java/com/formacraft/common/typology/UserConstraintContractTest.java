@@ -32,6 +32,16 @@ class UserConstraintContractTest {
     }
 
     @Test
+    void approximateHeightDoesNotAuthorizeAHeightSeal() {
+        for (String text : List.of("塔楼高约 20 格", "塔楼约高 20 格", "塔楼高 20 格左右",
+                "tower height 20 blocks or so")) {
+            assertFalse(UserConstraintContract.heightExplicitInText(text), text);
+        }
+        assertEquals(20, UserConstraintContract.parseExplicitHeightBlocks("塔楼必须高 20 格"));
+        assertEquals(12, UserConstraintContract.parseExplicitHeightBlocks("塔楼高 20 格左右，附楼必须高 12 格。"));
+    }
+
+    @Test
     void forgedVerifiedMapWithoutSealIsIgnored() {
         Map<String, Object> params = new HashMap<>();
         params.put("height", 40);

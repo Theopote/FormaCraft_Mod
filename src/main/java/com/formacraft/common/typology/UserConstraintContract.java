@@ -159,6 +159,11 @@ public final class UserConstraintContract {
             "(?:高度|高)\\s*(\\d{1,3})\\s*[格块m米](?!\\s*层)"
                     + "|height\\s*[:=]?\\s*(\\d{1,3})(?!\\d)(?!\\s*(?:storeys?|floors?|层))",
             Pattern.CASE_INSENSITIVE);
+    private static final Pattern APPROXIMATE_HEIGHT_PREFIX = Pattern.compile(
+            "(?:大约|大概|约)\\s*$");
+    private static final Pattern APPROXIMATE_HEIGHT_SUFFIX = Pattern.compile(
+            "^\\s*(?:格|块|米|blocks?\\b)?\\s*(?:左右|上下|or so\\b)",
+            Pattern.CASE_INSENSITIVE);
 
     private static final Pattern DESIGN_OMIT_ROOF = Pattern.compile(
             "(?:不要|不需要|不需)(?:生成|添加|建造)?屋顶|无屋顶");
@@ -226,6 +231,10 @@ public final class UserConstraintContract {
         if (userText == null || userText.isBlank()) return out;
         Matcher m = HEIGHT_BLOCKS.matcher(userText);
         while (m.find()) {
+            if (APPROXIMATE_HEIGHT_PREFIX.matcher(userText.substring(0, m.start())).find()
+                    || APPROXIMATE_HEIGHT_SUFFIX.matcher(userText.substring(m.end())).find()) {
+                continue;
+            }
             String g1 = m.group(1);
             String g2 = m.group(2);
             String raw = g1 != null ? g1 : g2;

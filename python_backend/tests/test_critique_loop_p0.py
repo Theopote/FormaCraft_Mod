@@ -53,6 +53,7 @@ class CritiqueLoopTests(unittest.TestCase):
         corrected = deepcopy(plan)
         corrected["components"][0]["dimensions"]["height"] = 13
         corrected["components"][0]["params"]["floor_height"] = 6
+        corrected["player_fidelity_notice_zh"] = "为保留净高，主体调整为 13 格。"
         opts = {**self.options, "user_text": text,
                 "normalize_fn": lambda payload, _: apply_building_contract(payload, text)}
         violates_width = deepcopy(corrected)
@@ -80,6 +81,7 @@ class CritiqueLoopTests(unittest.TestCase):
                 self.assertEqual("minecraft:smooth_quartz", result["components"][0]["params"]["wall_block"])
                 if succeeds:
                     self.assertNotIn("capability_gap", result)
+                    self.assertEqual(corrected["player_fidelity_notice_zh"], result["player_fidelity_notice_zh"])
                 else:
                     self.assertEqual("E_NET_HEIGHT_CONFLICT", result["capability_gap"]["code"])
 

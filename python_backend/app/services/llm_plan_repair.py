@@ -540,7 +540,7 @@ def repair_llm_plan_validation(
                     + morph_hint
                     + ("Revise only the affected body's height or storey layout. Preserve its footprint, "
                        "materials, placement, other components and hard user requirements. "
-                       "If you adjust a soft storey-count preference, explain the trade-off briefly in Chinese "
+                       "If you adjust the body height or a soft storey-count preference, explain the trade-off briefly in Chinese "
                        "using player_fidelity_notice_zh.\n"
                        if floor_layout_conflicts else "")
                     + "Keep the plan anchor at the player position already provided; do not reset to (0,64,0).\n"
@@ -587,14 +587,16 @@ def repair_llm_plan_validation(
                 if preserve_fbd and not has_fbd_program(repaired_norm) and repaired_norm.get('plan_status') != 'capability_gap':
                     repaired_errors = ["FBD repair must preserve procedural authority; do not replace the program with another building"]
                 if not repaired_errors:
-                    if floor_layout_conflicts and any(
-                        entry.get("property") == "floor_count" and entry.get("status") == "preference_adjusted"
-                        for entry in _building_contract_entries(repaired_norm, "requirements")
+                    if floor_layout_conflicts and (
+                        any((old.get("dimensions") or {}).get("height") != (new.get("dimensions") or {}).get("height")
+                            for old, new in zip(normalized["components"], repaired_norm["components"]))
+                        or any(entry.get("property") == "floor_count" and entry.get("status") == "preference_adjusted"
+                               for entry in _building_contract_entries(repaired_norm, "requirements"))
                     ):
                         notice = repaired.get("player_fidelity_notice_zh")
                         repaired_norm["player_fidelity_notice_zh"] = (
                             notice.strip()[:200] if isinstance(notice, str) and notice.strip()
-                            else "为使楼层能放进主体，方案调整了建议层数。请在预览中确认。"
+                            else "为使楼层能放进主体，方案调整了主体高度或楼层布局。请在预览中确认。"
                         )
                     logger.info("LlmPlan recovered via LLM validation repair")
                     _record_quality(

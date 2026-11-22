@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Approximate total heights such as `约高 20 格` and `高 20 格左右` do not mint Java height seals (NONBINDING_HINT). A successful floor-layout critique that changes body height carries a preview notice. Explicit exact heights retain the existing server constraint.
+
 An explicitly qualified `尽量` storey count is a soft preference (NONBINDING_HINT). Bounded floor-layout critique can revise it and provide a preview notice. Unqualified counts retain their existing validation (HARD_CONSTRAINT), and Java does not reapply the soft count as an explicit total.
 
 Floor envelope diagnosis compares required storey space against the authored body height rather than the effective geometry helper dimensions (HARD_CONSTRAINT). A short single storey therefore remains visible to critique.
