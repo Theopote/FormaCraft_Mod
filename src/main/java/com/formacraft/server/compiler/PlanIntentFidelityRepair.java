@@ -297,8 +297,7 @@ final class PlanIntentFidelityRepair {
                 || (corpus.contains("重檐") && !corpus.contains("不要重檐") && !corpus.contains("无重檐"));
         if (!forceDoubleEave && hints.roofType() == null && hints.floorCount() <= 0
                 && hints.footprintWidth() <= 0 && hints.wallBlock() == null
-                && parseDoorWidthBlocks(corpus) <= 0
-                && !corpusContainsOffice(corpus)) {
+                && parseDoorWidthBlocks(corpus) <= 0) {
             return plan;
         }
         IntentHints effective = forceDoubleEave && !hints.doubleEave()
@@ -620,41 +619,9 @@ final class PlanIntentFidelityRepair {
             // Require 办公/office/commercial — bare 幕墙/curtain alone is too broad.
             boolean officeLike = corpusContainsOffice(corpus);
             boolean explicitFootprint = hints.footprintWidth() > 0 && hints.footprintDepth() > 0;
-            // Plate-size optimization is office/commercial only — never force 14×12 on towers/halls.
-            // Explicit player footprints (e.g. 7×7) are hard constraints for every building class.
-            // Footprint force/grow binds to the primary host so top-tier asides and factory halls are
-            // not recentered. Office annexes still receive vertical storey-band repair for bridges.
-            // Office plate-grow binds to office-named MASS_MAIN bodies — never to workshop/factory
-            // primaries (corpus「三层」must not office-stack a sawtooth hall) and never to secondary
-            // floor plates / corridor bridges (that recenters campuses and orphans exterior stairs).
-            // Exact W×D stays primary-host only so top-tier asides (13×13) cannot crush stepped homes.
-            boolean officeBody = looksOfficeBodyMass(component);
-            boolean workshopBody = looksWorkshopBodyMass(component);
-            if (officeLike && !explicitFootprint && officeBody && !workshopBody) {
-                // Annex offices: repair vertical storey bands only. Footprint grow/recenter
-                // orphans campus exterior stairs (late_4); bridge contact is recovered by the
-                // post-intent HostedPlateLevelRepair stretch instead.
-                int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
-                // floor_count / floor_height params may still update
-                if (nh != dims.height()) {
-                    dims = new Dimensions(dims.width(), dims.depth(), nh);
-                }
-                changed = true;
-            } else if (officeLike && explicitFootprint && inPrimaryMassScope && !workshopBody) {
-                // Honour explicit W×D on the primary host; only repair the vertical storey stack.
-                int nw = hints.footprintWidth();
-                int nd = hints.footprintDepth();
-                int nh = applyOfficeStoreyStack(params, corpus, floors, dims.height());
-                changed = true;
-                if (nw != dims.width() || nd != dims.depth() || nh != dims.height()) {
-                    // Do not shift relativePosition on resize — center-anchored masses would
-                    // move off the authored center (body appears at a corner).
-                    dims = new Dimensions(nw, nd, nh);
-                    changed = true;
-                }
-            } else if (explicitFootprint && inPrimaryMassScope
+            if (explicitFootprint && inPrimaryMassScope
                     && (dims.width() != hints.footprintWidth() || dims.depth() != hints.footprintDepth())) {
-                // Non-office buildings (日式 18×18, halls, etc.) still honour explicit W×D.
+                // Preserve explicit W×D across building uses.
                 int nw = hints.footprintWidth();
                 int nd = hints.footprintDepth();
                 // Multi-slot compounds often mention a site-scale W×D (courtyard+wings). Forcing
@@ -799,25 +766,6 @@ final class PlanIntentFidelityRepair {
         // Do not treat style_profile Modern_International / curtain-wall facade copy as office plates.
         return lower.contains("办公") || lower.contains("office")
                 || lower.contains("商业") || lower.contains("commercial");
-    }
-
-    private static boolean looksOfficeBodyMass(Component component) {
-        if (component == null || component.componentType() == null) return false;
-        String type = component.componentType().trim().toUpperCase(Locale.ROOT);
-        if (!("MASS_MAIN".equals(type) || "MAIN_MASS".equals(type))) return false;
-        String id = BuildingHostResolver.massId(component);
-        if (id == null) return false;
-        String lower = id.toLowerCase(Locale.ROOT);
-        return lower.contains("office") || lower.contains("办公");
-    }
-
-    private static boolean looksWorkshopBodyMass(Component component) {
-        if (component == null) return false;
-        String id = BuildingHostResolver.massId(component);
-        if (id == null) return false;
-        String lower = id.toLowerCase(Locale.ROOT);
-        return lower.contains("workshop") || lower.contains("factory") || lower.contains("boiler")
-                || lower.contains("车间") || lower.contains("厂房") || lower.contains("sawtooth");
     }
 
     static String intentCorpus(LlmPlan plan) {
@@ -1430,48 +1378,6 @@ final class PlanIntentFidelityRepair {
             return true;
         }
         return slot.contains("entrance") && !slot.contains("side");
-    }
-
-    private static int applyOfficeStoreyStack(
-            Map<String, Object> params, String corpus, int floors, int nh
-    ) {
-        boolean wantsRound = corpus.contains("圆形") || corpus.contains("圆楼")
-                || corpus.contains("圆柱") || corpus.contains("circle")
-                || corpus.contains("circular") || corpus.contains("round plan");
-        if (!wantsRound) {
-            for (String key : List.of(
-                    "shape", "footprint_shape", "footprintShape", "plan_type", "planType")) {
-                Object shape = params.get(key);
-                if (shape != null) {
-                    String s = String.valueOf(shape).toLowerCase(Locale.ROOT);
-                    if (s.contains("circle") || s.contains("round") || s.contains("cylinder")
-                            || s.contains("圆")) {
-                        params.put(key, "rectangle");
-                    }
-                }
-            }
-        }
-        // Office: prefer 4 air clear on ground (≥3), upper ≥3 air → storey bands clear+1.
-        int groundClear = InteriorSpaceDefaults.OFFICE_GROUND_CLEAR_HEIGHT;
-        if (corpus.contains("底层") && (corpus.contains("净高") || corpus.contains("明显高于"))) {
-            groundClear = Math.max(groundClear, InteriorSpaceDefaults.OFFICE_GROUND_CLEAR_HEIGHT + 1);
-        }
-        int upperClear = InteriorSpaceDefaults.DEFAULT_UPPER_CLEAR_HEIGHT;
-        int groundBand = Math.max(
-                InteriorSpaceDefaults.storeyBandForClear(groundClear),
-                ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight"));
-        // Never leave an authored office ground band below min clear air.
-        groundBand = Math.max(groundBand, InteriorSpaceDefaults.minStoreyBand());
-        int upperBand = InteriorSpaceDefaults.storeyBandForClear(upperClear);
-        int f = Math.max(2, floors > 0 ? floors : 3);
-        int needH = groundBand + Math.max(0, f - 1) * upperBand + 1; // +1 roof deck
-        if (nh < needH || (nh > needH + 2 && floors > 0)) {
-            nh = needH;
-        }
-        params.put("floor_count", f);
-        params.put("floor_height", upperBand);
-        params.put("ground_clear_height", groundBand);
-        return nh;
     }
 
     /**

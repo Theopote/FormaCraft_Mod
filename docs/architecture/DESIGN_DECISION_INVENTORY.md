@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Office storey repair no longer rewrites authored circular footprints, storey bands, or building height from office keywords (removed DESIGN_OVERRIDE). Explicit footprint handling uses the shared host-scoped path, and floor overflow remains subject to the compiler's existing geometry checks.
+
 The ordinary LlmPlan normalization entrypoint checks fixed landmark modules and registered native STRUCTURE typologies against the current human message before migration and again after all normalization and repair stages (HARD_CONSTRAINT). Unauthorized routes become a capability gap. Explicit landmark presets retain compatibility conversion.
 
 The authorization check covers the Java router's legacy `typology`, `referenceLandmarkId` and `referenceLandmark` parameter aliases (HARD_CONSTRAINT). Explicit typology selection grants access to that typology alone. An additional fixed landmark reference requires the matching explicit preset.

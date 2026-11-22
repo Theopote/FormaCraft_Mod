@@ -467,19 +467,25 @@ class InGameAcceptanceRepairTest {
     }
 
     @Test
-    void officeDropsInventedCircleAndExactStoreyStack() {
+    void officePreservesModelPlannedShapeAndStoreyStack() {
+        assertOfficeDesignPreserved("circle", 5, 6, 24);
+        assertOfficeDesignPreserved("rectangle", 4, 5, 17);
+    }
+
+    private static void assertOfficeDesignPreserved(String shape, int floorHeight, int groundHeight, int height) {
         Map<String, Object> hints = new HashMap<>();
         hints.put("architecture_intent", Map.of(
                 "original_text", "生成一座三层玻璃幕墙办公楼"));
         Map<String, Object> params = new HashMap<>();
         params.put("component_id", "office");
         params.put("anchor_mode", "min_corner");
-        params.put("shape", "circle");
+        params.put("shape", shape);
         params.put("floor_count", 3);
-        params.put("floor_height", 4);
+        params.put("floor_height", floorHeight);
+        params.put("ground_clear_height", groundHeight);
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 0, 0),
-                new Dimensions(10, 10, 14), List.of(), params);
+                new Dimensions(10, 10, height), List.of(), params);
         LlmPlan repaired = PlanIntentFidelityRepair.apply(
                 com.formacraft.common.llm.dto.LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                         .mode(LlmPlan.Mode.build)
@@ -487,15 +493,6 @@ class InGameAcceptanceRepairTest {
                         .proportionHints(hints)
                         .build());
         Component out = repaired.components().getFirst();
-        assertEquals("rectangle", String.valueOf(out.params().get("shape")));
-        assertEquals(3, ((Number) out.params().get("floor_count")).intValue());
-        // Office ground prefer clear 4 → storey band 5; upper clear 3 → band 4.
-        assertEquals(5, ((Number) out.params().get("ground_clear_height")).intValue());
-        assertEquals(4, ((Number) out.params().get("floor_height")).intValue());
-        int needH = 5 + 2 * 4 + 1;
-        assertEquals(needH, out.dimensions().height());
-        var layout = com.formacraft.common.generation.component.util.ResolvedFloorLayout
-                .from(out, out.dimensions().height());
-        assertEquals(List.of(0, 5, 9), layout.floorYs());
+        assertEquals(mass, out);
     }
 }
