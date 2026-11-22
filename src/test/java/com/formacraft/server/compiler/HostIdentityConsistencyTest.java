@@ -391,6 +391,47 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
+    void modestPodiumWithoutExternalSupportIsNotSnapped() {
+        var podium = new Component("MASS_MAIN", "a", new Vec3i(0, 4, 0),
+                new Dimensions(5, 5, 9), List.of(),
+                Map.of("component_id", "raised_hall"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(podium)).build();
+        assertEquals(4, yOf(FloatingMassSnapRepair.apply(plan), "raised_hall"),
+                "small authored podium must not be flattened to terrain");
+    }
+
+    @Test
+    void massAboveOwnHostedFoundationKeepsElevation() {
+        var foundation = new Component("FOUNDATION", "slot_0", new Vec3i(-1, 0, -1),
+                new Dimensions(17, 15, 1), List.of(),
+                Map.of("component_id", "foundation_house_a", "host_id", "mass_house_a"));
+        var mass = new Component("MASS_MAIN", "slot_0", new Vec3i(0, 5, 0),
+                new Dimensions(15, 13, 8), List.of(),
+                Map.of("component_id", "mass_house_a", "building_id", "mass_house_a"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(foundation, mass)).build();
+        var repaired = FloatingMassSnapRepair.apply(plan);
+        assertEquals(5, yOf(repaired, "mass_house_a"),
+                "hosted plinth must not pull its carrying mass down");
+        assertEquals(0, yOf(repaired, "foundation_house_a"));
+    }
+
+    @Test
+    void independentFoundationStillCatchesClearlyFloatingMass() {
+        var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 1), List.of(),
+                Map.of("component_id", "pad"));
+        var mass = new Component("MASS_MAIN", "site", new Vec3i(0, 8, 0),
+                new Dimensions(10, 10, 6), List.of(),
+                Map.of("component_id", "hall"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(foundation, mass)).build();
+        assertEquals(1, yOf(FloatingMassSnapRepair.apply(plan), "hall"),
+                "hostless foundation under a mid-air mass remains a landing pad");
+    }
+
+    @Test
     void stackedPrimaryMassSittingOnSiblingIsNotFlattened() {
         var base = new Component("MASS_MAIN", "site", new Vec3i(0, 0, 0),
                 new Dimensions(16, 16, 8), List.of(),

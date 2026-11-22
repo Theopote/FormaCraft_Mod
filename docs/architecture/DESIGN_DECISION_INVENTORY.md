@@ -86,7 +86,7 @@ Straight stairs, interior stair inference and structure accessory repair infer a
 
 `HostAttachmentTree` tracks descendants by component index so `host_id` attachments without `component_id` still follow floating mass/tower Y snaps once (GEOMETRY).
 
-Floating tower/mass snap only accepts support surfaces whose top is at or below the target base (GEOMETRY). Roofs and other volumes above the target never count as support. Explicit stilts/floating/raised markers preserve authored elevation (HARD_CONSTRAINT). Independent multi-`MASS_MAIN` plans snap per building; a mass sitting on another mass keeps its authored stack height.
+Floating tower/mass snap only accepts support surfaces whose top is at or below the target base (GEOMETRY). Roofs and other volumes above the target never count as support. Explicit stilts/floating/raised markers preserve authored elevation (HARD_CONSTRAINT). Independent multi-`MASS_MAIN` plans snap per building; a mass sitting on another mass keeps its authored stack height. Components that declare `host_id` to the mass are satellites/plinths, not landing pads (GEOMETRY). Without external support, only unambiguous mid-air elevations (`y >= 6`) snap to terrain — modest podiums keep authored Y (HARD_CONSTRAINT).
 
 `ComponentSatelliteAligner` binds hostless foundations/bases only when the slot has exactly one `MASS_MAIN` (GEOMETRY). Multiple primary masses without `host_id` leave the authored foundation in place instead of preferring the first mass in the slot. Facades/roofs may still use a uniquely nearest same-slot mass.
 

@@ -17,8 +17,16 @@ import java.util.Set;
  * <p>
  * Independent multi-building plans are snapped per mass. Intentionally stacked masses
  * (sitting on another mass / stilts / floating markers) keep authored elevation.
+ * Hosted plinths ({@code host_id} → this mass) are satellites, not landing pads — they
+ * must not pull a raised body down. Modest podiums without external support also keep Y.
  */
 final class FloatingMassSnapRepair {
+    /**
+     * Without an external support surface, only unambiguous mid-air elevations snap to y=0.
+     * Smaller Y gaps are treated as authored podiums / slot lifts (design authority).
+     */
+    private static final int MIN_UNAMBIGUOUS_FLOAT_Y = 6;
+
     private FloatingMassSnapRepair() {}
 
     static LlmPlan apply(LlmPlan plan) {
@@ -32,14 +40,16 @@ final class FloatingMassSnapRepair {
             int y = mass.relativePosition().y();
             if (y <= 0) continue;
             if (preservesAuthoredElevation(mass)) continue;
-            int supportTop = supportTopY(mass, components);
+            String massId = componentId(mass);
+            int supportTop = supportTopY(mass, massId, components);
             if (y <= supportTop) continue;
+            // Bare ground: only clear floating (LLM mid-air) — not modest authored podiums.
+            if (supportTop <= 0 && y < MIN_UNAMBIGUOUS_FLOAT_Y) continue;
             int dy = supportTop - y;
             FormacraftMod.LOGGER.info(
                     "FloatingMassSnapRepair: {} y={} → {} (supportTop={})",
-                    componentId(mass), y, supportTop, supportTop);
+                    massId, y, supportTop, supportTop);
             components.set(i, shift(mass, dy));
-            String massId = componentId(mass);
             // Full authored host tree by index (incl. host_id attachments without component_id).
             var descendants = HostAttachmentTree.descendantIndices(massId, components);
             java.util.BitSet shifted = new java.util.BitSet();
@@ -61,7 +71,7 @@ final class FloatingMassSnapRepair {
         return "MASS_MAIN".equals(t) || "MAIN_MASS".equals(t);
     }
 
-    private static int supportTopY(Component mass, List<Component> components) {
+    private static int supportTopY(Component mass, String massId, List<Component> components) {
         var massBounds = ComponentFootprintUtil.bounds(mass);
         if (massBounds == null) return 0;
         int massY = mass.relativePosition().y();
@@ -69,6 +79,8 @@ final class FloatingMassSnapRepair {
         for (Component c : components) {
             if (c == null || c == mass || c.relativePosition() == null || c.dimensions() == null) continue;
             if (!isSupport(c)) continue;
+            // Satellites that declare this mass as host are plinths/attachments, not landing pads.
+            if (hostsMass(c, massId)) continue;
             var b = ComponentFootprintUtil.bounds(c);
             if (b == null || !xzOverlaps(massBounds, b)) continue;
             int top = c.relativePosition().y() + Math.max(1, c.dimensions().height());
@@ -77,6 +89,13 @@ final class FloatingMassSnapRepair {
             best = Math.max(best, top);
         }
         return best;
+    }
+
+    private static boolean hostsMass(Component candidate, String massId) {
+        if (massId == null || candidate.params() == null) return false;
+        Object host = candidate.params().get("host_id");
+        if (host == null) host = candidate.params().get("hostId");
+        return host != null && massId.equals(String.valueOf(host));
     }
 
     private static boolean isSupport(Component c) {
