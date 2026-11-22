@@ -16,7 +16,8 @@ import java.util.function.Function;
 /** Build undo/redo shares replay checks and records progress against the registered memory UUID. */
 public class UndoService {
     private static final int MAX_UNDO_PER_PLAYER = 10;
-    private record BuildRecord(UUID transactionId, String memoryUuid, Identifier dimension, int total) {}
+    /** Package-visible for stack-alignment unit tests. */
+    record BuildRecord(UUID transactionId, String memoryUuid, Identifier dimension, int total) {}
     private static final class PlayerHistory {
         final PatchReplayHistory replay = new PatchReplayHistory(MAX_UNDO_PER_PLAYER);
         final Deque<BuildRecord> builds = new ArrayDeque<>();
@@ -115,11 +116,7 @@ public class UndoService {
                 ledgerEntry = PlayerMutationLedger.get().popUndo(playerId);
             }
         }
-        var build = history.builds.peek();
-        if (build != null && top != null && !build.transactionId().equals(top)) {
-            history.builds.removeIf(b -> !b.transactionId().equals(top));
-            build = history.builds.peek();
-        }
+        var build = alignBuildStackTop(history.builds, top);
         var result = history.replay.undo(world, access);
         if (!result.available()) {
             if (ledgerEntry != null) PlayerMutationLedger.get().restoreUndo(playerId, ledgerEntry);
@@ -185,11 +182,7 @@ public class UndoService {
                 ledgerEntry = PlayerMutationLedger.get().popRedo(playerId);
             }
         }
-        var build = history.redoBuilds.peek();
-        if (build != null && top != null && !build.transactionId().equals(top)) {
-            history.redoBuilds.removeIf(b -> !b.transactionId().equals(top));
-            build = history.redoBuilds.peek();
-        }
+        var build = alignBuildStackTop(history.redoBuilds, top);
         var result = history.replay.redo(world, access);
         if (!result.available()) {
             if (ledgerEntry != null) PlayerMutationLedger.get().restoreRedo(playerId, ledgerEntry);
@@ -219,6 +212,33 @@ public class UndoService {
             }
         }
         return result;
+    }
+
+    /**
+     * When BuildRecord stack and replay stack drift, drop only stale entries above {@code top}.
+     * Never wipe older legitimate history (unlike {@code removeIf(!equals(top))}).
+     * If {@code top} is absent from the deque, leave it untouched and return null so Memory
+     * is not synced against the wrong BuildRecord.
+     */
+    static BuildRecord alignBuildStackTop(Deque<BuildRecord> stack, UUID top) {
+        if (stack == null || stack.isEmpty()) return null;
+        if (top == null) return stack.peek();
+        BuildRecord head = stack.peek();
+        if (head != null && top.equals(head.transactionId())) return head;
+        boolean found = false;
+        for (BuildRecord b : stack) {
+            if (b != null && top.equals(b.transactionId())) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) return null;
+        while (!stack.isEmpty()) {
+            BuildRecord peek = stack.peek();
+            if (peek != null && top.equals(peek.transactionId())) return peek;
+            stack.pop();
+        }
+        return null;
     }
 
     public UUID peekUndoTransactionId(UUID playerId) {

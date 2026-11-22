@@ -120,6 +120,31 @@ class UndoServiceTest {
         assertTrue(service.undo(player, world, access).complete()); assertEquals(memory, updates.getLast().memoryUuid());
         assertFalse(service.undo(player, world, access).available());
     }
+    @Test void alignBuildStackDropsOnlyStaleEntriesAboveTop() {
+        var older = UUID.randomUUID();
+        var middle = UUID.randomUUID();
+        var stale = UUID.randomUUID();
+        var stack = new ArrayDeque<UndoService.BuildRecord>();
+        stack.push(new UndoService.BuildRecord(older, "m1", null, 1));
+        stack.push(new UndoService.BuildRecord(middle, "m2", null, 1));
+        stack.push(new UndoService.BuildRecord(stale, "m3", null, 1));
+        var aligned = UndoService.alignBuildStackTop(stack, middle);
+        assertEquals(middle, aligned.transactionId());
+        assertEquals(2, stack.size());
+        assertEquals(older, stack.peekLast().transactionId());
+    }
+
+    @Test void alignBuildStackLeavesHistoryWhenTopMissing() {
+        var a = UUID.randomUUID();
+        var b = UUID.randomUUID();
+        var missing = UUID.randomUUID();
+        var stack = new ArrayDeque<UndoService.BuildRecord>();
+        stack.push(new UndoService.BuildRecord(a, "m1", null, 1));
+        stack.push(new UndoService.BuildRecord(b, "m2", null, 1));
+        assertNull(UndoService.alignBuildStackTop(stack, missing));
+        assertEquals(2, stack.size());
+    }
+
     @Test void boundedHistoryKeepsMemoryBindingsAlignedAndIsolatesPlayers() {
         var updates = new ArrayList<com.formacraft.server.memory.BuildUndoMemoryUpdate>();
         var service = new UndoService(update -> { updates.add(update); return true; });
