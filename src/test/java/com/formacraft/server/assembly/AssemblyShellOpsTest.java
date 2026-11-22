@@ -66,6 +66,27 @@ class AssemblyShellOpsTest {
     }
 
     @Test
+    void assemblyRequiresMatchingTreadsOnlyForFlightsWithRise() {
+        var op = new HashMap<String, Object>(Map.of(
+                "op", "STAIR_SYSTEM", "floor", "minecraft:white_concrete",
+                "from", Map.of("x", 0, "y", 0, "z", 0), "to", Map.of("x", 0, "y", 2, "z", 3)));
+        var context = new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null);
+        var engine = new MetaAssemblyEngine();
+        var issue = assertThrows(AssemblyCirculationOps.InvalidStairMaterial.class,
+                () -> engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), context));
+        assertTrue(issue.getMessage().contains("minecraft:white_concrete"));
+        op.put("stairs", "minecraft:oak_stairs[waterlogged=true]");
+        var flight = snapshot(engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), context));
+        assertTrue(flight.values().stream().anyMatch(state -> state.isOf(Blocks.OAK_STAIRS)
+                && state.get(Properties.WATERLOGGED)));
+        op.remove("stairs");
+        op.put("to", Map.of("x", 0, "y", 0, "z", 3));
+        var landing = snapshot(engine.executeGeometry(AssemblySpec.of(null, null, List.of(op)), context));
+        assertEquals(Blocks.WHITE_CONCRETE.getDefaultState(), landing.get(BlockPos.ORIGIN));
+        assertFalse(landing.values().stream().anyMatch(state -> state.getBlock() instanceof StairsBlock));
+    }
+
+    @Test
     void assemblyStairsKeepExplicitFloorAndSupportStates() {
         var op = new HashMap<String, Object>(Map.of(
                 "op", "STAIR_SYSTEM", "floor", "minecraft:smooth_quartz_slab[type=top]",

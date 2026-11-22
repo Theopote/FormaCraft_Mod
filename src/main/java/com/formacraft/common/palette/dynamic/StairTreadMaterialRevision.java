@@ -164,20 +164,19 @@ public final class StairTreadMaterialRevision {
             Map<?, ?> materialScope,
             String requested
     ) {
-        if (isRegisteredStairs(requested)) return requested;
         // Direct stair components: materialScope is the component params.
         // Nested STAIR_SYSTEM ops: materialScope is the op node only — never inherit a parent
         // Assembly component's stairs seal.
-        boolean userExplicit = isSealedUserExplicitStairs(materialScope);
+        if (isSealedUserExplicitStairs(materialScope)
+                || isModelPlannedStairs(materialScope)
+                || isRegisteredStairs(requested)) {
+            return requested;
+        }
         String familyFromRequested = MaterialBlockFamily.stairs(requested);
         if (isRegisteredStairs(familyFromRequested)) {
             FormacraftMod.LOGGER.info(
                     "StairTreadMaterialRevision: {} → {} (same-family shape)", requested, familyFromRequested);
             return familyFromRequested;
-        }
-        if (userExplicit) {
-            // Preserve invalid sealed USER_EXPLICIT value so the executor emits E_STAIR_COMPONENT_INVALID.
-            return requested;
         }
         String floor = firstString(materialScope, "floor", "material");
         if (floor == null) floor = firstString(componentParams, "floor", "material");
@@ -196,8 +195,7 @@ public final class StairTreadMaterialRevision {
     }
 
     /**
-     * Only a server-minted seal grants immutability. LLM-authored {@code design_sources},
-     * {@code stairs_explicit}, or plan-level sources never block remapping.
+     * Only a server-minted seal proves that the user explicitly selected this value.
      */
     private static boolean isSealedUserExplicitStairs(Map<?, ?> params) {
         if (params == null || params.isEmpty()) return false;
@@ -206,6 +204,12 @@ public final class StairTreadMaterialRevision {
             if (e.getKey() != null) typed.put(String.valueOf(e.getKey()), e.getValue());
         }
         return UserConstraintContract.isServerVerified(typed, "stairs");
+    }
+
+    private static boolean isModelPlannedStairs(Map<?, ?> params) {
+        return params.get("design_sources") instanceof Map<?, ?> sources
+                && DesignParamSource.parse(Objects.toString(sources.get("stairs"), null))
+                == DesignParamSource.AI_PLANNED;
     }
 
     private static boolean isRegisteredStairs(String blockId) {

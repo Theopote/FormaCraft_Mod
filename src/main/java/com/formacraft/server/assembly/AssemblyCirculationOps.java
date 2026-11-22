@@ -1,6 +1,7 @@
 package com.formacraft.server.assembly;
 
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.palette.component.MaterialBlockFamily;
 import com.formacraft.common.patch.BlockPatchTargetResolver;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -61,16 +62,19 @@ public final class AssemblyCirculationOps {
         if (planned > 100_000) throw new IllegalArgumentException("STAIR_SYSTEM exceeds 100000 planned block operations");
         BlockState floorMat = stairMaterial(adapter, ctx, op, "floor", "FLOORING", 0xA57471L, Blocks.SMOOTH_STONE.getDefaultState());
         BlockState stairDefault = Blocks.STONE_BRICK_STAIRS.getDefaultState();
-        if (!op.containsKey("stairs") && op.get("floor") instanceof String floor) {
-            String familyStairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(floor);
-            if (familyStairs != null) {
-                stairDefault = net.minecraft.registry.Registries.BLOCK.get(
-                        net.minecraft.util.Identifier.of(familyStairs)).getDefaultState();
+        BlockState stairMat;
+        if (dy != 0 && op.get("stairs") == null && op.get("floor") instanceof String floor) {
+            String familyStairs = MaterialBlockFamily.stairs(floor);
+            if (familyStairs == null) {
+                throw new InvalidStairMaterial("STAIR_SYSTEM has no registered stair variant for floor "
+                        + floor + "; specify an explicit stairs block.");
             }
+            stairMat = BlockPatchTargetResolver.parse(familyStairs);
+        } else {
+            stairMat = stairMaterial(adapter, ctx, op, "stairs", "STAIR", 0xA57470L, stairDefault);
         }
-        BlockState stairMat = stairMaterial(adapter, ctx, op, "stairs", "STAIR", 0xA57470L, stairDefault);
         BlockState supportMat = stairMaterial(adapter, ctx, op, "supportMaterial", "FOUNDATION", 0xA57472L, floorMat);
-        if (!(stairMat.getBlock() instanceof net.minecraft.block.StairsBlock)) {
+        if (stairMat == null || !(stairMat.getBlock() instanceof net.minecraft.block.StairsBlock)) {
             throw new InvalidStairMaterial("STAIR_SYSTEM stairs must resolve to a registered stair block: " + op.get("stairs"));
         }
         if (floorMat.isAir()) {

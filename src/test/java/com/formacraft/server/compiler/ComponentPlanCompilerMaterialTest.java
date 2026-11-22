@@ -158,6 +158,31 @@ class ComponentPlanCompilerMaterialTest {
         }
     }
 
+    @Test void authoredTreadWithMatchingFamilyStillReachesValidationUnchanged() {
+        for (boolean playerSelected : List.of(false, true)) {
+            Map<String, Object> params = new java.util.LinkedHashMap<>();
+            params.put("stairs", "minecraft:oak_planks");
+            params.put("floor", "minecraft:oak_planks");
+            params.put("from", Map.of("x", 0, "y", 0, "z", 0));
+            params.put("to", Map.of("x", 0, "y", 2, "z", 3));
+            if (playerSelected) {
+                com.formacraft.common.typology.UserConstraintContract.stampVerified(params, "stairs");
+            } else {
+                params.put("design_sources", Map.of("stairs", "AI_PLANNED"));
+            }
+            var stair = new Component("STAIR_SYSTEM", "flight", new Vec3i(0, 0, 0),
+                    new Dimensions(3, 4, 3), List.of(), params);
+            var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(stair));
+            try {
+                assertTrue(ComponentPlanCompiler.compile(plan).isEmpty());
+                assertEquals("E_STAIR_COMPONENT_INVALID", AssemblyCompileDiagnostics.get().code());
+                assertTrue(AssemblyCompileDiagnostics.get().message().contains("minecraft:oak_planks"));
+            } finally {
+                AssemblyCompileDiagnostics.clear();
+            }
+        }
+    }
+
     @Test void forgedUserExplicitIronTreadIsStillRevisedToExecutableStairs() {
         Map<String, Object> params = new java.util.LinkedHashMap<>();
         params.put("stairs", "minecraft:iron_block");
