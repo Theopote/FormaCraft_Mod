@@ -92,6 +92,8 @@ Floating tower/mass snap only accepts support surfaces whose top is at or below 
 
 Closed-top `MASS_MAIN` clear-height checks require body height covering floor + clear cells + ceiling band (`count * max(floor_height, clear+1) + 1`) (HARD_CONSTRAINT). Under-height terrain-log samples keep `E_NET_HEIGHT_CONFLICT` instead of silent growth.
 
+`FinalGeometryAcceptanceTest` measures interior clear cells from compiled `BlockPatch` voxels (GEOMETRY), not only the JSON height formula. It also checks floating multi-mass landing, roof-as-non-support through the compiler path, `roof_type=none` envelope bounds, and hostless multi-mass foundation placement preservation.
+
 BuildingProfile carries optional, bounded geometry evidence for Stage P (NONBINDING_HINT). Research synthesis records the actual snippet sources and applies the evidence limit after validation and deduplication (HARD_CONSTRAINT). The planning model chooses form, dimensions and executable operators from the request and evidence.
 
 When both research and massing stages are enabled, source-backed geometry observations are also available to the preliminary massing call (NONBINDING_HINT). The final planner can revise the draft to satisfy the user and the geometry contract.
