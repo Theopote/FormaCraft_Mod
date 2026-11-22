@@ -346,6 +346,33 @@ def emit_validation_gap(
     return out
 
 
+def _building_contract_entries(plan: Dict[str, Any], field: str) -> List[dict]:
+    hints = plan.get("proportion_hints")
+    contract = hints.get("building_contract") if isinstance(hints, dict) else None
+    entries = contract.get(field) if isinstance(contract, dict) else None
+    return [entry for entry in entries if isinstance(entry, dict)] if isinstance(entries, list) else []
+
+
+def _net_height_conflicts(plan: Dict[str, Any]) -> List[dict]:
+    return [issue for issue in _building_contract_entries(plan, "diagnostics")
+            if issue.get("code") == "E_NET_HEIGHT_CONFLICT"]
+
+
+def _validate_net_height_repair_requirements(original: Dict[str, Any], revised: Dict[str, Any]) -> None:
+    revised_requirements = {entry.get("id"): entry for entry in _building_contract_entries(revised, "requirements")}
+    for requirement in _building_contract_entries(original, "requirements"):
+        if requirement.get("status") != "planned" and not (
+            requirement.get("property") == "net_height" and requirement.get("status") == "mismatch"
+        ):
+            continue
+        current = revised_requirements.get(requirement.get("id"), {})
+        if current.get("status") != "planned" or any(
+            current.get(field) != requirement.get(field)
+            for field in ("property", "value", "scope", "target_components")
+        ):
+            raise ValueError(f"Net-height repair lost building requirement: {requirement.get('id')}")
+
+
 def _try_validate(normalized: Dict[str, Any], user_text: str = "") -> Optional[List[str]]:
     try:
         from .generation_capability import apply_stage_b_capability_repair
@@ -356,7 +383,11 @@ def _try_validate(normalized: Dict[str, Any], user_text: str = "") -> Optional[L
 
         assert_plan_semantics(normalized, user_text or "")
         consistency = component_consistency_errors(normalized) or []
-        combined = list(cap_errors or []) + list(consistency)
+        net_height_errors = [
+            f"{issue['code']} at {issue['path']} ({issue['component_id']}): {issue['message']}"
+            for issue in _net_height_conflicts(normalized)
+        ]
+        combined = net_height_errors + list(cap_errors or []) + list(consistency)
         return combined or None
     except LlmPlanValidationError as exc:
         return list(exc.errors)
@@ -429,6 +460,7 @@ def repair_llm_plan_validation(
     preserve_open_design = (not fixed_executor_route) or model_designed
     normalized = resolve_delegated_entrances(normalize_fn(plan, req), user_text)
     normalized, _cap = apply_stage_b_capability_repair(normalized, user_text or "")
+    net_height_conflicts = _net_height_conflicts(normalized)
     preserve_design = bool(component_consistency_errors(normalized))
     errors = _try_validate(normalized, user_text)
     if preserve_fbd and not has_fbd_program(normalized) and normalized.get('plan_status') != 'capability_gap':
@@ -448,7 +480,7 @@ def repair_llm_plan_validation(
     ):
         from ..models.llm_plan_json_schema import call_chat_with_llm_plan_response_formats
 
-        for attempt in range(1, 3):
+        for attempt in range(1, 2 if net_height_conflicts else 3):
             try:
                 if preserve_open_design:
                     rec = []
@@ -481,6 +513,8 @@ def repair_llm_plan_validation(
                     + "\n- ".join(errors[:8])
                     + "\n\n"
                     + morph_hint
+                    + ("Revise the conflicting floor layout; preserve unrelated components and explicit user requirements.\n"
+                       if net_height_conflicts else "")
                     + "Keep the plan anchor at the player position already provided; do not reset to (0,64,0).\n"
                     "Return a single corrected LlmPlan JSON object."
                 )
@@ -506,6 +540,24 @@ def repair_llm_plan_validation(
                 repaired_norm = resolve_delegated_entrances(normalize_fn(repaired, req), user_text)
                 preserve_design = preserve_design or bool(component_consistency_errors(repaired_norm))
                 repaired_errors = _try_validate(repaired_norm, user_text)
+                if net_height_conflicts:
+                    if repaired_norm.get("plan_status") == "capability_gap":
+                        break
+                    targets = {issue["component_id"] for issue in net_height_conflicts}
+                    def unrelated(candidate):
+                        return [
+                            component for component in candidate.get("components", [])
+                            if (component.get("params") or {}).get("component_id") not in targets
+                        ]
+
+                    repaired_ids = {(component.get("params") or {}).get("component_id")
+                                    for component in repaired_norm.get("components", [])}
+                    if not targets <= repaired_ids or unrelated(repaired_norm) != unrelated(normalized):
+                        raise ValueError("Net-height repair changed unrelated components or dropped its target")
+                    for field in ("mode", "anchor", "layout", "global_constraints", "style_attributes", "style_profile"):
+                        if repaired_norm.get(field) != normalized.get(field):
+                            raise ValueError(f"Net-height repair changed plan-wide field: {field}")
+                    _validate_net_height_repair_requirements(normalized, repaired_norm)
                 if preserve_fbd and not has_fbd_program(repaired_norm) and repaired_norm.get('plan_status') != 'capability_gap':
                     repaired_errors = ["FBD repair must preserve procedural authority; do not replace the program with another building"]
                 if not repaired_errors:
@@ -514,12 +566,21 @@ def repair_llm_plan_validation(
                         repaired_norm, user_text=user_text, parse_ok=True, fidelity_ok=True, reason="repaired"
                     )
                     return repaired_norm
-                normalized, errors = repaired_norm, repaired_errors
+                if not net_height_conflicts:
+                    normalized, errors = repaired_norm, repaired_errors
             except (TypeError, ValueError):
                 logger.exception("LlmPlan repair round %d returned invalid data", attempt)
             except Exception:
                 logger.exception("LlmPlan repair round %d failed; stopping remote repair", attempt)
                 break
+
+    if net_height_conflicts:
+        first = net_height_conflicts[0]
+        return {**normalized, "plan_status": "capability_gap", "capability_gap": {
+            "code": first["code"], "message": first["message"], "path": first["path"],
+            "suggestions": ["Revise the floor layout while preserving explicit user requirements."],
+            "details": {"conflicts": net_height_conflicts},
+        }}
 
     # Directed re-plan from high-confidence request intent before emitting a hard gap.
     # Only scaffold when keyword/LLM merge is confident — never replace a plausible LLM

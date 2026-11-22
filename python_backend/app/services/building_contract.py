@@ -1229,7 +1229,8 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         # Preserve declared storeys and spacing; never shrink them to fit.
         fh, count = mass['params'].get('floor_height'), mass['params'].get('floor_count')
         dims = mass.get('dimensions') or {}
-        if (type(fh) is int and type(count) is int and fh > 0 and count > 0
+        if (not any(r['property'] == 'net_height' for r in own)
+                and type(fh) is int and type(count) is int and fh > 0 and count > 0
                 and dims.get('height') == fh * count - 1):
             old_top = mass['relative_position']['y'] + dims['height']
             dims['height'] += 1
@@ -1246,11 +1247,6 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
                     child['params']['glass_block'] = 'minecraft:glass'
         if any(r['property'] == 'gable_windows' and r['value'] is False for r in own):
             mass['params']['gable_windows'] = False
-        clear = next((r['value'] for r in own if r['property'] == 'net_height' and isinstance(r['value'], int)), None)
-        if clear is not None:
-            floors = max(1, int(mass['params'].get('floor_count', 1)))
-            mass['params']['floor_height'] = clear + 1
-            mass['dimensions']['height'] = max(mass['dimensions'].get('height', 0), floors * (clear + 1) + 1)
     bindings = {}
     for mass in binding_hosts:
         scope = mass['params'].get('requirement_scope')
@@ -1501,8 +1497,27 @@ def apply_building_contract(plan: dict, text: str, *, finalize: bool = False) ->
         elif key in ('floor_height', 'wall_block', 'floor_block', 'window_style', 'entrance_type', 'gable_windows', 'glass_block'):
             invalid = [c['params']['component_id'] for c in targets if c['params'].get(key) != expected]
         elif key == 'net_height':
-            invalid = [c['params']['component_id'] for c in targets
-                       if c['dimensions']['height'] < int(c['params'].get('floor_count', 1)) * (expected + 1) + 1]
+            from .resolved_geometry import explicit_floor_height
+
+            invalid = []
+            for component in targets:
+                params = component['params']
+                count = max(1, int(params.get('floor_count') or params.get('floorCount') or 1))
+                band = explicit_floor_height(component)
+                height = component['dimensions']['height']
+                required = count * max(band, expected + 1) + 1
+                if band >= expected + 1 and height >= required:
+                    continue
+                component_id = params['component_id']
+                invalid.append(component_id)
+                contract['diagnostics'].append({
+                    'code': 'E_NET_HEIGHT_CONFLICT', 'component_id': component_id,
+                    'path': f"components[{out['components'].index(component)}]",
+                    'requested_clear_height': expected, 'floor_height': band, 'floor_count': count,
+                    'body_height': height, 'required_body_height': required,
+                    'message': f"Require clear height >= {expected}; floor_height={band}, "
+                               f"floor_count={count}, body height={height}, required height={required}.",
+                })
         elif key == 'entrance_facing':
             def facing(c):
                 slot = slots.get(c.get('slot_id'))

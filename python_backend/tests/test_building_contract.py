@@ -14,6 +14,24 @@ def mass(identity='house', x=0):
 
 
 class BuildingContractTest(unittest.TestCase):
+    def test_net_height_is_validated_without_resizing_authored_mass(self):
+        body = mass('atrium')
+        text = '室内净高5格。'
+        plan = apply_building_contract({'components': [body]}, text, finalize=True)
+        result = plan['components'][0]
+        self.assertEqual(11, result['dimensions']['height'])
+        self.assertEqual(5, result['params']['floor_height'])
+        diagnostics = plan['proportion_hints']['building_contract']['diagnostics']
+        issue = next(d for d in diagnostics if d['code'] == 'E_NET_HEIGHT_CONFLICT')
+        self.assertEqual(('components[0]', 5, 13), (
+            issue['path'], issue['requested_clear_height'], issue['required_body_height']))
+        self.assertEqual('capability_gap', plan['plan_status'])
+        body['dimensions']['height'] = 15
+        body['params']['floor_height'] = 7
+        valid = apply_building_contract({'components': [body]}, text, finalize=True)
+        self.assertNotEqual('capability_gap', valid.get('plan_status'))
+        self.assertEqual(7, valid['components'][0]['params']['floor_height'])
+
     def test_scoped_opt_outs_preserve_sources_and_require_runtime_fields(self):
         text = '第一栋不要屋顶，不开窗，不需要入口；第二栋使用平屋顶。'
         reqs = extract_requirements(text)
