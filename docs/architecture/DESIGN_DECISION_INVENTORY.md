@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Legacy context routing accepts only an exact preset ID from the current user message (HARD_CONSTRAINT). Research routing is expressed by the planning contract without duplicating a profile-derived authoritative block.
+
 Stage P routing summaries and capability exposure require current user opt-in before advertising fixed executors (HARD_CONSTRAINT). Unbound research types remain available as composition evidence.
 
 The research system override checks native typology and landmark preset IDs against the current user request before issuing fixed-executor instructions (HARD_CONSTRAINT). A stale profile alone cannot authorize the route.

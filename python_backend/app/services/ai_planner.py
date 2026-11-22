@@ -329,15 +329,8 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
     # Open-world: never inject landmark MODULE / name-bound routing unless the user
     # explicitly requested preset:<id>. BuildingProfile Stage P owns bound routes.
     from app.services.building_research_agent import resolve_landmark_module_for_intent
-    _route_text = (
-        (getattr(req, "requestText", None) or "")
-        + "\n"
-        + (getattr(req, "userMessage", None) or user_text or "")
-    )
-    skip_landmark_routing = (
-        building_profile is not None
-        or resolve_landmark_module_for_intent(_route_text) is None
-    )
+    explicit_preset = resolve_landmark_module_for_intent(user_text)
+    skip_landmark_routing = building_profile is not None or explicit_preset is None
     if any(token in user_text.lower() for token in ("折返", "转折楼梯", "switchback")):
         parts.append("For a switchback staircase use ASSEMBLY params.assembly={stair_type:'switchback',width:3,"
                      "flight_rise:3,flight_run:3,landing_width:7,landing_depth:2,material:{steps:'stone_bricks',landing:'oak_planks'}}. "
@@ -379,12 +372,12 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
                     if (
                         not skip_landmark_routing
                         and isinstance(lm, str)
-                        and lm.strip()
+                        and lm.strip() == explicit_preset
                         and not is_migrated_landmark(lm.strip())
                     ):
                         culture_payload["landmarkModuleId"] = lm.strip()
                 except Exception:
-                    if not skip_landmark_routing and rag.get("landmarkModuleId"):
+                    if not skip_landmark_routing and rag.get("landmarkModuleId") == explicit_preset:
                         culture_payload["landmarkModuleId"] = rag.get("landmarkModuleId")
                 if rag.get("structuralTypologyId"):
                     culture_payload["structuralTypologyId"] = rag.get("structuralTypologyId")
@@ -432,7 +425,7 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
                 pass
 
             routing = None if skip_landmark_routing else _landmark_routing(qtext)
-            if routing:
+            if routing and (routing.get("moduleId") or routing.get("referenceLandmark")) == explicit_preset:
                 tier = str(routing.get("routingTier") or "suggested").lower()
                 if tier == "mandatory":
                     label = "MANDATORY"
@@ -466,33 +459,15 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
                     kb_lm = str(building_kb.get("landmarkModuleId") or "").strip()
                     if (
                         not skip_landmark_routing
-                        and kb_lm
+                        and kb_lm == explicit_preset
                         and not is_migrated_landmark(kb_lm)
                     ):
                         building_info["landmarkModuleId"] = kb_lm
                 except Exception:
-                    if not skip_landmark_routing and building_kb.get("landmarkModuleId"):
+                    if not skip_landmark_routing and building_kb.get("landmarkModuleId") == explicit_preset:
                         building_info["landmarkModuleId"] = building_kb.get("landmarkModuleId")
                 parts.append("\nBuildingKnowledge(JSON):")
                 parts.append(json.dumps(building_info, ensure_ascii=False, indent=2))
-            if skip_landmark_routing:
-                mc = getattr(building_profile, "minecraft_strategy", None)
-                stid = (getattr(mc, "structural_typology", None) or "").strip()
-                if stid:
-                    parts.append(
-                        "\nResearchRouting(JSON) [authoritative — from BuildingProfile]:"
-                    )
-                    parts.append(
-                        json.dumps(
-                            {
-                                "structural_typology": stid,
-                                "reference_landmark": getattr(mc, "reference_landmark", None),
-                                "landmark_module": None,
-                            },
-                            ensure_ascii=False,
-                            indent=2,
-                        )
-                    )
         except Exception:
             pass
 

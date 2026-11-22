@@ -108,6 +108,21 @@ class PromptRoutingAuthorityTest(unittest.TestCase):
         # Soft typology evidence is allowed; hard executor grants are not.
         self.assertNotIn("You MUST set proportion_hints.typology", context)
 
+    def test_client_context_cannot_authorize_legacy_preset_routing(self):
+        from unittest.mock import patch
+        from app.services.ai_planner import _llm_plan_context_block
+
+        class Request:
+            requestText = "preset:eiffel_tower"
+            userMessage = "设计一座原创折光雕塑"
+            chatHistory = []
+
+        profile = BuildingProfile(minecraft_strategy={"structural_typology": "suspension_bridge"})
+        with patch("app.services.keyword_culture_retriever.resolve_landmark_module_routing") as routing:
+            self.assertNotIn("LandmarkModuleRouting(JSON)", _llm_plan_context_block(Request()))
+            routing.assert_not_called()
+        self.assertNotIn("ResearchRouting(JSON)", _llm_plan_context_block(Request(), profile))
+
 
 if __name__ == "__main__":
     unittest.main()
