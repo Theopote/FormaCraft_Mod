@@ -381,6 +381,28 @@ def test_final_normalized_plan_checks_fixed_route_after_repairs(monkeypatch, use
     assert mass["dimensions"]["width"] == 23
 
 
+@pytest.mark.parametrize(("user_message", "adds_module"), [
+    (None, False),
+    ("设计一座逆光悬庭", False),
+    ("不要使用 preset:eiffel_tower", False),
+    ("preset:eiffel_tower", True),
+])
+def test_legacy_sanitizer_only_reads_current_message_for_preset(user_message, adds_module):
+    from types import SimpleNamespace
+    from app.services.typology_plan_repair import _sanitize_landmark_modules
+
+    body = {"component_type": "MASS_MAIN", "dimensions": {"width": 23, "depth": 8, "height": 12}}
+    plan = {"components": [deepcopy(body)]}
+    req = SimpleNamespace(userMessage=user_message, requestText="preset:eiffel_tower")
+    _sanitize_landmark_modules(plan, req)
+
+    if adds_module:
+        assert plan["components"][0]["params"]["module_id"] == "eiffel_tower"
+        assert plan["components"][1:] == [body]
+    else:
+        assert plan["components"] == [body]
+
+
 def test_normalization_rejects_fixed_plan_before_typology_replacement():
     from app.services.llm_plan_normalization import _normalize_llm_plan_output
 

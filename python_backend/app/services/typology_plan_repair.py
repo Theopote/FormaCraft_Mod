@@ -1051,9 +1051,6 @@ def _sanitize_landmark_modules(
     elif req is not None:
         raw_msg = getattr(req, "userMessage", None)
         user_text = raw_msg.strip() if isinstance(raw_msg, str) else ""
-        if not user_text:
-            raw_req = getattr(req, "requestText", None)
-            user_text = raw_req.strip() if isinstance(raw_req, str) else ""
         if user_text:
             from .building_research_agent import resolve_landmark_module_for_intent
 
