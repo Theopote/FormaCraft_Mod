@@ -386,9 +386,13 @@ public final class TerrainAdaptationEngine {
         return Math.max(v, n - maxStep);
     }
 
+    /** Above this footprint cell count, interior columns are sparsened; rim stays continuous. */
+    static final int LARGE_DRAPE_CELLS = 80 * 80;
+
     /**
      * DRAPE foundation columns:
-     * For each (x,z) within bounds, fill from (terrainY - foundationDepth) .. terrainY to avoid露底.
+     * Fill from (terrainY - foundationDepth) .. terrainY to avoid露底.
+     * Large footprints: continuous rim (step 1) + sparse interior lattice — never checkerboard the skirt.
      */
     public static List<PlannedBlock> drapeFoundationColumns(ServerWorld world,
                                                             Bounds b,
@@ -403,19 +407,11 @@ public final class TerrainAdaptationEngine {
 
         int w = Math.max(1, b.max.getX() - b.min.getX() + 1);
         int d = Math.max(1, b.max.getZ() - b.min.getZ() + 1);
-        int step = (w * d >= 80 * 80) ? 2 : 1;
 
         List<PlannedBlock> out = new ArrayList<>(Math.max(256, w * d * Math.min(6, fd)));
-        for (int x = b.min.getX(); x <= b.max.getX(); x += step) {
-            for (int z = b.min.getZ(); z <= b.max.getZ(); z += step) {
-                if (b.circle) {
-                    int cx = (b.min.getX() + b.max.getX()) / 2;
-                    int cz = (b.min.getZ() + b.max.getZ()) / 2;
-                    int r = Math.max(1, (b.max.getX() - b.min.getX()) / 2);
-                    int dx = x - cx;
-                    int dz = z - cz;
-                    if (dx * dx + dz * dz > r * r) continue;
-                }
+        for (int x = b.min.getX(); x <= b.max.getX(); x++) {
+            for (int z = b.min.getZ(); z <= b.max.getZ(); z++) {
+                if (!includeDrapeColumn(b, x, z)) continue;
                 var topOpt = TerrainSampling.placementYIfReady(world, x, z);
                 if (topOpt.isEmpty()) {
                     TerrainSampling.noteUnloadedColumn();
@@ -438,6 +434,38 @@ public final class TerrainAdaptationEngine {
             }
         }
         return out;
+    }
+
+    /** True when (x,z) should receive a drape column (footprint + rim/interior policy). */
+    static boolean includeDrapeColumn(Bounds b, int x, int z) {
+        if (b == null || !insideFootprint(b, x, z)) return false;
+        int w = Math.max(1, b.max.getX() - b.min.getX() + 1);
+        int d = Math.max(1, b.max.getZ() - b.min.getZ() + 1);
+        if ((long) w * (long) d < LARGE_DRAPE_CELLS) return true;
+        if (isFootprintRim(b, x, z)) return true;
+        int ix = x - b.min.getX();
+        int iz = z - b.min.getZ();
+        return (ix & 1) == 0 && (iz & 1) == 0;
+    }
+
+    static boolean insideFootprint(Bounds b, int x, int z) {
+        if (x < b.min.getX() || x > b.max.getX() || z < b.min.getZ() || z > b.max.getZ()) return false;
+        if (!b.circle) return true;
+        int cx = (b.min.getX() + b.max.getX()) / 2;
+        int cz = (b.min.getZ() + b.max.getZ()) / 2;
+        int r = Math.max(1, (b.max.getX() - b.min.getX()) / 2);
+        int dx = x - cx;
+        int dz = z - cz;
+        return dx * dx + dz * dz <= r * r;
+    }
+
+    /** Perimeter cell: inside footprint, but at least one 4-neighbor is outside. */
+    static boolean isFootprintRim(Bounds b, int x, int z) {
+        if (!insideFootprint(b, x, z)) return false;
+        return !insideFootprint(b, x - 1, z)
+                || !insideFootprint(b, x + 1, z)
+                || !insideFootprint(b, x, z - 1)
+                || !insideFootprint(b, x, z + 1);
     }
 
     /**
