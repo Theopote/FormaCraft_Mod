@@ -28,14 +28,19 @@ def reject_unrequested_fixed_routes(plan, user_text):
         landmark = _extract_landmark_id(component)
         fixed_types = {f.split(":", 1)[1].strip() for f in features if f.startswith("typology:")}
         fixed_types.update(str(params[key]).strip().lower() for key in (
-            "typology_id", "structural_typology", "typologyId", "structuralTypologyId",
+            "typology_id", "structural_typology", "typologyId", "structuralTypologyId", "typology",
         ) if params.get(key))
         fixed_types = {t for t in fixed_types if get_typology(t) and not is_compositional_typology(t)}
         module = kind in {"MODULE", "LANDMARK"} or landmark is not None
-        reference = str(params.get("reference_landmark") or "").strip().lower()
+        references = {
+            str(params[key]).strip().lower()
+            for key in ("reference_landmark", "referenceLandmarkId", "referenceLandmark")
+            if params.get(key)
+        }
+        references.discard("")
         if (module and (not preset or landmark != preset)
                 or kind == "STRUCTURE" and fixed_types
-                and (fixed_types != {allowed_typology} or reference and reference != preset)):
+                and (fixed_types != {allowed_typology} or references - {preset})):
             result = deepcopy(plan)
             result["components"].pop(index)
             result["plan_status"] = "capability_gap"

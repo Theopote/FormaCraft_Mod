@@ -318,6 +318,32 @@ def test_matching_explicit_preset_can_use_landmark_module():
     assert reject_unrequested_fixed_routes(plan, "不要使用 preset:eiffel_tower") is not None
 
 
+@pytest.mark.parametrize("params", [
+    {"typology": "gothic_cathedral_hall"},
+    {"typology_id": "gothic_cathedral_hall"},
+])
+def test_native_typology_alias_requires_matching_user_opt_in(params):
+    from app.services.landmark_design_policy import reject_unrequested_fixed_routes
+
+    plan = {"components": [{"component_type": "STRUCTURE", "params": params}]}
+    for text in ("设计一座逆光悬庭", "不要使用 typology:gothic_cathedral_hall"):
+        result = reject_unrequested_fixed_routes(plan, text)
+        assert result["capability_gap"]["code"] == "FIXED_LANDMARK_PRESET_DISALLOWED"
+    assert reject_unrequested_fixed_routes(plan, "typology:gothic_cathedral_hall") is None
+    assert plan["components"] == [{"component_type": "STRUCTURE", "params": params}]
+
+
+@pytest.mark.parametrize("key", ["reference_landmark", "referenceLandmarkId", "referenceLandmark"])
+def test_typology_opt_in_does_not_authorize_legacy_reference(key):
+    from app.services.landmark_design_policy import reject_unrequested_fixed_routes
+
+    plan = {"components": [{"component_type": "STRUCTURE", "params": {
+        "typology_id": "gothic_cathedral_hall", key: "notre_dame",
+    }}]}
+    result = reject_unrequested_fixed_routes(plan, "typology:gothic_cathedral_hall")
+    assert result["capability_gap"]["code"] == "FIXED_LANDMARK_PRESET_DISALLOWED"
+
+
 def test_normalization_rejects_fixed_plan_before_typology_replacement():
     from app.services.llm_plan_normalization import _normalize_llm_plan_output
 
