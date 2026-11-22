@@ -182,6 +182,7 @@ public final class TerrainFit {
         BlockState fillState = (fill != null) ? fill : Blocks.COBBLESTONE.getDefaultState();
         int pad = Math.max(0, Math.min(6, padDepth));
         int clear = Math.max(0, Math.min(16, clearHeight));
+        int deckY = com.formacraft.server.world.WorldBuildBounds.clampY(world, targetY);
 
         List<PlannedBlock> out = new ArrayList<>(Math.max(256, w * d * 6));
         int fillCount = 0;
@@ -194,7 +195,8 @@ public final class TerrainFit {
                     TerrainSampling.noteUnloadedColumn();
                     continue;
                 }
-                for (int y = targetY - pad; y <= targetY; y++) {
+                int[] fillRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(world, deckY - pad, deckY);
+                for (int y = fillRange[0]; y <= fillRange[1]; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
@@ -210,7 +212,7 @@ public final class TerrainFit {
                 }
 
                 // Complete deck at targetY — dirt/stone/grass must not remain as holes under the base.
-                BlockPos surface = new BlockPos(x, targetY, z);
+                BlockPos surface = new BlockPos(x, deckY, z);
                 if (BuildConstraintContext.allow(surface)) {
                     BlockState cur = world.getBlockState(surface);
                     if (!cur.isAir() && cur.getFluidState().isEmpty()) {
@@ -220,11 +222,12 @@ public final class TerrainFit {
                 }
 
                 // Clear obstacles above pad (targetY+1..targetY+clearHeight)
-                for (int y = targetY + 1; y <= targetY + clear; y++) {
+                int[] clearRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(world, deckY + 1, deckY + clear);
+                for (int y = clearRange[0]; y <= clearRange[1]; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
-                    if (!cur.isAir() && (isObstacle(cur) || y <= targetY + Math.min(2, clear))) {
+                    if (!cur.isAir() && (isObstacle(cur) || y <= deckY + Math.min(2, clear))) {
                         out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                         clearCount++;
                     }
@@ -333,6 +336,7 @@ public final class TerrainFit {
         BlockState fillState = (fill != null) ? fill : Blocks.COBBLESTONE.getDefaultState();
         int pad = Math.max(0, Math.min(8, padDepth));
         int clear = Math.max(0, Math.min(24, clearHeight));
+        int deckY = com.formacraft.server.world.WorldBuildBounds.clampY(world, targetY);
 
         List<PlannedBlock> out = new ArrayList<>(Math.max(256, w * d * 6));
         int fillCount = 0;
@@ -347,10 +351,11 @@ public final class TerrainFit {
                 }
                 int topY = topOpt.getAsInt();
 
-                if (topY <= targetY) {
+                if (topY <= deckY) {
                     // Heightmap topY is the first air cell, not the top solid cell.
-                    int fillStart = padFillStart(topY, targetY, pad);
-                    for (int y = fillStart; y <= targetY; y++) {
+                    int fillStart = padFillStart(topY, deckY, pad);
+                    int[] fillRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(world, fillStart, deckY);
+                    for (int y = fillRange[0]; y <= fillRange[1]; y++) {
                         BlockPos p = new BlockPos(x, y, z);
                         if (!BuildConstraintContext.allow(p)) continue;
                         BlockState cur = world.getBlockState(p);
@@ -364,9 +369,10 @@ public final class TerrainFit {
                             fillCount++;
                         }
                     }
-                } else if (topY > targetY) {
-                    int cutTop = Math.min(topY, targetY + clear);
-                    for (int y = targetY + 1; y <= cutTop; y++) {
+                } else if (topY > deckY) {
+                    int[] clearRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(
+                            world, deckY + 1, Math.min(topY, deckY + clear));
+                    for (int y = clearRange[0]; y <= clearRange[1]; y++) {
                         BlockPos p = new BlockPos(x, y, z);
                         if (!BuildConstraintContext.allow(p)) continue;
                         BlockState cur = world.getBlockState(p);
@@ -378,7 +384,7 @@ public final class TerrainFit {
                 }
 
                 // Complete deck at targetY — dirt/stone/grass must not remain as holes under the base.
-                BlockPos surface = new BlockPos(x, targetY, z);
+                BlockPos surface = new BlockPos(x, deckY, z);
                 if (BuildConstraintContext.allow(surface)) {
                     BlockState cur = world.getBlockState(surface);
                     if (!cur.isAir() && cur.getFluidState().isEmpty()) {
@@ -388,12 +394,13 @@ public final class TerrainFit {
                 }
 
                 // Always clear vegetation right above targetY; also shave low dirt mounds.
-                int vegTop = targetY + Math.max(1, clear);
-                for (int y = targetY + 1; y <= vegTop; y++) {
+                int[] vegRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(
+                        world, deckY + 1, deckY + Math.max(1, clear));
+                for (int y = vegRange[0]; y <= vegRange[1]; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
-                    if (!cur.isAir() && (isObstacle(cur) || y <= targetY + Math.min(2, clear))) {
+                    if (!cur.isAir() && (isObstacle(cur) || y <= deckY + Math.min(2, clear))) {
                         out.add(new PlannedBlock(p, Blocks.AIR.getDefaultState(), com.formacraft.common.build.GeometrySource.generated("terrain_clearance")));
                         clearCount++;
                     }

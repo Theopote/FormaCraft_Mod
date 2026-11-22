@@ -30,7 +30,7 @@ public class TerrainShaper {
      */
     public static TerrainOperation flattenArea(ServerWorld world, BlockPos min, BlockPos max, BlockState fillMaterial) {
         List<Integer> heights = TerrainSampling.sampleHeights(world, min, max);
-        int targetY = TerrainSampling.medianHeight(heights);
+        int targetY = com.formacraft.server.world.WorldBuildBounds.clampY(world, TerrainSampling.medianHeight(heights));
 
         List<PlannedBlock> operations = new ArrayList<>();
 
@@ -40,8 +40,9 @@ public class TerrainShaper {
                     TerrainSampling.noteUnloadedColumn();
                     continue;
                 }
-                // 向下填充（填充到 targetY - 3 到 targetY）
-                for (int y = targetY - 3; y <= targetY; y++) {
+                // 向下填充（填充到 targetY - 3 到 targetY），钳制在维度高度内
+                int[] fillRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(world, targetY - 3, targetY);
+                for (int y = fillRange[0]; y <= fillRange[1]; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     BlockState current = world.getBlockState(p);
                     
@@ -52,8 +53,9 @@ public class TerrainShaper {
                 }
 
                 // 向上清空（清除 targetY + 1 到 maxY + 5 的方块）
-                int clearTop = max.getY() + 5;
-                for (int y = targetY + 1; y <= clearTop; y++) {
+                int[] clearRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(
+                        world, targetY + 1, max.getY() + 5);
+                for (int y = clearRange[0]; y <= clearRange[1]; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     BlockState current = world.getBlockState(p);
                     
@@ -85,8 +87,10 @@ public class TerrainShaper {
                     TerrainSampling.noteUnloadedColumn();
                     continue;
                 }
-                // 从 minY 到 maxY + 10 清理障碍物
-                for (int y = min.getY(); y <= max.getY() + 10; y++) {
+                // 从 minY 到 maxY + 10 清理障碍物（钳制在维度高度内）
+                int[] clearRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(
+                        world, min.getY(), max.getY() + 10);
+                for (int y = clearRange[0]; y <= clearRange[1]; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     BlockState state = world.getBlockState(p);
 
@@ -172,7 +176,8 @@ public class TerrainShaper {
             groundY = bridgeEnd.getY() - 3; // 回退方案
         }
         
-        int targetY = Math.max(groundY, bridgeEnd.getY() - 2);
+        int targetY = com.formacraft.server.world.WorldBuildBounds.clampY(
+                world, Math.max(groundY, bridgeEnd.getY() - 2));
         
         // 在桥端点周围创建平台
         for (int x = bridgeEnd.getX() - platformSize; x <= bridgeEnd.getX() + platformSize; x++) {
@@ -181,8 +186,8 @@ public class TerrainShaper {
                     TerrainSampling.noteUnloadedColumn();
                     continue;
                 }
-                // 填充到 targetY
-                for (int y = targetY - 2; y <= targetY; y++) {
+                int[] fillRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(world, targetY - 2, targetY);
+                for (int y = fillRange[0]; y <= fillRange[1]; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     BlockState current = world.getBlockState(p);
                     
@@ -191,8 +196,9 @@ public class TerrainShaper {
                     }
                 }
                 
-                // 清除 targetY 上方的障碍物
-                for (int y = targetY + 1; y <= bridgeEnd.getY() + 2; y++) {
+                int[] clearRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(
+                        world, targetY + 1, bridgeEnd.getY() + 2);
+                for (int y = clearRange[0]; y <= clearRange[1]; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     BlockState current = world.getBlockState(p);
                     

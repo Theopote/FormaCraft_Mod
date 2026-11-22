@@ -422,7 +422,9 @@ public final class TerrainAdaptationEngine {
                     continue;
                 }
                 int top = topOpt.getAsInt();
-                for (int y = top - fd; y <= top; y++) {
+                int[] yRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(world, top - fd, top);
+                if (yRange[0] > yRange[1]) continue;
+                for (int y = yRange[0]; y <= yRange[1]; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);
@@ -445,9 +447,11 @@ public final class TerrainAdaptationEngine {
     public static List<PlannedBlock> carve(ServerWorld world, Bounds b, int baseY, int clearHeight) {
         if (world == null || b == null) return List.of();
         int clear = Math.max(0, Math.min(32, clearHeight));
-        // Use a conservative world max bound (1.21 default top is 383), avoid relying on unavailable APIs.
-        int worldMaxY = 383;
-        int y1 = Math.min(worldMaxY, baseY + Math.max(4, (b.max.getY() - b.min.getY())) + clear);
+        int[] yRange = com.formacraft.server.world.WorldBuildBounds.clampYRange(
+                world, baseY, baseY + Math.max(4, (b.max.getY() - b.min.getY())) + clear);
+        int y0 = yRange[0];
+        int y1 = yRange[1];
+        if (y0 > y1) return List.of();
         List<PlannedBlock> out = new ArrayList<>(Math.max(256, (b.max.getX() - b.min.getX() + 1) * (b.max.getZ() - b.min.getZ() + 1) * 4));
 
         for (int x = b.min.getX(); x <= b.max.getX(); x++) {
@@ -464,7 +468,7 @@ public final class TerrainAdaptationEngine {
                     TerrainSampling.noteUnloadedColumn();
                     continue;
                 }
-                for (int y = baseY; y <= y1; y++) {
+                for (int y = y0; y <= y1; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
                     BlockState cur = world.getBlockState(p);

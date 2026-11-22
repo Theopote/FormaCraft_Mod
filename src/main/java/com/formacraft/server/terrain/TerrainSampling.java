@@ -24,7 +24,6 @@ import java.util.OptionalInt;
  */
 public class TerrainSampling {
 
-    private static final int WORLD_MAX_Y = 384;
     public static final int FALLBACK_Y = 64;
 
     /**
@@ -54,9 +53,12 @@ public class TerrainSampling {
     public static OptionalInt placementYIfReady(ServerWorld world, int x, int z) {
         if (world == null || !isColumnReady(world, x, z)) return OptionalInt.empty();
         int bottom = world.getBottomY();
+        int topInclusive = WorldBuildBounds.topYInclusive(world);
+        // Heightmap first-air may sit one above the top solid cell.
+        int maxPlacement = topInclusive + 1;
         int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-        if (y <= bottom || y > WORLD_MAX_Y) {
-            y = scanFromTop(world, x, z, bottom);
+        if (y <= bottom || y > maxPlacement) {
+            y = scanFromTop(world, x, z, bottom, topInclusive);
         }
         return OptionalInt.of(descendPastCanopy(world, x, z, y, bottom));
     }
@@ -145,17 +147,17 @@ public class TerrainSampling {
         return false;
     }
 
-    private static int scanFromTop(ServerWorld world, int x, int z, int bottomY) {
-        int y = WORLD_MAX_Y - 1;
+    private static int scanFromTop(ServerWorld world, int x, int z, int bottomY, int topInclusive) {
+        int y = topInclusive;
         while (y > bottomY) {
             BlockPos pos = new BlockPos(x, y, z);
             BlockState s = world.getBlockState(pos);
             if (!s.isAir() && !isCanopyMaterial(s)) {
-                return y + 1; // first air above non-canopy material
+                return Math.min(topInclusive + 1, y + 1); // first air above non-canopy material
             }
             y--;
         }
-        return FALLBACK_Y;
+        return WorldBuildBounds.clampY(world, FALLBACK_Y);
     }
 
     public static int medianHeight(List<Integer> heights) {
