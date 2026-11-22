@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Ordinary LlmPlan exposes the existing REVOLVE_SURFACE Assembly geometry contract (NONBINDING_HINT). Python validates authored radial profiles and sampling parameters in raw Assembly ops (HARD_CONSTRAINT). Profiles, materials, placement and tier composition stay model-authored.
+
 LlmPlan normalization records authored mass height and storey height as `AI_PLANNED` before component defaults (FORMAT_REPAIR). It no longer grows mass height from a floor-count text hint (removed DESIGN_OVERRIDE). The compiler can diagnose conflicting locked geometry.
 
 Floor layout overflow respects plan and component design-source locks on envelope height and storey height (HARD_CONSTRAINT). If the geometry cannot fit without changing locked values, the compiler reports `E_FLOOR_LAYOUT_CONFLICT` at the component path and preserves the authored layout.

@@ -118,7 +118,9 @@ class TestPlanArchitecturalEnrichment(unittest.TestCase):
             "在锚点位置生成金门大桥",
         )
         self.assertEqual(profile.minecraft_strategy.recommended_components, ["STRUCTURE"])
-        self.assertIn("FORBID", profile.minecraft_strategy.notes or "")
+        notes = profile.minecraft_strategy.notes or ""
+        self.assertIn("explicit user request for typology:suspension_bridge", notes)
+        self.assertNotIn("FORBID", notes)
 
     def test_typology_plan_not_enriched_with_house_facade(self):
         from app.services.plan_architectural_enrichment import enrich_llm_plan_architectural_detail

@@ -10,10 +10,26 @@ from app.services.assembly_plan_repair import (
     finalize_assembly_plan_or_gap,
     maybe_repair_assembly_plan,
 )
-from app.services.assembly_plan_validator import AssemblyPlanIssue
+from app.services.assembly_plan_validator import AssemblyPlanIssue, validate_assembly_plan
 
 
 class AssemblyPlanRepairTest(unittest.TestCase):
+    def test_revolve_profiles_pass_unchanged_and_bad_radius_reports_path(self):
+        tiers = [
+            {"op": "REVOLVE_SURFACE", "profilePoints": [{"x": 8, "y": 4}, {"x": 5, "y": 7}],
+             "material": "minecraft:smooth_quartz"},
+            {"op": "REVOLVE_SURFACE", "profilePoints": [{"x": 5, "y": 9}, {"x": 2, "y": 12}],
+             "material": "minecraft:prismarine"},
+        ]
+        plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": {"ops": tiers}}}]}
+        before = deepcopy(plan)
+        self.assertEqual([], validate_assembly_plan(plan))
+        self.assertEqual(before, plan)
+        tiers[1]["profilePoints"][1]["x"] = -2
+        issues = validate_assembly_plan(plan)
+        self.assertEqual(["E_REVOLVE_PROFILE_INVALID"], [issue.code for issue in issues])
+        self.assertTrue(issues[0].path.endswith("ops[1].profilePoints"))
+
     def test_loft_feedback_reaches_model_and_repaired_plan_is_revalidated(self):
         request = "用石英建一座原创折光匣，保留高 9 格的斜面"
         plan = {

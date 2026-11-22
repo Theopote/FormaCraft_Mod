@@ -304,6 +304,32 @@ def _validate_assembly_component(
 def _validate_geometry_fields(
     issues: List[AssemblyPlanIssue], comp: dict, path: str, kind: str, *, graph_component: bool = False,
 ) -> None:
+    if kind == "REVOLVE_SURFACE" and not graph_component:
+        field = next((key for key in ("profileRings", "rings", "profilePoints", "points")
+                      if comp.get(key) is not None), "profilePoints")
+        profile = comp.get(field)
+        if isinstance(profile, list) and len(profile) == 1 and isinstance(profile[0], list):
+            profile = profile[0]
+        if not isinstance(profile, list) or len(profile) < 2 or any(
+            not isinstance(point, dict) or type(point.get("x")) is not int
+            or point["x"] < 0 or type(point.get("y")) is not int
+            for point in profile
+        ):
+            issues.append(AssemblyPlanIssue(f"{path}.{field}", "E_REVOLVE_PROFILE_INVALID",
+                                           "Provide one ordered profile of at least two integer radius/height points"))
+        for key, minimum, maximum in (("segments", 8, 512), ("thickness", 1, 9)):
+            value = comp.get(key)
+            if value is not None and (type(value) is not int or not minimum <= value <= maximum):
+                issues.append(AssemblyPlanIssue(f"{path}.{key}", "E_INT_RANGE",
+                                               f"{key} must be an integer in {minimum}..{maximum}"))
+        angle_key = "angleDeg" if comp.get("angleDeg") is not None else "angle"
+        angle = comp.get(angle_key)
+        if angle is not None and (type(angle) not in (int, float) or not 0 < angle <= 360):
+            issues.append(AssemblyPlanIssue(f"{path}.{angle_key}", "E_REVOLVE_ANGLE_RANGE",
+                                           "Rotation angle must be greater than 0 and at most 360 degrees"))
+        if comp.get("connectSamples") is not None and type(comp["connectSamples"]) is not bool:
+            issues.append(AssemblyPlanIssue(f"{path}.connectSamples", "E_BOOL_TYPE",
+                                           "connectSamples must be a boolean"))
     if kind == "LOFT_SURFACE":
         sections = comp.get("sections")
         if not isinstance(sections, list) or len(sections) < 2:

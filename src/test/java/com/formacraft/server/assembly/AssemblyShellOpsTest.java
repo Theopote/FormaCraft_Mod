@@ -83,6 +83,25 @@ class AssemblyShellOpsTest {
     }
 
     @Test
+    void modelAuthoredRevolveProfilesProduceIndependentHollowTiers() {
+        var lower = Map.of("op", "REVOLVE_SURFACE", "profilePoints",
+                List.of(Map.of("x", 8, "y", 4), Map.of("x", 5, "y", 7)),
+                "material", "minecraft:smooth_quartz");
+        var upper = Map.of("op", "REVOLVE_SURFACE", "profilePoints",
+                List.of(Map.of("x", 5, "y", 9), Map.of("x", 2, "y", 12)),
+                "material", "minecraft:prismarine");
+        var payload = Map.of("ops", List.of(lower, upper));
+        assertTrue(AssemblySpecValidator.validate(payload).stream()
+                .noneMatch(issue -> issue.severity() == AssemblyValidationIssue.Severity.ERROR));
+        var context = new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null);
+        var blocks = snapshot(new MetaAssemblyEngine().executeGeometry(AssemblySpec.fromExtra(payload), context));
+        assertEquals(Blocks.SMOOTH_QUARTZ.getDefaultState(), blocks.get(new BlockPos(8, 4, 0)));
+        assertEquals(Blocks.PRISMARINE.getDefaultState(), blocks.get(new BlockPos(0, 9, 5)));
+        assertTrue(blocks.containsKey(new BlockPos(-2, 12, 0)));
+        assertFalse(blocks.containsKey(new BlockPos(0, 9, 0)));
+    }
+
+    @Test
     void modelAuthoredLoftProducesSlopedSurfaceAcrossSections() {
         var start = Map.of("at", Map.of("z", 0), "profilePoints",
                 List.of(Map.of("x", 0, "y", 2), Map.of("x", 8, "y", 2)));

@@ -54,6 +54,12 @@ Core rules:
   plane. Use two or more sections with the same point count (at least two), in corresponding
   order. Repeat the first point as the last only when the outline should close.
   This creates a surface. Author any needed end walls, floors or solid volumes separately.
+- For a curved surface around a vertical axis, use ASSEMBLY params.assembly.ops
+  with op="REVOLVE_SURFACE" and profilePoints:[{x:<radius>,y:<height>}, ...].
+  Give at least two ordered points with non-negative integer radii and integer local heights.
+  The axis runs through the Assembly origin. Use angleDeg in (0,360] for a partial or full turn,
+  segments 8..512 and thickness 1..9 if specified, and material for the authored surface.
+  The op draws a surface; add separate profiles or geometry for tiers, decks and interiors.
 - For an Assembly STAIR_SYSTEM, choose a floor block. Omit stairs to use the matching
   registered stair family when available, or specify stairs for an intentional material or state.
 - A component name or feature label does not emit geometry. For simple linear details such as

@@ -65,6 +65,51 @@ class TestLlmPlanRepair(unittest.TestCase):
             scale_hints=ProfileScaleHints(typical_width_blocks=20, typical_depth_blocks=20, typical_height_blocks=40),
         )
         bad_plan = {"mode": "build", "style_profile": "DEFAULT"}
+        # Whole-building typology fallback requires an explicit typology:<id> opt-in;
+        # keyword-only text must not silently rebuild a STRUCTURE executor.
+        user_text = "typology:dense_eaves_pagoda"
+        req = Mock()
+        req.userMessage = user_text
+        req.selection = None
+        req.brushSelection = None
+        req.world = None
+        req.outline = None
+        req.symmetry = None
+        req.player = Mock()
+        req.player.pos = Mock(x=10, y=64, z=10)
+        req.player.facing = "SOUTH"
+
+        def normalize_fn(plan, build_req, **_kwargs):
+            return _normalize_llm_plan_output(plan, build_req, building_profile=profile)
+
+        out = repair_llm_plan_validation(
+            bad_plan,
+            req,
+            user_text=user_text,
+            building_profile=profile,
+            normalize_fn=normalize_fn,
+        )
+        self.assertNotEqual(out.get("plan_status"), "capability_gap")
+        types = [c["component_type"] for c in out.get("components") or []]
+        self.assertIn("STRUCTURE", types)
+
+    def test_keyword_only_typology_profile_does_not_silent_structure_fallback(self):
+        from unittest.mock import Mock
+
+        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy, ProfileScaleHints
+        from app.services.llm_plan_normalization import _normalize_llm_plan_output
+        from app.services.llm_plan_repair import repair_llm_plan_validation
+
+        profile = BuildingProfile(
+            query="pagoda",
+            minecraft_strategy=ProfileMinecraftStrategy(
+                landmark_module=None,
+                structural_typology="dense_eaves_pagoda",
+                recommended_components=["STRUCTURE"],
+            ),
+            scale_hints=ProfileScaleHints(typical_width_blocks=20, typical_depth_blocks=20, typical_height_blocks=40),
+        )
+        bad_plan = {"mode": "build", "style_profile": "DEFAULT"}
         req = Mock()
         req.userMessage = "dense eaves pagoda"
         req.selection = None
@@ -86,9 +131,11 @@ class TestLlmPlanRepair(unittest.TestCase):
             building_profile=profile,
             normalize_fn=normalize_fn,
         )
-        self.assertNotEqual(out.get("plan_status"), "capability_gap")
-        types = [c["component_type"] for c in out.get("components") or []]
-        self.assertIn("STRUCTURE", types)
+        self.assertEqual(out.get("plan_status"), "capability_gap")
+        self.assertNotIn(
+            "STRUCTURE",
+            [c.get("component_type") for c in out.get("components") or []],
+        )
 
     def test_golden_gate_profile_typology_first(self):
         from app.models.building_profile import BuildingProfile
