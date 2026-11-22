@@ -1,5 +1,6 @@
 package com.formacraft.common.component;
 
+import com.formacraft.common.io.AtomicFiles;
 import com.formacraft.common.json.JsonUtil;
 import com.formacraft.common.component.community.CommunityDownloadCache;
 import com.formacraft.common.patch.BlockPatch;
@@ -162,7 +163,7 @@ public final class BuildingAssetLocks {
                 validateManifest(manifest,owner,id);
                 try (var output = new LimitedOutput(Files.newOutputStream(staging.resolve("manifest.json"),StandardOpenOption.CREATE_NEW),MAX_MANIFEST);
                      var writer = new OutputStreamWriter(output,StandardCharsets.UTF_8)) { JsonUtil.get().toJson(manifest,writer); }
-                hook.run(staging); Files.move(staging,locks.resolve(id),StandardCopyOption.ATOMIC_MOVE); return id;
+                hook.run(staging); AtomicFiles.moveCreateNew(staging, locks.resolve(id)); return id;
             } finally { cleanup(staging); }
         }
     }

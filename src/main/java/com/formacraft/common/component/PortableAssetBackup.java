@@ -1,6 +1,7 @@
 package com.formacraft.common.component;
 
 import com.formacraft.common.component.community.CommunityDownloadCache;
+import com.formacraft.common.io.AtomicFiles;
 import com.formacraft.common.json.JsonUtil;
 import com.google.gson.Strictness;
 import com.google.gson.stream.*;
@@ -109,7 +110,7 @@ public final class PortableAssetBackup {
                 try {
                     for(String name:primaryFiles(header.kind,header.id))
                         Files.copy(safeFile(stage.root,name),publishing.resolve(Path.of(name).getFileName()));
-                    Files.move(publishing,destination,StandardCopyOption.ATOMIC_MOVE);
+                    AtomicFiles.moveCreateNew(publishing,destination);
                 } finally { cleanup(publishing); }
                 return new Imported(header.kind,header.id,false);
             }

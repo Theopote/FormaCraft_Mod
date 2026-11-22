@@ -5,12 +5,12 @@ import com.formacraft.common.component.autofix.AutoFixReport;
 import com.formacraft.common.json.JsonUtil;
 import net.fabricmc.loader.api.FabricLoader;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -403,18 +403,24 @@ public final class ComponentStorage {
         }
     }
 
+    /** Matches {@link ComponentCapturePersistence} thumbnail byte cap (1 MiB). */
+    public static final int MAX_THUMBNAIL_BYTES = 1024 * 1024;
+
     /**
-     * 将客户端提供的缩略图写入与构件相同的目标目录。
+     * 将客户端提供的缩略图写入与构件相同的目标目录（临时文件原子替换，带大小上限）。
      */
     public static void saveThumbnail(SaveContext ctx, String componentId, byte[] pngBytes) throws Exception {
         String id = ComponentIds.validateComponentId(componentId);
         if (pngBytes == null || pngBytes.length == 0) return;
+        if (pngBytes.length > MAX_THUMBNAIL_BYTES) {
+            throw new IOException("缩略图超过上限");
+        }
         boolean writeGlobal = ctx == null || ctx.writeGlobal();
         UUID playerId = ctx != null ? ctx.playerId() : null;
         Path targetDir = writeGlobal ? getGlobalComponentDir() : getPlayerComponentDir(playerId);
         Files.createDirectories(targetDir);
         Path thumbFile = ComponentIds.resolveComponentFile(targetDir, id, ".png");
-        Files.write(thumbFile, pngBytes);
+        com.formacraft.common.io.AtomicFiles.writeBytes(thumbFile, pngBytes);
     }
 
     public static ComponentDefinition loadComponent(Path worldDir, String id) {
@@ -632,11 +638,7 @@ public final class ComponentStorage {
             try (Writer w = Files.newBufferedWriter(tmp, StandardCharsets.UTF_8)) {
                 JsonUtil.get().toJson(value, w);
             }
-            try {
-                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-                Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
-            }
+            com.formacraft.common.io.AtomicFiles.moveReplaceExisting(tmp, target);
         } catch (Exception e) {
             try {
                 Files.deleteIfExists(tmp);

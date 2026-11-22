@@ -1,5 +1,6 @@
 package com.formacraft.common.component;
 
+import com.formacraft.common.io.AtomicFiles;
 import com.formacraft.common.json.JsonUtil;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
@@ -118,7 +119,7 @@ public final class ComponentPackageInstallations {
             var receipt = new Receipt("formacraft.component.install.v1", id, verified.contentRef(), verified.manifestSha256());
             Files.writeString(staging.resolve(RECEIPT), JsonUtil.toJson(receipt), StandardOpenOption.CREATE_NEW);
             beforePublish.run(staging);
-            Files.move(staging, target, StandardCopyOption.ATOMIC_MOVE);
+            AtomicFiles.moveCreateNew(staging, target);
             published = true;
             return receipt;
         } finally {
@@ -164,7 +165,7 @@ public final class ComponentPackageInstallations {
         Path staging = sources.resolve(".pending-source-" + UUID.randomUUID());
         try {
             incoming.writeTo(staging);
-            Files.move(staging, sources.resolve(sourceKey(incoming)), StandardCopyOption.ATOMIC_MOVE);
+            AtomicFiles.moveCreateNew(staging, sources.resolve(sourceKey(incoming)));
         } finally { Files.deleteIfExists(staging); }
         return true;
     }

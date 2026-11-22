@@ -96,4 +96,18 @@ class ComponentCapturePersistenceTest {
         assertFalse(Files.exists(root.resolve(id + ".png")));
         assertTrue(ComponentStorage.loadCatalog(null).components.isEmpty());
     }
+    @Test void thumbnailRejectsOversizedPayloadAndReplacesAtomically() throws Exception {
+        var saved = save(sample()); String id = saved.imported().assetId();
+        Path thumb = root.resolve(id + ".png");
+        ComponentStorage.saveThumbnail(context(), id, new byte[] {1, 2, 3});
+        assertArrayEquals(new byte[] {1, 2, 3}, Files.readAllBytes(thumb));
+        assertThrows(IOException.class, () -> ComponentStorage.saveThumbnail(context(), id,
+                new byte[ComponentStorage.MAX_THUMBNAIL_BYTES + 1]));
+        assertArrayEquals(new byte[] {1, 2, 3}, Files.readAllBytes(thumb));
+        ComponentStorage.saveThumbnail(context(), id, new byte[] {9, 8, 7});
+        assertArrayEquals(new byte[] {9, 8, 7}, Files.readAllBytes(thumb));
+        try (var files = Files.list(root)) {
+            assertEquals(0, files.filter(p -> p.getFileName().toString().startsWith(".fc-")).count());
+        }
+    }
 }

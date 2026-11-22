@@ -1,5 +1,7 @@
 package com.formacraft.common.component;
 
+import com.formacraft.common.io.AtomicFiles;
+
 import java.io.IOException;
 import java.nio.file.*;
 
@@ -21,7 +23,7 @@ public final class ComponentAssetSnapshots {
             Path staging = Files.createTempDirectory(root,".pending-");
             try {
                 source.writeTo(staging.resolve("source.fccomponent.json"));
-                Files.move(staging,root.resolve(key),StandardCopyOption.ATOMIC_MOVE);
+                AtomicFiles.moveCreateNew(staging, root.resolve(key));
             } finally {
                 if (Files.exists(staging,LinkOption.NOFOLLOW_LINKS)) {
                     Files.deleteIfExists(staging.resolve("source.fccomponent.json")); Files.delete(staging);
