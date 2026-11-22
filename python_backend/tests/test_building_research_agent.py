@@ -44,6 +44,7 @@ def test_geometry_evidence_reaches_planning_only_with_shown_sources():
         assert "Connects unequal wings" in prompt
         assert "canopy span / main wing width" in prompt
         assert "pale copper" in prompt
+        assert "Explicit user requirements and omissions take precedence over all research evidence." in prompt
         assert source["url"] in prompt
         assert "Unsupported spire" not in prompt
         assert "Invented source" not in prompt
@@ -57,6 +58,8 @@ def test_geometry_observation_without_measurements_keeps_them_unknown():
                "source_urls": ["https://example.com/archive"]}
     invalid = {**feature, "relative_proportion": {"comparison": "screen / base width",
                                                   "minimum": 0.8, "maximum": 0.4}}
+    profile = profile_from_llm_dict({"geometry_evidence": [invalid]})
+    assert profile.to_prompt_dict()["geometry_evidence"] == [feature]
     profile = profile_from_llm_dict({"geometry_evidence": [invalid, feature]})
     assert profile.to_prompt_dict()["geometry_evidence"] == [feature]
 

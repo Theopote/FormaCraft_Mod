@@ -106,6 +106,16 @@ class ProfileGeometryEvidence(BaseModel):
     material_or_color: Optional[str] = Field(default=None, min_length=1, max_length=200)
     source_urls: List[str] = Field(min_length=1, max_length=4)
 
+    @field_validator("relative_proportion", mode="before")
+    @classmethod
+    def discard_invalid_optional_proportion(cls, value: Any) -> Optional[ProfileRelativeProportion]:
+        if value is None:
+            return None
+        try:
+            return ProfileRelativeProportion.model_validate(value)
+        except ValidationError:
+            return None
+
 
 class StyleFeatureEvidence(BaseModel):
     feature: str
