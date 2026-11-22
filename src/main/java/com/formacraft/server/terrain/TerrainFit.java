@@ -56,7 +56,7 @@ public final class TerrainFit {
         List<Integer> heights = new ArrayList<>(footprint.size());
         for (BlockPos p : footprint) {
             if (p == null) continue;
-            heights.add(world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ()));
+            heights.add(TerrainSampling.placementY(world, p.getX(), p.getZ()));
         }
         if (heights.isEmpty()) return new FootprintAnalysis(64, 64, 64, 0);
 
@@ -87,7 +87,7 @@ public final class TerrainFit {
         List<Integer> heights = new ArrayList<>(footprint.size());
         for (BlockPos p : footprint) {
             if (p == null) continue;
-            heights.add(world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ()));
+            heights.add(TerrainSampling.placementY(world, p.getX(), p.getZ()));
         }
         return TerrainSampling.averageHeight(heights);
     }
@@ -326,7 +326,7 @@ public final class TerrainFit {
 
         for (int x = origin.getX() - halfW; x <= origin.getX() + halfW; x++) {
             for (int z = origin.getZ() - halfD; z <= origin.getZ() + halfD; z++) {
-                int topY = world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, x, z);
+                int topY = TerrainSampling.placementY(world, x, z);
 
                 if (topY <= targetY) {
                     // Heightmap topY is the first air cell, not the top solid cell.

@@ -11,7 +11,6 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.Heightmap;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -147,8 +146,7 @@ public final class TerrainAdaptationEngine {
         List<Integer> heights = new ArrayList<>(footprint.size());
         for (BlockPos p : footprint) {
             if (p == null) continue;
-            int y = world.getTopY(Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ());
-            heights.add(y);
+            heights.add(TerrainSampling.placementY(world, p.getX(), p.getZ()));
         }
         if (heights.isEmpty()) return fallbackY;
 
@@ -308,7 +306,7 @@ public final class TerrainAdaptationEngine {
                                 continue;
                             }
                         }
-                        top[ix][iz] = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
+                        top[ix][iz] = TerrainSampling.placementY(world, x, z);
                     }
                 }
 
@@ -353,7 +351,7 @@ public final class TerrainAdaptationEngine {
             long key = xzKey(p.getX(), p.getZ());
             int dy = dyByXZ.get(key);
             if (dy == Integer.MIN_VALUE) {
-                int top = world.getTopY(Heightmap.Type.WORLD_SURFACE, p.getX(), p.getZ());
+                int top = TerrainSampling.placementY(world, p.getX(), p.getZ());
                 dy = top - baseY;
                 if (maxStep > 0) dy = Math.max(-maxStep, Math.min(maxStep, dy)); // fallback clamp
                 dyByXZ.put(key, dy);
@@ -398,7 +396,7 @@ public final class TerrainAdaptationEngine {
                     int dz = z - cz;
                     if (dx * dx + dz * dz > r * r) continue;
                 }
-                int top = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
+                int top = TerrainSampling.placementY(world, x, z);
                 for (int y = top - fd; y <= top; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;

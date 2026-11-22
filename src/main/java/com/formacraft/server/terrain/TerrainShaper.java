@@ -1,6 +1,7 @@
 package com.formacraft.server.terrain;
 
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.server.build.BuildConstraintContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -42,7 +43,7 @@ public class TerrainShaper {
                     
                     // 只填充空气或可替换的方块
                     if (current.isAir() || current.getBlock() == Blocks.WATER || current.getBlock() == Blocks.LAVA) {
-                        operations.add(new PlannedBlock(p, fillMaterial));
+                        emit(operations, p, fillMaterial);
                     }
                 }
 
@@ -54,7 +55,7 @@ public class TerrainShaper {
                     
                     // 清除非空气方块
                     if (!current.isAir()) {
-                        operations.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                        emit(operations, p, Blocks.AIR.getDefaultState());
                     }
                 }
             }
@@ -82,13 +83,23 @@ public class TerrainShaper {
                     BlockState state = world.getBlockState(p);
 
                     if (isObstacle(state)) {
-                        operations.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                        emit(operations, p, Blocks.AIR.getDefaultState());
                     }
                 }
             }
         }
 
         return new TerrainOperation(operations);
+    }
+
+    /**
+     * HARD_CONSTRAINT: same generation-time clip as TerrainFit / TerrainAdaptationEngine.
+     * Visible for tests.
+     */
+    static void emit(List<PlannedBlock> operations, BlockPos p, BlockState state) {
+        if (p == null || state == null) return;
+        if (!BuildConstraintContext.allow(p)) return;
+        operations.add(new PlannedBlock(p, state));
     }
 
     /**
@@ -148,7 +159,7 @@ public class TerrainShaper {
         List<PlannedBlock> operations = new ArrayList<>();
         
         // 找到桥端点下方的地面高度
-        int groundY = world.getTopY(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, bridgeEnd.getX(), bridgeEnd.getZ());
+        int groundY = TerrainSampling.placementY(world, bridgeEnd.getX(), bridgeEnd.getZ());
         if (groundY <= world.getBottomY()) {
             groundY = bridgeEnd.getY() - 3; // 回退方案
         }
@@ -164,7 +175,7 @@ public class TerrainShaper {
                     BlockState current = world.getBlockState(p);
                     
                     if (current.isAir() || current.getBlock() == Blocks.WATER || current.getBlock() == Blocks.LAVA) {
-                        operations.add(new PlannedBlock(p, fillMaterial));
+                        emit(operations, p, fillMaterial);
                     }
                 }
                 
@@ -174,7 +185,7 @@ public class TerrainShaper {
                     BlockState current = world.getBlockState(p);
                     
                     if (!current.isAir() && isObstacle(current)) {
-                        operations.add(new PlannedBlock(p, Blocks.AIR.getDefaultState()));
+                        emit(operations, p, Blocks.AIR.getDefaultState());
                     }
                 }
             }

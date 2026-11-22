@@ -10,7 +10,6 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.Heightmap;
 
 import java.util.*;
 
@@ -49,15 +48,7 @@ public final class BuildingLandingPlanner {
     public static Ground ground(ServerWorld world) {
         return new Ground() {
             public int placementY(int x, int z) {
-                int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-                while (y > world.getBottomY()) {
-                    BlockState s = world.getBlockState(new BlockPos(x, y - 1, z));
-                    if ((s.isSolidBlock(world, new BlockPos(x, y - 1, z)) || !s.getFluidState().isEmpty())
-                            && !s.isIn(net.minecraft.registry.tag.BlockTags.LOGS)
-                            && !s.isIn(net.minecraft.registry.tag.BlockTags.LEAVES)) break;
-                    y--;
-                }
-                return y;
+                return TerrainSampling.placementY(world, x, z);
             }
             public int surfaceY(int x, int z) {
                 int y = placementY(x,z);
