@@ -21,13 +21,21 @@ import java.util.Set;
 /**
  * Planning-revision layer for unexecutable stair tread ids.
  * <ul>
- *   <li>USER_EXPLICIT invalid tread with no same-family registered stair → leave for capability gap</li>
+ *   <li>Server-sealed USER_EXPLICIT invalid tread with no same-family registered stair → leave for capability gap</li>
  *   <li>LLM / unlocked invalid tread → map via material family, else stone-brick TECHNICAL_DEFAULT</li>
  * </ul>
  * Does not substitute during {@link MaterialFallbackPolicy} normalize — that path preserves authored values.
+ * Provenance / verification metadata maps are opaque and never revised as block ids.
  */
 public final class StairTreadMaterialRevision {
     private static final Set<String> ASSEMBLY_STAIR_TYPES = Set.of("STAIR_SYSTEM", "STAIRS_SYSTEM", "STAIRCASE");
+    /** Same opaque provenance keys as {@link MaterialFallbackPolicy}, plus the server seal token. */
+    private static final Set<String> PROVENANCE_METADATA_KEYS = Set.of(
+            "design_sources",
+            "_param_sources",
+            UserConstraintContract.SERVER_VERIFIED_SOURCES_KEY,
+            UserConstraintContract.SERVER_SEAL_KEY
+    );
 
     private StairTreadMaterialRevision() {}
 
@@ -40,7 +48,7 @@ public final class StairTreadMaterialRevision {
                 out.add(null);
                 continue;
             }
-            Map<String, Object> params = reviseParams(plan, c, c.params());
+            Map<String, Object> params = reviseParams(c, c.params());
             if (params != c.params()) {
                 changed = true;
                 out.add(new Component(c.componentType(), c.slotId(), c.relativePosition(),
@@ -58,10 +66,10 @@ public final class StairTreadMaterialRevision {
                 plan.enrichmentGuard(), plan.planMeta(), plan.designSources());
     }
 
-    private static Map<String, Object> reviseParams(LlmPlan plan, Component component, Map<String, Object> params) {
+    private static Map<String, Object> reviseParams(Component component, Map<String, Object> params) {
         if (params == null) return null;
         boolean stair = StairComponentIdentity.isStairComponent(component);
-        Object revisedTree = reviseValue(plan, params, params, null, params, stair);
+        Object revisedTree = reviseValue(params, params, null, params, stair);
         if (revisedTree == params) return params;
         @SuppressWarnings("unchecked")
         Map<String, Object> revised = (Map<String, Object>) revisedTree;
@@ -70,24 +78,29 @@ public final class StairTreadMaterialRevision {
 
     @SuppressWarnings("unchecked")
     private static Object reviseValue(
-            LlmPlan plan,
             Map<String, Object> componentParams,
             Map<?, ?> materialScope,
             String key,
             Object value,
             boolean stairContext
     ) {
+        // Provenance tags and seals are not block ids — never recurse or remap them.
+        if (isProvenanceMetadataKey(key)) {
+            return value;
+        }
         if (value instanceof Map<?, ?> map) {
             boolean assemblyStair = ASSEMBLY_STAIR_TYPES.contains(
                     Objects.toString(map.get("op"), "").trim().toUpperCase(Locale.ROOT))
                     || ASSEMBLY_STAIR_TYPES.contains(
                     Objects.toString(map.get("type"), "").trim().toUpperCase(Locale.ROOT));
             boolean childStair = stairContext || assemblyStair;
-            Map<?, ?> childScope = (assemblyStair || stairContext) ? map : materialScope;
+            // Nested STAIR_SYSTEM ops own their materials and sealed sources; otherwise keep the
+            // nearest stair material scope while descending geometry fields.
+            Map<?, ?> childScope = assemblyStair ? map : (stairContext ? map : materialScope);
             LinkedHashMap<String, Object> copy = null;
             for (Map.Entry<?, ?> e : map.entrySet()) {
                 String nk = String.valueOf(e.getKey());
-                Object revised = reviseValue(plan, componentParams, childScope, nk, e.getValue(), childStair);
+                Object revised = reviseValue(componentParams, childScope, nk, e.getValue(), childStair);
                 if (revised != e.getValue()) {
                     if (copy == null) {
                         LinkedHashMap<String, Object> seeded = new LinkedHashMap<>();
@@ -110,7 +123,7 @@ public final class StairTreadMaterialRevision {
         if (value instanceof List<?> list) {
             List<Object> copy = null;
             for (int i = 0; i < list.size(); i++) {
-                Object revised = reviseValue(plan, componentParams, materialScope, key, list.get(i), stairContext);
+                Object revised = reviseValue(componentParams, materialScope, key, list.get(i), stairContext);
                 if (revised != list.get(i)) {
                     if (copy == null) copy = new ArrayList<>((List<Object>) list);
                     copy.set(i, revised);
@@ -119,10 +132,14 @@ public final class StairTreadMaterialRevision {
             return copy == null ? value : copy;
         }
         if (stairContext && "stairs".equals(key) && value instanceof String requested) {
-            String revised = reviseTread(plan, componentParams, materialScope, requested);
+            String revised = reviseTread(componentParams, materialScope, requested);
             return Objects.equals(revised, requested) ? value : revised;
         }
         return value;
+    }
+
+    private static boolean isProvenanceMetadataKey(String key) {
+        return key != null && PROVENANCE_METADATA_KEYS.contains(key);
     }
 
     private static void annotateDesignSource(Map<String, Object> target) {
@@ -143,13 +160,13 @@ public final class StairTreadMaterialRevision {
     }
 
     private static String reviseTread(
-            LlmPlan plan,
             Map<String, Object> componentParams,
             Map<?, ?> materialScope,
             String requested
     ) {
         if (isRegisteredStairs(requested)) return requested;
-        boolean userExplicit = isUserExplicitStairs(plan, componentParams);
+        boolean userExplicit = isSealedUserExplicitStairs(materialScope)
+                || isSealedUserExplicitStairs(componentParams);
         String familyFromRequested = MaterialBlockFamily.stairs(requested);
         if (isRegisteredStairs(familyFromRequested)) {
             FormacraftMod.LOGGER.info(
@@ -157,7 +174,7 @@ public final class StairTreadMaterialRevision {
             return familyFromRequested;
         }
         if (userExplicit) {
-            // Preserve invalid USER_EXPLICIT value so the executor emits E_STAIR_COMPONENT_INVALID.
+            // Preserve invalid sealed USER_EXPLICIT value so the executor emits E_STAIR_COMPONENT_INVALID.
             return requested;
         }
         String floor = firstString(materialScope, "floor", "material");
@@ -176,25 +193,17 @@ public final class StairTreadMaterialRevision {
         return fallback;
     }
 
-    private static boolean isUserExplicitStairs(LlmPlan plan, Map<String, Object> params) {
-        if (params != null) {
-            if (UserConstraintContract.isServerVerified(params, "stairs")) return true;
-            if (Boolean.TRUE.equals(params.get("stairs_explicit"))
-                    || Boolean.TRUE.equals(params.get("stair_material_explicit"))) {
-                return true;
-            }
-            Object nested = params.get("design_sources");
-            if (nested instanceof Map<?, ?> map) {
-                DesignParamSource src = DesignParamSource.parse(
-                        map.get("stairs") == null ? null : String.valueOf(map.get("stairs")));
-                if (src == DesignParamSource.USER_EXPLICIT) return true;
-            }
+    /**
+     * Only a server-minted seal grants immutability. LLM-authored {@code design_sources},
+     * {@code stairs_explicit}, or plan-level sources never block remapping.
+     */
+    private static boolean isSealedUserExplicitStairs(Map<?, ?> params) {
+        if (params == null || params.isEmpty()) return false;
+        Map<String, Object> typed = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> e : params.entrySet()) {
+            if (e.getKey() != null) typed.put(String.valueOf(e.getKey()), e.getValue());
         }
-        if (plan != null && plan.designSources() != null) {
-            DesignParamSource src = DesignParamSource.parse(plan.designSources().get("stairs"));
-            return src == DesignParamSource.USER_EXPLICIT;
-        }
-        return false;
+        return UserConstraintContract.isServerVerified(typed, "stairs");
     }
 
     private static boolean isRegisteredStairs(String blockId) {

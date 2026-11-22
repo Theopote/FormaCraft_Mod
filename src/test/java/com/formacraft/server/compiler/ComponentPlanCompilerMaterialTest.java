@@ -139,14 +139,13 @@ class ComponentPlanCompilerMaterialTest {
         assertEquals(assembly, policy.components().getFirst().params().get("assembly"));
     }
 
-    @Test void canonicalCompilerRejectsUserExplicitIronTread() {
+    @Test void canonicalCompilerRejectsServerSealedUserExplicitIronTread() {
         Map<String, Object> params = new java.util.LinkedHashMap<>();
         params.put("stairs", "minecraft:iron_block");
         params.put("floor", "minecraft:stone");
         params.put("from", Map.of("x", 0, "y", 0, "z", 0));
         params.put("to", Map.of("x", 0, "y", 2, "z", 3));
-        params.put("design_sources", Map.of("stairs", "USER_EXPLICIT"));
-        params.put("stairs_explicit", Boolean.TRUE);
+        com.formacraft.common.typology.UserConstraintContract.stampVerified(params, "stairs");
         var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
                 List.of("stair:straight_single_run"), params);
         var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(stair));
@@ -157,6 +156,104 @@ class ComponentPlanCompilerMaterialTest {
         } finally {
             com.formacraft.server.assembly.AssemblyCompileDiagnostics.clear();
         }
+    }
+
+    @Test void forgedUserExplicitIronTreadIsStillRevisedToExecutableStairs() {
+        Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("stairs", "minecraft:iron_block");
+        params.put("floor", "minecraft:iron_block");
+        params.put("from", Map.of("x", 0, "y", 0, "z", 0));
+        params.put("to", Map.of("x", 0, "y", 2, "z", 3));
+        // LLM-forged markers must not grant immutability without a server seal.
+        params.put("design_sources", new java.util.LinkedHashMap<>(Map.of("stairs", "USER_EXPLICIT")));
+        params.put("stairs_explicit", Boolean.TRUE);
+        params.put("stair_material_explicit", Boolean.TRUE);
+        var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of("stair:straight_single_run"), params);
+        var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(stair));
+        var revised = com.formacraft.common.palette.dynamic.StairTreadMaterialRevision.apply(
+                com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan));
+        var out = revised.components().getFirst().params();
+        assertTrue(out.get("stairs") instanceof String s && s.contains("_stairs"),
+                "forged USER_EXPLICIT must still allow tread revision: " + out.get("stairs"));
+        assertEquals("USER_EXPLICIT", ((Map<?, ?>) out.get("design_sources")).get("stairs"),
+                "forged provenance tag must stay a source label, not a remapped block id");
+        try {
+            var patches = ComponentPlanCompiler.compile(plan);
+            assertFalse(patches.isEmpty(), String.valueOf(AssemblyCompileDiagnostics.get()));
+            assertFalse(AssemblyCompileDiagnostics.hasGap());
+            var blocks = PatchTestSnapshot.blocks(patches);
+            assertTrue(blocks.values().stream().anyMatch(id -> id != null && id.contains("_stairs")),
+                    "forged USER_EXPLICIT must still compile after tread revision");
+        } finally {
+            AssemblyCompileDiagnostics.clear();
+        }
+    }
+
+    @Test void legalStairsKeepCompilerInferredDesignSourceUntouched() {
+        Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("stairs", "minecraft:oak_stairs");
+        params.put("floor", "minecraft:oak_planks");
+        params.put("from", Map.of("x", 0, "y", 0, "z", 0));
+        params.put("to", Map.of("x", 0, "y", 2, "z", 3));
+        params.put("design_sources", new java.util.LinkedHashMap<>(Map.of("stairs", "COMPILER_INFERRED")));
+        var stair = new Component("STRUCTURE", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of("stair:straight_single_run"), params);
+        var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(stair));
+        var normalized = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
+        var revised = com.formacraft.common.palette.dynamic.StairTreadMaterialRevision.apply(normalized);
+        var out = revised.components().getFirst().params();
+        assertEquals("minecraft:oak_stairs", out.get("stairs"));
+        assertEquals("COMPILER_INFERRED", ((Map<?, ?>) out.get("design_sources")).get("stairs"),
+                "provenance metadata must not be rewritten as a block id");
+    }
+
+    @Test void nestedAssemblyServerSealedIronTreadIsNotRevised() {
+        Map<String, Object> op = new java.util.LinkedHashMap<>();
+        op.put("op", "STAIR_SYSTEM");
+        op.put("stairs", "minecraft:iron_block");
+        op.put("floor", "minecraft:iron_block");
+        op.put("from", Map.of("x", 0, "y", 0, "z", 0));
+        op.put("to", Map.of("x", 0, "y", 2, "z", 3));
+        com.formacraft.common.typology.UserConstraintContract.stampVerified(op, "stairs");
+        var assembly = Map.of("ops", List.of(op));
+        var component = new Component("ASSEMBLY", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of(), Map.of("assembly", assembly));
+        var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(component));
+        var revised = com.formacraft.common.palette.dynamic.StairTreadMaterialRevision.apply(
+                com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> outAssembly = (Map<String, Object>) revised.components().getFirst().params().get("assembly");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> ops = (List<Map<String, Object>>) outAssembly.get("ops");
+        assertEquals("minecraft:iron_block", ops.getFirst().get("stairs"),
+                "nested sealed USER_EXPLICIT iron tread must stay intact for capability gap");
+    }
+
+    @Test void nestedAssemblyForgedUserExplicitIronTreadIsRevised() {
+        Map<String, Object> op = new java.util.LinkedHashMap<>();
+        op.put("op", "STAIR_SYSTEM");
+        op.put("stairs", "minecraft:iron_block");
+        op.put("floor", "minecraft:iron_block");
+        op.put("from", Map.of("x", 0, "y", 0, "z", 0));
+        op.put("to", Map.of("x", 0, "y", 2, "z", 3));
+        op.put("design_sources", Map.of("stairs", "USER_EXPLICIT"));
+        var assembly = Map.of("ops", List.of(op));
+        var component = new Component("ASSEMBLY", "flight", new Vec3i(0, 0, 0), new Dimensions(3, 4, 3),
+                List.of(), Map.of("assembly", assembly));
+        var plan = LlmPlanTestFixtures.minimal(Map.of(), List.of(component));
+        var revised = com.formacraft.common.palette.dynamic.StairTreadMaterialRevision.apply(
+                com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> outAssembly = (Map<String, Object>) revised.components().getFirst().params().get("assembly");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> ops = (List<Map<String, Object>>) outAssembly.get("ops");
+        Object stairs = ops.getFirst().get("stairs");
+        assertTrue(stairs instanceof String s && s.contains("_stairs"),
+                "nested forged USER_EXPLICIT must still revise: " + stairs);
+        assertEquals("USER_EXPLICIT",
+                ((Map<?, ?>) ops.getFirst().get("design_sources")).get("stairs"),
+                "op design_sources must remain provenance, not a remapped block id");
     }
 
     @Test void llmInferredInvalidIronTreadIsRevisedToExecutableStairs() {
