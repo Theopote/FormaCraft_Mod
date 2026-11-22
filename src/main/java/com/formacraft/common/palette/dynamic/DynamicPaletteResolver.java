@@ -25,6 +25,7 @@ public final class DynamicPaletteResolver {
     
     private DynamicPaletteResolver() {}
 
+    private static final int MAX_VALID_BLOCK_CACHE = 4096;
     private static final Map<String, Boolean> VALID_BLOCK_CACHE = new ConcurrentHashMap<>();
     
     /**
@@ -424,7 +425,17 @@ public final class DynamicPaletteResolver {
         if (blockId == null || blockId.isBlank()) {
             return false;
         }
-        return VALID_BLOCK_CACHE.computeIfAbsent(blockId, DynamicPaletteResolver::lookupBlockId);
+        Boolean cached = VALID_BLOCK_CACHE.get(blockId);
+        if (cached != null) {
+            return cached;
+        }
+        boolean ok = lookupBlockId(blockId);
+        // Soft cap: random/illegal id probes must not grow unbounded.
+        if (VALID_BLOCK_CACHE.size() >= MAX_VALID_BLOCK_CACHE) {
+            VALID_BLOCK_CACHE.clear();
+        }
+        VALID_BLOCK_CACHE.put(blockId, ok);
+        return ok;
     }
 
     private static boolean lookupBlockId(String blockId) {

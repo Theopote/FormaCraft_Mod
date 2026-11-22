@@ -102,7 +102,8 @@ public final class ComponentArchetypeStorage {
         try {
             Path path = getArchetypePath(archetype.id);
             Files.createDirectories(path.getParent());
-            Files.writeString(path, JsonUtil.toJson(archetype), StandardCharsets.UTF_8);
+            com.formacraft.common.io.AtomicFiles.writeString(
+                    path, JsonUtil.toJson(archetype), StandardCharsets.UTF_8, ".archetype-");
             registry.put(archetype.id, archetype);
             FormacraftMod.LOGGER.info("Saved ComponentArchetype: {}", archetype.id);
             return true;

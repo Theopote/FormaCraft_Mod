@@ -54,8 +54,8 @@ public class BlueprintStorage {
         
         Path path = getDir(server).resolve(name + ".json");
         String json = JsonUtil.toJson(bp);
-        
-        Files.writeString(path, json, StandardCharsets.UTF_8);
+
+        com.formacraft.common.io.AtomicFiles.writeString(path, json, StandardCharsets.UTF_8, ".blueprint-");
         FormacraftMod.LOGGER.info("Saved blueprint: {} to {}", name, path);
     }
 

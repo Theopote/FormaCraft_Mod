@@ -62,18 +62,7 @@ public class MemoryStorage {
     
     /** Replace the complete JSON file; a failed write must not truncate the previous memory. */
     static void writeAtomically(Path path, String json) throws IOException {
-        Path temporary = Files.createTempFile(path.getParent(), ".memory-", ".tmp");
-        try {
-            Files.writeString(temporary, json, StandardCharsets.UTF_8);
-            try {
-                Files.move(temporary, path, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            } catch (java.nio.file.AtomicMoveNotSupportedException exception) {
-                Files.move(temporary, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            }
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+        com.formacraft.common.io.AtomicFiles.writeString(path, json, StandardCharsets.UTF_8, ".memory-");
     }
 
     /**
