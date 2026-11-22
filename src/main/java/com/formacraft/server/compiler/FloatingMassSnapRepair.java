@@ -41,6 +41,9 @@ final class FloatingMassSnapRepair {
             if (y <= 0) continue;
             if (preservesAuthoredElevation(mass)) continue;
             String massId = componentId(mass);
+            // Raised halls/towers keep an authored plinth under them (host_id → this mass).
+            // That plinth is not a reason to flatten the body onto terrain.
+            if (hasHostedPlinth(massId, components)) continue;
             int supportTop = supportTopY(mass, massId, components);
             if (y <= supportTop) continue;
             // Bare ground: only clear floating (LLM mid-air) — not modest authored podiums.
@@ -96,6 +99,18 @@ final class FloatingMassSnapRepair {
         Object host = candidate.params().get("host_id");
         if (host == null) host = candidate.params().get("hostId");
         return host != null && massId.equals(String.valueOf(host));
+    }
+
+    /** Authored FOUNDATION/BASE satellites imply a deliberate raised body, not a float bug. */
+    private static boolean hasHostedPlinth(String massId, List<Component> components) {
+        if (massId == null) return false;
+        for (Component c : components) {
+            if (c == null) continue;
+            String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+            if (!"FOUNDATION".equals(t) && !"BASE".equals(t)) continue;
+            if (hostsMass(c, massId)) return true;
+        }
+        return false;
     }
 
     private static boolean isSupport(Component c) {

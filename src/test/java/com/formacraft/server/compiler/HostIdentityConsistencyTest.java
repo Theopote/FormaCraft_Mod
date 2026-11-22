@@ -418,6 +418,22 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
+    void raisedTowerWithHostedPlinthAtY8IsNotFlattened() {
+        // oct18_3 pattern: elevated MASS_MAIN + foundation_tower host_id → tower.
+        var foundation = new Component("FOUNDATION", "tower", new Vec3i(0, 6, -30),
+                new Dimensions(10, 10, 1), List.of(),
+                Map.of("component_id", "foundation_tower", "host_id", "tower_main",
+                        "building_id", "tower_main"));
+        var tower = new Component("MASS_MAIN", "tower", new Vec3i(0, 8, -30),
+                new Dimensions(8, 8, 12), List.of("ornament"),
+                Map.of("component_id", "tower_main", "building_id", "tower_main"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(foundation, tower)).build();
+        assertEquals(8, yOf(FloatingMassSnapRepair.apply(plan), "tower_main"),
+                "raised tower with authored plinth must keep stair landing elevation");
+    }
+
+    @Test
     void independentFoundationStillCatchesClearlyFloatingMass() {
         var foundation = new Component("FOUNDATION", "site", new Vec3i(0, 0, 0),
                 new Dimensions(12, 12, 1), List.of(),
