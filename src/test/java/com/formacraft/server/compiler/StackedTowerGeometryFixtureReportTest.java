@@ -187,17 +187,24 @@ class StackedTowerGeometryFixtureReportTest {
                 "two-storey wood house must remain multi-storey (solidH=" + solidH
                         + " mainH=" + main.dimensions().height() + ")");
 
-        // 「不要窗」must survive — no facade window satellite required; entrance may still exist.
+        // 「不要窗」must survive — no facade window satellite and no glazing voxels.
         boolean hasFacadeWindows = sealed.components().stream().anyMatch(c ->
                 c != null && c.componentType() != null
                         && c.componentType().toUpperCase(Locale.ROOT).contains("FACADE_WINDOWS"));
         assertFalse(hasFacadeWindows, "no-windows request must not invent FACADE_WINDOWS");
+        long glassCells = blocks.values().stream().filter(b -> {
+            if (b == null) return false;
+            String lower = b.toLowerCase(Locale.ROOT);
+            return lower.contains("glass") || lower.contains("pane");
+        }).count();
+        assertEquals(0, glassCells, "no-windows wood house must not emit glass/pane voxels");
 
         System.out.println("[fixture 13_wood_house_no_windows] components=" + sealed.components().size()
                 + " mainH=" + main.dimensions().height()
                 + " solidH=" + solidH
                 + " patches=" + patches.size()
                 + " solids=" + blocks.size()
+                + " glass=" + glassCells
                 + " gap=" + AssemblyCompileDiagnostics.get());
     }
 
@@ -290,6 +297,155 @@ class StackedTowerGeometryFixtureReportTest {
                 + " doorY=" + doorY
                 + " patches=" + patches.size()
                 + " solids=" + blocks.size()
+                + " gap=" + AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
+    void xieshanShrineFixtureKeepsRoofAboveHall() throws Exception {
+        LlmPlan plan = load("11_xieshan_stone_shrine");
+        Object promptObj = plan.planMeta() == null ? null : plan.planMeta().get("acceptance_prompt");
+        String prompt = promptObj == null ? "建造一座歇山石砖神殿" : String.valueOf(promptObj);
+        LlmPlan sealed = RequestIntentInjector.ensure(plan, prompt);
+        assertFalse(sealed.hasCapabilityGap(), () -> String.valueOf(sealed.capabilityGap()));
+
+        Component hall = sealed.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && "temple_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElse(null);
+        Component roof = sealed.components().stream()
+                .filter(c -> c != null && c.componentType() != null
+                        && c.componentType().toUpperCase(Locale.ROOT).startsWith("ROOF"))
+                .findFirst().orElse(null);
+        assertNotNull(hall, "temple hall mass required");
+        assertNotNull(roof, "xieshan roof component required");
+        assertEquals("temple_hall", String.valueOf(roof.params().get("host_id")));
+
+        AssemblyCompileDiagnostics.clear();
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(sealed, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        Map<Vec3i, String> blocks = PatchTestSnapshot.blocks(patches);
+
+        int hallTop = hall.relativePosition().y() + hall.dimensions().height();
+        Footprint hallFp = footprintOf(hall);
+        long roofAbove = blocks.keySet().stream()
+                .filter(p -> p.y() >= hallTop - 1)
+                .filter(p -> inside(hallFp, p.x(), p.z())
+                        || (p.x() >= hallFp.minX - 2 && p.x() <= hallFp.maxX + 2
+                        && p.z() >= hallFp.minZ - 2 && p.z() <= hallFp.maxZ + 2))
+                .count();
+        assertTrue(roofAbove > 0, "xieshan roof must place solids at/above hall top y=" + hallTop);
+
+        long stoneLike = blocks.values().stream().filter(b -> {
+            if (b == null) return false;
+            String lower = b.toLowerCase(Locale.ROOT);
+            return lower.contains("stone") || lower.contains("brick") || lower.contains("andesite")
+                    || lower.contains("cobble");
+        }).count();
+        assertTrue(stoneLike > 0, "stone shrine walls/foundation should emit stone-family blocks");
+
+        System.out.println("[fixture 11_xieshan_stone_shrine] components=" + sealed.components().size()
+                + " hallH=" + hall.dimensions().height()
+                + " roofAbove=" + roofAbove
+                + " stoneLike=" + stoneLike
+                + " patches=" + patches.size()
+                + " gap=" + AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
+    void modernFlatHouseFixtureKeepsThinRoofAndGroundDoor() throws Exception {
+        LlmPlan plan = load("19_modern_flat_house");
+        Object promptObj = plan.planMeta() == null ? null : plan.planMeta().get("acceptance_prompt");
+        String prompt = promptObj == null ? "建造一座简约现代平屋顶住宅" : String.valueOf(promptObj);
+        LlmPlan sealed = RequestIntentInjector.ensure(plan, prompt);
+        assertFalse(sealed.hasCapabilityGap(), () -> String.valueOf(sealed.capabilityGap()));
+
+        Component roof = sealed.components().stream()
+                .filter(c -> c != null && c.componentType() != null
+                        && c.componentType().toUpperCase(Locale.ROOT).startsWith("ROOF"))
+                .findFirst().orElse(null);
+        Component entrance = sealed.components().stream()
+                .filter(c -> c != null && c.componentType() != null
+                        && c.componentType().toUpperCase(Locale.ROOT).contains("ENTRANCE"))
+                .findFirst().orElse(null);
+        Component main = sealed.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && "main".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertNotNull(roof, "flat roof component required");
+        assertNotNull(entrance, "entrance required");
+        assertTrue(roof.dimensions().height() <= 2,
+                "modern flat roof must stay thin (h=" + roof.dimensions().height() + ")");
+
+        int baseY = main.relativePosition().y();
+        int doorY = entrance.relativePosition().y();
+        assertTrue(doorY >= baseY && doorY <= baseY + 2,
+                "flat-house door must stay on ground band");
+
+        AssemblyCompileDiagnostics.clear();
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(sealed, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        Map<Vec3i, String> blocks = PatchTestSnapshot.blocks(patches);
+        int hallTop = baseY + main.dimensions().height();
+        long roofBand = blocks.keySet().stream()
+                .filter(p -> p.y() >= hallTop - 1 && p.y() <= hallTop + roof.dimensions().height())
+                .count();
+        assertTrue(roofBand > 0, "flat roof solids expected near hall top y=" + hallTop);
+
+        System.out.println("[fixture 19_modern_flat_house] components=" + sealed.components().size()
+                + " roofH=" + roof.dimensions().height()
+                + " doorY=" + doorY
+                + " roofBand=" + roofBand
+                + " patches=" + patches.size()
+                + " gap=" + AssemblyCompileDiagnostics.get());
+    }
+
+    @Test
+    void templeCompoundFixtureKeepsCourtyardAndHallSolids() throws Exception {
+        LlmPlan plan = load("07_temple_compound");
+        Object promptObj = plan.planMeta() == null ? null : plan.planMeta().get("acceptance_prompt");
+        String prompt = promptObj == null ? "建造一座带庭院的寺庙建筑群" : String.valueOf(promptObj);
+        LlmPlan sealed = RequestIntentInjector.ensure(plan, prompt);
+        assertFalse(sealed.hasCapabilityGap(), () -> String.valueOf(sealed.capabilityGap()));
+
+        Component yard = sealed.components().stream()
+                .filter(c -> c != null && c.componentType() != null
+                        && c.componentType().toUpperCase(Locale.ROOT).contains("COURTYARD"))
+                .findFirst().orElse(null);
+        Component hall = sealed.components().stream()
+                .filter(c -> c != null && c.params() != null
+                        && "temple_hall".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElse(null);
+        assertNotNull(yard, "temple courtyard required");
+        assertNotNull(hall, "temple hall required");
+
+        AssemblyCompileDiagnostics.clear();
+        List<BlockPatch> patches = ComponentPlanCompiler.compile(sealed, BlockPos.ORIGIN, null, null, false);
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertFalse(patches.isEmpty());
+        Map<Vec3i, String> blocks = PatchTestSnapshot.blocks(patches);
+
+        Footprint yardFp = footprintOf(yard);
+        Footprint hallFp = footprintOf(hall);
+        long yardSolids = blocks.keySet().stream()
+                .filter(p -> inside(yardFp, p.x(), p.z()))
+                .count();
+        long hallSolids = blocks.keySet().stream()
+                .filter(p -> inside(hallFp, p.x(), p.z()))
+                .count();
+        assertTrue(yardSolids > 0, "courtyard footprint must retain paving/edge solids");
+        assertTrue(hallSolids > 0, "temple hall footprint must retain wall/floor solids");
+        assertTrue(hall.dimensions().height() >= 5, "temple hall must stay multi-storey");
+
+        System.out.println("[fixture 07_temple_compound] components=" + sealed.components().size()
+                + " yardSolids=" + yardSolids
+                + " hallSolids=" + hallSolids
+                + " hallH=" + hall.dimensions().height()
+                + " patches=" + patches.size()
                 + " gap=" + AssemblyCompileDiagnostics.get());
     }
 
