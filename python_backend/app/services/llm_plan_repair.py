@@ -571,7 +571,12 @@ def repair_llm_plan_validation(
                     if (_components_outside_net_height_layout(repaired_norm, targets)
                             != _components_outside_net_height_layout(normalized, targets)):
                         raise ValueError("Net-height repair changed geometry or parameters outside the floor layout")
-                    for field in ("mode", "anchor", "layout", "global_constraints", "style_attributes", "style_profile"):
+                    for field in (
+                        "mode", "anchor", "layout", "global_constraints", "style_attributes", "style_profile",
+                        "plan_program", "plan_skeleton", "patch", "target_slot_id", "allowed_area",
+                        "genome", "distinguishing_features", "alignment_and_symmetry", "design_sources",
+                        "plan_meta",
+                    ):
                         if repaired_norm.get(field) != normalized.get(field):
                             raise ValueError(f"Net-height repair changed plan-wide field: {field}")
                     _validate_net_height_repair_requirements(normalized, repaired_norm)

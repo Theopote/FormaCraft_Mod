@@ -6,6 +6,8 @@ Net-height repair must satisfy the original clearance requirement on the same ta
 
 Net-height correction candidates may revise the diagnosed mass height and storey layout. The original footprints, materials, placement and other component fields are compared before accepting the candidate (HARD_CONSTRAINT).
 
+Net-height correction also preserves plan-wide execution inputs, including programs, skeletons, patch data and plan metadata (HARD_CONSTRAINT).
+
 The default prompt centralizes slot-relative coordinates and component anchor conventions (GEOMETRY). Stair guidance describes flight-local endpoints without imposing a common anchor mode on shells, roofs or floor plates.
 
 The default planning prompt replaces its expanded Assembly catalog with an index of executable types (NONBINDING_HINT). Raw geometry contracts and graph endpoint syntax remain visible. Shared request context no longer proposes residential wall thickness, storey height or rectangular styling for every request.

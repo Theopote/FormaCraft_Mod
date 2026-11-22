@@ -59,8 +59,13 @@ class CritiqueLoopTests(unittest.TestCase):
         violates_width["components"][0]["dimensions"]["width"] = 14
         changes_design = deepcopy(corrected)
         changes_design["components"][0]["params"].update(shape="rectangle", wall_block="minecraft:bricks")
+        adds_program = {**corrected, "plan_program": {"ops": []}}
+        adds_skeleton = {**corrected, "plan_skeleton": {"nodes": []}}
+        changes_authority = deepcopy(corrected)
+        changes_authority.setdefault("plan_meta", {})["allow_compiler_satellites"] = True
         for candidate, succeeds in (
             (corrected, True), (plan, False), (violates_width, False), (changes_design, False),
+            (adds_program, False), (adds_skeleton, False), (changes_authority, False),
         ):
             with self.subTest(succeeds=succeeds):
                 self.call.reset_mock()
