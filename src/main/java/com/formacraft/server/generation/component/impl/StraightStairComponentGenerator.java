@@ -134,8 +134,13 @@ public final class StraightStairComponentGenerator {
         return fallback;
     }
 
-    /** Use a registered shape from the floor's family, with the existing stair default. */
+    /** Resolve the tread from the selected floor family when the plan omits stairs. */
     static String resolveStairsBlock(String floorBlock) {
-        return MaterialBlockFamily.stairsOrStoneBrick(floorBlock);
+        String stairs = MaterialBlockFamily.stairs(floorBlock);
+        if (stairs == null) {
+            throw new IllegalArgumentException("No registered stair variant for floor " + floorBlock
+                    + "; specify an explicit stairs block.");
+        }
+        return stairs;
     }
 }

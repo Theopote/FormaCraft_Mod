@@ -1,5 +1,9 @@
 # Design decision inventory
 
+Direct straight stairs resolve an omitted tread through the selected floor's registered family (GEOMETRY). A floor without a stair variant reports `E_STAIR_COMPONENT_INVALID` (HARD_CONSTRAINT). Explicit tread choices and the existing all-missing stone-brick default still work.
+
+Geometry evidence trims and deduplicates exact source URLs before applying the citation limit (FORMAT_REPAIR). Every distinct citation must still appear among the sources shown during research (HARD_CONSTRAINT).
+
 Malformed optional material, color or spatial relationship descriptions are omitted without dropping valid geometry and proportions (FORMAT_REPAIR). Geometry evidence still passes through the existing source URL admission check.
 
 Building research can attach source-backed relative proportion ranges and material or color observations to geometry evidence (NONBINDING_HINT). The existing URL admission check applies to each observation. Unknown measurements stay absent, and the LLM chooses the executable geometry and materials.

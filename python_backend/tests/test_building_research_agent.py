@@ -31,7 +31,10 @@ def test_geometry_evidence_reaches_planning_only_with_shown_sources():
                                        "minimum": 0.5, "maximum": 0.6},
                "material_or_color": "pale copper"}
     unseen = {**feature, "feature": "Unsupported spire", "source_urls": ["https://example.com/unseen"]}
-    raw = json.dumps({"identity": {"name": "Example hall"}, "geometry_evidence": [{}, *([unseen] * 8), feature, feature],
+    repeated_source = {**feature, "source_urls": [f"  {source['url']}  "] * 5}
+    mixed_sources = {**unseen, "source_urls": [source["url"], *unseen["source_urls"]]}
+    raw = json.dumps({"identity": {"name": "Example hall"},
+                      "geometry_evidence": [{}, *([unseen] * 8), mixed_sources, repeated_source, feature],
                       "sources": [{"title": "Invented source", "url": unseen["source_urls"][0]}]})
     response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=raw))])
     profile = synthesize_profile_with_llm(object(), "test", "Example hall", "保留双翼，不要雨棚",

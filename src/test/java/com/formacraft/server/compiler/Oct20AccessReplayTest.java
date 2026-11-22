@@ -53,6 +53,34 @@ class Oct20AccessReplayTest {
         }
     }
 
+    @Test void floorWithoutMatchingTreadRequiresExplicitStairs() {
+        var params = new HashMap<String, Object>(Map.of(
+                "floor", "minecraft:white_concrete",
+                "from", Map.of("x", 0, "y", 0, "z", 0),
+                "to", Map.of("x", 0, "y", 2, "z", 3)));
+        var stair = new Component("STAIR_SYSTEM", "flight", new Vec3i(0, 0, 0),
+                new Dimensions(3, 4, 3), List.of(), params);
+        try {
+            var semantic = new SemanticComponent("STAIR_SYSTEM", null, stair);
+            assertTrue(StraightStairComponentGenerator.generate(semantic).isEmpty());
+            var gap = AssemblyCompileDiagnostics.get();
+            assertNotNull(gap);
+            assertEquals("E_STAIR_COMPONENT_INVALID", gap.code());
+            assertTrue(gap.message().contains("minecraft:white_concrete"));
+            AssemblyCompileDiagnostics.clear();
+            params.put("stairs", "minecraft:oak_stairs");
+            var explicitStair = new Component("STAIR_SYSTEM", "flight", stair.relativePosition(),
+                    stair.dimensions(), List.of(), Map.copyOf(params));
+            var patches = StraightStairComponentGenerator.generate(
+                    new SemanticComponent("STAIR_SYSTEM", null, explicitStair));
+            assertTrue(patches.stream().anyMatch(p -> p.targetBlock() != null
+                    && p.targetBlock().contains("oak_stairs")));
+            assertFalse(AssemblyCompileDiagnostics.hasGap());
+        } finally {
+            AssemblyCompileDiagnostics.clear();
+        }
+    }
+
     @TestFactory Stream<DynamicTest> loggedPlans() {
         // Plan 2 historical capture stays height=8 (coplanar pyramid conflict). Compile success
         // uses the explicit repaired fixture — never rewrite the immutable LLM raw capture.

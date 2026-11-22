@@ -106,6 +106,13 @@ class ProfileGeometryEvidence(BaseModel):
     material_or_color: Optional[str] = Field(default=None, min_length=1, max_length=200)
     source_urls: List[str] = Field(min_length=1, max_length=4)
 
+    @field_validator("source_urls", mode="before")
+    @classmethod
+    def normalize_source_urls(cls, value: Any) -> Any:
+        if not isinstance(value, list) or not all(isinstance(url, str) and url.strip() for url in value):
+            raise ValueError("source_urls must contain non-empty URL strings")
+        return list(dict.fromkeys(url.strip() for url in value))
+
     @field_validator("material_or_color", "relationship", mode="wrap")
     @classmethod
     def discard_invalid_optional_description(
