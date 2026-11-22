@@ -304,6 +304,28 @@ def _validate_assembly_component(
 def _validate_geometry_fields(
     issues: List[AssemblyPlanIssue], comp: dict, path: str, kind: str, *, graph_component: bool = False,
 ) -> None:
+    if kind == "BEZIER_SURFACE" and not graph_component:
+        points = comp.get("points")
+        if isinstance(points, list) and len(points) == 4 and all(
+            isinstance(row, list) and len(row) == 4 for row in points
+        ):
+            points = [point for row in points for point in row]
+        if not isinstance(points, list) or len(points) != 16 or any(
+            not isinstance(point, dict) or any(type(point.get(axis)) is not int for axis in ("x", "y", "z"))
+            for point in points
+        ):
+            issues.append(AssemblyPlanIssue(path + ".points", "E_BEZIER_POINTS_INVALID",
+                                           "Provide 16 integer x/y/z control points or a 4×4 grid"))
+        for key, alias, minimum, maximum in (("uSamples", "u", 2, 512), ("vSamples", "v", 2, 512),
+                                              ("thickness", "thickness", 1, 9)):
+            field = key if comp.get(key) is not None else alias
+            value = comp.get(field)
+            if value is not None and (type(value) is not int or not minimum <= value <= maximum):
+                issues.append(AssemblyPlanIssue(f"{path}.{field}", "E_INT_RANGE",
+                                               f"{field} must be an integer in {minimum}..{maximum}"))
+        if comp.get("connectSamples") is not None and type(comp["connectSamples"]) is not bool:
+            issues.append(AssemblyPlanIssue(path + ".connectSamples", "E_BOOL_TYPE",
+                                           "connectSamples must be a boolean"))
     if kind == "REVOLVE_SURFACE" and not graph_component:
         field = next((key for key in ("profileRings", "rings", "profilePoints", "points")
                       if comp.get(key) is not None), "profilePoints")

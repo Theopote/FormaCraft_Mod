@@ -83,6 +83,30 @@ class AssemblyShellOpsTest {
     }
 
     @Test
+    void bezierPatchesWithSharedControlsProduceMatchingCurvedEdges() {
+        var context = new MetaAssemblyEngine.Context(null, BlockPos.ORIGIN, Direction.SOUTH, null);
+        var engine = new MetaAssemblyEngine();
+        var left = snapshot(engine.executeGeometry(AssemblySpec.of(null, null, List.of(bezierPatch(0))), context));
+        var right = snapshot(engine.executeGeometry(AssemblySpec.of(null, null, List.of(bezierPatch(9))), context));
+        var leftEdge = left.keySet().stream().filter(pos -> pos.getX() == 9).toList();
+        var rightEdge = right.keySet().stream().filter(pos -> pos.getX() == 9).toList();
+        assertTrue(leftEdge.contains(new BlockPos(9, 6, 5)));
+        assertEquals(new HashSet<>(leftEdge), new HashSet<>(rightEdge));
+        assertEquals(Blocks.SMOOTH_QUARTZ.getDefaultState(), left.get(new BlockPos(9, 6, 5)));
+        assertFalse(left.containsKey(new BlockPos(4, 0, 5)));
+    }
+
+    private static Map<String, Object> bezierPatch(int startX) {
+        var points = new ArrayList<List<Map<String, Integer>>>();
+        for (int x = startX; x <= startX + 9; x += 3) {
+            points.add(List.of(Map.of("x", x, "y", 0, "z", 0), Map.of("x", x, "y", 8, "z", 3),
+                    Map.of("x", x, "y", 8, "z", 6), Map.of("x", x, "y", 0, "z", 9)));
+        }
+        return Map.of("op", "BEZIER_SURFACE", "points", points, "uSamples", 12, "vSamples", 12,
+                "material", "minecraft:smooth_quartz");
+    }
+
+    @Test
     void modelAuthoredRevolveProfilesProduceIndependentHollowTiers() {
         var lower = Map.of("op", "REVOLVE_SURFACE", "profilePoints",
                 List.of(Map.of("x", 8, "y", 4), Map.of("x", 5, "y", 7)),

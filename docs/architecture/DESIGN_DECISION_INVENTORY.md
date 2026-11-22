@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Ordinary LlmPlan exposes the existing BEZIER_SURFACE input contract and shared-edge guidance (NONBINDING_HINT). Raw Assembly ops validate the control grid and sampling parameters without rewriting them (HARD_CONSTRAINT). Patch placement, curvature and material remain model-authored.
+
 Ordinary LlmPlan exposes the existing REVOLVE_SURFACE Assembly geometry contract (NONBINDING_HINT). Python validates authored radial profiles and sampling parameters in raw Assembly ops (HARD_CONSTRAINT). Profiles, materials, placement and tier composition stay model-authored.
 
 LlmPlan normalization records authored mass height and storey height as `AI_PLANNED` before component defaults (FORMAT_REPAIR). It no longer grows mass height from a floor-count text hint (removed DESIGN_OVERRIDE). The compiler can diagnose conflicting locked geometry.

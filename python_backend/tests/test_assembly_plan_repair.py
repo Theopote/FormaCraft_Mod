@@ -14,6 +14,22 @@ from app.services.assembly_plan_validator import AssemblyPlanIssue, validate_ass
 
 
 class AssemblyPlanRepairTest(unittest.TestCase):
+    def test_bezier_control_grid_is_preserved_and_incomplete_grid_reports_path(self):
+        grid = [[{"x": x, "y": 8 if z in (3, 6) else 0, "z": z}
+                 for z in (0, 3, 6, 9)] for x in (0, 3, 6, 9)]
+        op = {"op": "BEZIER_SURFACE", "points": grid, "uSamples": 12, "vSamples": 12}
+        plan = {"components": [{"component_type": "ASSEMBLY", "params": {"assembly": {"ops": [op]}}}]}
+        for points in (grid, [point for row in grid for point in row]):
+            op["points"] = points
+            before = deepcopy(plan)
+            self.assertEqual([], validate_assembly_plan(plan))
+            self.assertEqual(before, plan)
+        op["points"] = grid
+        grid[1].pop()
+        issues = validate_assembly_plan(plan)
+        self.assertEqual(["E_BEZIER_POINTS_INVALID"], [issue.code for issue in issues])
+        self.assertTrue(issues[0].path.endswith("ops[0].points"))
+
     def test_revolve_profiles_pass_unchanged_and_bad_radius_reports_path(self):
         tiers = [
             {"op": "REVOLVE_SURFACE", "profilePoints": [{"x": 8, "y": 4}, {"x": 5, "y": 7}],

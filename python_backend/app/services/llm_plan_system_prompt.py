@@ -60,6 +60,12 @@ Core rules:
   The axis runs through the Assembly origin. Use angleDeg in (0,360] for a partial or full turn,
   segments 8..512 and thickness 1..9 if specified, and material for the authored surface.
   The op draws a surface; add separate profiles or geometry for tiers, decks and interiors.
+- For a surface that curves in two directions, use ASSEMBLY params.assembly.ops
+  with op="BEZIER_SURFACE" and points as four rows of four local integer {x,y,z} control
+  points (or 16 points in row-major order). The four corners lie on the surface;
+  interior controls shape the curvature. To join patches, share the same four control
+  points along their common edge and use matching edge sample counts.
+  Optional uSamples/vSamples are integers 2..512, thickness is 1..9, and material sets the surface block.
 - For an Assembly STAIR_SYSTEM, choose a floor block. Omit stairs to use the matching
   registered stair family when available, or specify stairs for an intentional material or state.
 - A component name or feature label does not emit geometry. For simple linear details such as
