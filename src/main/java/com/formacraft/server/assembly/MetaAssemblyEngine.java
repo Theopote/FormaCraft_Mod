@@ -314,7 +314,8 @@ public final class MetaAssemblyEngine {
         if (spec == null || ctx == null || ctx.origin == null) throw new IllegalArgumentException("Geometry context required");
         if (ctx.paletteId != null && !ctx.paletteId.isBlank()) throw new IllegalArgumentException("Geometry verification requires explicit materials");
         var supported = java.util.Set.of("PUSH_ORIGIN", "POP_ORIGIN", "CYLINDER", "STAIR_SYSTEM", "CLEAR_BOX",
-                "SHELL_BOX", "ROOF_COVER", "SURFACE_PATTERN", "LOFT_SURFACE", "REVOLVE_SURFACE", "BEZIER_SURFACE",
+                "SHELL_BOX", "ROOF_COVER", "SURFACE_PATTERN", "OPENINGS", "ARCH_RIB", "BUTTRESS", "TRUSS_2D",
+                "FRAME_GRID_3D", "LOFT_SURFACE", "REVOLVE_SURFACE", "BEZIER_SURFACE",
                 "SPLINE_SWEEP", "TENSION_CABLE");
         for (var op : spec.ops) if (!supported.contains(str(op.get("op"), "").toUpperCase(java.util.Locale.ROOT)))
             throw new IllegalArgumentException("World-dependent or unsupported geometry operation: " + op.get("op"));
@@ -329,14 +330,43 @@ public final class MetaAssemblyEngine {
         // ops to allocate unbounded PlannedBlocks. Always meter with FbdLimits.DEFAULT.
         Context exec = withWriteBudget(ctx);
         List<PlannedBlock> out = new ArrayList<>();
-        Deque<BlockPos> originStack = new ArrayDeque<>();
+        Deque<Frame> originStack = new ArrayDeque<>();
         List<AssemblyCirculationConstraints.Flight> flights = new ArrayList<>();
         BlockPos curOrigin = exec.origin;
+        Direction curFacing = exec.entranceFacing == null ? Direction.SOUTH : exec.entranceFacing;
+        Context frameCtx = withFacing(exec, curFacing);
         for (Map<String, Object> op : spec.ops) {
             if (isFbdRoute) exec.fbdBudget.operation(
                     (String) op.get("_fbd_node"), (String) op.get("_fbd_instance"), (String) op.get("_fbd_path"));
             int start = out.size();
-            curOrigin = applyOp(out, exec, originStack, curOrigin, op);
+            String name = op == null ? "" : str(op.get("op"), "").toUpperCase(Locale.ROOT);
+            if ("PUSH_ORIGIN".equals(name)) {
+                originStack.push(new Frame(curOrigin, curFacing));
+                int dx = i(op.get("dx"), 0), dy = i(op.get("dy"), 0), dz = i(op.get("dz"), 0);
+                try {
+                    BlockPos translated = PlacementUtil.local(BlockPos.ORIGIN, curFacing, dx, dy, dz);
+                    curOrigin = new BlockPos(
+                            Math.addExact(curOrigin.getX(), translated.getX()),
+                            Math.addExact(curOrigin.getY(), translated.getY()),
+                            Math.addExact(curOrigin.getZ(), translated.getZ()));
+                } catch (ArithmeticException overflow) {
+                    throw new com.formacraft.common.dsl.FbdException("arithmetic_error", "geometry",
+                            (String) op.get("_fbd_node"),
+                            op.get("_fbd_path") instanceof String path ? path : "ops[].PUSH_ORIGIN",
+                            "Frame coordinate overflow");
+                }
+                curFacing = rotateY(curFacing, i(op.get("rotY"), 0));
+                frameCtx = withFacing(exec, curFacing);
+            } else if ("POP_ORIGIN".equals(name)) {
+                if (!originStack.isEmpty()) {
+                    Frame frame = originStack.pop();
+                    curOrigin = frame.origin();
+                    curFacing = frame.facing();
+                    frameCtx = withFacing(exec, curFacing);
+                }
+            } else {
+                applyOp(out, frameCtx, originStack, curOrigin, op);
+            }
             // Only the typed FBD execution route may attach compiler-origin provenance.
             if (isFbdRoute && op.get("_fbd_node") instanceof String node) {
                 String component = (String) op.get("_fbd_component");
@@ -349,12 +379,27 @@ public final class MetaAssemblyEngine {
                     out.set(i, new PlannedBlock(block.getPos(), block.getTargetState(), source));
                 }
             }
-            if (op != null && "STAIR_SYSTEM".equalsIgnoreCase(str(op.get("op"), "")))
+            if ("STAIR_SYSTEM".equals(name))
                 flights.add(AssemblyCirculationConstraints.capture(out, start));
         }
         AssemblyCirculationConstraints.validate(out, flights);
         AssemblyCirculationConstraints.publish(flights);
         return out;
+    }
+
+    private record Frame(BlockPos origin, Direction facing) {}
+
+    private static Context withFacing(Context ctx, Direction facing) {
+        return new Context(ctx.world, ctx.origin, facing, ctx.paletteId, ctx.fbdBudget);
+    }
+
+    /** Quarter turns only (GEOMETRY frame); other values are rejected upstream for FBD. */
+    static Direction rotateY(Direction facing, int rotY) {
+        Direction base = facing == null ? Direction.SOUTH : facing;
+        int steps = Math.floorMod(rotY / 90, 4);
+        Direction d = base;
+        for (int i = 0; i < steps; i++) d = d.rotateYClockwise();
+        return d;
     }
 
     /** Attach {@link com.formacraft.common.dsl.FbdLimits#DEFAULT} when callers omitted a budget. */
@@ -365,35 +410,14 @@ public final class MetaAssemblyEngine {
                 new com.formacraft.server.dsl.FbdExecutionBudget(com.formacraft.common.dsl.FbdLimits.DEFAULT));
     }
 
-    private BlockPos applyOp(List<PlannedBlock> out, Context ctx, Deque<BlockPos> originStack, BlockPos curOrigin, Map<String, Object> op) {
+    private BlockPos applyOp(List<PlannedBlock> out, Context ctx, Deque<Frame> originStack, BlockPos curOrigin, Map<String, Object> op) {
         if (op == null || op.isEmpty()) return curOrigin;
         String name = str(op.get("op"), "").toUpperCase(Locale.ROOT);
         if (name.isBlank()) return curOrigin;
 
         switch (name) {
-            case "PUSH_ORIGIN" -> {
-                int dx = i(op.get("dx"), 0);
-                int dy = i(op.get("dy"), 0);
-                int dz = i(op.get("dz"), 0);
-                originStack.push(curOrigin);
-                // GEOMETRY: frame offsets are local to entranceFacing, same as put().
-                // Plain ASSEMBLY previously used world-axis add, so non-SOUTH buildings
-                // rotated child geometry but not the frame translation (misalignment).
-                try {
-                    BlockPos translated = PlacementUtil.local(BlockPos.ORIGIN, ctx.entranceFacing, dx, dy, dz);
-                    return new BlockPos(
-                            Math.addExact(curOrigin.getX(), translated.getX()),
-                            Math.addExact(curOrigin.getY(), translated.getY()),
-                            Math.addExact(curOrigin.getZ(), translated.getZ()));
-                } catch (ArithmeticException overflow) {
-                    throw new com.formacraft.common.dsl.FbdException("arithmetic_error", "geometry",
-                            (String) op.get("_fbd_node"),
-                            op.get("_fbd_path") instanceof String path ? path : "ops[].PUSH_ORIGIN",
-                            "Frame coordinate overflow");
-                }
-            }
-            case "POP_ORIGIN" -> {
-                if (!originStack.isEmpty()) return originStack.pop();
+            case "PUSH_ORIGIN", "POP_ORIGIN" -> {
+                // Handled in executeOperations so frame facing stays in sync with put()/local().
                 return curOrigin;
             }
             case "CLEAR_BOX" -> {
@@ -755,6 +779,11 @@ public final class MetaAssemblyEngine {
                 case "wall" -> "WALL_BASE"; case "window" -> "WINDOW";
                 case "floor" -> "FLOORING"; case "roof" -> "ROOF_TILE";
                 case "slab" -> "FLOOR_SLAB"; case "accent" -> "FACADE_ACCENT";
+                case "post", "pillar" -> "STRUCTURAL_COLUMN";
+                case "trim" -> "FACADE_TRIM";
+                case "railing" -> "FACADE_ACCENT";
+                case "light" -> "LIGHT";
+                case "stairs" -> "STAIR";
                 default -> throw new IllegalArgumentException("Unknown FBD material role");
             };
             BlockState roleFallback = switch (role.name()) {
@@ -763,6 +792,11 @@ public final class MetaAssemblyEngine {
                 case "floor" -> Blocks.SMOOTH_STONE.getDefaultState();
                 case "roof" -> Blocks.STONE_BRICK_STAIRS.getDefaultState();
                 case "slab" -> Blocks.SMOOTH_STONE_SLAB.getDefaultState();
+                case "post", "pillar" -> Blocks.STONE_BRICK_WALL.getDefaultState();
+                case "trim" -> Blocks.SMOOTH_STONE.getDefaultState();
+                case "railing" -> Blocks.IRON_BARS.getDefaultState();
+                case "light" -> Blocks.LANTERN.getDefaultState();
+                case "stairs" -> Blocks.STONE_BRICK_STAIRS.getDefaultState();
                 default -> Blocks.STONE_BRICK_WALL.getDefaultState();
             };
             return ctx.paletteId != null && !ctx.paletteId.isBlank()

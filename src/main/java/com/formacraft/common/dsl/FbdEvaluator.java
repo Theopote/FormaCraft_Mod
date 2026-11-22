@@ -75,6 +75,12 @@ final class FbdEvaluator {
                         if (Math.abs((long) coordinate) > 1_000_000) throw error("param_out_of_range", "evaluate", id, p, "Frame offset exceeds 1000000 blocks");
                         push.put(List.of("dx", "dy", "dz").get(i), coordinate);
                     }
+                    if (s.containsKey("rotY")) {
+                        int rot = (Integer) expr(s.get("rotY"), env, at, id, p + "/rotY");
+                        if (rot % 90 != 0 || Math.abs(rot) > 270)
+                            throw error("param_out_of_range", "evaluate", id, p + "/rotY", "rotY must be a 90° step in [-270,270]");
+                        push.put("rotY", Math.floorMod(rot, 360));
+                    }
                     emit(id, at, push, p);
                     statements(list(s.get("body"), p), new HashMap<>(env), at, p + "/body", depth + 1);
                     emit(id, at, Map.of("op", "POP_ORIGIN"), p);

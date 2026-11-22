@@ -32,19 +32,19 @@ Java 始终独立校验显式传入的程序，不信任后端检查结果。
 - `int` 是有溢出检查的有符号 32 位数；seed 是非负有符号 64 位数。
   `scalar` 是有限 double；int/int 向零截断，`floor` 是唯一 scalar→int 转换。
   三角函数以度为单位，使用 StrictMath。除零、溢出、非有限结果均失败。
-- `with_frame` 只平移，继承构件朝向；不支持程序内旋转。随机数由 seed、稳定语句 ID、调用/循环实例路径和标签经 SHA-256 派生。
+- `with_frame` 平移局部原点，可选 `rotY`（90° 步进：0/90/180/270）旋转局部朝向后调用同一函数。随机数由 seed、稳定语句 ID、调用/循环实例路径和标签经 SHA-256 派生。
 - **不支持递归、世界查询、宿主调用、文件或网络访问。** 不执行 Python、JavaScript 或 Java 源代码。
 
-三个原语的参数、枚举与范围由
+原语参数、枚举与范围由
 [`primitives_v0.json`](../src/main/resources/assets/formacraft/fbd/primitives_v0.json)
-统一定义。结构 Schema 由 `python python_backend/tools/export_fbd_schema.py` 生成；
+统一定义（含 SHELL_BOX / ROOF_COVER / SURFACE_PATTERN 以及 OPENINGS、CLEAR_BOX、CYLINDER、ARCH_RIB、BUTTRESS、TRUSS_2D、FRAME_GRID_3D、STAIR_SYSTEM）。
+点对端点在 FBD 中用标量 `fromX/Y/Z`+`toX/Y/Z` 表达，Java 展开为执行层 `from`/`to`。结构 Schema 由 `python python_backend/tools/export_fbd_schema.py` 生成；
 Java 类型、调用图和运行预算校验仍是权威。
 
-材质值仅可为 `wall/window/floor/roof/slab/accent`，通过类型化角色进入既有调色板，
-不将角色名称当作方块 ID。HIP 与 GABLE 都调用当前通用坡顶算法，不代表独立屋顶求解器。
+材质值仅为角色名（`wall/window/floor/roof/slab/accent/post/pillar/trim/railing/light/stairs`），通过类型化角色进入既有调色板，
+不将角色名称当作方块 ID。GABLE 为双坡，HIP 为四坡；非楼梯屋顶材质按同一坡形用整块铺设，禁止静默退化为平顶。
 SHELL_BOX 有既有楼板、窗带、顶板行为，并沿用中心化闭区间坐标：偶数 w/d 的实际跨度可能为 w+1/d+1。
-预算估算按实际循环边界计算，不能仅由构件 dimensions 推断程序包围盒。这些原语不保证入口、室内动线或建筑功能完整。
-需要这些能力的请求应继续使用普通语义构件。
+预算估算按实际循环边界计算，不能仅由构件 dimensions 推断程序包围盒。自由曲面点阵（BEZIER/LOFT/…）仍主要走普通 ASSEMBLY；FBD 未接一等数组前对不支持能力返回 `capability_gap`。
 
 ## 预算、失败与诊断
 

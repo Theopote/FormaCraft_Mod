@@ -36,6 +36,7 @@ public final class FbdAssemblyAdapter {
         var ops = new ArrayList<Map<String, Object>>();
         for (var command : compilation.commands()) {
             var op = new LinkedHashMap<String, Object>(command.op());
+            expandScalarEndpoints(op);
             if (source != null) {
                 op.put("_fbd_component", source.componentPath());
                 op.put("_fbd_slot", source.slotId());
@@ -46,5 +47,20 @@ public final class FbdAssemblyAdapter {
             ops.add(op);
         }
         return AssemblySpec.of(null, null, ops);
+    }
+
+    /**
+     * FBD emit stays scalar-only; point-taking MetaAssembly ops still expect {@code from}/{@code to} maps.
+     * Convert {@code fromX/Y/Z}+{@code toX/Y/Z} without inventing geometry.
+     */
+    static void expandScalarEndpoints(Map<String, Object> op) {
+        if (op == null) return;
+        if (!op.containsKey("from") && op.containsKey("fromX")) {
+            op.put("from", Map.of("x", op.remove("fromX"), "y", op.remove("fromY"), "z", op.remove("fromZ")));
+        }
+        if (!op.containsKey("to") && op.containsKey("toX")) {
+            op.put("to", Map.of("x", op.remove("toX"), "y", op.remove("toY"), "z", op.remove("toZ")));
+        }
+        if (op.containsKey("height") && !op.containsKey("h")) op.put("h", op.get("height"));
     }
 }

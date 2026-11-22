@@ -97,10 +97,18 @@ final class FbdTypeChecker {
                     statements(list(s.get("body"), p), inner, fn, p + "/body");
                 }
                 case "with_frame" -> {
-                    keys(s, Set.of("stmt", "id", "origin", "body"), Set.of("origin", "body"), p);
+                    keys(s, Set.of("stmt", "id", "origin", "body", "rotY"), Set.of("origin", "body"), p);
                     var origin = list(s.get("origin"), p + "/origin");
                     if (origin.size() != 3) fail("schema_violation", id, p, "origin must have three coordinates");
                     for (Object v : origin) require("int", expression(v, env, id, p), id, p);
+                    if (s.containsKey("rotY")) {
+                        require("int", expression(s.get("rotY"), env, id, p + "/rotY"), id, p + "/rotY");
+                        if (!(s.get("rotY") instanceof Map<?, ?>) && !(s.get("rotY") instanceof String str && str.startsWith("$"))) {
+                            int rot = ((Number) s.get("rotY")).intValue();
+                            if (rot % 90 != 0 || Math.abs(rot) > 270)
+                                fail("param_out_of_range", id, p + "/rotY", "rotY must be a 90° step in [-270,270]");
+                        }
+                    }
                     statements(list(s.get("body"), p), new HashMap<>(env), fn, p + "/body");
                 }
                 case "call" -> {

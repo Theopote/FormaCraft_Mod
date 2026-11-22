@@ -238,6 +238,8 @@ Legacy MODULE-to-typology conversion merges registry and reference defaults befo
 
 The FBD prompt gate treats an existing user opt-out as authoritative even when the environment enables FBD capability guidance. This is a request constraint on prompt content and introduces no new keyword or geometry default.
 
+FBD primitive expansion (GEOMETRY): `primitives_v0.json` exposes OPENINGS / CLEAR_BOX / CYLINDER / ARCH_RIB / BUTTRESS / TRUSS_2D / FRAME_GRID_3D / STAIR_SYSTEM with scalar signatures (endpoint ops use `fromX..toZ`, expanded in `FbdAssemblyAdapter`). Roles add `post/pillar/trim/railing/light/stairs` as palette slots only. `with_frame.rotY` is 90° GEOMETRY facing; no building template. `ROOF_COVER` GABLE vs HIP keep pitched silhouettes; non-`StairsBlock` roof materials no longer silently flatten (DESIGN_OVERRIDE removed). Freeform point-array surfaces and auto FBD routing remain deferred — unsupported → `capability_gap`, not preset substitution.
+
 Flat roof host coverage remains a Java geometry constraint. `E_FLAT_ROOF_HOST_COVERAGE` now provides the host and part IDs, missing cell count, and first missing position in plan coordinates. The diagnostic does not resize the roof or change the plan.
 
 Roof omission uses the same first nonblank parameter and alias resolution as the roof generator (FORMAT_REPAIR). A blank canonical field can defer to an authored alias, while a nonblank canonical value retains precedence. The omission check adds no default or preset.

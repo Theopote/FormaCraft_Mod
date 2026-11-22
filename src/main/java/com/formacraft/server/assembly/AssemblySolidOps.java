@@ -123,55 +123,51 @@ public final class AssemblySolidOps {
             return;
         }
 
+        boolean hip = type.contains("HIP");
+        boolean stairs = roof.getBlock() instanceof StairsBlock;
+        // Non-stair roof materials keep the pitched silhouette with full blocks — never silent FLAT.
         boolean ridgeAlongX = w >= d;
-        if (!(roof.getBlock() instanceof StairsBlock)) {
-            for (int x = x0; x <= x1; x++) for (int z = z0; z <= z1; z++) {
-                MetaAssemblyEngine.meterSample(ctx); adapter.put(out, ctx, origin, x, yBase, z, roof);
-            }
-            return;
-        }
+        int spanX = x1 - x0, spanZ = z1 - z0;
+        for (int step = 0; step < rise; step++) {
+            double t = (double) step / Math.max(1, rise - 1);
+            double curvedT = Math.pow(t, curvaturePower);
+            int y = yBase + (int) Math.round(curvedT * rise);
+            int insetX = (int) Math.round(curvedT * spanX / 2);
+            int insetZ = (int) Math.round(curvedT * spanZ / 2);
+            int xx0 = x0 + (hip || !ridgeAlongX ? insetX : 0);
+            int xx1 = x1 - (hip || !ridgeAlongX ? insetX : 0);
+            int zz0 = z0 + (hip || ridgeAlongX ? insetZ : 0);
+            int zz1 = z1 - (hip || ridgeAlongX ? insetZ : 0);
+            if (xx0 > xx1 || zz0 > zz1) break;
 
-        if (ridgeAlongX) {
-            int spanZ = z1 - z0;
-            for (int step = 0; step < rise; step++) {
-                double t = (double) step / Math.max(1, rise - 1);
-                double curvedT = Math.pow(t, curvaturePower);
-                int y = yBase + (int) Math.round(curvedT * rise);
-                int zz0 = z0 + (int) Math.round(curvedT * spanZ / 2);
-                int zz1 = z1 - (int) Math.round(curvedT * spanZ / 2);
-                if (zz0 > zz1) break;
+            int cornerLiftY = (int) Math.round(cornerLift * (1.0 - Math.abs(t - 0.5) * 2.0));
+            BlockState sN = facing(roof, Direction.NORTH, stairs);
+            BlockState sS = facing(roof, Direction.SOUTH, stairs);
+            BlockState sE = facing(roof, Direction.EAST, stairs);
+            BlockState sW = facing(roof, Direction.WEST, stairs);
 
-                int cornerLiftY = (int) Math.round(cornerLift * (1.0 - Math.abs(t - 0.5) * 2.0));
-                BlockState sN = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, Direction.NORTH) : roof;
-                BlockState sS = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, Direction.SOUTH) : roof;
-                for (int x = x0; x <= x1; x++) {
+            if (hip || ridgeAlongX) {
+                for (int x = xx0; x <= xx1; x++) {
                     MetaAssemblyEngine.meterSample(ctx);
-                    int finalY = y + (cornerLiftY > 0 && (x == x0 || x == x1) ? cornerLiftY : 0);
+                    int finalY = y + (cornerLiftY > 0 && (x == xx0 || x == xx1) ? cornerLiftY : 0);
                     adapter.put(out, ctx, origin, x, finalY, zz0, sS);
                     adapter.put(out, ctx, origin, x, finalY, zz1, sN);
                 }
             }
-        } else {
-            int spanX = x1 - x0;
-            for (int step = 0; step < rise; step++) {
-                double t = (double) step / Math.max(1, rise - 1);
-                double curvedT = Math.pow(t, curvaturePower);
-                int y = yBase + (int) Math.round(curvedT * rise);
-                int xx0 = x0 + (int) Math.round(curvedT * spanX / 2);
-                int xx1 = x1 - (int) Math.round(curvedT * spanX / 2);
-                if (xx0 > xx1) break;
-
-                int cornerLiftY = (int) Math.round(cornerLift * (1.0 - Math.abs(t - 0.5) * 2.0));
-                BlockState sW = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, Direction.WEST) : roof;
-                BlockState sE = roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING) ? roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, Direction.EAST) : roof;
-                for (int z = z0; z <= z1; z++) {
+            if (hip || !ridgeAlongX) {
+                for (int z = zz0; z <= zz1; z++) {
                     MetaAssemblyEngine.meterSample(ctx);
-                    int finalY = y + (cornerLiftY > 0 && (z == z0 || z == z1) ? cornerLiftY : 0);
+                    int finalY = y + (cornerLiftY > 0 && (z == zz0 || z == zz1) ? cornerLiftY : 0);
                     adapter.put(out, ctx, origin, xx0, finalY, z, sE);
                     adapter.put(out, ctx, origin, xx1, finalY, z, sW);
                 }
             }
         }
+    }
+
+    private static BlockState facing(BlockState roof, Direction direction, boolean stairs) {
+        if (!stairs || !roof.contains(net.minecraft.state.property.Properties.HORIZONTAL_FACING)) return roof;
+        return roof.with(net.minecraft.state.property.Properties.HORIZONTAL_FACING, direction);
     }
 
     private static int[] bounds(List<int[]> pts) {
