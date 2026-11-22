@@ -8,19 +8,26 @@ import java.util.function.LongSupplier;
 /** Bounded, player-owned uploads. Preview is read-only; confirmation consumes a verified snapshot. */
 public final class ComponentImportSessions {
     public static final int CHUNK_BYTES = 20 * 1024;
-    private static final long TTL = 120_000_000_000L;
+    /** No first chunk yet: release declared quota quickly so idle begins cannot pin the queue. */
+    private static final long COLD_TTL = 15_000_000_000L;
+    /** Active transfer / verified preview waiting for confirm. */
+    private static final long ACTIVE_TTL = 120_000_000_000L;
+    /** Minimum gap between begin calls for the same player (rebuild / retry spam). */
+    private static final long BEGIN_COOLDOWN = 3_000_000_000L;
     private final Map<UUID, Session> sessions = new HashMap<>();
+    private final Map<UUID, Long> beginCooldownUntil = new HashMap<>();
     private final LongSupplier clock;
     public record Preview(String name, int width, int height, int depth, int blocks, String author, String license,
                           ComponentPackageIO.TrainingPermission trainingPermission, String namespace, String version, boolean global) {}
     public record Installed(String assetId, String name, ComponentPackageInstallations.ImportStatus status) {}
     private static final class Session {
-        UUID token; int length; long touched;
+        UUID token; int length; long started; long touched;
         ComponentStorage.SaveContext context;
         ByteArrayOutputStream bytes;
         ComponentPackageIO.Verified verified;
         boolean capture;
         byte[] thumbnail;
+        boolean cold() { return verified == null && (bytes == null || bytes.size() == 0); }
     }
     public ComponentImportSessions() { this(System::nanoTime); }
     public ComponentImportSessions(LongSupplier clock) { this.clock = Objects.requireNonNull(clock); }
@@ -28,12 +35,22 @@ public final class ComponentImportSessions {
     public synchronized void begin(UUID player, UUID token, int length, ComponentStorage.SaveContext context) throws IOException {
         expire(); requirePlayer(player, context);
         if (token == null || length <= 0 || length > ComponentPackageIO.MAX_PACKAGE_BYTES) throw new IOException("构件包大小无效");
+        long now = clock.getAsLong();
+        Long until = beginCooldownUntil.get(player);
+        if (until != null && now < until) throw new IOException("导入请求过于频繁，请稍后重试");
         long reserved = sessions.entrySet().stream().filter(e -> !e.getKey().equals(player)).mapToLong(e -> e.getValue().length).sum();
         int others = sessions.size() - (sessions.containsKey(player) ? 1 : 0);
         if (others >= 4 || reserved + length > 32L * 1024 * 1024) throw new IOException("导入队列繁忙，请稍后重试");
+        Session prior = sessions.get(player);
+        long started = now;
+        // Replacing a still-cold session must not reset the cold clock (begin-refresh attack).
+        if (prior != null && prior.cold()) started = prior.started;
         var session = new Session(); session.token = token; session.length = length; session.context = context;
-        session.touched = clock.getAsLong(); session.bytes = new ByteArrayOutputStream(Math.min(length, 65536));
+        session.started = started; session.touched = now; session.bytes = new ByteArrayOutputStream(Math.min(length, 65536));
         sessions.put(player, session);
+        // Cooldown only on rebuild (or after cold expiry below)—not after a completed/cancelled import.
+        if (prior != null) beginCooldownUntil.put(player, now + BEGIN_COOLDOWN);
+        else beginCooldownUntil.remove(player);
     }
     public synchronized void append(UUID player, UUID token, int offset, byte[] data) throws IOException {
         var s = get(player, token);
@@ -94,8 +111,26 @@ public final class ComponentImportSessions {
     public synchronized void cancel(UUID player, UUID token) {
         var s = sessions.get(player); if (s != null && s.token.equals(token)) sessions.remove(player);
     }
-    public synchronized void disconnect(UUID player) { sessions.remove(player); }
-    public synchronized void clear() { sessions.clear(); }
-    public synchronized void expire() { long now = clock.getAsLong(); sessions.values().removeIf(s -> now - s.touched >= TTL); }
+    public synchronized void disconnect(UUID player) {
+        sessions.remove(player);
+        beginCooldownUntil.remove(player);
+    }
+    public synchronized void clear() {
+        sessions.clear();
+        beginCooldownUntil.clear();
+    }
+    public synchronized void expire() {
+        long now = clock.getAsLong();
+        sessions.entrySet().removeIf(entry -> {
+            Session s = entry.getValue();
+            boolean cold = s.cold();
+            long limit = cold ? COLD_TTL : ACTIVE_TTL;
+            long anchor = cold ? s.started : s.touched;
+            if (now - anchor < limit) return false;
+            if (cold) beginCooldownUntil.put(entry.getKey(), now + BEGIN_COOLDOWN);
+            return true;
+        });
+        beginCooldownUntil.entrySet().removeIf(e -> e.getValue() <= now);
+    }
     public synchronized int pending() { expire(); return sessions.size(); }
 }

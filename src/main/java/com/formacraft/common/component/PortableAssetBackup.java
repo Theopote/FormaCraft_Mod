@@ -58,10 +58,35 @@ public final class PortableAssetBackup {
                 }
             }
             var preview=inspect(pending);
-            // Hard-link publication is atomic and CREATE_NEW; unlike ATOMIC_MOVE it cannot replace an existing target.
-            Files.createLink(target.toAbsolutePath().normalize(),pending);
+            publishExport(pending, target.toAbsolutePath().normalize());
             return preview;
         } finally { Files.deleteIfExists(pending); }
+    }
+
+    /**
+     * Publish pending → target without replacing an existing file.
+     * Prefer hard-link (atomic CREATE_NEW); fall back to CREATE_NEW byte copy on
+     * filesystems that reject links (exFAT/FAT32/SMB/NFS, restricted Windows).
+     */
+    static void publishExport(Path pending, Path target) throws IOException {
+        try {
+            Files.createLink(target, pending);
+        } catch (UnsupportedOperationException unsupported) {
+            publishCopyCreateNew(pending, target);
+        } catch (FileAlreadyExistsException exists) {
+            throw exists;
+        } catch (FileSystemException unsupportedFs) {
+            // AccessDenied / "Operation not supported" / EXDEV-style failures on some mounts.
+            publishCopyCreateNew(pending, target);
+        }
+    }
+
+    /** Visible for tests: CREATE_NEW copy that never truncates an existing target. */
+    static void publishCopyCreateNew(Path pending, Path target) throws IOException {
+        try (var input = Files.newInputStream(pending, LinkOption.NOFOLLOW_LINKS);
+             var output = Files.newOutputStream(target, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+            input.transferTo(output);
+        }
     }
     public static Imported importArchive(Path archive,String expectedSha,Path world,UUID owner) throws IOException {
         if(owner==null || expectedSha==null || !expectedSha.matches("[0-9a-f]{64}")) throw invalid();

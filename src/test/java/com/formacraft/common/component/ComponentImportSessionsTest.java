@@ -100,6 +100,41 @@ class ComponentImportSessionsTest {
         assertThrows(IOException.class, () -> sessions.begin(player, UUID.randomUUID(), ComponentPackageIO.MAX_PACKAGE_BYTES + 1, context()));
         assertFalse(Files.exists(root));
     }
+    @Test void coldStartExpiresInFifteenSecondsAndBeginCooldownBlocksRebuildSpam() throws Exception {
+        var clock = new AtomicLong(); var sessions = new ComponentImportSessions(clock::get);
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID();
+        sessions.begin(a, UUID.randomUUID(), ComponentPackageIO.MAX_PACKAGE_BYTES, ComponentStorage.SaveContext.forPlayer(null, a, true, false));
+        sessions.begin(b, UUID.randomUUID(), ComponentPackageIO.MAX_PACKAGE_BYTES, ComponentStorage.SaveContext.forPlayer(null, b, true, false));
+        assertThrows(IOException.class, () -> sessions.begin(player, UUID.randomUUID(), 1, context()));
+        // begin-refresh after cooldown inherits started=0 and must not keep the queue past 15s
+        clock.set(10_000_000_000L);
+        sessions.begin(a, UUID.randomUUID(), ComponentPackageIO.MAX_PACKAGE_BYTES, ComponentStorage.SaveContext.forPlayer(null, a, true, false));
+        assertThrows(IOException.class, () -> sessions.begin(player, UUID.randomUUID(), 1, context()));
+        clock.set(15_000_000_000L);
+        assertEquals(0, sessions.pending());
+        // cold expiry leaves a short rebuild cooldown for the abandoned players
+        assertThrows(IOException.class, () -> sessions.begin(a, UUID.randomUUID(), ComponentPackageIO.MAX_PACKAGE_BYTES,
+                ComponentStorage.SaveContext.forPlayer(null, a, true, false)));
+        sessions.begin(player, UUID.randomUUID(), 1, context());
+        assertEquals(1, sessions.pending());
+        // one rebuild is allowed and arms the short cooldown; a second immediate rebuild is rejected
+        sessions.begin(player, UUID.randomUUID(), 1, context());
+        assertThrows(IOException.class, () -> sessions.begin(player, UUID.randomUUID(), 1, context()));
+        clock.set(15_000_000_000L + 3_000_000_000L - 1);
+        assertThrows(IOException.class, () -> sessions.begin(player, UUID.randomUUID(), 1, context()));
+        clock.set(15_000_000_000L + 3_000_000_000L);
+        sessions.begin(player, UUID.randomUUID(), 1, context());
+        assertEquals(1, sessions.pending());
+    }
+    @Test void firstChunkPromotesSessionToActiveTtl() throws Exception {
+        var clock = new AtomicLong(); var sessions = new ComponentImportSessions(clock::get);
+        UUID token = UUID.randomUUID(); sessions.begin(player, token, 2, context());
+        sessions.append(player, token, 0, new byte[] {1});
+        clock.set(15_000_000_000L);
+        assertEquals(1, sessions.pending());
+        clock.set(120_000_000_000L);
+        assertEquals(0, sessions.pending());
+    }
     @Test void invalidEncodingAndIncompatibleEnvironmentNeverCreateLibrary() throws Exception {
         var sessions = new ComponentImportSessions(); var token = upload(sessions, new byte[] {(byte) 0xc3, 0x28}, context());
         assertThrows(IOException.class, () -> sessions.preview(player, token, environment));

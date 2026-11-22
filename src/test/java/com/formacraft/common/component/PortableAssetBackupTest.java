@@ -140,6 +140,17 @@ class PortableAssetBackupTest {
         assertThrows(IOException.class,()->PortableAssetBackup.importArchive(file,backup.sha256(),next,bob));
         assertEquals("Keep target",ComponentRecipeLibrary.result(bob,local.assetId()).component().name);
     }
+    @Test void createNewCopyFallbackPublishesBytesAndStillRefusesOverwrite() throws Exception {
+        var saved=recipe(alice,world,asset,"Linkless"); Path linked=temp.resolve("linked.fcbackup");
+        var backup=PortableAssetBackup.exportRecipe(alice,saved.assetId(),linked);
+        Path pending=temp.resolve("pending.fcbackup"); Files.copy(linked,pending);
+        Path copyTarget=temp.resolve("copied.fcbackup");
+        PortableAssetBackup.publishCopyCreateNew(pending,copyTarget);
+        assertEquals(backup,PortableAssetBackup.inspect(copyTarget));
+        assertArrayEquals(Files.readAllBytes(linked),Files.readAllBytes(copyTarget));
+        assertThrows(FileAlreadyExistsException.class,()->PortableAssetBackup.publishCopyCreateNew(pending,copyTarget));
+        assertEquals(backup,PortableAssetBackup.inspect(copyTarget));
+    }
     @Test void declaredFileAndIndexLimitsRejectSmallCompressedAbuse() throws Exception {
         var saved=recipe(alice,world,asset,"Original"); Path file=temp.resolve("valid.fcbackup"); PortableAssetBackup.exportRecipe(alice,saved.assetId(),file);
         var entries=unpack(file); var header=JsonParser.parseString(index(entries)).getAsJsonObject();
