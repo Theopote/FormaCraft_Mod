@@ -1,5 +1,11 @@
 # Design decision inventory
 
+Explicit roof block IDs and states are validated before compiler material fallback (HARD_CONSTRAINT). Missing IDs and invalid states produce a field-specific `E_MATERIAL_INVALID`. Descriptive roof material vocabulary retains compatibility resolution.
+
+Roof intent repair keeps base materials in the plan and leaves same-family stair/slab shaping to the roof generator (GEOMETRY). The existing stair-shaped roof preference still reaches the executor.
+
+Ordinary LlmPlan normalization tags model-authored direct and Assembly stair treads with node-local `AI_PLANNED` before component defaults (FORMAT_REPAIR). Omitted treads are left for registered family resolution. FBD programs retain their separate material contract.
+
 Stair tread preprocessing preserves node-local `AI_PLANNED` and server-sealed tread choices before attempting any shape or family substitution (HARD_CONSTRAINT). Unsupported authored values reach executor diagnostics. Untagged compatibility inputs retain existing revision behavior.
 
 Assembly stair flights with an authored floor and omitted tread resolve a registered variant of that floor (GEOMETRY). If no variant exists, the flight reports the existing invalid stair material diagnostic (HARD_CONSTRAINT). Level landings can use the floor without requiring a matching tread.

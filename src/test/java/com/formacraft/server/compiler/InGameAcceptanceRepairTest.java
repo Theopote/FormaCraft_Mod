@@ -409,8 +409,8 @@ class InGameAcceptanceRepairTest {
         Component roof = prepared.components().stream()
                 .filter(c -> "ROOF".equalsIgnoreCase(c.componentType()))
                 .findFirst().orElseThrow();
-        assertTrue(String.valueOf(roof.params().get("roof_block")).contains("stairs"),
-                "oak planks roof must promote to stairs, got " + roof.params().get("roof_block"));
+        assertTrue(Boolean.TRUE.equals(roof.params().get("prefer_stairs")),
+                "the roof generator needs the stair shape preference");
         assertEquals("x", String.valueOf(roof.params().get("ridge_axis")));
         Component mass = prepared.components().stream()
                 .filter(c -> "MASS_MAIN".equalsIgnoreCase(c.componentType()))

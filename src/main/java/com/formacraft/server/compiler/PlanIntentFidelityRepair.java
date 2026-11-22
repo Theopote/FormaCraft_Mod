@@ -140,10 +140,6 @@ final class PlanIntentFidelityRepair {
         if (roofBlock == null) {
             roofBlock = roofBlockFromCorpus(lower);
         }
-        if (preferStairs && roofBlock != null && !roofBlock.contains("stairs")) {
-            String stairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(roofBlock);
-            if (stairs != null) roofBlock = stairs;
-        }
         String floorBlock = floorBlockFromStyle(plan);
 
         // Player original text wins over LLM-mixed corpus (e.g. 「三层」+「两层」).
@@ -471,14 +467,6 @@ final class PlanIntentFidelityRepair {
         }
         if ((mass || roof || structure) && hints.preferStairs()) {
             changed |= DesignProvenance.putIfAllowed(plan, params, "prefer_stairs", true);
-            // Re-promote non-stair roof blocks to stairs when the prompt asked for 楼梯坡屋面.
-            String currentRoof = ComponentPlanTypes.getParamString(params, "roof_block", "roof_material", "material");
-            if (currentRoof != null && !currentRoof.toLowerCase(Locale.ROOT).contains("stairs")) {
-                String stairs = com.formacraft.common.palette.component.MaterialBlockFamily.stairs(currentRoof);
-                if (stairs != null) {
-                    changed |= DesignProvenance.putIfAllowed(plan, params, "roof_block", stairs);
-                }
-            }
             // Drop shallow authored roof_height so normalizeStairRoofRise can lift to ~45°.
             if (roof || mass) {
                 changed |= dropShallowRoofHeight(plan, params, component);

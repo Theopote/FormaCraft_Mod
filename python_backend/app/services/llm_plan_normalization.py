@@ -59,6 +59,38 @@ def _tag_present_param_as_ai_planned(params: Dict[str, Any], *keys: str) -> None
         _tag_param_source(params, key, "AI_PLANNED")
 
 
+def _tag_authored_stair_treads(ctype: str, features: list[str], params: Dict[str, Any]) -> None:
+    stairs = params.get("stairs")
+    implicit_structure_stair = (
+        isinstance(params.get("from"), dict) and isinstance(params.get("to"), dict)
+        and isinstance(stairs, str) and stairs.split("[", 1)[0].strip().endswith("_stairs")
+        and not any(feature.startswith(("typology:", "landmark:", "module:")) for feature in features)
+    )
+    if ctype in {"STAIR_SYSTEM", "STAIRCASE", "STAIRS"} or (
+        ctype == "STRUCTURE" and (implicit_structure_stair or any(f.startswith("stair:") for f in features))
+    ):
+        _tag_present_param_as_ai_planned(params, "stairs")
+
+    if "fbd_program" in params or (ctype != "ASSEMBLY" and not isinstance(params.get("assembly"), dict)):
+        return
+    from .assembly_plan_validator import _assembly_payload
+
+    payload = _assembly_payload(params)
+    if payload is None:
+        return
+    graph = payload.get("graph")
+    graph = graph if isinstance(graph, dict) else payload
+    for nodes, key in ((payload.get("ops"), "op"), (graph.get("components"), "type")):
+        if not isinstance(nodes, list):
+            continue
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            kind = str(node.get(key) or node.get("op") or "").strip().upper()
+            if kind in {"STAIR_SYSTEM", "STAIRS_SYSTEM", "STAIRCASE"}:
+                _tag_present_param_as_ai_planned(node, "stairs")
+
+
 def _tag_plan_level_source(plan: Dict[str, Any], key: str, source: str) -> None:
     sources = plan.get("design_sources")
     if not isinstance(sources, dict):
@@ -1129,6 +1161,7 @@ def _normalize_llm_plan_output(
             params = comp.get("params")
             if not isinstance(params, dict):
                 params = {}
+            _tag_authored_stair_treads(ctype, comp["features"], params)
             if ctype in _MASS_COMPONENT_TYPES:
                 _tag_present_param_as_ai_planned(params, "floor_height", "floorHeight")
                 authored_dims = comp.get("dimensions")

@@ -21,6 +21,19 @@ import static org.junit.jupiter.api.Assertions.*;
 class PlanIntentFidelityRepairTest {
 
     @Test
+    void pitchedRoofRetainsAuthoredBaseMaterialForGeometryExecution() {
+        var roof = new Component("ROOF", "main", new Vec3i(0, 5, 0),
+                new Dimensions(9, 11, 5), List.of(),
+                Map.of("roof_type", "gable", "roof_block", "minecraft:spruce_planks"));
+        var plan = LlmPlanTestFixtures.builder().components(List.of(roof))
+                .planMeta(Map.of("request_intent", Map.of("original_text", "楼梯坡屋面")))
+                .build();
+        var repaired = PlanIntentFidelityRepair.enrich(plan, roof);
+        assertEquals("minecraft:spruce_planks", repaired.params().get("roof_block"));
+        assertEquals(true, repaired.params().get("prefer_stairs"));
+    }
+
+    @Test
     void threeStoreySevenBySevenMassIsNotExpandedToOfficePlate() {
         Component mass = new Component(
                 "MASS_MAIN", "main", new Vec3i(-3, 0, -3),

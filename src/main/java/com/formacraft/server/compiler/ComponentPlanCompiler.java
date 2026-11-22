@@ -118,6 +118,15 @@ public final class ComponentPlanCompiler {
 
         AssemblyCompileDiagnostics.clear();
 
+        var invalidRoof = com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy
+                .invalidAuthoredRoofId(plan.styleAttributes(), plan.components());
+        if (invalidRoof.isPresent()) {
+            AssemblyCompileDiagnostics.set(new CapabilityGap("E_MATERIAL_INVALID",
+                    "无法解析明确指定的屋面方块：" + invalidRoof.get(), invalidRoof.get(),
+                    List.of("Use a registered roof block ID and valid state properties.")));
+            return List.of();
+        }
+
         plan = com.formacraft.common.llm.parser.LlmPlanAnchorNormalizer.normalize(plan);
         // Relativized residual slot offsets (e.g. x=-8) still shift a centered footprint off the cursor.
         plan = SlotPrimaryAnchorRepair.apply(plan);

@@ -19,6 +19,33 @@ public final class ExplicitMaterialPolicy {
     private static final Set<String> EXPLICIT_BLOCK_KEYS = Set.of(
             "wall_block", "floor_block", "roof_block", "foundation_block");
 
+    /** Validate authored roof IDs before general material fallback can replace them. */
+    public static Optional<String> invalidAuthoredRoofId(StyleAttributes attrs, List<Component> components) {
+        if (attrs != null && invalidRoofId(attrs.roofMaterial())) {
+            return Optional.of("style_attributes.roof_material");
+        }
+        if (components == null) return Optional.empty();
+        for (int index = 0; index < components.size(); index++) {
+            Component component = components.get(index);
+            if (component == null || component.params() == null) continue;
+            boolean roof = "ROOF".equalsIgnoreCase(component.componentType())
+                    || "ROOF_STRUCTURE".equalsIgnoreCase(component.componentType());
+            for (String key : List.of("roof_block", "roof_material", "material")) {
+                if (("material".equals(key) && !roof) || !invalidRoofId(component.params().get(key))) continue;
+                return Optional.of("components[" + index + "].params." + key);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static boolean invalidRoofId(Object value) {
+        if (!(value instanceof String text)) return false;
+        String candidate = text.trim();
+        String base = candidate.split("\\[", 2)[0];
+        boolean explicitId = base.matches("[a-z0-9_.-]+:[a-z0-9_./-]+") || candidate.contains("[");
+        return explicitId && BlockPatchTargetResolver.parse(candidate) == null;
+    }
+
     public static Optional<String> invalidAttribute(StyleAttributes attrs) {
         return invalidAttribute(attrs, List.of());
     }

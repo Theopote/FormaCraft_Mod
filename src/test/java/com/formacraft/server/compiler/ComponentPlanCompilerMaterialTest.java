@@ -109,6 +109,27 @@ class ComponentPlanCompilerMaterialTest {
         assertTrue(output.containsValue("minecraft:stone_bricks"));
         assertFalse(AssemblyCompileDiagnostics.hasGap());
     }
+    @Test void explicitInvalidRoofIdsReachCompilerDiagnostics() {
+        for (String invalid : List.of("minecraft:missing_roof_tile", "minecraft:oak_stairs[facing=up]")) {
+            var source = plan("minecraft:stone_bricks");
+            var mass = source.components().getFirst();
+            var params = new HashMap<String, Object>(mass.params());
+            params.put("roof_block", invalid);
+            var candidate = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                    .components(List.of(new Component(mass.componentType(), mass.slotId(), mass.relativePosition(),
+                            mass.dimensions(), mass.features(), params))).build();
+            try {
+                assertTrue(ComponentPlanCompiler.compile(candidate).isEmpty());
+                var gap = AssemblyCompileDiagnostics.get();
+                assertNotNull(gap);
+                assertEquals("E_MATERIAL_INVALID", gap.code());
+                assertEquals("components[0].params.roof_block", gap.path());
+            } finally {
+                AssemblyCompileDiagnostics.clear();
+            }
+        }
+    }
+
     @Test void loggedRoofVocabularyAndUnknownAttributesUseFallbacks() {
         var policy = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(
                 LlmPlanTestFixtures.builder().allowCompilerSatellites(true).styleAttributes(new StyleAttributes(null, "unknown_wall",

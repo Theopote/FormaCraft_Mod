@@ -197,3 +197,33 @@ class CirculationNormalizerTest(unittest.TestCase):
 
 
 if __name__ == '__main__': unittest.main()
+def test_llm_plan_normalization_tags_authored_treads_at_their_material_scope():
+    from app.services.llm_plan_normalization import _normalize_llm_plan_output
+
+    from_point = {"x": 0, "y": 0, "z": 0}
+    to_point = {"x": 0, "y": 2, "z": 3}
+    flight = {"floor": "minecraft:smooth_quartz", "from": from_point, "to": to_point}
+    for component_type, params, features in (
+        ("STAIR_SYSTEM", {**flight, "stairs": "minecraft:oak_stairs[waterlogged=true]"}, []),
+        ("STRUCTURE", {**flight, "stairs": "minecraft:oak_stairs[waterlogged=true]"}, ["stair:straight_single_run"]),
+        ("ASSEMBLY", {"assembly": {"ops": [
+            {"op": "STAIR_SYSTEM", **flight, "stairs": "minecraft:oak_stairs[waterlogged=true]"},
+        ]}}, []),
+        ("ASSEMBLY", {"assembly": {"graph": {"components": [
+            {"type": "STAIR_SYSTEM", "id": "flight", **flight, "stairs": "minecraft:oak_stairs[waterlogged=true]"},
+        ]}}}, []),
+    ):
+        component = {"component_type": component_type, "params": params, "features": features,
+                     "relative_position": from_point, "dimensions": {"width": 3, "depth": 4, "height": 3}}
+        result = _normalize_llm_plan_output({"mode": "build", "components": [component]}, None)
+        scope = result["components"][0]["params"]
+        if "assembly" in scope:
+            assembly = scope["assembly"]
+            scope = assembly["ops"][0] if "ops" in assembly else assembly["graph"]["components"][0]
+        assert scope["stairs"] == "minecraft:oak_stairs[waterlogged=true]"
+        assert scope["design_sources"]["stairs"] == "AI_PLANNED"
+
+    component = {"component_type": "STAIR_SYSTEM", "params": flight, "features": [],
+                 "relative_position": from_point, "dimensions": {"width": 3, "depth": 4, "height": 3}}
+    result = _normalize_llm_plan_output({"mode": "build", "components": [component]}, None)
+    assert "stairs" not in result["components"][0]["params"]
