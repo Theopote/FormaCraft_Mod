@@ -23,7 +23,7 @@ class ChurchNotForcedGothicTest(unittest.TestCase):
                 self.assertNotIn("Gothic_Cathedral", matched_style_ids(prompt))
                 self.assertIsNone(resolve_landmark_module_routing(prompt))
 
-    def test_explicit_gothic_still_routes(self):
+    def test_gothic_style_remains_recognized_without_fixed_route(self):
         prompt = "生成一座哥特大教堂"
         tokens = set(_expand_query_tokens(prompt))
         self.assertIn("gothic", tokens)
@@ -31,7 +31,7 @@ class ChurchNotForcedGothicTest(unittest.TestCase):
         self.assertIsNotNone(match)
         self.assertEqual(match.id, "gothic_cathedral")
         routing = resolve_landmark_module_routing(prompt)
-        self.assertEqual(routing.get("typologyId"), "gothic_cathedral_hall")
+        self.assertIsNone(routing)
         self.assertIn("Gothic_Cathedral", matched_style_ids(prompt))
 
     def test_cathedral_alias_no_longer_equals_gothic_identity(self):

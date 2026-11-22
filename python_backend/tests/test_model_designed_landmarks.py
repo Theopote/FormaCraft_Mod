@@ -318,6 +318,17 @@ def test_matching_explicit_preset_can_use_landmark_module():
     assert reject_unrequested_fixed_routes(plan, "不要使用 preset:eiffel_tower") is not None
 
 
+def test_culture_routing_only_describes_explicit_registered_preset():
+    from app.services.keyword_culture_retriever import resolve_landmark_module_routing
+
+    assert resolve_landmark_module_routing("设计一座逆光悬庭") is None
+    assert resolve_landmark_module_routing("不要使用 preset:eiffel_tower") is None
+    assert resolve_landmark_module_routing("preset:unknown_preset") is None
+    routing = resolve_landmark_module_routing("preset:eiffel_tower")
+    assert routing["moduleId"] == "eiffel_tower"
+    assert routing["source"] == "explicit_preset"
+
+
 @pytest.mark.parametrize("params", [
     {"typology": "gothic_cathedral_hall"},
     {"typology_id": "gothic_cathedral_hall"},

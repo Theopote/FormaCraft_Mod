@@ -424,7 +424,7 @@ def _llm_plan_context_block(req: BuildRequest, building_profile: Optional[Any] =
             except Exception:
                 pass
 
-            routing = None if skip_landmark_routing else _landmark_routing(qtext)
+            routing = None if skip_landmark_routing else _landmark_routing(user_text)
             if routing and (routing.get("moduleId") or routing.get("referenceLandmark")) == explicit_preset:
                 tier = str(routing.get("routingTier") or "suggested").lower()
                 if tier == "mandatory":

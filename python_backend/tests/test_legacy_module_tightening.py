@@ -30,90 +30,53 @@ class LegacyModuleTighteningTest(unittest.TestCase):
             self.assertTrue(is_migrated_landmark(mid))
         self.assertFalse(is_migrated_landmark("office_block"))
 
-    def test_gothic_cathedral_routing_returns_typology_not_module(self):
+    def test_gothic_cathedral_name_does_not_select_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing("生成一座哥特大教堂")
-        self.assertIsNotNone(routing)
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("typologyId"), "gothic_cathedral_hall")
-        self.assertEqual(routing.get("referenceLandmark"), "gothic_cathedral")
-        self.assertTrue(routing.get("legacyModuleDeprecated"))
-        self.assertNotIn("moduleId", routing)
+        self.assertIsNone(routing)
 
-    def test_mingqing_courtyard_routing_returns_typology_not_module(self):
+    def test_mingqing_courtyard_name_does_not_select_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing("建造一座明清官式院落")
-        self.assertIsNotNone(routing)
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("typologyId"), "courtyard_compound")
-        self.assertEqual(routing.get("referenceLandmark"), "mingqing_courtyard")
-        self.assertTrue(routing.get("legacyModuleDeprecated"))
-        self.assertNotIn("moduleId", routing)
+        self.assertIsNone(routing)
 
-    def test_castle_compound_routing_returns_typology_not_module(self):
+    def test_castle_compound_name_does_not_select_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing("建造一座中世纪城堡")
-        self.assertIsNotNone(routing)
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("typologyId"), "radial_fortress")
-        self.assertEqual(routing.get("referenceLandmark"), "castle_compound")
-        self.assertTrue(routing.get("legacyModuleDeprecated"))
-        self.assertNotIn("moduleId", routing)
+        self.assertIsNone(routing)
 
-    def test_modern_skyscraper_routing_returns_typology_not_module(self):
+    def test_modern_skyscraper_name_does_not_select_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing("建造一座摩天楼")
-        self.assertIsNotNone(routing)
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("typologyId"), "setback_tower")
-        self.assertEqual(routing.get("referenceLandmark"), "modern_skyscraper")
-        self.assertTrue(routing.get("legacyModuleDeprecated"))
-        self.assertNotIn("moduleId", routing)
+        self.assertIsNone(routing)
 
-    def test_golden_gate_routing_returns_typology_not_module(self):
+    def test_golden_gate_name_does_not_select_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing("生成旧金山金门大桥")
-        self.assertIsNotNone(routing)
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("typologyId"), "suspension_bridge")
-        self.assertEqual(routing.get("referenceLandmark"), "golden_gate_bridge")
-        self.assertTrue(routing.get("legacyModuleDeprecated"))
-        self.assertNotIn("moduleId", routing)
+        self.assertIsNone(routing)
 
-    def test_birds_nest_routing_returns_typology_not_module(self):
+    def test_birds_nest_name_does_not_select_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing("建一座鸟巢体育馆")
-        self.assertIsNotNone(routing)
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("typologyId"), "stadium_bowl")
-        self.assertEqual(routing.get("referenceLandmark"), "birds_nest_stadium")
-        self.assertTrue(routing.get("legacyModuleDeprecated"))
-        self.assertNotIn("moduleId", routing)
+        self.assertIsNone(routing)
 
-    def test_temple_routing_returns_typology_not_module(self):
+    def test_temple_name_does_not_select_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing("盖一座天坛")
-        self.assertIsNotNone(routing)
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("typologyId"), "radial_terrace_hall")
-        self.assertTrue(routing.get("legacyModuleDeprecated"))
-        self.assertNotIn("moduleId", routing)
+        self.assertIsNone(routing)
 
-    def test_famen_routing_returns_typology_not_module(self):
+    def test_famen_name_does_not_select_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing("建造法门寺塔")
-        self.assertIsNotNone(routing)
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("typologyId"), "dense_eaves_pagoda")
-        self.assertEqual(routing.get("referenceLandmark"), "famen_pagoda")
+        self.assertIsNone(routing)
 
     def test_culture_retrieve_suppresses_migrated_landmark_module_id(self):
         from app.services.keyword_culture_retriever import retrieve
@@ -125,7 +88,7 @@ class LegacyModuleTighteningTest(unittest.TestCase):
             "dense_eaves_pagoda",
         )
 
-    def test_sanitize_strips_migrated_module_without_profile(self):
+    def test_sanitize_preserves_unrequested_module_for_route_validation(self):
         from app.models.request import BuildRequest, PlayerInfo, Vec3i, WorldContext
         from app.services.typology_plan_repair import _sanitize_landmark_modules
 
@@ -151,10 +114,10 @@ class LegacyModuleTighteningTest(unittest.TestCase):
             requestText="盖一座天坛",
             userMessage="盖一座天坛",
         )
-        _sanitize_landmark_modules(plan, req, None)
+        _sanitize_landmark_modules(plan, req)
         types = [c["component_type"] for c in plan["components"]]
-        self.assertNotIn("MODULE", types)
-        self.assertIn("STRUCTURE", types)
+        self.assertIn("MODULE", types)
+        self.assertNotIn("STRUCTURE", types)
 
     def test_sanitize_ignores_non_string_request_fields(self):
         from app.services.typology_plan_repair import _sanitize_landmark_modules
@@ -176,37 +139,10 @@ class LegacyModuleTighteningTest(unittest.TestCase):
             ]
         }
         # Boundary: non-string / Mock request fields must not raise TypeError.
-        _sanitize_landmark_modules(plan, Mock(), None)
+        _sanitize_landmark_modules(plan, Mock())
         types = [c["component_type"] for c in plan["components"]]
-        self.assertNotIn("MODULE", types)
+        self.assertIn("MODULE", types)
         self.assertIn("MASS_MAIN", types)
-
-    def test_sanitize_does_not_inject_migrated_module(self):
-        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
-        from app.services.typology_plan_repair import _sanitize_landmark_modules
-
-        profile = BuildingProfile(
-            query="天坛",
-            minecraft_strategy=ProfileMinecraftStrategy(
-                structural_typology="radial_terrace_hall",
-                reference_landmark="temple_of_heaven",
-                landmark_module="temple_of_heaven",
-                skeleton_type="RADIAL_RING",
-                recommended_components=["STRUCTURE", "MASS_MAIN", "ROOF"],
-            ),
-        )
-        plan = {
-            "components": [
-                {
-                    "component_type": "MASS_MAIN",
-                    "relative_position": {"x": 0, "y": 0, "z": 0},
-                    "dimensions": {"width": 20, "depth": 20, "height": 10},
-                }
-            ]
-        }
-        _sanitize_landmark_modules(plan, Mock(), profile)
-        types = [c["component_type"] for c in plan["components"]]
-        self.assertNotIn("MODULE", types)
 
 
 if __name__ == "__main__":

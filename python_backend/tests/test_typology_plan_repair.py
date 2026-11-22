@@ -286,46 +286,6 @@ class TypologyPlanRepairTest(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertEqual(out["components"][0]["component_type"], "MODULE")
 
-    def test_sanitize_strips_remaining_module_with_typology_profile(self):
-        from unittest.mock import Mock
-
-        from app.models.building_profile import BuildingProfile, ProfileMinecraftStrategy
-        from app.services.llm_plan_normalization import _normalize_llm_plan_output
-        from app.services.typology_plan_repair import _sanitize_landmark_modules
-
-        profile = BuildingProfile(
-            query="大雁塔",
-            minecraft_strategy=ProfileMinecraftStrategy(
-                structural_typology="dense_eaves_pagoda",
-                reference_landmark="giant_wild_goose_pagoda",
-                landmark_module=None,
-                skeleton_type="VERTICAL_STACK",
-                recommended_components=["STRUCTURE", "MASS_MAIN", "ROOF"],
-            ),
-        )
-        plan = {
-            "mode": "build",
-            "style_profile": "Chinese_Traditional",
-            "genome": {"genomeVersion": "1.0"},
-            "layout": {"skeleton_type": "VERTICAL_STACK", "slots": []},
-            "components": [
-                {
-                    "component_type": "MODULE",
-                    "features": ["landmark:giant_wild_goose_pagoda"],
-                    "params": {"module_id": "giant_wild_goose_pagoda"},
-                    "dimensions": {"width": 17, "depth": 17, "height": 41},
-                    "relative_position": {"x": 0, "y": 0, "z": 0},
-                }
-            ],
-        }
-        _sanitize_landmark_modules(plan, Mock(), profile)
-        types = [c["component_type"] for c in plan["components"]]
-        self.assertIn("STRUCTURE", types)
-        self.assertNotIn("MODULE", types)
-        struct = next(c for c in plan["components"] if c["component_type"] == "STRUCTURE")
-        self.assertEqual(struct["params"]["footprint"], "square")
-
-
     def test_temple_module_repaired(self):
         from app.services.typology_plan_repair import repair_migrated_landmark_components
 
@@ -1432,31 +1392,20 @@ class TypologyPlanRepairTest(unittest.TestCase):
 
 
 class LandmarkAuthorityTest(unittest.TestCase):
-    def test_profile_without_module_removes_module_requests(self):
-        from types import SimpleNamespace
-        from app.services.typology_plan_repair import _sanitize_landmark_modules
-
-        plan = {"components": [{"component_type": "MODULE", "features": ["landmark:custom"]},
-                               {"component_type": "MASS_MAIN"}]}
-        profile = SimpleNamespace(minecraft_strategy=SimpleNamespace(landmark_module=None))
-        _sanitize_landmark_modules(plan, None, profile)
-        self.assertEqual(plan["components"], [{"component_type": "MASS_MAIN"}])
-
     def test_expected_module_is_deduplicated_and_normalized(self):
         from types import SimpleNamespace
         from app.services.typology_plan_repair import _sanitize_landmark_modules
 
         plan = {"components": [
-            {"component_type": "MODULE", "features": ["landmark:other"]},
-            {"component_type": "MODULE", "features": ["detail", "module:custom"], "params": {"size": 4}},
-            {"component_type": "MODULE", "params": {"module_id": "custom"}},
+            {"component_type": "MODULE", "features": ["detail", "module:eiffel_tower"], "params": {"size": 4}},
+            {"component_type": "MODULE", "params": {"module_id": "eiffel_tower"}},
             {"component_type": "MASS_MAIN"},
         ]}
-        profile = SimpleNamespace(minecraft_strategy=SimpleNamespace(landmark_module="CUSTOM"))
-        _sanitize_landmark_modules(plan, None, profile)
+        req = SimpleNamespace(userMessage="preset:eiffel_tower")
+        _sanitize_landmark_modules(plan, req)
         self.assertEqual(plan["components"], [
-            {"component_type": "MODULE", "features": ["detail", "landmark:custom"],
-             "params": {"size": 4, "module_id": "custom"}},
+            {"component_type": "MODULE", "features": ["detail", "landmark:eiffel_tower"],
+             "params": {"size": 4, "module_id": "eiffel_tower"}},
             {"component_type": "MASS_MAIN"},
         ])
 

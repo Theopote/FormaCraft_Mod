@@ -6,7 +6,11 @@ The authorization check covers the Java router's legacy `typology`, `referenceLa
 
 Legacy context routing accepts only an exact preset ID from the current user message (HARD_CONSTRAINT). Research routing is expressed by the planning contract without duplicating a profile-derived authoritative block.
 
+Culture retrieval no longer derives fixed executor instructions or preset example parameters from name matches, culture cards, or building knowledge. Its compatibility routing description accepts only a registered preset from the current user message (EXPLICIT_TEMPLATE).
+
 Legacy MODULE insertion from request text reads only `userMessage` (HARD_CONSTRAINT). A missing current message no longer falls back to the assembled `requestText`.
+
+The legacy MODULE compatibility sanitizer no longer accepts a research profile. It requires an explicitly selected preset before conversion or insertion and leaves unauthorized plans to the normalization diagnostics (HARD_CONSTRAINT).
 
 Stage P routing summaries and capability exposure require current user opt-in before advertising fixed executors (HARD_CONSTRAINT). Unbound research types remain available as composition evidence.
 

@@ -513,168 +513,34 @@ def _compact_llmplan_example(ex: Any) -> Dict[str, Any]:
 
 
 def resolve_landmark_module_routing(prompt: str) -> Optional[Dict[str, Any]]:
-    """
-    Resolve landmark MODULE routing tier for LlmPlan output.
-    MANDATORY only when user names a landmark; SUGGESTED for typological matches;
-    None when user wants 原创/独特/不要地标.
-    """
-    from app.services.landmark_routing_policy import (
-        RoutingTier,
-        is_creative_or_original_intent,
-        resolve_for_user_intent,
-        variation_context_block,
-    )
+    """Describe only a registered preset explicitly selected by the user."""
+    from .building_research_agent import resolve_landmark_module_for_intent
+    from .typology_registry import get_migration
 
-    q = (prompt or "").strip()
-    if not q:
-        return None
-
-    if is_creative_or_original_intent(q):
-        return None
-
-    decision = resolve_for_user_intent(q)
-    module_id: Optional[str] = decision.module_id if decision else None
-    routing_tier = decision.tier if decision else RoutingTier.SUGGESTED
-    source = decision.reason if decision else None
-
-    llm_plan_few_shots: List[Dict[str, Any]] = []
-    instruction = None
-
-    rag = retrieve(q, topK=1, fewShotK=0)
-    if module_id is None and isinstance(rag.get("landmarkModuleId"), str) and rag["landmarkModuleId"].strip():
-        module_id = rag["landmarkModuleId"].strip()
-        source = source or "culture_card"
-    if isinstance(rag.get("llmPlanFewShots"), list):
-        llm_plan_few_shots = [x for x in rag["llmPlanFewShots"] if isinstance(x, dict)]
-
-    kb = retrieve_building_knowledge(q, topK=1)
-    if kb:
-        kb_lm = str(kb.get("landmarkModuleId") or "").strip()
-        if kb_lm and module_id is None:
-            try:
-                from app.services.typology_registry import is_migrated_landmark
-
-                if not is_migrated_landmark(kb_lm):
-                    module_id = kb_lm
-                    source = source or "building_knowledge"
-            except Exception:
-                module_id = kb_lm
-                source = source or "building_knowledge"
-        routing = kb.get("llmPlanRouting")
-        if isinstance(routing, dict):
-            instruction = routing.get("instruction") if isinstance(routing.get("instruction"), str) else instruction
-
-    if module_id is None:
-        try:
-            from app.services.typology_registry import is_migrated_landmark
-            from app.services.archetype_detector import detect_archetype_local
-
-            hits = rag.get("hits") or []
-            if hits and isinstance(hits[0], dict):
-                hit_id = str(hits[0].get("id") or "").strip()
-                if hit_id and is_migrated_landmark(hit_id):
-                    module_id = hit_id
-                    source = source or "culture_card"
-                    routing_tier = RoutingTier.MANDATORY
-
-            typ_payload = rag.get("typology") or {}
-            ref_lm = str(typ_payload.get("referenceLandmarkId") or "").strip()
-            if module_id is None and ref_lm and is_migrated_landmark(ref_lm):
-                module_id = ref_lm
-                source = source or "typology"
-
-            arch = detect_archetype_local(q)
-            if module_id is None and arch and is_migrated_landmark(arch.id):
-                module_id = arch.id
-                source = source or "explicit_archetype"
-                routing_tier = RoutingTier.MANDATORY
-        except Exception:
-            pass
-
+    module_id = resolve_landmark_module_for_intent(prompt)
     if not module_id:
         return None
 
-    tier_value = routing_tier.value if isinstance(routing_tier, RoutingTier) else str(routing_tier)
-
-    try:
-        from app.services.typology_registry import get_migration, get_typology, is_migrated_landmark
-        from app.services.typology_plan_repair import _REFERENCE_PRESETS
-
-        if is_migrated_landmark(module_id):
-            mig = get_migration(module_id)
-            typ_id = mig.typology_id if mig else None
-            if typ_id:
-                defn = get_typology(typ_id)
-                guidance = defn.llm_plan_guidance if defn else ""
-                example_params = dict(_REFERENCE_PRESETS.get(module_id) or {})
-                example_params["typology_id"] = typ_id
-                example_params["structural_typology"] = typ_id
-                example_params["reference_landmark"] = module_id
-                if tier_value == RoutingTier.MANDATORY.value:
-                    default_instruction = (
-                        f"User explicitly named landmark {module_id} (migrated to typology {typ_id}). "
-                        f"FORBIDDEN: MODULE + landmark:{module_id}. "
-                        f"REQUIRED: ONE STRUCTURE with features [\"typology:{typ_id}\"] "
-                        f"and params.reference_landmark={module_id}. "
-                        f"{guidance}"
-                    )
-                else:
-                    default_instruction = (
-                        f"Typological match for {module_id} → structural_typology={typ_id}. "
-                        f"FORBIDDEN: MODULE + landmark:{module_id}. "
-                        f"PREFERRED: STRUCTURE + typology:{typ_id} with reference_landmark={module_id}. "
-                        f"{guidance}"
-                    )
-                return {
-                    "typologyId": typ_id,
-                    "componentType": "STRUCTURE",
-                    "feature": f"typology:{typ_id}",
-                    "referenceLandmark": module_id,
-                    "routingTier": tier_value,
-                    "source": source,
-                    "legacyModuleDeprecated": True,
-                    "deprecatedModuleId": module_id,
-                    "instruction": instruction or default_instruction,
-                    "variationHints": variation_context_block(),
-                    "exampleParams": example_params,
-                    "llmPlanFewShots": llm_plan_few_shots,
-                }
-    except Exception:
-        pass
-
-    if tier_value == RoutingTier.MANDATORY.value:
-        default_instruction = (
-            f"Landmark {module_id} matched by name as research evidence only. "
-            f"Use MODULE with features [\"landmark:{module_id}\"] solely when the user "
-            f"explicitly requested preset:{module_id}; otherwise design with open catalog "
-            "components and vary seed/facing/dimensions. Naming the building is not a "
-            "fixed-executor grant."
-        )
-    else:
-        default_instruction = (
-            f"Typological match for {module_id} (optional evidence). "
-            f"Prefer open catalog composition; MODULE landmark:{module_id} only for "
-            f"explicit preset:{module_id}. "
-            "Do NOT use a plain rectangular MASS box for elliptical stadium requests."
-        )
-
+    migration = get_migration(module_id)
+    routing = {"routingTier": "mandatory", "source": "explicit_preset"}
+    if migration:
+        typology_id = migration.typology_id
+        return {
+            **routing,
+            "typologyId": typology_id,
+            "componentType": "STRUCTURE",
+            "feature": f"typology:{typology_id}",
+            "referenceLandmark": module_id,
+            "legacyModuleDeprecated": True,
+            "deprecatedModuleId": module_id,
+            "instruction": f"Use STRUCTURE with typology:{typology_id} and reference_landmark={module_id}.",
+        }
     return {
+        **routing,
         "moduleId": module_id,
         "componentType": "MODULE",
         "feature": f"landmark:{module_id}",
-        "routingTier": tier_value,
-        "source": source,
-        "instruction": instruction or default_instruction,
-        "variationHints": variation_context_block(),
-        "exampleDimensions": {"width": 60, "depth": 80, "height": 28},
-        "exampleParams": {
-            "module_id": module_id,
-            "meshStructure": True,
-            "designSeed": 4821,
-            "bowlSteepness": 0.32,
-            "facing": "SOUTH",
-        },
-        "llmPlanFewShots": llm_plan_few_shots,
+        "instruction": f"Use MODULE with landmark:{module_id} for the explicitly selected preset.",
     }
 
 

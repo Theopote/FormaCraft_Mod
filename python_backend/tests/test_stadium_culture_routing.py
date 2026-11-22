@@ -63,29 +63,17 @@ class StadiumCultureRoutingTest(unittest.TestCase):
         )
         self.assertTrue(rag.get("llmPlanFewShots"), "expected LlmPlan few-shot example")
 
-    def test_resolve_landmark_module_routing_typology_tier(self):
+    def test_stadium_type_does_not_select_fixed_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing(self.PROMPT)
-        self.assertIsNotNone(routing)
-        assert routing is not None
-        self.assertEqual(routing.get("typologyId"), "stadium_bowl")
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("routingTier"), "suggested")
-        self.assertEqual(routing.get("feature"), "typology:stadium_bowl")
-        self.assertIn("exampleParams", routing)
-        self.assertIn("llmPlanFewShots", routing)
+        self.assertIsNone(routing)
 
-    def test_explicit_birds_nest_routing_typology_mandatory(self):
+    def test_birds_nest_name_does_not_select_fixed_executor(self):
         from app.services.keyword_culture_retriever import resolve_landmark_module_routing
 
         routing = resolve_landmark_module_routing(self.EXPLICIT)
-        self.assertIsNotNone(routing)
-        assert routing is not None
-        self.assertEqual(routing.get("typologyId"), "stadium_bowl")
-        self.assertEqual(routing.get("componentType"), "STRUCTURE")
-        self.assertEqual(routing.get("routingTier"), "mandatory")
-        self.assertEqual(routing.get("referenceLandmark"), "birds_nest_stadium")
+        self.assertIsNone(routing)
 
 
 if __name__ == "__main__":

@@ -1000,31 +1000,25 @@ def _extract_landmark_module_id(comp: Dict[str, Any]) -> Optional[str]:
 def _sanitize_landmark_modules(
     plan: Dict[str, Any],
     req: Optional[BuildRequest],
-    building_profile: Optional[Any] = None,
 ) -> None:
-    if getattr(getattr(building_profile, "minecraft_strategy", None), "model_designed_landmark", False):
-        return
-    stid: Optional[str] = None
-    ref_lm: Optional[str] = None
-    if building_profile is not None:
-        mc = getattr(building_profile, "minecraft_strategy", None)
-        if mc is not None:
-            raw_st = getattr(mc, "structural_typology", None)
-            raw_ref = getattr(mc, "reference_landmark", None)
-            stid = str(raw_st).strip() if raw_st else None
-            ref_lm = str(raw_ref).strip() if raw_ref else None
+    from .building_research_agent import resolve_landmark_module_for_intent
+    from .typology_registry import is_migrated_landmark
 
-    plan, _ = repair_migrated_landmark_components(
-        plan,
-        structural_typology=stid,
-        reference_landmark=ref_lm,
-    )
+    expected_id = resolve_landmark_module_for_intent(getattr(req, "userMessage", None))
+    if not expected_id:
+        return
 
     components = plan.get("components")
     if not isinstance(components, list):
         return
 
-    from .typology_registry import is_migrated_landmark
+    # Never let a second legacy landmark ride along with the selected preset.
+    from .landmark_design_policy import reject_unrequested_fixed_routes
+    if plan.get("plan_status") == "capability_gap" or reject_unrequested_fixed_routes(plan, req.userMessage):
+        return
+
+    plan, _ = repair_migrated_landmark_components(plan)
+    components = plan["components"]
 
     def _strip_remaining_migrated_modules(comps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         kept_local: List[Dict[str, Any]] = []
@@ -1041,37 +1035,7 @@ def _sanitize_landmark_modules(
     components = _strip_remaining_migrated_modules(components)
     plan["components"] = components
 
-    expected_id: Optional[str] = None
-    profile_authoritative = building_profile is not None
-
-    if building_profile is not None:
-        mc = getattr(building_profile, "minecraft_strategy", None)
-        lm = getattr(mc, "landmark_module", None) if mc is not None else None
-        expected_id = str(lm).strip().lower() if lm else None
-    elif req is not None:
-        raw_msg = getattr(req, "userMessage", None)
-        user_text = raw_msg.strip() if isinstance(raw_msg, str) else ""
-        if user_text:
-            from .building_research_agent import resolve_landmark_module_for_intent
-
-            expected_id = resolve_landmark_module_for_intent(user_text)
-
-    if expected_id and is_migrated_landmark(expected_id):
-        expected_id = None
-
-    if profile_authoritative and not expected_id:
-        filtered = []
-        for comp in components:
-            if not isinstance(comp, dict):
-                continue
-            ctype = str(comp.get("component_type") or "").upper()
-            if ctype == "MODULE" or _extract_landmark_module_id(comp):
-                continue
-            filtered.append(comp)
-        plan["components"] = filtered
-        return
-
-    if not expected_id:
+    if is_migrated_landmark(expected_id):
         return
 
     kept: List[Dict[str, Any]] = []
