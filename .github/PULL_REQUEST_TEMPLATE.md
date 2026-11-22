@@ -29,6 +29,7 @@ Applies to prompts, normalizers, routing, Assembly repair/fallback, typologies, 
 - [ ] No new keyword→building/preset authoritative router (hints only)
 - [ ] New defaults declare provenance (`TECHNICAL_DEFAULT`) and only fill absent fields
 - [ ] Unsupported geometry returns `capability_gap` / replan, not a disguised template
+- [ ] No new `RequestIntentInjector` / `building_contract.py` regex hard-patches when a FlatRoof-style diagnose→guard loop fits
 - [ ] Updated `docs/architecture/DESIGN_DECISION_INVENTORY.md` when design decisions change
 - [ ] Ran Design Authority Audit Skill and/or relevant pytest (`test_design_authority_regressions.py`, preservation/omission tests)
 

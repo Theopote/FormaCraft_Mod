@@ -24,6 +24,7 @@ FormaCraft is an **open-ended AI architectural planner**, not a text-to-preset c
 ## Required implementation workflow
 - BEFORE changing a relevant file: state the architectural decision being affected, current owner (user/LLM/Java), and why Java-side enforcement is necessary.
 - For each `if`/`switch`/regex/list of style or building keywords, classify it: FORMAT_REPAIR / HARD_CONSTRAINT / GEOMETRY / NONBINDING_HINT / DESIGN_OVERRIDE / EXPLICIT_TEMPLATE. `DESIGN_OVERRIDE` is blocked until redesigned.
+- Prefer diagnose→`capability_gap`→bounded repair guard→recompile (e.g. FlatRoof) over new regex/hard patches in `RequestIntentInjector` or `building_contract.py` (see `AI_DESIGN_AUTHORITY_GUARDRAILS.md` anti-rebound).
 - For each inserted default, declare provenance (`TECHNICAL_DEFAULT`), applicability (only when missing), and an explicit-opt-out test.
 - For every new preset/typology, demonstrate how a user can still generate a novel composition WITHOUT invoking it.
 - For changes to prompts, normalizers, compilers, routing, fallback or assembly repair: run the Skill `.cursor/skills/formacraft-design-authority-audit/SKILL.md` and supply an acceptance report.

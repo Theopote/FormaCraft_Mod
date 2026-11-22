@@ -49,3 +49,4 @@ Then give: `PASS / WARN / BLOCK`, a short change plan in dependency order, relev
 - Label a design-changing mutation as normalization or protocol repair.
 - Enforce architectural uniformity across all building categories via a housing-oriented prompt example.
 - Require models to emit different plans every run; diversity is a diagnostic, not a mandatory randomization target.
+- Grow `RequestIntentInjector` / `building_contract.py` with new regex or hard geometry patches when a FlatRoof-style diagnose→guard→recompile loop can own the failure (`docs/architecture/AI_DESIGN_AUTHORITY_GUARDRAILS.md` anti-rebound).

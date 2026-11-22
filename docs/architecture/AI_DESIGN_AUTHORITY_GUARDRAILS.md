@@ -67,6 +67,17 @@ Run original request and related variants; test both plan-level and compiled Pat
 
 Do not require different model providers to produce unique designs; do require every valid design to meet explicit constraints and be compiled without changing its meaning.
 
+## Anti-rebound: intent injectors vs diagnostic repair loops
+`RequestIntentInjector` (~3k LOC) and `python_backend/app/services/building_contract.py` (~1.7k LOC) already concentrate regex, host scoring, height seals, and keyword authority. **Do not grow them for each new geometry failure.**
+
+Preferred pattern (reference: `FlatRoofCoverageValidator` → `CapabilityGap` with structured `details` → `FlatRoofRepairGuard.canRequest` / `candidate` → re-preview compile):
+1. **Diagnose** at emit/validate time with a specific `capability_gap` code and machine-readable details.
+2. **Propose** a bounded, field-locked candidate edit (or request model replan) — never silently rewrite USER_EXPLICIT / AI_PLANNED design.
+3. **Recompile** the candidate through the same preview path; accept only if the gap clears.
+
+Allowed in injectors/contracts: minting/verifying seals for *already-explicit* user constraints, host-scope gaps when binding is ambiguous, FORMAT_REPAIR that cannot change architecture.
+Blocked: new keyword→geometry patches, tower/roof special-cases, or “one more regex” in `RequestIntentInjector` / `building_contract.py` when a validator+guard loop would suffice.
+
 ## Code review checklist
 - Was any new keyword, type or style list added? Is it *advisory* or *authoritative*?
 - Did the repair/default branch mutate an existing planned field? Before/after example?
@@ -75,6 +86,7 @@ Do not require different model providers to produce unique designs; do require e
 - Does the failure reveal a capability gap instead of producing an unrelated house?
 - Are negative/unknown/contradictory prompts covered in tests?
 - Did the author update `DESIGN_DECISION_INVENTORY.md` and report actual test outcomes?
+- Did this PR grow `RequestIntentInjector` / `building_contract.py` with new regex or hard patches? Prefer a FlatRoof-style diagnose→guard→recompile loop instead.
 
 ## Recommended CI strategy
 - **Hard gate (deterministic)**: tests for provenance-preserving normalization, explicit preset-only routing, selection/protected constraints, no silent fallback, and JSON/geometry validity.
@@ -87,3 +99,4 @@ Do not require different model providers to produce unique designs; do require e
 3. Tie Design Authority review to every generation PR via `AGENTS.md`, Cursor rule, Skill, and PR checklist.
 4. Add CI hard gates in existing `python_backend/tests`, Java tests and `.github/workflows` after confirming test commands on the target branch.
 5. Expand FBD/ASSEMBLY/parameterized operators when prompts reveal genuine geometry limits, instead of adding more building-name triggers.
+6. For new compile/geometry defects: implement validator gap + optional repair guard (FlatRoof pattern) before extending `RequestIntentInjector` or `building_contract.py`.
