@@ -1,38 +1,23 @@
 package com.formacraft.client.ui.panel;
 
+import com.formacraft.client.ui.panel.capture.ComponentCaptureActionRouter;
+import com.formacraft.client.ui.panel.capture.ComponentCapturePanelActions;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureLayoutRenderer;
+import com.formacraft.client.ui.panel.capture.ComponentCaptureSubmitter;
+
 import com.formacraft.client.ui.UiTheme;
-import com.formacraft.client.tool.ComponentTool;
-import com.formacraft.client.tool.SelectionTool;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureAiExplanation;
 import com.formacraft.client.ui.panel.capture.ComponentCapturePhaseHeaders;
-import com.formacraft.client.ui.panel.capture.ComponentCaptureAnchorSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthCoordinator;
-import com.formacraft.client.ui.panel.capture.ComponentCaptureHealthDrawer;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureOrientationController;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSelectionController;
-import com.formacraft.client.ui.panel.capture.ComponentCaptureSelectionSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureAiGuardHost;
-import com.formacraft.client.ui.panel.capture.ComponentCaptureAiGuardSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticHost;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticPreview;
-import com.formacraft.client.ui.panel.capture.ComponentCaptureSemanticSection;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureThumbnailService;
 import com.formacraft.client.ui.panel.capture.ComponentCaptureWorldOverlay;
-import com.formacraft.client.ui.toast.HudToast;
-import com.formacraft.client.ui.widget.HudClickSupport;
 import com.formacraft.client.ui.widget.HudTextInput;
-import com.formacraft.common.component.ComponentDefinition;
-import com.formacraft.common.json.JsonUtil;
-import com.formacraft.client.network.FormaCraftClientNetworking;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.input.MouseInput;
-import net.minecraft.text.Text;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 
 /**
  * 构件拾取面板（独立面板）
@@ -51,108 +36,118 @@ import net.minecraft.util.math.Direction;
  * 5. 自动跳转到构件库面板并高亮新构件
  */
 public class ComponentCapturePanel extends BasePanel implements ComponentCaptureSemanticHost, ComponentCaptureAiGuardHost {
-    private static final int CONTENT_PADDING = UiTheme.CONTENT_PADDING;
-    private static final int LABEL_OFFSET = 18;
-    private static final int BUTTON_HEIGHT = 16;
-    private static final int THUMBNAIL_SIZE = 120; // 增大显示尺寸以更好地展示构件细节
-    private static final int FIELD_SPACING = 28;
-    private static final int STICKY_FOOTER_HEIGHT = 22;
-
-    private static boolean clickButton(ButtonWidget button, Click click) {
-        return button != null && button.visible && HudClickSupport.click(button, click);
-    }
+    public static final int CONTENT_PADDING = UiTheme.CONTENT_PADDING;
+    public static final int LABEL_OFFSET = 18;
+    public static final int BUTTON_HEIGHT = 16;
+    public static final int THUMBNAIL_SIZE = 120; // 增大显示尺寸以更好地展示构件细节
+    public static final int FIELD_SPACING = 28;
+    public static final int STICKY_FOOTER_HEIGHT = 22;
 
     // 输入框
-    private final HudTextInput nameInput = new HudTextInput();
-    private final HudTextInput tagsInput = new HudTextInput();
-    private final HudTextInput socketIdInput = new HudTextInput();
-    private final com.formacraft.client.ui.panel.capture.ComponentCaptureTypeSection typeSection =
+    public final HudTextInput nameInput = new HudTextInput();
+    public final HudTextInput tagsInput = new HudTextInput();
+    public final HudTextInput socketIdInput = new HudTextInput();
+    public final com.formacraft.client.ui.panel.capture.ComponentCaptureTypeSection typeSection =
             new com.formacraft.client.ui.panel.capture.ComponentCaptureTypeSection(this::typeChanged);
-    private java.util.List<ButtonWidget> captureButtons = java.util.List.of();
+    public java.util.List<ButtonWidget> captureButtons = java.util.List.of();
 
     // 基础信息按钮
-    private ButtonWidget categoryButton;
-    private ButtonWidget pickAnchorButton;
-    private ButtonWidget clearAnchorButton;
-    private ButtonWidget hostFaceButton;
-    private ButtonWidget anchorOutsideButton;
-    private ButtonWidget autoAnchorButton;
-    private ButtonWidget facingButton;
-    private ButtonWidget mirrorButton;
+    public ButtonWidget categoryButton;
+    public ButtonWidget pickAnchorButton;
+    public ButtonWidget clearAnchorButton;
+    public ButtonWidget hostFaceButton;
+    public ButtonWidget anchorOutsideButton;
+    public ButtonWidget autoAnchorButton;
+    public ButtonWidget facingButton;
+    public ButtonWidget mirrorButton;
 
     // 语义标注按钮
-    private ButtonWidget semanticSkinButton;
-    private ButtonWidget semanticTagOnSaveButton;
-    private ButtonWidget semanticStyleButton;
-    private ButtonWidget semanticPartButton;
+    public ButtonWidget semanticSkinButton;
+    public ButtonWidget semanticTagOnSaveButton;
+    public ButtonWidget semanticStyleButton;
+    public ButtonWidget semanticPartButton;
 
     // 连接位配置按钮
-    private ButtonWidget socketContextButton;
-    private ButtonWidget socketPickOriginButton;
-    private ButtonWidget socketFacingButton;
-    private ButtonWidget socketAddButton;
-    private ButtonWidget socketPreviewButton;
-    private ButtonWidget socketClearButton;
+    public ButtonWidget socketContextButton;
+    public ButtonWidget socketPickOriginButton;
+    public ButtonWidget socketFacingButton;
+    public ButtonWidget socketAddButton;
+    public ButtonWidget socketPreviewButton;
+    public ButtonWidget socketClearButton;
 
     // 智能分析按钮
-    private ButtonWidget autoFixButton;
-    private ButtonWidget undoAutoFixButton;
+    public ButtonWidget autoFixButton;
+    public ButtonWidget undoAutoFixButton;
 
     // 底部按钮
-    private ButtonWidget cancelButton;
-    private ButtonWidget saveButton;
+    public ButtonWidget cancelButton;
+    public ButtonWidget saveButton;
     
     // 选择工具按钮
-    private ButtonWidget boxSelectButton;
-    private ButtonWidget pointSelectButton;
-    private ButtonWidget clearSelectionButton;
+    public ButtonWidget boxSelectButton;
+    public ButtonWidget pointSelectButton;
+    public ButtonWidget clearSelectionButton;
     
     // Phase 3: 语义配置按钮
-    private ButtonWidget advancedOptionsButton;
-    private ButtonWidget attachmentModeButton;
-    private ButtonWidget directionalityButton;
-    private ButtonWidget culturalStyleButton;
-    private ButtonWidget geometryArchetypeButton;
-    private ButtonWidget setInsideButton;
-    private ButtonWidget setOutsideButton;
-    private ButtonWidget setBottomButton;
-    private ButtonWidget setTopButton;
+    public ButtonWidget advancedOptionsButton;
+    public ButtonWidget attachmentModeButton;
+    public ButtonWidget directionalityButton;
+    public ButtonWidget culturalStyleButton;
+    public ButtonWidget geometryArchetypeButton;
+    public ButtonWidget setInsideButton;
+    public ButtonWidget setOutsideButton;
+    public ButtonWidget setBottomButton;
+    public ButtonWidget setTopButton;
 
     // 输入框边界（用于点击检测）
-    private int nameInputX, nameInputY, nameInputW, nameInputH;
-    private int tagsInputX, tagsInputY, tagsInputW, tagsInputH;
-    private int socketIdInputX, socketIdInputY, socketIdInputW, socketIdInputH;
-    private boolean nameInputBoundsValid = false;
-    private boolean tagsInputBoundsValid = false;
-    private boolean socketIdInputBoundsValid = false;
+    public int nameInputX, nameInputY, nameInputW, nameInputH;
+    public int tagsInputX, tagsInputY, tagsInputW, tagsInputH;
+    public int socketIdInputX, socketIdInputY, socketIdInputW, socketIdInputH;
+    public boolean nameInputBoundsValid = false;
+    public boolean tagsInputBoundsValid = false;
+    public boolean socketIdInputBoundsValid = false;
 
-    private final ComponentCaptureSelectionController selectionController = new ComponentCaptureSelectionController();
-    private final com.formacraft.client.ui.panel.capture.ComponentCaptureAdaptationSection adaptationSection =
+    public final ComponentCaptureSelectionController selectionController = new ComponentCaptureSelectionController();
+    public final com.formacraft.client.ui.panel.capture.ComponentCaptureAdaptationSection adaptationSection =
             new com.formacraft.client.ui.panel.capture.ComponentCaptureAdaptationSection();
-    private final ComponentCaptureThumbnailService thumbnailService = new ComponentCaptureThumbnailService();
-    private final ComponentCaptureOrientationController orientationController = new ComponentCaptureOrientationController();
-    private final ComponentCaptureHealthCoordinator healthCoordinator;
-    private final ComponentCaptureSemanticPreview semanticPreview = new ComponentCaptureSemanticPreview();
-    private final ComponentCaptureAiExplanation aiExplanation;
-    private final ComponentCaptureWorldOverlay worldOverlay;
+    public final ComponentCaptureThumbnailService thumbnailService = new ComponentCaptureThumbnailService();
+    public final ComponentCaptureOrientationController orientationController = new ComponentCaptureOrientationController();
+    public final ComponentCaptureHealthCoordinator healthCoordinator;
+    public final ComponentCaptureSemanticPreview semanticPreview = new ComponentCaptureSemanticPreview();
+    public final ComponentCaptureAiExplanation aiExplanation;
+    public final ComponentCaptureWorldOverlay worldOverlay;
 
     // 滚动
-    private int scrollY = 0;
-    private int maxScrollY = 0;
+    public int scrollY = 0;
+    public int maxScrollY = 0;
     
     // Phase 3: 语义配置状态
-    private com.formacraft.common.component.placement.AttachmentType attachmentMode = 
+    public com.formacraft.common.component.placement.AttachmentType attachmentMode = 
         com.formacraft.common.component.placement.AttachmentType.NONE;
     
     // 阶段感知状态
-    private CapturePhase currentPhase = CapturePhase.SELECTION;
-    private boolean[] phaseCollapsed = new boolean[CapturePhase.getTotalPhases()];
-    private final ComponentCapturePhaseHeaders phaseHeaders = new ComponentCapturePhaseHeaders();
-    private CapturePhase lastAutoCollapsePhase = null;
-    private boolean advancedOptionsExpanded = false;
+    public CapturePhase currentPhase = CapturePhase.SELECTION;
+    public boolean[] phaseCollapsed = new boolean[CapturePhase.getTotalPhases()];
+    public final ComponentCapturePhaseHeaders phaseHeaders = new ComponentCapturePhaseHeaders();
+    public CapturePhase lastAutoCollapsePhase = null;
+    public boolean advancedOptionsExpanded = false;
     
     // 调试开关
-    private static final boolean DEBUG_CAPTURE = false; // 设置为 true 启用调试日志
+    public static final boolean DEBUG_CAPTURE = false; // 设置为 true 启用调试日志
+
+    public net.minecraft.client.MinecraftClient client() { return client; }
+    public void drawContentBackgroundPublic(net.minecraft.client.gui.DrawContext ctx) { drawContentBackground(ctx); }
+    public int contentScissorLeftPublic() { return contentScissorLeft(); }
+    public int contentScissorRightPublic() { return contentScissorRight(); }
+    public void drawTooltipCompatPublic(net.minecraft.client.gui.DrawContext ctx, java.util.List<net.minecraft.text.Text> lines, int mx, int my) { drawTooltipCompat(ctx, lines, mx, my); }
+    public boolean superMouseClicked(double x, double y, int button) { return super.mouseClicked(x, y, button); }
+    @Override protected void drawContents(net.minecraft.client.gui.DrawContext ctx) { ComponentCaptureLayoutRenderer.drawContents(this, ctx); }
+    @Override public boolean mouseClicked(double mouseX, double mouseY, int button) { return ComponentCaptureActionRouter.mouseClicked(this, mouseX, mouseY, button); }
+    @Override public void mouseScrolled(double mouseX, double mouseY, double amount) { ComponentCaptureActionRouter.mouseScrolled(this, mouseX, mouseY, amount); }
+    @Override public void keyPressed(int keyCode, int scanCode, int modifiers) { ComponentCaptureActionRouter.keyPressed(this, keyCode, scanCode, modifiers); }
+    @Override public void charTyped(char chr) { ComponentCaptureActionRouter.charTyped(this, chr); }
+    public boolean handleWorldClick(net.minecraft.util.hit.BlockHitResult hit, int button) { return ComponentCaptureActionRouter.handleWorldClick(this, hit, button); }
+    public void handleWorldRelease(int button) { ComponentCaptureActionRouter.handleWorldRelease(this, button); }
 
     public ComponentCapturePanel() {
         nameInput.setMaxLength(64);
@@ -170,929 +165,47 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         worldOverlay = new ComponentCaptureWorldOverlay(selectionController);
     }
 
-    private void ensureWidgets() {
-        if (categoryButton != null) return;
-
-        var st = ComponentTool.INSTANCE.getState();
-
-        // 基础信息按钮
-        categoryButton = ButtonWidget.builder(Text.literal("更改捕获类型"), b -> { typeSection.open(); scrollY = 0; })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        构件分类
-                        ━━━━━━━━━━━━
-                        返回顶部选择预设或自定义类型
-                        
-                        分类用于：
-                        • AI 智能放置时的语义识别
-                        • 构件库的分类浏览
-                        • 自动检测附着模式
-                        
-                        常见分类：门、窗、柱子、装饰等""")))
-                .build();
-
-        pickAnchorButton = ButtonWidget.builder(Text.literal("📍 点击选择锚点"), b -> ComponentTool.INSTANCE.startPickAnchor())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        设置锚点（原点）
-                        ━━━━━━━━━━━━
-                        锚点是构件的参考原点
-                        
-                        使用方法：
-                        1. 点击此按钮
-                        2. 在世界中右键点击方块
-                        3. 该方块将成为锚点
-                        
-                        建议位置：
-                        • 门窗：底部中心
-                        • 柱子：底部中心
-                        • 装饰：附着点
-                        • 家具：前侧底部中心""")))
-                .build();
-
-        clearAnchorButton = ButtonWidget.builder(Text.literal("清除锚点"), b -> ComponentTool.INSTANCE.clearAnchor())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        清除锚点
-                        ━━━━━━━━━━━━
-                        移除当前设置的锚点
-                        
-                        清除后需要重新设置锚点
-                        才能保存构件""")))
-                .build();
-
-        hostFaceButton = ButtonWidget.builder(Text.literal("选择宿主面"), b -> orientationController.startMarkingHostFace())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        选择宿主面（外墙表面）
-                        ━━━━━━━━━━━━
-                        宿主面是构件与墙体对齐的参考面
-                        
-                        使用方法：
-                        1. 点击此按钮
-                        2. 在世界中点击外墙表面
-                        3. 系统自动记录外法线
-                        
-                        用于：窗、门、雨棚、阳台等需要对齐墙面的构件""")))
-                .build();
-
-        anchorOutsideButton = ButtonWidget.builder(Text.literal("外侧锚点：关"), b -> {
-                    st.captureDraft.anchor.allowOutsideSelection = !st.captureDraft.anchor.allowOutsideSelection;
-                    st.syncDraftToState();
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        允许外侧锚点（空气宿主面）
-                        ━━━━━━━━━━━━
-                        开启后可将锚点放在选区外侧的空气方块
-                        
-                        使用场景：
-                        ? 完全外凸的窗/装饰
-                        ? 需要以外墙面为零面的构件""")))
-                .build();
-
-        autoAnchorButton = ButtonWidget.builder(Text.literal("自动锚点（底部中心）"), b -> setAutoAnchor())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        自动设置锚点
-                        ━━━━━━━━━━━━
-                        将锚点放置在构件底部中心
-                        
-                        对偶数宽度构件更友好
-                        适合门窗/柱子等构件""")))
-                .build();
-
-        facingButton = ButtonWidget.builder(Text.literal("朝向：SOUTH"), b -> cycleFacing())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        构件朝向
-                        ━━━━━━━━━━━━
-                        定义构件的"正面"朝向
-                        
-                        用途：
-                        • AI 放置时自动旋转
-                        • 确保门窗朝向正确
-                        • 对称构件的镜像参考
-                        
-                        点击循环切换：北/东/南/西""")))
-                .build();
-
-        mirrorButton = ButtonWidget.builder(Text.literal("镜像：NONE"), b -> cycleMirror())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        镜像模式
-                        ━━━━━━━━━━━━
-                        控制构件的镜像行为
-                        
-                        选项：
-                        • NONE：不镜像
-                        • X：沿 X 轴镜像
-                        • Z：沿 Z 轴镜像
-                        
-                        用于创建对称变体""")))
-                .build();
-
-        // 语义标注按钮
-        semanticSkinButton = ButtonWidget.builder(Text.literal("材质：原样"), b -> ComponentTool.INSTANCE.toggleSemanticSkin())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        材质模式（高级）
-                        ━━━━━━━━━━━━
-                        控制方块材质的处理方式
-                        
-                        原样方块：
-                        • 保留精确的方块类型
-                        • 适合特定设计的构件
-                        
-                        语义换皮：
-                        • AI 可根据风格替换材质
-                        • 适合可变风格的构件""")))
-                .build();
-
-        semanticTagOnSaveButton = ButtonWidget.builder(Text.literal("存语义：开"), b -> st.semanticTagOnSave = !st.semanticTagOnSave)
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        保存语义标注（高级）
-                        ━━━━━━━━━━━━
-                        保存时为每个方块添加语义信息
-                        
-                        开启后：
-                        • 自动标注方块的功能部位
-                        • AI 可更智能地调整构件
-                        • 支持风格驱动的材质替换
-                        
-                        推荐：通用构件开启""")))
-                .build();
-
-        semanticStyleButton = ButtonWidget.builder(Text.literal("风格：DEFAULT"), b -> ComponentTool.INSTANCE.cycleSemanticStyle())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        建筑风格（高级）
-                        ━━━━━━━━━━━━
-                        定义构件的建筑风格
-                        
-                        风格类型：
-                        • DEFAULT：默认/混合
-                        • MEDIEVAL：中世纪
-                        • MODERN：现代
-                        • ASIAN：亚洲风格
-                        
-                        用于 AI 风格匹配""")))
-                .build();
-
-        semanticPartButton = ButtonWidget.builder(Text.literal("语义：AUTO"), b -> ComponentTool.INSTANCE.cycleSemanticPart())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        语义部位（高级）
-                        ━━━━━━━━━━━━
-                        标注构件的功能部位
-                        
-                        AUTO：自动检测
-                        手动选项：
-                        • FRAME：框架/边框
-                        • FILL：填充/主体
-                        • DETAIL：装饰细节
-                        
-                        用于智能材质替换""")))
-                .build();
-
-        // 连接位配置按钮
-        socketContextButton = ButtonWidget.builder(Text.literal("连接位上下文: WALL"), b -> ComponentTool.INSTANCE.cycleSocketType())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        连接位上下文（高级）
-                        ━━━━━━━━━━━━
-                        定义连接位的附着类型
-                        
-                        类型：
-                        • WALL：墙面（门窗）
-                        • FLOOR：地板（家具）
-                        • CEILING：天花板（吊灯）
-                        • EDGE：边缘（栏杆）
-                        
-                        AI 将根据上下文智能放置""")))
-                .build();
-
-        socketPickOriginButton = ButtonWidget.builder(Text.literal("点选原点"), b -> ComponentTool.INSTANCE.startPickSocketOrigin())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        设置连接位原点（高级）
-                        ━━━━━━━━━━━━
-                        连接位是构件的嵌入位置
-                        
-                        使用方法：
-                        1. 点击此按钮
-                        2. 在世界中右键点击
-                        3. 设置连接位的参考点
-                        
-                        例如：门框的底部中心""")))
-                .build();
-
-        socketFacingButton = ButtonWidget.builder(Text.literal("朝向: SOUTH"), b -> ComponentTool.INSTANCE.cycleSocketFacing())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        连接位朝向（高级）
-                        ━━━━━━━━━━━━
-                        定义连接位的放置方向
-                        
-                        确保：
-                        • 门窗朝向正确
-                        • 附着面对齐
-                        • 多个连接位协调一致
-                        
-                        点击循环切换方向""")))
-                .build();
-
-        socketAddButton = ButtonWidget.builder(Text.literal("添加连接位"), b -> ComponentTool.INSTANCE.addSocket())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        添加连接位（高级）
-                        ━━━━━━━━━━━━
-                        将当前配置的连接位添加到构件
-                        
-                        一个构件可以有多个连接位
-                        例如：墙体可以有多个门窗位置
-                        
-                        添加后在列表中显示""")))
-                .build();
-
-        socketPreviewButton = ButtonWidget.builder(Text.literal("预览"), b -> ComponentTool.INSTANCE.toggleSocketPreview(client))
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        预览连接位（高级）
-                        ━━━━━━━━━━━━
-                        在世界中显示连接位的：
-                        • 位置标记
-                        • 朝向箭头
-                        • 大小区域
-                        
-                        帮助验证连接位配置正确""")))
-                .build();
-
-        socketClearButton = ButtonWidget.builder(Text.literal("清空连接位"), b -> ComponentTool.INSTANCE.clearSockets())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        清空所有连接位（高级）
-                        ━━━━━━━━━━━━
-                        移除所有已添加的连接位
-                        
-                        注意：此操作不可撤销
-                        清空后需要重新配置""")))
-                .build();
-
-        // 自动修复按钮
-        autoFixButton = ButtonWidget.builder(Text.literal("🤖 自动修复"), b -> healthCoordinator.runAutoFix(client))
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        自动修复构件问题
-                        ━━━━━━━━━━━━
-                        根据健康检查结果自动修复可修复的问题
-                        
-                        修复内容：
-                        • 自动设置锚点（如果缺失）
-                        • 调整锚点位置（如果不合理）
-                        • 其他可自动修复的问题
-                        
-                        注意：只修复标记为"可自动修复"的问题""")))
-                .build();
-
-        undoAutoFixButton = ButtonWidget.builder(Text.literal("↩ 撤销修复"), b -> healthCoordinator.undoAutoFix())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        撤销上一次自动修复
-                        ━━━━━━━━━━━━
-                        恢复到修复前的状态
-                        """)))
-                .build();
-
-        // 底部按钮
-        cancelButton = ButtonWidget.builder(Text.literal("重置"), b -> {
-                    if (st.isCaptureSavePending()) { com.formacraft.client.component.ClientComponentImport.cancel(); return; }
-                    st.pickingAnchor = false;
-                    st.cancelCapture();
-                    clearSelection();
-                    advancedOptionsExpanded = false;
-                    st.beginCapture();
-                    syncLocalFromState();
-                })
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        重置构件拾取
-                        ━━━━━━━━━━━━
-                        清空当前选区与配置
-                        留在拾取面板重新开始
-                        
-                        已配置的内容将丢失""")))
-                .build();
-
-        saveButton = ButtonWidget.builder(Text.literal("✓ 保存到构件库"), b -> saveComponent())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        保存构件到库
-                        ━━━━━━━━━━━━
-                        将构件保存到全局构件库
-                        
-                        保存内容：
-                        • 方块数据和结构
-                        • 锚点和朝向
-                        • 分类和标签
-                        • 缩略图预览
-                        • 连接位配置（如果有）
-                        
-                        保存后自动跳转到构件库""")))
-                .build();
-        
-        // 选择工具按钮
-        boxSelectButton = ButtonWidget.builder(Text.literal("📦 框选"), b -> setSelectionMode(ComponentSelectionMode.BOX_SELECT))
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        框选模式
-                        ━━━━━━━━━━━━
-                        拖拽框选区域（有实时预览）
-                        
-                        使用方法：
-                        1. 激活此模式
-                        2. 在世界中左键拖拽
-                        3. 看到蓝色预览框
-                        4. 释放鼠标完成选择
-                        
-                        提示：适合快速框选完整结构""")))
-                .build();
-        
-        pointSelectButton = ButtonWidget.builder(Text.literal("👆 点选"), b -> setSelectionMode(ComponentSelectionMode.POINT_SELECT))
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        点选模式
-                        ━━━━━━━━━━━━
-                        单个方块精确选择
-                        
-                        使用方法：
-                        • 点击未选方块 → 加选
-                        • 点击已选方块 → 减选
-                        • Ctrl+点击 → 强制加选
-                        
-                        提示：适合精细调整和不规则选区""")))
-                .build();
-        
-        clearSelectionButton = ButtonWidget.builder(Text.literal("🗑️ 清除"), b -> clearSelection())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        清除选区
-                        ━━━━━━━━━━━━
-                        一键清空当前选区
-                        
-                        使用场景：
-                        • 重新开始选择
-                        • 清除错误的选区
-                        • 快速重置
-                        
-                        提示：清除后需要重新选择""")))
-                .build();
-        
-        // Phase 3: 语义配置按钮
-        advancedOptionsButton = ButtonWidget.builder(Text.literal("▶ 高级选项"), b -> advancedOptionsExpanded = !advancedOptionsExpanded)
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("展开附着、方向性与语义标注等高级选项")))
-                .build();
-
-        attachmentModeButton = ButtonWidget.builder(
-                Text.literal("附着: " + getAttachmentModeDisplay()), 
-                b -> cycleAttachmentMode()
-        )
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        附着模式
-                        ━━━━━━━━━━━━
-                        定义构件如何附着到建筑上
-                        
-                        模式：
-                        • 无附着 - 独立构件（柱子、雕塑）
-                        • 地面 - 地板装饰
-                        • 墙面 - 贴墙装饰、壁龛
-                        • 墙体 - 门、窗（自动开洞）
-                        • 屋面 - 老虎窗
-                        • 屋檐 - 飞檐
-                        • 屋脊 - 脊兽
-                        • 边缘 - 栏杆、护栏
-                        • 转角 - 阳台、塔角装饰
-                        
-                        点击循环切换""")))
-                .build();
-        
-        directionalityButton = ButtonWidget.builder(
-                Text.literal("方向: " + orientationController.getDirectionalityMode().getDisplayName()), 
-                b -> cycleDirectionality()
-        )
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        方向性
-                        ━━━━━━━━━━━━
-                        定义构件是否有方向性
-                        
-                        模式：
-                        • 无方向 - 任意旋转
-                        • 内外 - 有内外侧（门、窗）
-                        • 上下 - 有上下端（楼梯）
-                        • 双向 - 同时有内外和上下
-                        
-                        点击循环切换""")))
-                .build();
-        
-        setInsideButton = ButtonWidget.builder(
-                Text.literal("🏠 设内侧"), 
-                b -> orientationController.startMarkingInside()
-        )
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        设置内侧标记
-                        ━━━━━━━━━━━━
-                        标记构件的内侧方向
-                        
-                        使用方法：
-                        1. 点击此按钮
-                        2. 在世界中点击内侧方块
-                        3. 系统自动计算朝向
-                        
-                        用于：门、窗等有内外之分的构件""")))
-                .build();
-        
-        setOutsideButton = ButtonWidget.builder(
-                Text.literal("🌍 设外侧"), 
-                b -> orientationController.startMarkingOutside()
-        )
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        设置外侧标记
-                        ━━━━━━━━━━━━
-                        标记构件的外侧方向
-                        
-                        使用方法：
-                        1. 点击此按钮
-                        2. 在世界中点击外侧方块
-                        3. 系统自动计算朝向
-                        
-                        用于：门、窗等有内外之分的构件""")))
-                .build();
-        
-        setBottomButton = ButtonWidget.builder(
-                Text.literal("⬇️ 设底端"), 
-                b -> orientationController.startMarkingBottom()
-        )
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        设置底端标记
-                        ━━━━━━━━━━━━
-                        标记构件的底端位置
-                        
-                        使用方法：
-                        1. 点击此按钮
-                        2. 在世界中点击底端方块
-                        3. 系统自动计算上下朝向
-                        
-                        用于：楼梯、梯子等有上下之分的构件""")))
-                .build();
-        
-        setTopButton = ButtonWidget.builder(
-                Text.literal("⬆️ 设顶端"), 
-                b -> orientationController.startMarkingTop()
-        )
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        设置顶端标记
-                        ━━━━━━━━━━━━
-                        标记构件的顶端位置
-                        
-                        使用方法：
-                        1. 点击此按钮
-                        2. 在世界中点击顶端方块
-                        3. 系统自动计算上下朝向
-                        
-                        用于：楼梯、梯子等有上下之分的构件""")))
-                .build();
-
-        culturalStyleButton = ButtonWidget.builder(Text.literal("文化风格: 自动"), b -> semanticPreview.cycleCulturalStyle())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        文化风格（AI 检索用）
-                        ━━━━━━━━━━━━
-                        • 自动：根据标签与材质推断
-                        • 手动：覆盖自动推断结果
-                        
-                        影响 AI 选择构件时的风格匹配""")))
-                .build();
-
-        geometryArchetypeButton = ButtonWidget.builder(Text.literal("几何原型: 自动"), b -> semanticPreview.cycleGeometryArchetype())
-                .dimensions(0, 0, 0, BUTTON_HEIGHT)
-                .tooltip(Tooltip.of(Text.literal("""
-                        几何原型（形态族）
-                        ━━━━━━━━━━━━
-                        ORNAMENT / FRAME / LINEAR 等
-                        
-                        帮助 AI 区分斗拱、窗套、栏杆等形态""")))
-                .build();
-        captureButtons = java.util.List.of(categoryButton, pickAnchorButton, clearAnchorButton, hostFaceButton,
-                anchorOutsideButton, autoAnchorButton, facingButton, mirrorButton, semanticSkinButton,
-                semanticTagOnSaveButton, semanticStyleButton, semanticPartButton, socketContextButton,
-                socketPickOriginButton, socketFacingButton, socketAddButton, socketPreviewButton, socketClearButton,
-                autoFixButton, undoAutoFixButton, cancelButton, saveButton,
-                boxSelectButton, pointSelectButton, clearSelectionButton, advancedOptionsButton, attachmentModeButton,
-                directionalityButton, culturalStyleButton, geometryArchetypeButton, setInsideButton, setOutsideButton,
-                setBottomButton, setTopButton);
-    }
     
     /**
      * 获取附着模式的显示名称
      */
-    @Override
-    public String getAttachmentModeDisplay() {
-        return switch (attachmentMode) {
-            case NONE -> "无附着";
-            case FLOOR -> "地面";
-            case WALL_SURFACE -> "墙面";
-            case WALL_OPENING -> "墙体"; // 门、窗等会在墙体上开洞的构件
-            case ROOF_SURFACE -> "屋面";
-            case ROOF_EDGE -> "屋檐";
-            case ROOF_RIDGE -> "屋脊";
-            case EDGE -> "边缘";
-            case CORNER -> "转角";
-        };
-    }
+    @Override public String getAttachmentModeDisplay() { return ComponentCapturePanelActions.getAttachmentModeDisplay(this); }
     
     /**
      * 循环切换附着模式
      */
-    private void cycleAttachmentMode() {
-        com.formacraft.common.component.placement.AttachmentType[] values = 
-            com.formacraft.common.component.placement.AttachmentType.values();
-        int index = attachmentMode.ordinal();
-        attachmentMode = values[(index + 1) % values.length];
-        var draft = ComponentTool.INSTANCE.getState().captureDraft;
-        draft.host.manualAttachment = true;
-        syncPlacementHintsToState();
-        semanticPreview.invalidate();
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换附着模式: {}", attachmentMode);
-        }
-    }
+    public void cycleAttachmentMode() { ComponentCapturePanelActions.cycleAttachmentMode(this); }
     
     /**
      * 循环切换方向性模式
      */
-    private void cycleDirectionality() {
-        orientationController.cycleDirectionality();
-        semanticPreview.invalidate();
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 切换方向性: {}",
-                    orientationController.getDirectionalityMode().getDisplayName());
-        }
-    }
+    public void cycleDirectionality() { ComponentCapturePanelActions.cycleDirectionality(this); }
 
     /**
      * 同步 UI 的附着/方向性提示到 ComponentToolState
      */
-    private void syncPlacementHintsToState() {
-        var st = ComponentTool.INSTANCE.getState();
-        var draft = st.captureDraft;
-        draft.host.attachment = attachmentMode;
-        orientationController.applyDirectionalityToDraft();
-    }
+    public void syncPlacementHintsToState() { ComponentCapturePanelActions.syncPlacementHintsToState(this); }
 
     /**
      * 设置选择模式
      */
-    private void setSelectionMode(ComponentSelectionMode mode) {
+    public void setSelectionMode(ComponentSelectionMode mode) {
         selectionController.setMode(mode);
     }
 
-    @Override
-    protected void drawContents(DrawContext ctx) {
-        ensureWidgets();
-        if (!ComponentTool.INSTANCE.getState().captureActive) {
-            ComponentTool.INSTANCE.getState().beginCapture(); syncLocalFromState();
-        }
-        captureButtons.forEach(b -> b.visible = false);
-
-        int x = panelX + CONTENT_PADDING;
-        int w = panelWidth - CONTENT_PADDING * 2;
-        int y = getContentY() + CONTENT_PADDING - scrollY;
-
-        adaptationSection.hide();
-        // 重置边界
-        nameInputBoundsValid = false;
-        tagsInputBoundsValid = false;
-        socketIdInputBoundsValid = false;
-
-        drawContentBackground(ctx);
-
-        // 启用裁剪（为底部固定按钮留出空间，与内层边框对齐）
-        int scrollBottom = panelY + panelHeight - STICKY_FOOTER_HEIGHT;
-        ctx.enableScissor(contentScissorLeft(), getContentY(), contentScissorRight(), scrollBottom);
-
-        phaseHeaders.reset();
-
-        // 标题
-        y = drawWrappedText(ctx, Text.translatable("formacraft.capture.title"), x, y, w, 0xFFFFFFFF);
-        y += 4;
-        y = typeSection.draw(ctx, client, this::drawWrappedText, getScaledMouseX(), getScaledMouseY(), x, y, w, getContentY(), scrollBottom);
-        var captureState = ComponentTool.INSTANCE.getState();
-        if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(captureState) || captureState.isCaptureSavePending()) {
-            y = drawWrappedText(ctx, Text.literal(captureState.isCaptureSavePending()
-                    ? "正在等待服务端保存结果…" : "先选择类型，再定义选区；现有选区会保留。"), x, y, w, 0xFFAAAAAA);
-            finishCaptureLayout(ctx, x, w, y);
-            return;
-        }
-        autoCollapseNonActivePhases();
-        
-        // 阶段提示（顶部弱引导）
-        y = drawWrappedText(
-                ctx,
-                Text.translatable(
-                        "formacraft.capture.phase_progress",
-                        currentPhase.getPhaseNumber(),
-                        CapturePhase.getTotalPhases(),
-                        Text.translatable(currentPhase.getDescriptionTranslationKey()).getString()
-                ),
-                x, y, w, 0xFF88FF88);
-        y += 6;
-        
-        // 分隔线
-        ctx.fill(x, y, x + w, y + 1, UiTheme.DIVIDER_SUBTLE);
-        y += 4;
-        
-        // ============ 阶段 1：选区定义 ============
-        boolean phase1Collapsed = phaseCollapsed[0];
-        y = ComponentCaptureSelectionSection.drawSection(
-                ctx,
-                client,
-                selectionController,
-                thumbnailService,
-                healthCoordinator,
-                this::drawWrappedText,
-                getScaledMouseX(),
-                getScaledMouseY(),
-                phase1Collapsed,
-                currentPhase == CapturePhase.SELECTION,
-                isPhaseComplete(CapturePhase.SELECTION),
-                phaseHeaders,
-                0,
-                boxSelectButton,
-                pointSelectButton,
-                clearSelectionButton,
-                THUMBNAIL_SIZE,
-                x,
-                y,
-                w
-        );
-
-        syncPlacementHintsToState();
-
-        // ============ 阶段 2：锚点与朝向 ============
-        boolean phase2Collapsed = phaseCollapsed[1];
-        y = ComponentCaptureAnchorSection.drawSection(
-                ctx,
-                client,
-                selectionController,
-                thumbnailService,
-                healthCoordinator,
-                this::drawWrappedText,
-                getScaledMouseX(),
-                getScaledMouseY(),
-                phase2Collapsed,
-                currentPhase == CapturePhase.ANCHOR_ORIENTATION,
-                isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION),
-                !isPhaseComplete(CapturePhase.SELECTION),
-                phaseHeaders,
-                1,
-                pickAnchorButton,
-                clearAnchorButton,
-                hostFaceButton,
-                anchorOutsideButton,
-                autoAnchorButton,
-                facingButton,
-                mirrorButton,
-                x,
-                y,
-                w
-        );
-
-        // ============ 阶段 3：构件语义确认 ============
-        boolean phase3Collapsed = phaseCollapsed[2];
-        y = ComponentCaptureSemanticSection.drawSection(
-                ctx,
-                client,
-                this,
-                orientationController,
-                semanticPreview,
-                this::drawWrappedText,
-                nameInput,
-                tagsInput,
-                getScaledMouseX(),
-                getScaledMouseY(),
-                phase3Collapsed,
-                currentPhase == CapturePhase.SEMANTIC,
-                isPhaseComplete(CapturePhase.SEMANTIC),
-                !isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION),
-                phaseHeaders,
-                2,
-                categoryButton,
-                advancedOptionsButton,
-                attachmentModeButton,
-                directionalityButton,
-                setInsideButton,
-                setOutsideButton,
-                setBottomButton,
-                setTopButton,
-                culturalStyleButton,
-                geometryArchetypeButton,
-                semanticSkinButton,
-                semanticTagOnSaveButton,
-                semanticStyleButton,
-                semanticPartButton,
-                x,
-                y,
-                w
-        );
-
-        if (!phase3Collapsed) {
-            y = adaptationSection.draw(ctx, client, getScaledMouseX(), getScaledMouseY(),
-                    x, y, w, getContentY(), scrollBottom);
-        }
-
-        // ============ 阶段 4：AI 使用保障 ============
-        boolean phase4Collapsed = phaseCollapsed[3];
-        y = ComponentCaptureAiGuardSection.drawSection(
-                ctx,
-                client,
-                this,
-                selectionController,
-                this::drawWrappedText,
-                socketIdInput,
-                getScaledMouseX(),
-                getScaledMouseY(),
-                phase4Collapsed,
-                currentPhase == CapturePhase.AI_GUARANTEE,
-                isPhaseComplete(CapturePhase.AI_GUARANTEE),
-                !isPhaseComplete(CapturePhase.SEMANTIC),
-                phaseHeaders,
-                3,
-                socketContextButton,
-                socketPickOriginButton,
-                socketFacingButton,
-                socketAddButton,
-                socketPreviewButton,
-                socketClearButton,
-                x,
-                y,
-                w
-        );
-        
-        // ============ 构件健康状态检查（新设计：健康条 + 抽屉）============
-        if (isPhaseComplete(CapturePhase.ANCHOR_ORIENTATION)) {
-            y = ComponentCaptureHealthDrawer.drawSection(
-                    ctx,
-                    healthCoordinator,
-                    this::drawWrappedText,
-                    scrollY,
-                    x,
-                    y,
-                    w,
-                    getScaledMouseX(),
-                    getScaledMouseY(),
-                    autoFixButton,
-                    undoAutoFixButton
-            );
-        }
-        
-        // ============ AI 视角解释区 ============
-        if (isPhaseComplete(CapturePhase.SEMANTIC)) {
-            y = aiExplanation.renderSection(ctx, client, this::drawWrappedText, x, y, w);
-        }
-
-        finishCaptureLayout(ctx, x, w, y);
-    }
-
-    private void finishCaptureLayout(DrawContext ctx, int x, int w, int y) {
-        if (!nameInputBoundsValid) nameInput.setFocused(false);
-        if (!tagsInputBoundsValid) tagsInput.setFocused(false);
-        if (!socketIdInputBoundsValid) socketIdInput.setFocused(false);
-        // 计算最大滚动
-        int contentStartY = getContentY() + CONTENT_PADDING;
-        int totalContentHeight = (y + scrollY) - contentStartY;
-        int visibleHeight = panelHeight - (contentStartY - panelY) - CONTENT_PADDING - STICKY_FOOTER_HEIGHT;
-        maxScrollY = Math.max(0, totalContentHeight - visibleHeight);
-
-        if (scrollY > maxScrollY) scrollY = maxScrollY;
-        if (scrollY < 0) scrollY = 0;
-
-        ctx.disableScissor();
-        drawStickyFooter(ctx, x, w);
-    }
-
-    private void drawStickyFooter(DrawContext ctx, int x, int w) {
-        int footerTop = panelY + panelHeight - STICKY_FOOTER_HEIGHT - 4;
-        ctx.fill(panelX + 1, footerTop, panelX + panelWidth - 1, panelY + panelHeight - 1, 0xE0101010);
-        ctx.fill(x, footerTop, x + w, footerTop + 1, UiTheme.DIVIDER_SUBTLE);
-
-        int half = (w - 4) / 2;
-        cancelButton.setPosition(x, footerTop + 4);
-        cancelButton.setWidth(half);
-        cancelButton.visible = true;
-        var st = ComponentTool.INSTANCE.getState();
-        cancelButton.setMessage(Text.literal(st.isCaptureSavePending() ? "取消保存" : "重置"));
-        cancelButton.active = !st.isCaptureSavePending() || com.formacraft.client.component.ClientComponentImport.canCancelCapture();
-        cancelButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-
-        if (st.isCaptureSavePending() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(st)) {
-            saveButton.active = false;
-            saveButton.setMessage(Text.literal(st.isCaptureSavePending() ? "保存中…" : "请先选择类型"));
-        } else {
-            var healthResult = healthCoordinator.check();
-            ComponentCaptureHealthDrawer.configureSaveButton(saveButton, healthResult, canSaveWithoutHealthCheck());
-        }
-
-        saveButton.setPosition(x + half + 4, footerTop + 4);
-        saveButton.setWidth(w - half - 4);
-        saveButton.visible = true;
-        saveButton.render(ctx, getScaledMouseX(), getScaledMouseY(), 0f);
-    }
-
-    private void autoCollapseNonActivePhases() {
-        currentPhase = computeCurrentPhase();
-        if (currentPhase == lastAutoCollapsePhase) {
-            return;
-        }
-        lastAutoCollapsePhase = currentPhase;
-        int activeIndex = currentPhase.ordinal();
-        for (int i = 0; i < phaseCollapsed.length; i++) {
-            phaseCollapsed[i] = i != activeIndex;
-        }
-    }
-
-    private void typeChanged() {
-        var draft = ComponentTool.INSTANCE.getState().captureDraft;
-        attachmentMode = draft.host.attachment;
-        orientationController.stopMarking();
-        orientationController.loadFromDraft(draft);
-        semanticPreview.invalidate();
-        adaptationSection.invalidate();
-    }
+    public void typeChanged() { ComponentCapturePanelActions.typeChanged(this); }
     
     /**
      * 计算当前应该处于的阶段
      */
-    private CapturePhase computeCurrentPhase() {
-        var st = ComponentTool.INSTANCE.getState();
-        boolean hasSelection = selectionController.hasValidSelection(client);
-        boolean hasAnchor = st.captureDraft.anchor.worldPos != null;
-        boolean hasName = st.name != null && !st.name.isBlank() && !st.name.equals("New Component");
-
-        if (!hasSelection) {
-            return CapturePhase.SELECTION;
-        }
-        if (!hasAnchor) {
-            return CapturePhase.ANCHOR_ORIENTATION;
-        }
-        if (!hasName) {
-            return CapturePhase.SEMANTIC;
-        }
-        return CapturePhase.AI_GUARANTEE;
-    }
     
     /**
      * 检查阶段是否完成
      */
-    private boolean isPhaseComplete(CapturePhase phase) {
-        var st = ComponentTool.INSTANCE.getState();
-        return switch (phase) {
-            case SELECTION -> selectionController.hasValidSelection(client);
-            case ANCHOR_ORIENTATION -> st.captureDraft.anchor.worldPos != null;
-            case SEMANTIC ->
-                    com.formacraft.client.tool.ComponentCaptureTypes.ready(st) && st.name != null && !st.name.isBlank();
-            case AI_GUARANTEE -> true;
-            default -> false;
-        };
-    }
 
-    private void cycleFacing() {
-        var st = ComponentTool.INSTANCE.getState();
-        Direction base = st.captureDraft.orientation.facing != null ? st.captureDraft.orientation.facing : Direction.SOUTH;
-        st.captureDraft.orientation.facing = base.rotateYClockwise();
-        st.syncDraftToState();
-    }
+    public void cycleFacing() { ComponentCapturePanelActions.cycleFacing(this); }
 
-    private void cycleMirror() {
-        var st = ComponentTool.INSTANCE.getState();
-        var values = com.formacraft.common.component.transform.Mirror.values();
-        int idx = 0;
-        for (int i = 0; i < values.length; i++) {
-            if (values[i] == st.captureDraft.orientation.mirror) {
-                idx = i;
-                break;
-            }
-        }
-        st.captureDraft.orientation.mirror = values[(idx + 1) % values.length];
-        st.syncDraftToState();
-    }
+    public void cycleMirror() { ComponentCapturePanelActions.cycleMirror(this); }
 
     @Override
     public com.formacraft.common.component.placement.AttachmentType getAttachmentMode() {
@@ -1126,258 +239,14 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         socketIdInputBoundsValid = true;
     }
 
-    @Override
-    public void updateTagsFromInput() {
-        var st = ComponentTool.INSTANCE.getState();
-        String text = tagsInput.getText();
-        if (text == null || text.isBlank()) {
-            st.tags.clear();
-            return;
-        }
-
-        st.tags.clear();
-        for (String tag : text.split("[,，]")) {
-            tag = tag.trim();
-            if (!tag.isEmpty()) {
-                st.tags.add(tag);
-            }
-        }
-    }
+    @Override public void updateTagsFromInput() { ComponentCapturePanelActions.updateTagsFromInput(this); }
 
     @Override
     public boolean isAdvancedOptionsExpanded() {
         return advancedOptionsExpanded;
     }
 
-    private boolean canSaveWithoutHealthCheck() {
-        var st = ComponentTool.INSTANCE.getState();
-        if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(st) || st.isCaptureSavePending()) return false;
-        if (!selectionController.hasValidSelection(client)) {
-            return false;
-        }
-        if (st.name == null || st.name.isBlank()) {
-            return false;
-        }
-        if (st.captureDraft.anchor.worldPos == null) {
-            return false;
-        }
-        BlockPos anchor = st.captureDraft.anchor.worldPos;
-        return selectionController.isAnchorLocationAllowed(anchor);
-    }
-
-    private boolean canSave() {
-        return canSaveWithoutHealthCheck() && !healthCoordinator.blocksSave();
-    }
-
-    private void saveComponent() {
-        if (!canSave()) {
-            HudToast.show("保存失败：请检查选区和名称", true);
-            return;
-        }
-
-        var st = ComponentTool.INSTANCE.getState();
-        var health = healthCoordinator.check();
-        if (health.hasErrors()) {
-            HudToast.show("保存失败：存在错误项（请先修复）", true);
-            return;
-        }
-        if (health.hasWarnings()) {
-            HudToast.show("存在警告：仍可保存，但可能影响放置效果");
-        }
-        String json = ComponentTool.INSTANCE.buildCurrentComponentJson(client, ComponentTool.INSTANCE.getState().captureDraft);
-        if (json == null || json.isBlank()) {
-            HudToast.show("保存失败：请检查选区", true);
-            return;
-        }
-
-        ComponentDefinition def = JsonUtil.fromJson(json, ComponentDefinition.class);
-        String ruleError = com.formacraft.common.component.variant.CapturedComponentRuleValidator.validate(def);
-        if (ruleError != null) {
-            HudToast.show("保存失败：" + ruleError, true);
-            return;
-        }
-        var saveOutcome = healthCoordinator.prepareForSave(client, json);
-        if (saveOutcome.blocked()) {
-            HudToast.show(saveOutcome.blockToast(), true);
-            return;
-        }
-        json = saveOutcome.json();
-        def = saveOutcome.definition();
-        if (saveOutcome.warnToast() != null) {
-            HudToast.show(saveOutcome.warnToast());
-        }
-
-        // 生成缩略图（使用修复后的 def，如果 def 为 null 则重新解析）
-        byte[] thumbnailPng = null;
-        try {
-            if (def == null) {
-                def = JsonUtil.fromJson(json, ComponentDefinition.class);
-            }
-            thumbnailPng = thumbnailService.encodePng(def);
-        } catch (Throwable t) {
-            com.formacraft.FormacraftMod.LOGGER.warn("Failed to generate thumbnail", t);
-        }
-
-        // 等待服务端 ComponentSaveAck；catalog 仅刷新目录数据
-        String componentName = st.name.trim();
-        ComponentTool.INSTANCE.markSavePending(componentName);
-        HudToast.show("正在保存构件「" + componentName + "」…");
-        try { FormaCraftClientNetworking.sendSaveComponent(json, thumbnailPng); }
-        catch (Exception failedSend) {
-            com.formacraft.FormacraftMod.LOGGER.warn("Capture upload failed", failedSend);
-            ComponentTool.INSTANCE.onSaveAckFromServer("", componentName, false, "保存构件失败：" + failedSend.getMessage());
-        }
-    }
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (super.mouseClicked(mouseX, mouseY, button)) return true;
-        if (button != 0) return false;
-        if (!isMouseOver(mouseX, mouseY)) return false;
-
-        ensureWidgets();
-        Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
-        var captureState = ComponentTool.INSTANCE.getState();
-        if (captureState.isCaptureSavePending()) { blurKeyboardFocus(); clickButton(cancelButton, click); return true; }
-        if (typeSection.click(mouseX, mouseY, click)) {
-            nameInput.setFocused(false); tagsInput.setFocused(false); socketIdInput.setFocused(false); return true;
-        }
-        if (clickButton(cancelButton, click)) { blurKeyboardFocus(); return true; }
-        if (clickButton(saveButton, click)) { blurKeyboardFocus(); return true; }
-        if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(captureState)) { blurKeyboardFocus(); return true; }
-        if (mouseY < getContentY() || mouseY >= panelY + panelHeight - STICKY_FOOTER_HEIGHT - 4) {
-            blurKeyboardFocus();
-            return true;
-        }
-
-        if (adaptationSection.click(click, mouseY)) { blurKeyboardFocus(); return true; }
-
-        // 健康检查摘要行点击（展开/折叠抽屉）
-        if (healthCoordinator.handleSummaryClick(mouseY, getPanelY(), scrollY)) {
-            blurKeyboardFocus();
-            return true;
-        }
-
-        Integer hitPhase = phaseHeaders.hitPhase(mouseX, mouseY);
-        if (hitPhase != null) {
-            phaseCollapsed[hitPhase] = !phaseCollapsed[hitPhase];
-            blurKeyboardFocus();
-            return true;
-        }
-        
-        // 选择工具按钮点击
-        if (clickButton(boxSelectButton, click)) { blurKeyboardFocus(); return true; }
-        if (clickButton(pointSelectButton, click)) { blurKeyboardFocus(); return true; }
-        if (clickButton(clearSelectionButton, click)) { blurKeyboardFocus(); return true; }
-        
-        // 输入框优先：点中则获焦，点在外面会自行失焦
-        if (nameInputBoundsValid) {
-            if (nameInput.mouseClicked(mouseX, mouseY, nameInputX, nameInputY, nameInputW, nameInputH)) {
-                tagsInput.setFocused(false);
-                socketIdInput.setFocused(false);
-                typeSection.unfocus();
-                return true;
-            }
-        } else {
-            nameInput.setFocused(false);
-        }
-
-        if (tagsInputBoundsValid) {
-            if (tagsInput.mouseClicked(mouseX, mouseY, tagsInputX, tagsInputY, tagsInputW, tagsInputH)) {
-                nameInput.setFocused(false);
-                socketIdInput.setFocused(false);
-                typeSection.unfocus();
-                return true;
-            }
-        } else {
-            tagsInput.setFocused(false);
-        }
-
-        if (socketIdInputBoundsValid) {
-            if (socketIdInput.mouseClicked(mouseX, mouseY, socketIdInputX, socketIdInputY, socketIdInputW, socketIdInputH)) {
-                nameInput.setFocused(false);
-                tagsInput.setFocused(false);
-                typeSection.unfocus();
-                return true;
-            }
-        } else {
-            socketIdInput.setFocused(false);
-        }
-
-        // Phase 3: 语义配置按钮点击
-        if (clickButton(attachmentModeButton, click)) return true;
-        if (clickButton(directionalityButton, click)) return true;
-        if (clickButton(setInsideButton, click)) return true;
-        if (clickButton(setOutsideButton, click)) return true;
-        if (clickButton(setBottomButton, click)) return true;
-        if (clickButton(setTopButton, click)) return true;
-        
-        // 按钮点击
-        if (clickButton(categoryButton, click)) return true;
-        if (clickButton(advancedOptionsButton, click)) return true;
-        if (clickButton(pickAnchorButton, click)) return true;
-        if (clickButton(clearAnchorButton, click)) return true;
-        if (clickButton(hostFaceButton, click)) return true;
-        if (clickButton(anchorOutsideButton, click)) return true;
-        if (clickButton(autoAnchorButton, click)) return true;
-        if (clickButton(facingButton, click)) return true;
-        if (clickButton(mirrorButton, click)) return true;
-        
-        if (clickButton(semanticSkinButton, click)) return true;
-        if (clickButton(semanticTagOnSaveButton, click)) return true;
-        if (clickButton(semanticStyleButton, click)) return true;
-        if (clickButton(semanticPartButton, click)) return true;
-        
-        if (clickButton(socketContextButton, click)) return true;
-        if (clickButton(socketPickOriginButton, click)) return true;
-        if (clickButton(socketFacingButton, click)) return true;
-        if (clickButton(socketAddButton, click)) return true;
-        if (clickButton(socketPreviewButton, click)) return true;
-        if (clickButton(socketClearButton, click)) return true;
-
-        if (clickButton(autoFixButton, click)) return true;
-        if (clickButton(undoAutoFixButton, click)) return true;
-        
-        if (clickButton(cancelButton, click)) return true;
-        clickButton(saveButton, click);
-
-        return true; // 消费所有面板内点击
-    }
-
-    @Override
-    public void mouseScrolled(double mouseX, double mouseY, double amount) {
-        if (!isMouseOver(mouseX, mouseY)) return;
-        
-        // 滚动步长：每次滚轮滚动 12 像素（与 ToolPanel 和 SettingsPanel 一致）
-        int step = 12;
-        scrollY = (int) Math.round(scrollY - amount * step);
-        
-        // 限制滚动范围
-        if (scrollY < 0) scrollY = 0;
-        if (scrollY > maxScrollY) scrollY = maxScrollY;
-    }
-
-    @Override
-    public void keyPressed(int keyCode, int scanCode, int modifiers) {
-        ensureWidgets();
-        if (ComponentTool.INSTANCE.getState().isCaptureSavePending()) return;
-        typeSection.keyPressed(keyCode, modifiers);
-        if (typeSection.focused() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(ComponentTool.INSTANCE.getState())) return;
-        nameInput.keyPressed(keyCode, modifiers);
-        tagsInput.keyPressed(keyCode, modifiers);
-        socketIdInput.keyPressed(keyCode, modifiers);
-    }
-
-    @Override
-    public void charTyped(char chr) {
-        if (ComponentTool.INSTANCE.getState().isCaptureSavePending()) return;
-        typeSection.charTyped(chr);
-        if (typeSection.focused() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(ComponentTool.INSTANCE.getState())) return;
-        ensureWidgets();
-        nameInput.charTyped(chr);
-        tagsInput.charTyped(chr);
-        socketIdInput.charTyped(chr);
-    }
+    public boolean canSaveWithoutHealthCheck() { return ComponentCaptureSubmitter.canSaveWithoutHealthCheck(this); }
 
     @Override
     public boolean wantsKeyboardInput() {
@@ -1392,21 +261,11 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         socketIdInput.setFocused(false);
     }
 
-    private int drawWrappedText(DrawContext ctx, Text text, int x, int y, int maxWidth, int color) {
-        if (text == null) return y;
-        int lineHeight = client.textRenderer.fontHeight;
-        for (var line : client.textRenderer.wrapLines(text, maxWidth)) {
-            ctx.drawTextWithShadow(client.textRenderer, line, x, y, color);
-            y += lineHeight;
-        }
-        return y;
-    }
-
-    private int getScaledMouseX() {
+    public int getScaledMouseX() {
         return (int) (client.mouse.getX() / client.getWindow().getScaleFactor());
     }
 
-    private int getScaledMouseY() {
+    public int getScaledMouseY() {
         return (int) (client.mouse.getY() / client.getWindow().getScaleFactor());
     }
     
@@ -1416,101 +275,21 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
      * 处理世界点击（从 InputRouter 调用）
      * @return true 如果事件被处理
      */
-    public boolean handleWorldClick(BlockHitResult hit, int button) {
-        var st = ComponentTool.INSTANCE.getState();
-        if (st.isCaptureSavePending() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(st)) return true;
-        typeSection.unfocus();
-        if (hit == null) return false;
-        BlockPos pos = hit.getBlockPos();
-        if (pos == null) return false;
-
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 世界点击: {}, 按钮: {}, 模式: {}, 标记模式: {}",
-                pos, button, selectionController.getMode(), orientationController.getMarkingMode());
-        }
-
-        // Phase 3: 优先处理方向标记模式
-        if (orientationController.isMarkingActive() && button == 0) {
-            return orientationController.handleMarkingClick(hit, selectionController::isAnchorLocationAllowed);
-        }
-
-        // 右键设置锚点
-        if (button == 1) {
-            setAnchor(pos);
-            return true;
-        }
-
-        return selectionController.handleWorldClick(client, hit, button);
-    }
     
     /**
      * 处理鼠标释放（从 InputRouter 调用）
      */
-    public void handleWorldRelease(int button) {
-        selectionController.handleWorldRelease(client, button);
-    }
 
     /**
      * 设置锚点
      */
-    private void setAnchor(net.minecraft.util.math.BlockPos pos) {
-        if (pos == null) return;
-        
-        var st = ComponentTool.INSTANCE.getState();
-        if (!selectionController.isAnchorLocationAllowed(pos)) {
-            HudToast.show("锚点需落在选区内或紧邻选区", true);
-            return;
-        }
-        var draft = st.captureDraft;
-        draft.anchor.worldPos = pos.toImmutable();
-        st.syncDraftToState();
-        st.pickingAnchor = false;
-        
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 设置锚点: {}", pos);
-        }
-        com.formacraft.client.ui.toast.HudToast.show("锚点已设置: " + pos.toShortString());
-    }
+    public void setAnchor(net.minecraft.util.math.BlockPos pos) { ComponentCapturePanelActions.setAnchor(this, pos); }
 
-    private void setAutoAnchor() {
-        if (!selectionController.hasValidSelection()) {
-            HudToast.show("请先选择构件方块", true);
-            return;
-        }
-        BlockPos min = selectionController.getSelectionMin();
-        BlockPos max = SelectionTool.INSTANCE.getMax();
-        if (min == null || max == null) {
-            HudToast.show("选区无效，无法自动设置锚点", true);
-            return;
-        }
-        int cx = (min.getX() + max.getX()) / 2;
-        int cz = (min.getZ() + max.getZ()) / 2;
-        BlockPos anchor = new BlockPos(cx, min.getY(), cz);
-        setAnchor(anchor);
-    }
+    public void setAutoAnchor() { ComponentCapturePanelActions.setAutoAnchor(this); }
     
-    public void clearSelection() {
-        selectionController.clearSelection();
-        thumbnailService.invalidate();
-        orientationController.clearMarks();
-        if (DEBUG_CAPTURE) {
-            com.formacraft.FormacraftMod.LOGGER.debug("[ComponentCapturePanel] 清除选区");
-        }
-    }
+    public void clearSelection() { ComponentCapturePanelActions.clearSelection(this); }
 
-    public void tick() {
-        var st = ComponentTool.INSTANCE.getState();
-        if (st.isCaptureSavePending()) return;
-        boolean wasActive = st.captureActive;
-        st.beginCapture();
-        if (!wasActive && st.captureActive) {
-            syncLocalFromState();
-        }
-        st.syncDraftToState();
-        selectionController.tick(client);
-        attachmentMode = st.captureDraft.host.attachment;
-        orientationController.loadFromDraft(st.captureDraft);
-    }
+    public void tick() { ComponentCapturePanelActions.tick(this); }
 
     public void renderWorldSelection(com.formacraft.client.tool.ToolWorldRenderContext ctx) {
         worldOverlay.render(ctx);
@@ -1519,14 +298,5 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     /**
      * 将当前 state 同步到面板本地缓存（用于进入捕获态时回填）。
      */
-    private void syncLocalFromState() {
-        var st = ComponentTool.INSTANCE.getState();
-        selectionController.loadFromDraft(st.captureDraft, client);
-        orientationController.loadFromDraft(st.captureDraft);
-        if (!st.captureDraft.selection.explicit) {
-            st.captureDraft.selection.aabbMin = SelectionTool.INSTANCE.getMin();
-            st.captureDraft.selection.aabbMax = SelectionTool.INSTANCE.getMax();
-        }
-        attachmentMode = st.captureDraft.host.attachment;
-    }
+    public void syncLocalFromState() { ComponentCapturePanelActions.syncLocalFromState(this); }
 }
