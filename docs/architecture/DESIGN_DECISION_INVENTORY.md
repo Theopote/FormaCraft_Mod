@@ -1,6 +1,8 @@
 # Design decision inventory
 
-The ordinary LlmPlan normalization entrypoint checks fixed landmark modules and registered native STRUCTURE typologies against the current human message before migration (HARD_CONSTRAINT). Unauthorized routes become a capability gap. Explicit landmark presets retain compatibility conversion.
+The ordinary LlmPlan normalization entrypoint checks fixed landmark modules and registered native STRUCTURE typologies against the current human message before migration and again after all normalization and repair stages (HARD_CONSTRAINT). Unauthorized routes become a capability gap. Explicit landmark presets retain compatibility conversion.
+
+The authorization check covers the Java router's legacy `typology`, `referenceLandmarkId` and `referenceLandmark` parameter aliases (HARD_CONSTRAINT). Explicit typology selection grants access to that typology alone. An additional fixed landmark reference requires the matching explicit preset.
 
 Legacy context routing accepts only an exact preset ID from the current user message (HARD_CONSTRAINT). Research routing is expressed by the planning contract without duplicating a profile-derived authoritative block.
 

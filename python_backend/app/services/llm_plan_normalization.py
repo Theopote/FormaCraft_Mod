@@ -1308,4 +1308,8 @@ def _normalize_llm_plan_output(
         plan = _ensure_compiler_satellite_policy(plan)
     except Exception as exc:
         logger.warning("compiler satellite policy stamp skipped: %s", exc)
-    return reject_fixed_landmark_plan(plan, building_profile) or plan
+    return (
+        reject_fixed_landmark_plan(plan, building_profile)
+        or reject_unrequested_fixed_routes(plan, user_message)
+        or plan
+    )

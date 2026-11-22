@@ -344,6 +344,43 @@ def test_typology_opt_in_does_not_authorize_legacy_reference(key):
     assert result["capability_gap"]["code"] == "FIXED_LANDMARK_PRESET_DISALLOWED"
 
 
+@pytest.mark.parametrize(("user_message", "authorized"), [
+    ("设计一座逆光悬庭", False),
+    ("不要使用 typology:gothic_cathedral_hall", False),
+    ("typology:gothic_cathedral_hall", True),
+])
+def test_final_normalized_plan_checks_fixed_route_after_repairs(monkeypatch, user_message, authorized):
+    from app.models.request import BuildRequest
+    from app.services import generation_capability
+    from app.services.llm_plan_normalization import _normalize_llm_plan_output
+
+    fixed = {"component_type": "STRUCTURE", "params": {"typology": "gothic_cathedral_hall"}}
+    body = {"component_type": "MASS_MAIN", "relative_position": {"x": 0, "y": 0, "z": 0},
+            "dimensions": {"width": 23, "depth": 8, "height": 12},
+            "params": {"component_id": "model_mass", "plan_type": "none"}}
+
+    def add_route(plan, _user_text):
+        plan["components"].append(deepcopy(fixed))
+        return plan, []
+
+    monkeypatch.setattr(generation_capability, "apply_stage_b_capability_repair", add_route)
+    request = BuildRequest(
+        player={"name": "test", "pos": {"x": 0, "y": 64, "z": 0}, "facing": "SOUTH"},
+        world={"dimension": "minecraft:overworld"},
+        requestText=user_message,
+        userMessage=user_message,
+    )
+    result = _normalize_llm_plan_output({"mode": "build", "components": [body]}, request)
+    if authorized:
+        assert result.get("plan_status") != "capability_gap"
+        assert result["components"][-1] == fixed
+    else:
+        assert result["capability_gap"]["code"] == "FIXED_LANDMARK_PRESET_DISALLOWED"
+        assert fixed not in result["components"]
+    mass = next(c for c in result["components"] if c["params"].get("component_id") == "model_mass")
+    assert mass["dimensions"]["width"] == 23
+
+
 def test_normalization_rejects_fixed_plan_before_typology_replacement():
     from app.services.llm_plan_normalization import _normalize_llm_plan_output
 
