@@ -146,7 +146,12 @@ public final class TerrainAdaptationEngine {
         List<Integer> heights = new ArrayList<>(footprint.size());
         for (BlockPos p : footprint) {
             if (p == null) continue;
-            heights.add(TerrainSampling.placementY(world, p.getX(), p.getZ()));
+            var y = TerrainSampling.placementYIfReady(world, p.getX(), p.getZ());
+            if (y.isEmpty()) {
+                TerrainSampling.noteUnloadedColumn();
+                continue;
+            }
+            heights.add(y.getAsInt());
         }
         if (heights.isEmpty()) return fallbackY;
 
@@ -243,6 +248,10 @@ public final class TerrainAdaptationEngine {
                     int dz = z - cz;
                     if (dx * dx + dz * dz > r * r) continue;
                 }
+                if (!TerrainSampling.isColumnReady(world, x, z)) {
+                    TerrainSampling.noteUnloadedColumn();
+                    continue;
+                }
 
                 // raycast down
                 int y = yStart - 1;
@@ -306,7 +315,13 @@ public final class TerrainAdaptationEngine {
                                 continue;
                             }
                         }
-                        top[ix][iz] = TerrainSampling.placementY(world, x, z);
+                        var topOpt = TerrainSampling.placementYIfReady(world, x, z);
+                        if (topOpt.isEmpty()) {
+                            TerrainSampling.noteUnloadedColumn();
+                            top[ix][iz] = baseY;
+                        } else {
+                            top[ix][iz] = topOpt.getAsInt();
+                        }
                     }
                 }
 
@@ -351,9 +366,14 @@ public final class TerrainAdaptationEngine {
             long key = xzKey(p.getX(), p.getZ());
             int dy = dyByXZ.get(key);
             if (dy == Integer.MIN_VALUE) {
-                int top = TerrainSampling.placementY(world, p.getX(), p.getZ());
-                dy = top - baseY;
-                if (maxStep > 0) dy = Math.max(-maxStep, Math.min(maxStep, dy)); // fallback clamp
+                var topOpt = TerrainSampling.placementYIfReady(world, p.getX(), p.getZ());
+                if (topOpt.isEmpty()) {
+                    TerrainSampling.noteUnloadedColumn();
+                    dy = 0;
+                } else {
+                    dy = topOpt.getAsInt() - baseY;
+                    if (maxStep > 0) dy = Math.max(-maxStep, Math.min(maxStep, dy)); // fallback clamp
+                }
                 dyByXZ.put(key, dy);
             }
             out.add(new PlannedBlock(p.add(0, dy, 0), pb.getTargetState()));
@@ -396,7 +416,12 @@ public final class TerrainAdaptationEngine {
                     int dz = z - cz;
                     if (dx * dx + dz * dz > r * r) continue;
                 }
-                int top = TerrainSampling.placementY(world, x, z);
+                var topOpt = TerrainSampling.placementYIfReady(world, x, z);
+                if (topOpt.isEmpty()) {
+                    TerrainSampling.noteUnloadedColumn();
+                    continue;
+                }
+                int top = topOpt.getAsInt();
                 for (int y = top - fd; y <= top; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
@@ -434,6 +459,10 @@ public final class TerrainAdaptationEngine {
                     int dx = x - cx;
                     int dz = z - cz;
                     if (dx * dx + dz * dz > r * r) continue;
+                }
+                if (!TerrainSampling.isColumnReady(world, x, z)) {
+                    TerrainSampling.noteUnloadedColumn();
+                    continue;
                 }
                 for (int y = baseY; y <= y1; y++) {
                     BlockPos p = new BlockPos(x, y, z);

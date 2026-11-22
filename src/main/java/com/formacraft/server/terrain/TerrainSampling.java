@@ -1,5 +1,7 @@
 package com.formacraft.server.terrain;
 
+import com.formacraft.server.build.BuildReportContext;
+import com.formacraft.server.world.WorldBuildBounds;
 import net.minecraft.block.BlockState;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
@@ -9,34 +11,59 @@ import net.minecraft.world.Heightmap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.OptionalInt;
 
 /**
  * Terrain height sampling.
  * <p>
  * Prefer {@link #placementY} over raw {@link Heightmap.Type#WORLD_SURFACE}: the latter
  * treats leaves / vines / tall grass as ground and floats buildings on canopies.
+ * <p>
+ * All world reads go through {@link #isColumnReady} / {@link WorldBuildBounds#isChunkReady}
+ * so preview/generation never sync-loads distant chunks on the server thread.
  */
 public class TerrainSampling {
 
     private static final int WORLD_MAX_Y = 384;
+    public static final int FALLBACK_Y = 64;
+
+    /**
+     * True when the chunk containing (x,z) is already loaded — no disk/gen sync load.
+     */
+    public static boolean isColumnReady(ServerWorld world, int x, int z) {
+        if (world == null) return false;
+        return WorldBuildBounds.isChunkReady(world, new BlockPos(x, world.getBottomY(), z));
+    }
 
     /**
      * First-air Y suitable for placing a structure: MOTION_BLOCKING_NO_LEAVES, then
      * descend through logs/leaves until solid ground or fluid (same contract as
      * {@link BuildingLandingPlanner#ground(ServerWorld)}).
+     * <p>
+     * Unloaded columns return {@link #FALLBACK_Y} (or sea level) without touching the world
+     * and record a transparency note via {@link BuildReportContext}.
      */
     public static int placementY(ServerWorld world, int x, int z) {
-        if (world == null) return 64;
+        return placementYIfReady(world, x, z).orElseGet(() -> {
+            noteUnloadedColumn();
+            return fallbackY(world);
+        });
+    }
+
+    /** Empty when the column's chunk is not loaded (does not sync-load). */
+    public static OptionalInt placementYIfReady(ServerWorld world, int x, int z) {
+        if (world == null || !isColumnReady(world, x, z)) return OptionalInt.empty();
         int bottom = world.getBottomY();
         int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
         if (y <= bottom || y > WORLD_MAX_Y) {
             y = scanFromTop(world, x, z, bottom);
         }
-        return descendPastCanopy(world, x, z, y, bottom);
+        return OptionalInt.of(descendPastCanopy(world, x, z, y, bottom));
     }
 
     /**
      * Sample placement heights over an inclusive XZ rectangle.
+     * Unloaded columns are skipped (not filled with fallback) so medians stay honest.
      */
     public static List<Integer> sampleHeights(ServerWorld world, BlockPos min, BlockPos max) {
         List<Integer> heights = new ArrayList<>();
@@ -44,10 +71,39 @@ public class TerrainSampling {
 
         for (int x = min.getX(); x <= max.getX(); x++) {
             for (int z = min.getZ(); z <= max.getZ(); z++) {
-                heights.add(placementY(world, x, z));
+                OptionalInt y = placementYIfReady(world, x, z);
+                if (y.isEmpty()) {
+                    noteUnloadedColumn();
+                    continue;
+                }
+                heights.add(y.getAsInt());
             }
         }
         return heights;
+    }
+
+    /**
+     * {@code getBlockState} only when the chunk is ready; otherwise null (no sync load).
+     */
+    public static BlockState blockStateIfReady(ServerWorld world, BlockPos pos) {
+        if (world == null || pos == null || !WorldBuildBounds.isChunkReady(world, pos)) {
+            if (world != null && pos != null) noteUnloadedColumn();
+            return null;
+        }
+        return world.getBlockState(pos);
+    }
+
+    public static int fallbackY(ServerWorld world) {
+        if (world == null) return FALLBACK_Y;
+        try {
+            return Math.max(world.getBottomY() + 1, world.getSeaLevel());
+        } catch (RuntimeException ignored) {
+            return FALLBACK_Y;
+        }
+    }
+
+    static void noteUnloadedColumn() {
+        BuildReportContext.addUnloadedTerrainColumns(1);
     }
 
     /**
@@ -99,12 +155,12 @@ public class TerrainSampling {
             }
             y--;
         }
-        return 64;
+        return FALLBACK_Y;
     }
 
     public static int medianHeight(List<Integer> heights) {
         if (heights.isEmpty()) {
-            return 64;
+            return FALLBACK_Y;
         }
 
         List<Integer> sorted = new ArrayList<>(heights);
@@ -120,7 +176,7 @@ public class TerrainSampling {
 
     public static int averageHeight(List<Integer> heights) {
         if (heights.isEmpty()) {
-            return 64;
+            return FALLBACK_Y;
         }
 
         int sum = 0;
@@ -132,7 +188,7 @@ public class TerrainSampling {
 
     public static int modeHeight(List<Integer> heights) {
         if (heights.isEmpty()) {
-            return 64;
+            return FALLBACK_Y;
         }
 
         java.util.Map<Integer, Integer> frequency = new java.util.HashMap<>();

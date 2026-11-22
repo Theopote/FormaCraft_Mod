@@ -51,17 +51,24 @@ public final class BuildingLandingPlanner {
                 return TerrainSampling.placementY(world, x, z);
             }
             public int surfaceY(int x, int z) {
+                if (!TerrainSampling.isColumnReady(world, x, z)) return placementY(x, z);
                 int y = placementY(x,z);
                 while (y > world.getBottomY()) {
                     BlockPos p = new BlockPos(x,y-1,z);
-                    if (world.getBlockState(p).isSolidBlock(world,p)) break;
+                    BlockState s = TerrainSampling.blockStateIfReady(world, p);
+                    if (s == null) break;
+                    if (s.isSolidBlock(world,p)) break;
                     y--;
                 }
                 return y;
             }
-            public BlockState state(BlockPos pos) { return world.getBlockState(pos); }
+            public BlockState state(BlockPos pos) {
+                BlockState s = TerrainSampling.blockStateIfReady(world, pos);
+                return s != null ? s : Blocks.AIR.getDefaultState();
+            }
             public boolean bearing(BlockPos pos) {
-                BlockState s=world.getBlockState(pos);
+                if (pos == null || !com.formacraft.server.world.WorldBuildBounds.isChunkReady(world, pos)) return false;
+                BlockState s = world.getBlockState(pos);
                 return Ground.super.bearing(pos) && s.isSolidBlock(world,pos)
                         && !s.isIn(net.minecraft.registry.tag.BlockTags.LOGS)
                         && !s.isIn(net.minecraft.registry.tag.BlockTags.LEAVES);

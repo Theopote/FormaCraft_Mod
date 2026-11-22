@@ -36,6 +36,10 @@ public class TerrainShaper {
 
         for (int x = min.getX(); x <= max.getX(); x++) {
             for (int z = min.getZ(); z <= max.getZ(); z++) {
+                if (!TerrainSampling.isColumnReady(world, x, z)) {
+                    TerrainSampling.noteUnloadedColumn();
+                    continue;
+                }
                 // 向下填充（填充到 targetY - 3 到 targetY）
                 for (int y = targetY - 3; y <= targetY; y++) {
                     BlockPos p = new BlockPos(x, y, z);
@@ -77,6 +81,10 @@ public class TerrainShaper {
 
         for (int x = min.getX(); x <= max.getX(); x++) {
             for (int z = min.getZ(); z <= max.getZ(); z++) {
+                if (!TerrainSampling.isColumnReady(world, x, z)) {
+                    TerrainSampling.noteUnloadedColumn();
+                    continue;
+                }
                 // 从 minY 到 maxY + 10 清理障碍物
                 for (int y = min.getY(); y <= max.getY() + 10; y++) {
                     BlockPos p = new BlockPos(x, y, z);
@@ -169,6 +177,10 @@ public class TerrainShaper {
         // 在桥端点周围创建平台
         for (int x = bridgeEnd.getX() - platformSize; x <= bridgeEnd.getX() + platformSize; x++) {
             for (int z = bridgeEnd.getZ() - platformSize; z <= bridgeEnd.getZ() + platformSize; z++) {
+                if (!TerrainSampling.isColumnReady(world, x, z)) {
+                    TerrainSampling.noteUnloadedColumn();
+                    continue;
+                }
                 // 填充到 targetY
                 for (int y = targetY - 2; y <= targetY; y++) {
                     BlockPos p = new BlockPos(x, y, z);

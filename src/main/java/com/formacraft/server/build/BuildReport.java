@@ -30,6 +30,7 @@ public final class BuildReport {
     int foundationDegradeStepsSum = 0;
     int terrainBudgetBlocks = -1;
     int terrainBudgetDegradeCount = 0;
+    int unloadedTerrainColumns = 0;
 
     void addSnap(int dy) {
         terrainSnapCount++;
@@ -47,6 +48,10 @@ public final class BuildReport {
 
     void addTerrainBudgetDegrade() {
         terrainBudgetDegradeCount++;
+    }
+
+    void addUnloadedTerrainColumns(int n) {
+        if (n > 0) unloadedTerrainColumns += n;
     }
 
     void addFootingPadUnit() {
@@ -93,7 +98,8 @@ public final class BuildReport {
         if (terrainSnapCount == 0 && terrainPadFill == 0 && terrainPadClear == 0
                 && footingPadUnits == 0 && footingStiltUnits == 0
                 && foundationFlatPadUnits == 0 && foundationSteppedUnits == 0
-                && foundationStiltUnits == 0 && foundationEmbeddedUnits == 0) return "";
+                && foundationStiltUnits == 0 && foundationEmbeddedUnits == 0
+                && unloadedTerrainColumns == 0) return "";
         String dy = (terrainSnapCount > 0) ? String.format("｜吸附%d次(ΔY合计=%+d)", terrainSnapCount, terrainSnapDySum) : "";
         String footing = "";
         if (footingPadUnits > 0 || footingStiltUnits > 0) {
@@ -124,7 +130,11 @@ public final class BuildReport {
             String degrade = terrainBudgetDegradeCount > 0 ? String.format("｜降级%d次", terrainBudgetDegradeCount) : "";
             budget = String.format("｜预算%d/已用%d%s", terrainBudgetBlocks, used, degrade);
         }
-        return String.format("地形适配：垫基+%d｜清障碍+%d%s%s%s%s%s", terrainPadFill, terrainPadClear, dy, footing, f2, f3, budget);
+        String unloaded = unloadedTerrainColumns > 0
+                ? String.format("｜未加载区块列%d（目标区域含未加载区块，已跳过同步加载）", unloadedTerrainColumns)
+                : "";
+        return String.format("地形适配：垫基+%d｜清障碍+%d%s%s%s%s%s%s",
+                terrainPadFill, terrainPadClear, dy, footing, f2, f3, budget, unloaded);
     }
 }
 

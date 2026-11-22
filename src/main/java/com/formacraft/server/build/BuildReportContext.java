@@ -37,6 +37,11 @@ public final class BuildReportContext {
         if (r != null) r.addTerrainBudgetDegrade();
     }
 
+    public static void addUnloadedTerrainColumns(int n) {
+        BuildReport r = TL.get();
+        if (r != null) r.addUnloadedTerrainColumns(n);
+    }
+
     public static void addFootingPadUnit() {
         BuildReport r = TL.get();
         if (r != null) r.addFootingPadUnit();

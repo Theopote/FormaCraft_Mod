@@ -56,7 +56,12 @@ public final class TerrainFit {
         List<Integer> heights = new ArrayList<>(footprint.size());
         for (BlockPos p : footprint) {
             if (p == null) continue;
-            heights.add(TerrainSampling.placementY(world, p.getX(), p.getZ()));
+            var y = TerrainSampling.placementYIfReady(world, p.getX(), p.getZ());
+            if (y.isEmpty()) {
+                TerrainSampling.noteUnloadedColumn();
+                continue;
+            }
+            heights.add(y.getAsInt());
         }
         if (heights.isEmpty()) return new FootprintAnalysis(64, 64, 64, 0);
 
@@ -87,7 +92,12 @@ public final class TerrainFit {
         List<Integer> heights = new ArrayList<>(footprint.size());
         for (BlockPos p : footprint) {
             if (p == null) continue;
-            heights.add(TerrainSampling.placementY(world, p.getX(), p.getZ()));
+            var y = TerrainSampling.placementYIfReady(world, p.getX(), p.getZ());
+            if (y.isEmpty()) {
+                TerrainSampling.noteUnloadedColumn();
+                continue;
+            }
+            heights.add(y.getAsInt());
         }
         return TerrainSampling.averageHeight(heights);
     }
@@ -180,6 +190,10 @@ public final class TerrainFit {
         // Fill a shallow pad (targetY-2..targetY), only if currently empty/fluids.
         for (int x = origin.getX() - halfW; x <= origin.getX() + halfW; x++) {
             for (int z = origin.getZ() - halfD; z <= origin.getZ() + halfD; z++) {
+                if (!TerrainSampling.isColumnReady(world, x, z)) {
+                    TerrainSampling.noteUnloadedColumn();
+                    continue;
+                }
                 for (int y = targetY - pad; y <= targetY; y++) {
                     BlockPos p = new BlockPos(x, y, z);
                     if (!BuildConstraintContext.allow(p)) continue;
@@ -326,7 +340,12 @@ public final class TerrainFit {
 
         for (int x = origin.getX() - halfW; x <= origin.getX() + halfW; x++) {
             for (int z = origin.getZ() - halfD; z <= origin.getZ() + halfD; z++) {
-                int topY = TerrainSampling.placementY(world, x, z);
+                var topOpt = TerrainSampling.placementYIfReady(world, x, z);
+                if (topOpt.isEmpty()) {
+                    TerrainSampling.noteUnloadedColumn();
+                    continue;
+                }
+                int topY = topOpt.getAsInt();
 
                 if (topY <= targetY) {
                     // Heightmap topY is the first air cell, not the top solid cell.
