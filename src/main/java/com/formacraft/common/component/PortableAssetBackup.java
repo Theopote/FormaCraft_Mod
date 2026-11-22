@@ -87,6 +87,12 @@ public final class PortableAssetBackup {
         try (var input = Files.newInputStream(pending, LinkOption.NOFOLLOW_LINKS);
              var output = Files.newOutputStream(target, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
             input.transferTo(output);
+        } catch (FileAlreadyExistsException exists) {
+            throw exists;
+        } catch (IOException | RuntimeException failed) {
+            // CREATE_NEW may have created target before transfer failed (disk full, etc.).
+            try { Files.deleteIfExists(target); } catch (IOException ignored) { /* best-effort */ }
+            throw failed;
         }
     }
     public static Imported importArchive(Path archive,String expectedSha,Path world,UUID owner) throws IOException {

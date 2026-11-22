@@ -4,6 +4,7 @@ import com.formacraft.FormacraftMod;
 import com.formacraft.common.network.OrchestratorErrorHumanizer;
 import com.formacraft.common.logging.FcaLog;
 import com.formacraft.common.network.FormaCraftNetworking;
+import com.formacraft.common.network.ReferenceImageChunk;
 import com.formacraft.common.network.metrics.LlmPlanRoutingMetrics;
 import com.formacraft.common.model.request.FormaRequest;
 import com.formacraft.common.orchestrator.AiPlanResult;
@@ -29,8 +30,11 @@ public final class BuildRequestProcessor {
     private BuildRequestProcessor() {}
 
     private static final FcaLog LOG = FcaLog.of("BuildRequestProcessor");
+    private static final ReferenceImageUploads REFERENCE_IMAGES = new ReferenceImageUploads();
 
     public static void register() {
+        ServerPlayNetworking.registerGlobalReceiver(ReferenceImageChunk.ID, (payload, context) ->
+                context.server().execute(() -> REFERENCE_IMAGES.accept(context.player().getUuid(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.RequestBuildPayload.ID, (payload, context) ->
                 context.server().execute(() -> {
                     ServerPlayerEntity player = context.player();
@@ -52,6 +56,11 @@ public final class BuildRequestProcessor {
                     com.formacraft.common.component.query.ComponentRetriever.setViewerPlayer(player.getUuid());
                     try {
                     FormaRequest req = payload.request();
+                    if (!REFERENCE_IMAGES.resolve(player.getUuid(), req)) {
+                        ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                                net.minecraft.text.Text.translatable("formacraft.chat.reference.upload_failed").getString()));
+                        return;
+                    }
                     // Older clients can still label an explicit edit BUILD. Enforce intent
                     // before contacting the backend so its response cannot rebuild the host.
                     if ((req.getPromptMode() == null || "BUILD".equalsIgnoreCase(req.getPromptMode()))

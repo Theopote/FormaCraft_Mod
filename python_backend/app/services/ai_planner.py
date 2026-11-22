@@ -528,7 +528,7 @@ def generate_llm_plan(req: BuildRequest) -> dict:
     building_profile = None
     research_user_text = _research_user_text(req, user_prompt)
     image_reference = next(
-        (ref for ref in (req.references or []) if ref.type.strip().lower() == "image_url"),
+        (ref for ref in (req.references or []) if ref.type.strip().lower() in {"image_url", "image_base64"}),
         None,
     )
 
@@ -547,13 +547,12 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             )
 
             if research_user_text and (image_reference is not None or is_building_research_enabled()):
-                building_profile = _call_with_timeout(
-                    lambda: research_building_profile(
-                        research_user_text,
-                        req=req,
-                        call_with_timeout=_call_with_timeout,
-                    ),
-                    float(os.getenv("BUILDING_RESEARCH_TIMEOUT_SEC", "15")),
+                # research_building_profile already applies call_with_timeout once around
+                # its body; do not wrap again (nested slots / redundant saturation risk).
+                building_profile = research_building_profile(
+                    research_user_text,
+                    req=req,
+                    call_with_timeout=_call_with_timeout,
                 )
         except ImportError:
             logger.warning("building_research_agent not available, skipping research")
@@ -566,9 +565,10 @@ def generate_llm_plan(req: BuildRequest) -> dict:
             logger.warning("Failed building research: %s", e)
         search_ms = (time.monotonic() - _t_search) * 1000.0
 
+    from .vision_analyzer import vision_source_url
     if image_reference is not None and not (
         building_profile is not None and any(
-            source.title == "vision" and source.url == image_reference.normalized_image_url()
+            source.title == "vision" and source.url == vision_source_url(image_reference.normalized_image_url())
             for source in building_profile.sources
         )
     ):

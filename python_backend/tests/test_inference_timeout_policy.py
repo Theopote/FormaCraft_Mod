@@ -49,3 +49,24 @@ def test_planner_compatibility_aliases():
 
     assert ai_planner._resolve_timeout_sec is policy._resolve_timeout_sec
     assert ai_planner._resolve_timeout_sec_for_task is policy._resolve_timeout_sec_for_task
+
+
+def test_default_timeout_pool_scales_with_build_concurrency(monkeypatch):
+    monkeypatch.delenv("LLM_TIMEOUT_POOL_WORKERS", raising=False)
+    monkeypatch.setenv("BUILD_MAX_CONCURRENT_REQUESTS", "4")
+    assert policy._default_timeout_pool_workers() == 12
+    monkeypatch.setenv("BUILD_MAX_CONCURRENT_REQUESTS", "8")
+    assert policy._default_timeout_pool_workers() == 20
+    monkeypatch.setenv("LLM_TIMEOUT_POOL_WORKERS", "3")
+    assert policy._default_timeout_pool_workers() == 3
+
+
+def test_nested_call_with_timeout_does_not_take_second_slot():
+    seen = []
+
+    def outer():
+        seen.append("outer")
+        return policy.call_with_timeout(lambda: seen.append("inner") or "ok", 5)
+
+    assert policy.call_with_timeout(outer, 5) == "ok"
+    assert seen == ["outer", "inner"]

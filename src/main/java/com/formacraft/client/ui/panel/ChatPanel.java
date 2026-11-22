@@ -217,6 +217,8 @@ public class ChatPanel extends BasePanel {
     private ButtonWidget stopButton;
     private ButtonWidget referenceButton;
     private String referenceImageUrl;
+    private byte[] referenceImageFile;
+    private boolean readingReferenceImage;
 
     // Prompt 模式：默认 BUILD（不再显示按钮，直接使用默认模式）
     private PromptMode promptMode = PromptMode.BUILD;
@@ -256,17 +258,77 @@ public class ChatPanel extends BasePanel {
     }
 
     private void toggleReferenceImage() {
-        if (referenceImageUrl != null) {
+        if (readingReferenceImage) return;
+        if (hasReferenceImage()) {
             referenceImageUrl = null;
+            referenceImageFile = null;
             return;
         }
-        String value = client.keyboard.getClipboard().strip();
+        String clipboard = client.keyboard.getClipboard().strip();
+        String selected;
+        try {
+            selected = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_inputBox(
+                    Text.translatable("formacraft.chat.reference.title").getString(),
+                    Text.translatable("formacraft.chat.reference.invalid").getString(),
+                    isReferenceImageUrl(clipboard) ? clipboard : "");
+        } catch (RuntimeException | LinkageError unavailable) {
+            messages.add(ChatMessage.error(Text.translatable("formacraft.chat.reference.dialog_unavailable").getString()));
+            scrollOffset = 0;
+            return;
+        }
+        if (selected == null) return;
+        String value = selected.strip();
         if (isReferenceImageUrl(value)) {
-            referenceImageUrl = value;
+            int separator = value.indexOf(':');
+            referenceImageUrl = value.substring(0, separator).toLowerCase(Locale.ROOT) + value.substring(separator);
         } else {
             messages.add(ChatMessage.error(Text.translatable("formacraft.chat.reference.invalid").getString()));
             scrollOffset = 0;
         }
+    }
+
+    private boolean hasReferenceImage() {
+        return referenceImageUrl != null || referenceImageFile != null;
+    }
+
+    private void chooseReferenceImageFile() {
+        if (readingReferenceImage) return;
+        if (!net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.canSend(
+                com.formacraft.common.network.ReferenceImageChunk.ID)) {
+            addAIError(Text.translatable("formacraft.chat.reference.upload_failed").getString());
+            return;
+        }
+        String selected;
+        try (var stack = org.lwjgl.system.MemoryStack.stackPush()) {
+            var filters = stack.mallocPointer(3);
+            filters.put(stack.UTF8("*.png")).put(stack.UTF8("*.jpg")).put(stack.UTF8("*.jpeg")).flip();
+            selected = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
+                    Text.translatable("formacraft.chat.reference.title").getString(), null, filters, "PNG / JPEG", false);
+        } catch (RuntimeException | LinkageError unavailable) {
+            addAIError(Text.translatable("formacraft.chat.reference.dialog_unavailable").getString());
+            return;
+        }
+        if (selected == null) return;
+        readingReferenceImage = true;
+        var connection = client.getNetworkHandler();
+        CompletableFuture.supplyAsync(() -> {
+            try (var input = java.nio.file.Files.newInputStream(java.nio.file.Path.of(selected))) {
+                return input.readNBytes(com.formacraft.common.network.ReferenceImageChunk.MAX_BYTES + 1);
+            } catch (java.io.IOException | RuntimeException failure) {
+                throw new java.util.concurrent.CompletionException(failure);
+            }
+        }).whenComplete((bytes, failure) -> client.execute(() -> {
+            readingReferenceImage = false;
+            if (client.getNetworkHandler() != connection) return;
+            if (failure != null || bytes.length == 0
+                    || bytes.length > com.formacraft.common.network.ReferenceImageChunk.MAX_BYTES
+                    || com.formacraft.common.network.ReferenceImageChunk.mimeType(bytes) == null) {
+                addAIError(Text.translatable("formacraft.chat.reference.file_invalid").getString());
+                return;
+            }
+            referenceImageFile = bytes;
+            referenceImageUrl = null;
+        }));
     }
 
     private static boolean isReferenceImageUrl(String value) {
@@ -610,7 +672,7 @@ public class ChatPanel extends BasePanel {
         sendButton.active = true;
         sendButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
         referenceButton.setPosition(bounds.btnX(), bounds.btnY() - SEND_BUTTON_SIZE - 1);
-        referenceButton.setMessage(Text.literal(referenceImageUrl == null ? "+" : "×"));
+        referenceButton.setMessage(Text.literal(readingReferenceImage ? "…" : hasReferenceImage() ? "×" : "+"));
         referenceButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
 
         stopButton.setPosition(bounds.btnX(), bounds.stopY());
@@ -664,7 +726,7 @@ public class ChatPanel extends BasePanel {
         initWidgets();
 
         if (referenceButton.isMouseOver(mouseX, mouseY)) {
-            String key = referenceImageUrl == null ? "formacraft.chat.reference.add" : "formacraft.chat.reference.remove";
+            String key = hasReferenceImage() ? "formacraft.chat.reference.remove" : "formacraft.chat.reference.add";
             drawTooltipCompat(ctx, List.of(Text.translatable(key)), (int) mouseX, (int) mouseY);
             return true;
         }
@@ -706,6 +768,11 @@ public class ChatPanel extends BasePanel {
 
         Click click = new Click(mouseX, mouseY, new MouseInput(button, 0));
         referenceButton.setPosition(bounds.btnX(), bounds.btnY() - SEND_BUTTON_SIZE - 1);
+        if (button == 1 && referenceButton.isMouseOver(mouseX, mouseY)) {
+            chooseReferenceImageFile();
+            blurInput();
+            return true;
+        }
         if (HudClickSupport.click(referenceButton, click)) {
             blurInput();
             return true;
@@ -955,6 +1022,7 @@ public class ChatPanel extends BasePanel {
     // ==========================
 
     private void sendCurrentMessage() {
+        if (readingReferenceImage) return;
         String text = inputBox.getText().trim();
         if (text.isEmpty()) return;
 
@@ -988,17 +1056,22 @@ public class ChatPanel extends BasePanel {
 
         FormaRequest req = com.formacraft.client.ui.panel.chat.ChatBuildRequestFactory.fromChat(
                 text, effectiveMode, sessionId, history);
-        if (referenceImageUrl != null) {
+        java.util.UUID imageToken = referenceImageFile == null ? null : java.util.UUID.randomUUID();
+        if (hasReferenceImage()) {
             var references = new ArrayList<com.formacraft.common.model.request.ReferenceInput>();
-            references.add(new com.formacraft.common.model.request.ReferenceInput(
-                    "image_url", referenceImageUrl, null));
+            var attachment = imageToken == null
+                    ? new com.formacraft.common.model.request.ReferenceInput("image_url", referenceImageUrl, null)
+                    : new com.formacraft.common.model.request.ReferenceInput(
+                            com.formacraft.common.network.ReferenceImageChunk.REFERENCE_TYPE, imageToken.toString(), null);
+            references.add(attachment);
             for (var reference : req.getReferences()) {
-                if (!referenceImageUrl.equals(reference.getContent())) references.add(reference);
+                if (!attachment.getContent().equals(reference.getContent())) references.add(reference);
             }
             req.setReferences(references);
         }
-        if (!FormaCraftClientNetworking.sendBuildRequest(req)) return;
+        if (!FormaCraftClientNetworking.sendBuildRequest(req, imageToken, referenceImageFile)) return;
         referenceImageUrl = null;
+        referenceImageFile = null;
 
         // 追加玩家消息（显示原始输入，避免聊天内容被“系统拼接”污染）
         messages.add(new ChatMessage(text, true));

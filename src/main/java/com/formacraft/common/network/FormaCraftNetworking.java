@@ -575,6 +575,7 @@ public class FormaCraftNetworking {
         CommunityTaskNetworking.registerC2S();
         ComponentLibraryNetworking.registerC2S();
         ComponentImportNetworking.registerC2S();
+        PayloadTypeRegistry.playC2S().register(ReferenceImageChunk.ID, ReferenceImageChunk.CODEC);
 
         PayloadTypeRegistry.playC2S().register(RequestBuildPayload.ID, RequestBuildPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PatchUndoPayload.ID, PatchUndoPayload.CODEC);

@@ -194,7 +194,12 @@ public final class FormaCraftClientNetworking {
      * 客户端发送建筑请求
      * @param request 建筑请求
      */
-    public static boolean sendBuildRequest(FormaRequest request) {
+    public static boolean sendBuildRequest(FormaRequest request, java.util.UUID imageToken, byte[] image) {
+        if (image != null && !ClientPlayNetworking.canSend(com.formacraft.common.network.ReferenceImageChunk.ID)) {
+            com.formacraft.client.ui.FormaCraftHudOverlay.CHAT_PANEL.addAIError(
+                    net.minecraft.text.Text.translatable("formacraft.chat.reference.upload_failed").getString());
+            return false;
+        }
         try {
             request = com.formacraft.common.model.request.FormaRequestCompactor.compactForNetwork(request);
         } catch (IllegalArgumentException e) {
@@ -205,6 +210,14 @@ public final class FormaCraftClientNetworking {
         // 这里直接走原版 CustomPayloadC2SPacket，避免该兼容问题。
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc != null && mc.getNetworkHandler() != null) {
+            if (image != null) {
+                var connection = mc.getNetworkHandler();
+                for (int offset = 0; offset < image.length; offset += com.formacraft.common.network.ReferenceImageChunk.CHUNK_BYTES) {
+                    int end = Math.min(image.length, offset + com.formacraft.common.network.ReferenceImageChunk.CHUNK_BYTES);
+                    connection.sendPacket(new CustomPayloadC2SPacket(new com.formacraft.common.network.ReferenceImageChunk(
+                            imageToken, image.length, offset, java.util.Arrays.copyOfRange(image, offset, end))));
+                }
+            }
             mc.getNetworkHandler().sendPacket(new CustomPayloadC2SPacket(new FormaCraftNetworking.RequestBuildPayload(request)));
             return true;
         }

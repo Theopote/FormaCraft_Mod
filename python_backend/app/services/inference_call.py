@@ -8,16 +8,30 @@ from ..models.request import BuildRequest
 
 # Bounded shared pool: timed-out work may keep a worker busy until the underlying
 # call returns, but we never spawn a new OS thread per request.
-try:
-    _TIMEOUT_POOL_WORKERS = max(1, int(os.getenv("LLM_TIMEOUT_POOL_WORKERS", "8")))
-except Exception:
-    _TIMEOUT_POOL_WORKERS = 8
+# Headroom covers nested call_with_timeout (research → classify/synth/vision) and
+# concurrent build requests; explicit LLM_TIMEOUT_POOL_WORKERS still wins.
+def _default_timeout_pool_workers() -> int:
+    try:
+        concurrent = max(1, int(os.getenv("BUILD_MAX_CONCURRENT_REQUESTS", "4")))
+    except Exception:
+        concurrent = 4
+    configured = os.getenv("LLM_TIMEOUT_POOL_WORKERS")
+    if configured is not None and str(configured).strip() != "":
+        try:
+            return max(1, int(configured))
+        except Exception:
+            pass
+    return max(12, 2 * concurrent + 4)
+
+
+_TIMEOUT_POOL_WORKERS = _default_timeout_pool_workers()
 
 _TIMEOUT_POOL = concurrent.futures.ThreadPoolExecutor(
     max_workers=_TIMEOUT_POOL_WORKERS,
     thread_name_prefix="llm-timeout",
 )
 _TIMEOUT_SLOTS = threading.BoundedSemaphore(_TIMEOUT_POOL_WORKERS)
+_IN_TIMEOUT_WORKER = threading.local()
 
 
 class TimeoutPoolSaturatedError(RuntimeError):
@@ -25,16 +39,25 @@ class TimeoutPoolSaturatedError(RuntimeError):
 
 
 def call_with_timeout(fn, timeout_sec: float):
-    """Bound caller waiting time; running threads are not forcibly cancelled."""
+    """Bound caller waiting time; running threads are not forcibly cancelled.
+
+    Nested calls from inside an already-guarded worker run inline (no second slot),
+    so research→classify/synth cannot saturate the pool against itself.
+    """
+    if getattr(_IN_TIMEOUT_WORKER, "active", False):
+        return fn()
+
     if not _TIMEOUT_SLOTS.acquire(blocking=False):
         raise TimeoutPoolSaturatedError(
             f"timeout worker pool saturated (max_workers={_TIMEOUT_POOL_WORKERS})"
         )
 
     def work():
+        _IN_TIMEOUT_WORKER.active = True
         try:
             return fn()
         finally:
+            _IN_TIMEOUT_WORKER.active = False
             _TIMEOUT_SLOTS.release()
 
     try:

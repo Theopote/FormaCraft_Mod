@@ -322,6 +322,9 @@ public final class MetaAssemblyEngine {
     }
 
     private List<PlannedBlock> executeOperations(AssemblySpec spec, Context ctx) {
+        // Capture FBD route before withWriteBudget fills a DEFAULT meter for plain ASSEMBLY.
+        // Otherwise forged _fbd_node keys on ordinary JSON could attach FBD provenance.
+        boolean isFbdRoute = ctx.fbdBudget != null;
         // Plain ASSEMBLY paths historically passed null budget — that allowed CLEAR_BOX / surface
         // ops to allocate unbounded PlannedBlocks. Always meter with FbdLimits.DEFAULT.
         Context exec = withWriteBudget(ctx);
@@ -330,12 +333,12 @@ public final class MetaAssemblyEngine {
         List<AssemblyCirculationConstraints.Flight> flights = new ArrayList<>();
         BlockPos curOrigin = exec.origin;
         for (Map<String, Object> op : spec.ops) {
-            if (exec.fbdBudget != null) exec.fbdBudget.operation(
+            if (isFbdRoute) exec.fbdBudget.operation(
                     (String) op.get("_fbd_node"), (String) op.get("_fbd_instance"), (String) op.get("_fbd_path"));
             int start = out.size();
             curOrigin = applyOp(out, exec, originStack, curOrigin, op);
             // Only the typed FBD execution route may attach compiler-origin provenance.
-            if (op.get("_fbd_node") instanceof String node) {
+            if (isFbdRoute && op.get("_fbd_node") instanceof String node) {
                 String component = (String) op.get("_fbd_component");
                 String path = (String) op.get("_fbd_path");
                 var source = new com.formacraft.common.build.GeometrySource(component,
