@@ -30,6 +30,8 @@ final class FloatingTowerSnapRepair {
             if (isRoofLantern(tower)) continue;
             int y = tower.relativePosition().y();
             if (y <= 0) continue;
+            // Stilts / authored floating crowns keep their elevation (design authority).
+            if (preservesAuthoredElevation(tower)) continue;
             int supportTop = supportTopY(tower, components);
             if (y <= supportTop) continue;
             int dy = supportTop - y;
@@ -68,6 +70,7 @@ final class FloatingTowerSnapRepair {
     private static int supportTopY(Component tower, List<Component> components) {
         var towerBounds = ComponentFootprintUtil.bounds(tower);
         if (towerBounds == null) return 0;
+        int towerY = tower.relativePosition().y();
         int best = 0;
         for (Component c : components) {
             if (c == null || c == tower || c.relativePosition() == null || c.dimensions() == null) continue;
@@ -75,6 +78,8 @@ final class FloatingTowerSnapRepair {
             var b = ComponentFootprintUtil.bounds(c);
             if (b == null || !xzOverlaps(towerBounds, b)) continue;
             int top = c.relativePosition().y() + Math.max(1, c.dimensions().height());
+            // Support must meet the tower from below (or flush). A roof above cannot prop it up.
+            if (top > towerY) continue;
             best = Math.max(best, top);
         }
         return best;
@@ -82,10 +87,41 @@ final class FloatingTowerSnapRepair {
 
     private static boolean isSupport(Component c) {
         String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
+        // Structural hosts only — roofs/lanterns above a tower are never load-bearing supports.
         return "WALL".equals(t) || "MASS_MAIN".equals(t) || "MAIN_MASS".equals(t)
                 || "KEEP".equals(t) || "FOUNDATION".equals(t) || "GATE".equals(t)
-                || "MASS_SECONDARY".equals(t)
-                || "ROOF".equals(t) || t.startsWith("ROOF_");
+                || "MASS_SECONDARY".equals(t) || "BASE".equals(t) || "TERRACE".equals(t);
+    }
+
+    /** Explicit stilts / floating / raised markers must not be snapped to ground. */
+    private static boolean preservesAuthoredElevation(Component c) {
+        if (c.params() != null) {
+            if (Boolean.TRUE.equals(c.params().get("stilts"))
+                    || Boolean.TRUE.equals(c.params().get("floating"))
+                    || Boolean.TRUE.equals(c.params().get("raised"))) {
+                return true;
+            }
+            Object ft = c.params().get("foundation_type");
+            if (ft == null) ft = c.params().get("foundationType");
+            if (ft != null) {
+                String v = String.valueOf(ft).trim().toLowerCase(Locale.ROOT);
+                if (v.equals("stilt") || v.equals("stilts") || v.equals("piles") || v.equals("piling")
+                        || v.equals("floating") || v.equals("raised")) {
+                    return true;
+                }
+            }
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("stilt") || lower.contains("floating") || lower.contains("raised")
+                        || lower.contains("悬空") || lower.contains("架空")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Hexagonal / oculus lanterns hosted by a dome must keep their authored apex Y. */

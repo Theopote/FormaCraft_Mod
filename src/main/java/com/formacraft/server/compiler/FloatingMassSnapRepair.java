@@ -9,10 +9,14 @@ import com.formacraft.common.llm.dto.Vec3i;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Snap floating primary masses (apartments / halls with y&gt;0 and no support) down onto
  * foundations or y=0 so buildings land instead of hovering above terrain.
+ * <p>
+ * Independent multi-building plans are snapped per mass. Intentionally stacked masses
+ * (sitting on another mass / stilts / floating markers) keep authored elevation.
  */
 final class FloatingMassSnapRepair {
     private FloatingMassSnapRepair() {}
@@ -20,9 +24,6 @@ final class FloatingMassSnapRepair {
     static LlmPlan apply(LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return plan;
         List<Component> components = new ArrayList<>(plan.components());
-        long primaryCount = components.stream().filter(FloatingMassSnapRepair::isPrimaryMass).count();
-        // Tiered compounds (palace terraces) intentionally stack masses — do not flatten them.
-        if (primaryCount != 1) return plan;
         boolean changed = false;
         for (int i = 0; i < components.size(); i++) {
             Component mass = components.get(i);
@@ -30,6 +31,7 @@ final class FloatingMassSnapRepair {
             if (!isPrimaryMass(mass)) continue;
             int y = mass.relativePosition().y();
             if (y <= 0) continue;
+            if (preservesAuthoredElevation(mass)) continue;
             int supportTop = supportTopY(mass, components);
             if (y <= supportTop) continue;
             int dy = supportTop - y;
@@ -62,6 +64,7 @@ final class FloatingMassSnapRepair {
     private static int supportTopY(Component mass, List<Component> components) {
         var massBounds = ComponentFootprintUtil.bounds(mass);
         if (massBounds == null) return 0;
+        int massY = mass.relativePosition().y();
         int best = 0;
         for (Component c : components) {
             if (c == null || c == mass || c.relativePosition() == null || c.dimensions() == null) continue;
@@ -69,6 +72,8 @@ final class FloatingMassSnapRepair {
             var b = ComponentFootprintUtil.bounds(c);
             if (b == null || !xzOverlaps(massBounds, b)) continue;
             int top = c.relativePosition().y() + Math.max(1, c.dimensions().height());
+            // Only surfaces that meet the mass from below (or flush) count as support.
+            if (top > massY) continue;
             best = Math.max(best, top);
         }
         return best;
@@ -77,7 +82,8 @@ final class FloatingMassSnapRepair {
     private static boolean isSupport(Component c) {
         String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
         if ("FOUNDATION".equals(t) || "TERRACE".equals(t) || "BASE".equals(t)
-                || "KEEP".equals(t) || "WALL".equals(t)) {
+                || "KEEP".equals(t) || "WALL".equals(t)
+                || "MASS_MAIN".equals(t) || "MAIN_MASS".equals(t) || "MASS_SECONDARY".equals(t)) {
             return true;
         }
         // Authored pier posts / trunks under a raised deck (stilts, treehouses, water platforms).
@@ -91,6 +97,36 @@ final class FloatingMassSnapRepair {
                     || id.contains("stilt") || id.contains("piling") || id.contains("_pile")
                     || id.contains("trunk") || id.contains("stem") || id.contains("column")) {
                 return true;
+            }
+        }
+        return false;
+    }
+
+    /** Stilts / floating / raised markers keep authored Y (design authority). */
+    private static boolean preservesAuthoredElevation(Component c) {
+        if (c.params() != null) {
+            if (Boolean.TRUE.equals(c.params().get("stilts"))
+                    || Boolean.TRUE.equals(c.params().get("floating"))
+                    || Boolean.TRUE.equals(c.params().get("raised"))) {
+                return true;
+            }
+            Object ft = c.params().get("foundation_type");
+            if (ft == null) ft = c.params().get("foundationType");
+            if (ft != null) {
+                String v = String.valueOf(ft).trim().toLowerCase(Locale.ROOT);
+                if (Set.of("stilt", "stilts", "piles", "piling", "floating", "raised").contains(v)) {
+                    return true;
+                }
+            }
+        }
+        if (c.features() != null) {
+            for (String f : c.features()) {
+                if (f == null) continue;
+                String lower = f.toLowerCase(Locale.ROOT);
+                if (lower.contains("stilt") || lower.contains("floating") || lower.contains("raised")
+                        || lower.contains("悬空") || lower.contains("架空")) {
+                    return true;
+                }
             }
         }
         return false;

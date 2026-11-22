@@ -34,9 +34,32 @@ class TerrainLogContract(unittest.TestCase):
             with self.subTest(index=index):
                 raw=json.loads((ROOT/f'case_{index}_raw.json').read_text(encoding='utf-8'))
                 plan=apply_building_contract(raw,prompt)
-                self.assertEqual([],plan['proportion_hints']['building_contract']['diagnostics'])
+                diags=plan['proportion_hints']['building_contract']['diagnostics']
+                if index == 5:
+                    # Closed-top MASS_MAIN: height 4 with clear-height 3 is only 2 clear cells
+                    # (floor + ceiling consume the ends). Keep the geometric diagnosis.
+                    codes=[d['code'] for d in diags]
+                    self.assertEqual(['E_NET_HEIGHT_CONFLICT', 'E_NET_HEIGHT_CONFLICT'], codes)
+                    for d in diags:
+                        self.assertEqual(3, d['requested_clear_height'])
+                        self.assertEqual(4, d['body_height'])
+                        self.assertEqual(5, d['required_body_height'])
+                    continue
+                self.assertEqual([],diags)
                 self.assertFalse(plan.get('capability_gap'))
                 self.assertEqual(plan['components'],apply_building_contract(plan,prompt)['components'])
+
+    def test_case_5_body_height_five_satisfies_clear_height_three(self):
+        prompts=json.loads((ROOT/'prompts.json').read_text(encoding='utf-8'))
+        prompt=prompts[4]
+        raw=json.loads((ROOT/'case_5_raw.json').read_text(encoding='utf-8'))
+        for component in raw['components']:
+            if component.get('component_type') == 'MASS_MAIN':
+                component['dimensions']['height'] = 5
+        plan=apply_building_contract(raw,prompt)
+        self.assertEqual([],plan['proportion_hints']['building_contract']['diagnostics'])
+        self.assertFalse(plan.get('capability_gap'))
+        self.assertEqual(plan['components'],apply_building_contract(plan,prompt)['components'])
 
     def test_left_gable_right_flat_are_independent_requirements(self):
         requirements=extract_requirements('左栋使用云杉木双坡屋顶，右栋使用白色混凝土墙和平屋顶。')

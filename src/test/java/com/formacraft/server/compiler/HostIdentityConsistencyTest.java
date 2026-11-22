@@ -348,6 +348,90 @@ class HostIdentityConsistencyTest {
     }
 
     @Test
+    void floatingTowerDoesNotTreatOwnRoofAsSupport() {
+        var tower = new Component("TOWER", "keep", new Vec3i(0, 10, 0),
+                new Dimensions(6, 6, 12), List.of(),
+                Map.of("component_id", "curtain_tower"));
+        var roof = new Component("ROOF", "keep", new Vec3i(0, 22, 0),
+                new Dimensions(8, 8, 3), List.of(),
+                Map.of("component_id", "tower_roof", "host_id", "curtain_tower"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(tower, roof)).build();
+        var repaired = FloatingTowerSnapRepair.apply(plan);
+        assertEquals(0, yOf(repaired, "curtain_tower"),
+                "roof above the tower must not count as a supporting surface");
+        assertEquals(12, yOf(repaired, "tower_roof"),
+                "hosted roof must follow the tower snap");
+    }
+
+    @Test
+    void floatingTowerPreservesExplicitStiltsElevation() {
+        var tower = new Component("TOWER", "site", new Vec3i(0, 10, 0),
+                new Dimensions(5, 5, 10), List.of("stilts"),
+                Map.of("component_id", "raised_tower", "stilts", Boolean.TRUE));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(tower)).build();
+        var repaired = FloatingTowerSnapRepair.apply(plan);
+        assertEquals(10, yOf(repaired, "raised_tower"));
+    }
+
+    @Test
+    void twoIndependentFloatingMassesBothSnapDown() {
+        var left = new Component("MASS_MAIN", "site", new Vec3i(0, 8, 0),
+                new Dimensions(10, 10, 6), List.of(),
+                Map.of("component_id", "house_left", "building_id", "house_left"));
+        var right = new Component("MASS_MAIN", "site", new Vec3i(20, 8, 0),
+                new Dimensions(10, 10, 6), List.of(),
+                Map.of("component_id", "house_right", "building_id", "house_right"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(left, right)).build();
+        var repaired = FloatingMassSnapRepair.apply(plan);
+        assertEquals(0, yOf(repaired, "house_left"));
+        assertEquals(0, yOf(repaired, "house_right"));
+    }
+
+    @Test
+    void stackedPrimaryMassSittingOnSiblingIsNotFlattened() {
+        var base = new Component("MASS_MAIN", "site", new Vec3i(0, 0, 0),
+                new Dimensions(16, 16, 8), List.of(),
+                Map.of("component_id", "podium", "building_id", "palace"));
+        var upper = new Component("MASS_MAIN", "site", new Vec3i(2, 8, 2),
+                new Dimensions(12, 12, 8), List.of(),
+                Map.of("component_id", "hall", "building_id", "palace", "host_id", "podium"));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(base, upper)).build();
+        var repaired = FloatingMassSnapRepair.apply(plan);
+        assertEquals(0, yOf(repaired, "podium"));
+        assertEquals(8, yOf(repaired, "hall"),
+                "upper mass resting on a lower mass must keep authored elevation");
+    }
+
+    @Test
+    void ambiguousSameSlotFoundationIsNotAlignedToFirstMass() {
+        // Two MASS_MAIN share the slot; hostless foundation must not bind to the first mass.
+        var left = new Component("MASS_MAIN", "site", new Vec3i(0, 0, 0),
+                new Dimensions(11, 11, 6), List.of(),
+                Map.of("component_id", "house_left", "building_id", "house_left"));
+        var right = new Component("MASS_MAIN", "site", new Vec3i(30, 0, 0),
+                new Dimensions(11, 11, 6), List.of(),
+                Map.of("component_id", "house_right", "building_id", "house_right"));
+        var foundationPos = new Vec3i(20, -1, 5);
+        var foundation = new Component("FOUNDATION", "site", foundationPos,
+                new Dimensions(1, 1, 1), List.of(),
+                Map.of("component_id", "mystery_foundation"));
+        var components = new java.util.ArrayList<>(List.of(left, right, foundation));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.copyOf(components)).build();
+        ComponentSatelliteAligner.realignSatellitesToMass(components, plan, Map.of(), Set.of());
+        var fixed = components.stream()
+                .filter(c -> "mystery_foundation".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(foundationPos, fixed.relativePosition(),
+                "ambiguous foundation must keep authored placement");
+        assertNull(fixed.params().get("host_id"));
+    }
+
+    @Test
     void multipleCrownsWithoutHostIdKeepDistinctPositions() {
         var mass = new Component("MASS_MAIN", "m", new Vec3i(0, 0, 0),
                 new Dimensions(16, 16, 14), List.of(),

@@ -86,6 +86,12 @@ Straight stairs, interior stair inference and structure accessory repair infer a
 
 `HostAttachmentTree` tracks descendants by component index so `host_id` attachments without `component_id` still follow floating mass/tower Y snaps once (GEOMETRY).
 
+Floating tower/mass snap only accepts support surfaces whose top is at or below the target base (GEOMETRY). Roofs and other volumes above the target never count as support. Explicit stilts/floating/raised markers preserve authored elevation (HARD_CONSTRAINT). Independent multi-`MASS_MAIN` plans snap per building; a mass sitting on another mass keeps its authored stack height.
+
+`ComponentSatelliteAligner` binds hostless foundations/bases only when the slot has exactly one `MASS_MAIN` (GEOMETRY). Multiple primary masses without `host_id` leave the authored foundation in place instead of preferring the first mass in the slot. Facades/roofs may still use a uniquely nearest same-slot mass.
+
+Closed-top `MASS_MAIN` clear-height checks require body height covering floor + clear cells + ceiling band (`count * max(floor_height, clear+1) + 1`) (HARD_CONSTRAINT). Under-height terrain-log samples keep `E_NET_HEIGHT_CONFLICT` instead of silent growth.
+
 BuildingProfile carries optional, bounded geometry evidence for Stage P (NONBINDING_HINT). Research synthesis records the actual snippet sources and applies the evidence limit after validation and deduplication (HARD_CONSTRAINT). The planning model chooses form, dimensions and executable operators from the request and evidence.
 
 When both research and massing stages are enabled, source-backed geometry observations are also available to the preliminary massing call (NONBINDING_HINT). The final planner can revise the draft to satisfy the user and the geometry contract.

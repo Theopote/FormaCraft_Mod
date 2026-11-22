@@ -137,24 +137,36 @@ final class ComponentSatelliteAligner {
             if (mass == null) {
                 continue;
             }
-            // Several unassigned masses share __global__. Attach to the nearest body,
-            // rather than moving every facade and roof onto the first building.
+            // Several unassigned masses share a slot. Prefer a uniquely nearest body for
+            // facades/roofs. Foundations/bases without host_id require exactly one MASS_MAIN
+            // in the slot — never the first of many.
             if (hostId == null && c.relativePosition() != null) {
-                double nearest = Double.POSITIVE_INFINITY;
-                for (Component candidate : components) {
-                    if (!"MASS_MAIN".equals(ComponentPlanTypes.normalizeType(candidate.componentType()))
-                            || !ComponentPlanTypes.slotKey(candidate).equals(slotKey)) continue;
-                    Vec3i origin = ComponentPlanCompiler.resolveMassOrigin(candidate);
-                    if (origin == null || candidate.dimensions() == null) continue;
-                    double cx = origin.x() + (candidate.dimensions().width() - 1) / 2.0;
-                    double cz = origin.z() + (candidate.dimensions().depth() - 1) / 2.0;
-                    double x = c.relativePosition().x(), z = c.relativePosition().z();
-                    if (ComponentFootprintUtil.isCornerAnchor(c.params()) && c.dimensions() != null) {
-                        x += (c.dimensions().width() - 1) / 2.0;
-                        z += (c.dimensions().depth() - 1) / 2.0;
+                if ("FOUNDATION".equals(type) || "BASE".equals(type)) {
+                    Component onlyMain = soleMassMainInSlot(components, slotKey);
+                    if (onlyMain == null) {
+                        continue;
                     }
-                    double distance = (cx-x)*(cx-x) + (cz-z)*(cz-z);
-                    if (distance < nearest) { nearest = distance; mass = candidate; }
+                    mass = onlyMain;
+                } else {
+                    Component nearest = uniqueNearestMassHost(c, components, slotKey);
+                    if (nearest != null) {
+                        mass = nearest;
+                    } else {
+                        int hosts = 0;
+                        Component only = null;
+                        for (Component candidate : components) {
+                            if (!isSatelliteHostMass(candidate)
+                                    || !ComponentPlanTypes.slotKey(candidate).equals(slotKey)
+                                    || com.formacraft.common.generation.component.util.MassComponentKinds.isPlate(candidate)) {
+                                continue;
+                            }
+                            hosts++;
+                            only = candidate;
+                            if (hosts > 1) break;
+                        }
+                        if (hosts == 1) mass = only;
+                        else continue;
+                    }
                 }
             }
 
@@ -209,6 +221,52 @@ final class ComponentSatelliteAligner {
         if (realigned > 0) {
             FormacraftMod.LOGGER.info("ComponentPlanCompiler: realigned {} satellite component(s) to MASS min_corner", realigned);
         }
+    }
+
+    /** Exactly one MASS_MAIN in the slot, otherwise null. */
+    private static Component soleMassMainInSlot(List<Component> components, String slotKey) {
+        Component only = null;
+        for (Component candidate : components) {
+            if (candidate == null) continue;
+            if (!"MASS_MAIN".equals(ComponentPlanTypes.normalizeType(candidate.componentType()))) continue;
+            if (!ComponentPlanTypes.slotKey(candidate).equals(slotKey)) continue;
+            if (only != null) return null;
+            only = candidate;
+        }
+        return only;
+    }
+
+    /**
+     * Nearest MASS_MAIN in the same slot, only when the distance is unique.
+     * Ties / no candidates → null (caller must not guess the first mass).
+     */
+    private static Component uniqueNearestMassHost(Component satellite, List<Component> components, String slotKey) {
+        if (satellite == null || satellite.relativePosition() == null || components == null) return null;
+        Component best = null;
+        double nearest = Double.POSITIVE_INFINITY;
+        boolean tie = false;
+        for (Component candidate : components) {
+            if (!"MASS_MAIN".equals(ComponentPlanTypes.normalizeType(candidate.componentType()))
+                    || !ComponentPlanTypes.slotKey(candidate).equals(slotKey)) continue;
+            Vec3i origin = ComponentPlanCompiler.resolveMassOrigin(candidate);
+            if (origin == null || candidate.dimensions() == null) continue;
+            double cx = origin.x() + (candidate.dimensions().width() - 1) / 2.0;
+            double cz = origin.z() + (candidate.dimensions().depth() - 1) / 2.0;
+            double x = satellite.relativePosition().x(), z = satellite.relativePosition().z();
+            if (ComponentFootprintUtil.isCornerAnchor(satellite.params()) && satellite.dimensions() != null) {
+                x += (satellite.dimensions().width() - 1) / 2.0;
+                z += (satellite.dimensions().depth() - 1) / 2.0;
+            }
+            double distance = (cx - x) * (cx - x) + (cz - z) * (cz - z);
+            if (distance < nearest - 1e-9) {
+                nearest = distance;
+                best = candidate;
+                tie = false;
+            } else if (Math.abs(distance - nearest) <= 1e-9) {
+                tie = true;
+            }
+        }
+        return tie ? null : best;
     }
 
     /** Hosts that may own roofs / doors / foundations — includes GATE and MASS_ANCILLARY. */
@@ -1222,7 +1280,7 @@ final class ComponentSatelliteAligner {
 
     /**
      * Independent decks/plazas need an authored host — shared slot is not ownership.
-     * FOUNDATION/BASE still align to a carrying mass for geometry without requiring host_id.
+     * FOUNDATION/BASE may still align without host_id only when the slot has exactly one MASS_MAIN.
      */
     private static boolean isAuthoredHostOnlyDeck(String type) {
         return "TERRACE".equals(type) || "PAVING".equals(type);
