@@ -1,5 +1,7 @@
 # Design decision inventory
 
+When Assembly diagnostics identify only raw Bézier, revolve or loft op parameters, repair candidates may edit those ops in place (HARD_CONSTRAINT). Other operations and component geometry must match the prior plan. An out-of-scope candidate retains the original diagnostics.
+
 Ordinary LlmPlan exposes the existing BEZIER_SURFACE input contract and shared-edge guidance (NONBINDING_HINT). Raw Assembly ops validate the control grid and sampling parameters without rewriting them (HARD_CONSTRAINT). Patch placement, curvature and material remain model-authored.
 
 Ordinary LlmPlan exposes the existing REVOLVE_SURFACE Assembly geometry contract (NONBINDING_HINT). Python validates authored radial profiles and sampling parameters in raw Assembly ops (HARD_CONSTRAINT). Profiles, materials, placement and tier composition stay model-authored.

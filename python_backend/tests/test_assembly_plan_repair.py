@@ -70,6 +70,10 @@ class AssemblyPlanRepairTest(unittest.TestCase):
             "dimensions": {"width": 24, "depth": 14, "height": 5}, "features": [],
             "params": {"kind": "trapezoid", "end_width": 16, "material": "minecraft:smooth_quartz"},
         })
+        plan["components"][0]["params"]["assembly"]["ops"].append({
+            "op": "REVOLVE_SURFACE", "profilePoints": [{"x": 4, "y": 1}, {"x": 2, "y": 3}],
+            "material": "minecraft:prismarine",
+        })
         corrected = deepcopy(plan)
         corrected["components"][0]["params"]["assembly"]["ops"][0]["sections"][1]["profilePoints"].pop(1)
         dropped = deepcopy(plan)
@@ -77,10 +81,13 @@ class AssemblyPlanRepairTest(unittest.TestCase):
         dropped["components"][0]["params"] = {}
         changed_volume = deepcopy(corrected)
         changed_volume["components"][1]["params"]["end_width"] = 12
+        changed_surface = deepcopy(corrected)
+        changed_surface["components"][0]["params"]["assembly"]["ops"][1]["profilePoints"][0]["x"] = 5
         moved_plan = {**corrected, "anchor": {"x": 0, "y": 80, "z": 0}}
         changed_palette = {**corrected, "style_attributes": {"wall_material": "minecraft:bricks"}}
         for case, candidate in (("corrected", corrected), ("unchanged", plan),
                                 ("dropped", dropped), ("changed_volume", changed_volume),
+                                ("changed_surface", changed_surface),
                                 ("moved_plan", moved_plan), ("changed_palette", changed_palette)):
             with self.subTest(case=case), patch(
                 "app.services.assembly_plan_repair.ASSEMBLY_REPAIR_MAX_RETRIES", 1
@@ -99,6 +106,7 @@ class AssemblyPlanRepairTest(unittest.TestCase):
                 self.assertEqual(request, messages[0]["content"])
                 self.assertIn("ops[0].sections[1].profilePoints", messages[-1]["content"])
                 self.assertIn("Expected 2 profile points, got 3", messages[-1]["content"])
+                self.assertIn("Preserve all other operations", messages[-1]["content"])
                 if case == "corrected":
                     self.assertEqual(corrected["components"], result["components"])
                     self.assertNotEqual("capability_gap", result.get("plan_status"))

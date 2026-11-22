@@ -6,6 +6,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
 from ..models.llm_plan import LlmPlanValidationError, validate_llm_plan_dict
@@ -109,6 +111,28 @@ def finalize_assembly_plan_or_gap(
     return out
 
 
+def _surface_repair_scope(plan: Dict[str, Any], issues: List[AssemblyPlanIssue]) -> set[tuple[int, int]]:
+    scope = set()
+    for issue in issues:
+        match = re.fullmatch(r"components\[(\d+)\]\.params\.assembly\.ops\[(\d+)\]\..+", issue.path)
+        if not match:
+            return set()
+        component_index, op_index = map(int, match.groups())
+        op = plan["components"][component_index]["params"]["assembly"]["ops"][op_index]
+        if str(op.get("op", "")).upper() not in {"BEZIER_SURFACE", "REVOLVE_SURFACE", "LOFT_SURFACE"}:
+            return set()
+        scope.add((component_index, op_index))
+    return scope
+
+
+def _components_with_surface_repairs_masked(plan, scope):
+    components = deepcopy(plan["components"])
+    for component_index, op_index in scope:
+        ops = components[component_index]["params"]["assembly"]["ops"]
+        ops[op_index] = {"op": ops[op_index]["op"]}
+    return components
+
+
 def normalize_and_validate_assembly_plan(
     plan: Dict[str, Any],
     user_text: Optional[str],
@@ -142,6 +166,9 @@ def repair_assembly_plan_with_llm(
     from .ai_planner import call_chat_with_llm_plan_response_formats
 
     repair_user = format_repair_prompt(plan, issues)
+    surface_scope = _surface_repair_scope(plan, issues)
+    if surface_scope:
+        repair_user += "\nOnly edit the surface operations at the listed paths. Preserve all other operations, positions and components."
     repair_messages = list(messages)
     repair_messages.append({"role": "assistant", "content": json.dumps(plan, ensure_ascii=False)})
     repair_messages.append({"role": "user", "content": repair_user})
@@ -167,6 +194,13 @@ def repair_assembly_plan_with_llm(
     user_text = getattr(req, "userMessage", None) if req is not None else None
     normalized, _ = normalize_and_validate_assembly_plan(normalized, user_text)
     if str(normalized.get("plan_status") or "").strip().lower() != "capability_gap":
+        if surface_scope:
+            try:
+                repaired_components = _components_with_surface_repairs_masked(normalized, surface_scope)
+            except (IndexError, KeyError, TypeError) as exc:
+                raise ValueError("Assembly repair removed a surface operation or changed its position") from exc
+            if repaired_components != _components_with_surface_repairs_masked(plan, surface_scope):
+                raise ValueError("Assembly repair changed components outside the diagnosed surface operations")
         if _plan_has_assembly_component(plan) and not _plan_has_assembly_component(normalized):
             raise ValueError("Assembly repair removed all Assembly components")
         if _components_outside_assembly_repair(normalized) != _components_outside_assembly_repair(plan):
