@@ -25,7 +25,13 @@ public final class ClientComponentThumbnails {
         }
     }
     public static void register() {
-        ClientPlayConnectionEvents.DISCONNECT.register((handler,client) -> { QUEUE.clear(); STATE.clear(); ComponentThumbnailCache.clearAllCache(); });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            QUEUE.clear();
+            STATE.clear();
+            ComponentThumbnailCache.clearAllCache();
+            // GPU textures live in ImageRenderer, not the BufferedImage cache — clear on render thread.
+            client.execute(com.formacraft.client.ui.render.ImageRenderer::clear);
+        });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (STATE.expire()) { sendCancel(); ComponentThumbnailCache.remoteFailed(STATE.assetId()); STATE.clear(); }
             if (STATE.busy() || ClientComponentLibraryOperations.STATE.busy() || client.getNetworkHandler() == null || QUEUE.isEmpty()) return;

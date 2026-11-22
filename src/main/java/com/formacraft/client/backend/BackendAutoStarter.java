@@ -31,6 +31,8 @@ public final class BackendAutoStarter {
     private static volatile String lastError = null;
     private static volatile long lastAttemptMs = 0L;
     private static final long MIN_ATTEMPT_INTERVAL_MS = 10_000L;
+    /** Rotate autostart/orchestrator logs once they exceed this size (between 5–10MB). */
+    private static final long MAX_LOG_BYTES = 8L * 1024L * 1024L;
 
     /**
      * 注意：默认 HttpClient 可能尝试 h2c upgrade（HTTP/2 over cleartext），
@@ -42,12 +44,33 @@ public final class BackendAutoStarter {
             .connectTimeout(Duration.ofSeconds(1))
             .build();
 
+    /** If {@code logFile} is larger than {@link #MAX_LOG_BYTES}, rename to {@code .old} (or truncate). */
+    static void rotateLogIfNeeded(File logFile) {
+        if (logFile == null) return;
+        try {
+            if (!logFile.isFile() || logFile.length() < MAX_LOG_BYTES) return;
+            File parent = logFile.getParentFile();
+            File rotated = new File(parent != null ? parent : new File("."), logFile.getName() + ".old");
+            if (rotated.exists() && !rotated.delete()) {
+                FormacraftMod.LOGGER.debug("[BackendAutoStarter] could not delete previous {}", rotated.getName());
+            }
+            if (!logFile.renameTo(rotated)) {
+                try (java.io.FileWriter truncate = new java.io.FileWriter(logFile, false)) {
+                    truncate.write("");
+                }
+            }
+        } catch (Exception ex) {
+            FormacraftMod.LOGGER.debug("[BackendAutoStarter] log rotate failed for {}", logFile, ex);
+        }
+    }
+
     private static void log(String msg) {
         FormacraftMod.LOGGER.info("[BackendAutoStarter] {}", msg);
         try {
             File logsDir = new File("logs");
             logsDir.mkdirs();
             File logFile = new File(logsDir, "formacraft_backend_autostart.log");
+            rotateLogIfNeeded(logFile);
             try (java.io.FileWriter fw = new java.io.FileWriter(logFile, true)) {
                 fw.write("[FormaCraft][BackendAutoStarter] " + msg + System.lineSeparator());
             }
@@ -75,6 +98,7 @@ public final class BackendAutoStarter {
             File logsDir = new File("logs");
             logsDir.mkdirs();
             File logFile = new File(logsDir, "formacraft_backend_autostart.log");
+            rotateLogIfNeeded(logFile);
             try (java.io.FileWriter fw = new java.io.FileWriter(logFile, true)) {
                 fw.write("[FormaCraft][BackendAutoStarter] " + msg);
                 if (t != null) {
@@ -387,6 +411,7 @@ public final class BackendAutoStarter {
             File logsDir = new File("logs");
             logsDir.mkdirs();
             File logFile = new File(logsDir, "formacraft_orchestrator.log");
+            rotateLogIfNeeded(logFile);
 
             // 构建 Python 候选列表（优先级：配置 > 虚拟环境 > 系统 Python）
             List<String> pythonCandidates = new ArrayList<>();

@@ -3,7 +3,6 @@ package com.formacraft.common.llm.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -83,15 +82,14 @@ public record StyleAttributes(
 
     private String firstFromMaps(String role) {
         String key = role.trim().toLowerCase();
-        for (Map<String, String> map : Arrays.asList(palette, materials, blockPalette, customAttributes)) {
-            if (map == null) continue;
-            for (Map.Entry<String, String> e : map.entrySet()) {
-                if (e.getKey() == null || e.getValue() == null || e.getValue().isBlank()) continue;
-                if (e.getKey().equalsIgnoreCase(key) || e.getKey().toLowerCase().contains(key)) {
-                    return e.getValue().trim();
-                }
-            }
-        }
+        String fromMap = firstInMap(palette, key);
+        if (fromMap != null) return fromMap;
+        fromMap = firstInMap(materials, key);
+        if (fromMap != null) return fromMap;
+        fromMap = firstInMap(blockPalette, key);
+        if (fromMap != null) return fromMap;
+        fromMap = firstInMap(customAttributes, key);
+        if (fromMap != null) return fromMap;
         if ("wall".equals(key)) {
             if (primaryMaterial != null && !primaryMaterial.isBlank()) return primaryMaterial.trim();
             if (wallMaterial != null && !wallMaterial.isBlank()) return wallMaterial.trim();
@@ -101,6 +99,17 @@ public record StyleAttributes(
         }
         if ("floor".equals(key) && floorMaterial != null && !floorMaterial.isBlank()) {
             return floorMaterial.trim();
+        }
+        return null;
+    }
+
+    private static String firstInMap(Map<String, String> map, String key) {
+        if (map == null || key == null) return null;
+        for (Map.Entry<String, String> e : map.entrySet()) {
+            if (e.getKey() == null || e.getValue() == null || e.getValue().isBlank()) continue;
+            if (e.getKey().equalsIgnoreCase(key) || e.getKey().toLowerCase().contains(key)) {
+                return e.getValue().trim();
+            }
         }
         return null;
     }
