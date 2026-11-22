@@ -98,6 +98,10 @@ Closed-top `MASS_MAIN` clear-height checks require body height covering floor + 
 
 `FinalGeometryAcceptanceTest` measures interior clear cells from compiled `BlockPatch` voxels (GEOMETRY), not only the JSON height formula. It also checks floating multi-mass landing, roof-as-non-support through the compiler path, `roof_type=none` envelope bounds, and hostless multi-mass foundation placement preservation.
 
+`StackedTowerGeometryFixtureReportTest` exercises live_acceptance fixtures for observable morphology (GEOMETRY): multi-host pavilion gardens keep separated footprints and roof solids at/above open-pavilion tops; huizhou/arched houses keep openings and mid-band solids. Dense-eaves `STRUCTURE` pagodas that need `ServerWorld` report UNCOVERED instead of pretending BlockPatch success. Preview confirm identity covers `ConfirmedPlanIdentity` patchHash/planId stability and `PreviewStorage` digest order-independence on collapsed cells — not live `BuildPreviewPipeline.prepare()` / world apply.
+
+`StackedTowerGeometryFixtureReportTest` exercises live_acceptance fixtures for observable morphology (GEOMETRY): multi-host pavilion gardens keep separated footprints and roof solids at/above open-pavilion tops; huizhou/arched houses keep openings and mid-band solids. Dense-eaves `STRUCTURE` pagodas that need `ServerWorld` report UNCOVERED instead of pretending BlockPatch success. Preview confirm identity covers `ConfirmedPlanIdentity` patchHash/planId stability and `PreviewStorage` digest order-independence on collapsed cells — not live `BuildPreviewPipeline.prepare()` / world apply.
+
 BuildingProfile carries optional, bounded geometry evidence for Stage P (NONBINDING_HINT). Research synthesis records the actual snippet sources and applies the evidence limit after validation and deduplication (HARD_CONSTRAINT). The planning model chooses form, dimensions and executable operators from the request and evidence.
 
 When both research and massing stages are enabled, source-backed geometry observations are also available to the preliminary massing call (NONBINDING_HINT). The final planner can revise the draft to satisfy the user and the geometry contract.

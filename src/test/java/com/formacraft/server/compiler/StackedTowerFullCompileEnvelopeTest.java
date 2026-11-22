@@ -428,6 +428,27 @@ class StackedTowerFullCompileEnvelopeTest {
                 "preview pipeline solid cell coords must match compile final");
         assertEquals(compileCells, previewCells,
                 "preview pipeline BlockPos→blockId must match compile final (not coords alone)");
+
+        // Confirmed-plan identity: final-set patch hash / planId are stable for the same cells.
+        String patchHash = ConfirmedPlanIdentity.patchHash(compileFinal);
+        assertEquals(patchHash, ConfirmedPlanIdentity.patchHash(
+                        ConfirmedPlanIdentity.toFinalPatches(compiled)),
+                "toFinalPatches must be idempotent for plan identity");
+        String planId = ConfirmedPlanIdentity.planId("stacked-tower-preview-40", compileFinal);
+        assertEquals(planId, ConfirmedPlanIdentity.planId("stacked-tower-preview-40", compileFinal));
+        assertNotEquals(planId, ConfirmedPlanIdentity.planId("other-context", compileFinal),
+                "planId must bind contextHash");
+
+        // PreviewStorage digest of collapsed cells is order-stable (confirm enqueue fingerprint).
+        var structureA = new com.formacraft.common.build.GeneratedStructure(
+                java.util.UUID.randomUUID(), origin, "tower", collapsed);
+        var reversed = new java.util.ArrayList<>(collapsed);
+        java.util.Collections.reverse(reversed);
+        var structureB = new com.formacraft.common.build.GeneratedStructure(
+                java.util.UUID.randomUUID(), origin, "tower", reversed);
+        assertEquals(com.formacraft.server.preview.PreviewStorage.digestStructure(structureA),
+                com.formacraft.server.preview.PreviewStorage.digestStructure(structureB),
+                "confirm digest must ignore PlannedBlock list order");
     }
 
     private static boolean hasRoofComponent(List<Component> comps) {
