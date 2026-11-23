@@ -5,9 +5,7 @@ import com.formacraft.client.ui.UiTheme;
 import com.formacraft.client.ui.panel.ComponentCapturePanel;
 import com.formacraft.client.ui.panel.CapturePhase;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
-import java.util.List;
 
 public final class ComponentCaptureLayoutRenderer {
     private ComponentCaptureLayoutRenderer() {}
@@ -41,7 +39,7 @@ public final class ComponentCaptureLayoutRenderer {
         // 标题
         y = drawWrappedText(p, ctx, Text.translatable("formacraft.capture.title"), x, y, w, 0xFFFFFFFF);
         y += 4;
-        y = p.typeSection.draw(ctx, p.client(), textDrawer, p.getScaledMouseX(), p.getScaledMouseY(), x, y, w, p.getContentY(), scrollBottom);
+        y = p.typeSection.draw(ctx, p.client(), textDrawer, p.scaledMouseX(), p.scaledMouseY(), x, y, w, p.getContentY(), scrollBottom);
         var captureState = ComponentTool.INSTANCE.getState();
         if (!com.formacraft.client.tool.ComponentCaptureTypes.ready(captureState) || captureState.isCaptureSavePending()) {
             y = drawWrappedText(p, ctx, Text.literal(captureState.isCaptureSavePending()
@@ -75,8 +73,8 @@ public final class ComponentCaptureLayoutRenderer {
                 p.thumbnailService,
                 p.healthCoordinator,
                 textDrawer,
-                p.getScaledMouseX(),
-                p.getScaledMouseY(),
+                p.scaledMouseX(),
+                p.scaledMouseY(),
                 phase1Collapsed,
                 p.currentPhase == CapturePhase.SELECTION,
                 isPhaseComplete(p, CapturePhase.SELECTION),
@@ -102,8 +100,8 @@ public final class ComponentCaptureLayoutRenderer {
                 p.thumbnailService,
                 p.healthCoordinator,
                 textDrawer,
-                p.getScaledMouseX(),
-                p.getScaledMouseY(),
+                p.scaledMouseX(),
+                p.scaledMouseY(),
                 phase2Collapsed,
                 p.currentPhase == CapturePhase.ANCHOR_ORIENTATION,
                 isPhaseComplete(p, CapturePhase.ANCHOR_ORIENTATION),
@@ -133,8 +131,8 @@ public final class ComponentCaptureLayoutRenderer {
                 textDrawer,
                 p.nameInput,
                 p.tagsInput,
-                p.getScaledMouseX(),
-                p.getScaledMouseY(),
+                p.scaledMouseX(),
+                p.scaledMouseY(),
                 phase3Collapsed,
                 p.currentPhase == CapturePhase.SEMANTIC,
                 isPhaseComplete(p, CapturePhase.SEMANTIC),
@@ -161,7 +159,7 @@ public final class ComponentCaptureLayoutRenderer {
         );
 
         if (!phase3Collapsed) {
-            y = p.adaptationSection.draw(ctx, p.client(), p.getScaledMouseX(), p.getScaledMouseY(),
+            y = p.adaptationSection.draw(ctx, p.client(), p.scaledMouseX(), p.scaledMouseY(),
                     x, y, w, p.getContentY(), scrollBottom);
         }
 
@@ -174,8 +172,8 @@ public final class ComponentCaptureLayoutRenderer {
                 p.selectionController,
                 textDrawer,
                 p.socketIdInput,
-                p.getScaledMouseX(),
-                p.getScaledMouseY(),
+                p.scaledMouseX(),
+                p.scaledMouseY(),
                 phase4Collapsed,
                 p.currentPhase == CapturePhase.AI_GUARANTEE,
                 isPhaseComplete(p, CapturePhase.AI_GUARANTEE),
@@ -203,8 +201,8 @@ public final class ComponentCaptureLayoutRenderer {
                     x,
                     y,
                     w,
-                    p.getScaledMouseX(),
-                    p.getScaledMouseY(),
+                    p.scaledMouseX(),
+                    p.scaledMouseY(),
                     p.autoFixButton,
                     p.undoAutoFixButton
             );
@@ -247,7 +245,7 @@ public final class ComponentCaptureLayoutRenderer {
         var st = ComponentTool.INSTANCE.getState();
         p.cancelButton.setMessage(Text.literal(st.isCaptureSavePending() ? "取消保存" : "重置"));
         p.cancelButton.active = !st.isCaptureSavePending() || com.formacraft.client.component.ClientComponentImport.canCancelCapture();
-        p.cancelButton.render(ctx, p.getScaledMouseX(), p.getScaledMouseY(), 0f);
+        p.cancelButton.render(ctx, p.scaledMouseX(), p.scaledMouseY(), 0f);
 
         if (st.isCaptureSavePending() || !com.formacraft.client.tool.ComponentCaptureTypes.ready(st)) {
             p.saveButton.active = false;
@@ -260,7 +258,7 @@ public final class ComponentCaptureLayoutRenderer {
         p.saveButton.setPosition(x + half + 4, footerTop + 4);
         p.saveButton.setWidth(w - half - 4);
         p.saveButton.visible = true;
-        p.saveButton.render(ctx, p.getScaledMouseX(), p.getScaledMouseY(), 0f);
+        p.saveButton.render(ctx, p.scaledMouseX(), p.scaledMouseY(), 0f);
     }
 
     public static void autoCollapseNonActivePhases(ComponentCapturePanel p) {

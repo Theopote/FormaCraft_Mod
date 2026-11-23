@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.util.*;
 
 /** Embedded, clipped community browser. Networking stays in the tick-driven task client. */
-final class CommunityLibraryPane {
+public final class CommunityLibraryPane {
     private final MinecraftClient client = MinecraftClient.getInstance();
     private final CommunityBrowserModel model = new CommunityBrowserModel();
     private final HudTextInput custom = new HudTextInput(), tags = new HudTextInput();
@@ -28,33 +28,33 @@ final class CommunityLibraryPane {
     private Object renderedPage;
     private List<CommunityBrowserModel.Row> rows = List.of();
     private boolean hasNext;
-    private record InputBounds(HudTextInput input,int x,int y,int w) {}
+    public record InputBounds(HudTextInput input,int x,int y,int w) {}
     private interface Action { void run() throws IOException; }
     CommunityLibraryPane() { custom.setMaxLength(64); tags.setMaxLength(1024); recipeName.setMaxLength(64); for(var size:recipeSizes) size.setMaxLength(6); }
-    void leave() {
+    public void leave() {
         if(!ClientCommunityPlacement.active()) ClientCommunityTasks.cancel(); blur(); buttons.clear(); inputs.clear(); model.clear();
         selected=null; renderedPage=null; rows=List.of(); hasNext=false; localError=""; recipeReceipt=null;
     }
-    private List<HudTextInput> fields() { return List.of(custom,tags,recipeName,recipeSizes[0],recipeSizes[1],recipeSizes[2]); }
-    void blur() { fields().forEach(f -> f.setFocused(false)); }
-    boolean focused() { return fields().stream().anyMatch(HudTextInput::isFocused); }
-    void key(int key,int modifiers) { fields().forEach(f -> f.keyPressed(key,modifiers)); }
-    void character(char chr) { fields().forEach(f -> f.charTyped(chr)); }
-    private boolean busy() {
+    public List<HudTextInput> fields() { return List.of(custom,tags,recipeName,recipeSizes[0],recipeSizes[1],recipeSizes[2]); }
+    public void blur() { fields().forEach(f -> f.setFocused(false)); }
+    public boolean focused() { return fields().stream().anyMatch(HudTextInput::isFocused); }
+    public void key(int key,int modifiers) { fields().forEach(f -> f.keyPressed(key,modifiers)); }
+    public void character(char chr) { fields().forEach(f -> f.charTyped(chr)); }
+    public boolean busy() {
         return switch (ClientCommunityTasks.STATE.phase()) {
             case OPENING, UPLOADING, WAITING, FETCHING, CLOSING -> true;
             default -> false;
         };
     }
-    private boolean usable() {
+    public boolean usable() {
         var state=ClientCommunityTasks.STATE;
         return state.sessionId()!=null && !busy() && state.phase()!=CommunityTaskClientState.Phase.ERROR;
     }
-    private void act(Action action) {
+    public void act(Action action) {
         blur(); localError="";
         try { action.run(); } catch (IOException | IllegalArgumentException invalid) { localError="操作未完成，请检查筛选条件、名称或尺寸"; }
     }
-    int draw(DrawContext ctx,int x,int w,int y,int clipTop,int clipBottom) {
+    public int draw(DrawContext ctx,int x,int w,int y,int clipTop,int clipBottom) {
         top=clipTop; bottom=clipBottom; buttons.clear(); inputs.clear();
         var state=ClientCommunityTasks.STATE;
         if(state.installed()==null) { recipeName.setFocused(false); for(var size:recipeSizes) size.setFocused(false); }
@@ -149,27 +149,27 @@ final class CommunityLibraryPane {
         }
         return line(ctx,"缓存下载不会自动入库或放置",x,y+4,w);
     }
-    private int input(DrawContext ctx,HudTextInput input,int x,int y,int w) {
+    public int input(DrawContext ctx,HudTextInput input,int x,int y,int w) {
         input.render(ctx,x,y,w,14); inputs.add(new InputBounds(input,x,y,w)); return y+18;
     }
-    private void prepareRecipeFields(com.formacraft.common.component.community.CommunityInstallDocument.Preview p) {
+    public void prepareRecipeFields(com.formacraft.common.component.community.CommunityInstallDocument.Preview p) {
         recipeReceipt=p.receiptId(); recipeName.setText(CommunityBrowserModel.display(p.name(),32)+" 配方");
         int[] sizes={p.width(),p.height(),p.depth()}; for(int i=0;i<3;i++) recipeSizes[i].setText(Integer.toString(sizes[i]));
     }
-    private int button(DrawContext ctx,String label,int x,int y,int w,boolean enabled,Action action) {
+    public int button(DrawContext ctx,String label,int x,int y,int w,boolean enabled,Action action) {
         String shown=client.textRenderer.trimToWidth(label,Math.max(1,w-8));
         var button=ButtonWidget.builder(Text.literal(shown),b -> act(action)).dimensions(x,y,w,16).build();
         button.active=enabled; buttons.add(button);
         button.render(ctx,(int)(client.mouse.getX()/client.getWindow().getScaleFactor()),(int)(client.mouse.getY()/client.getWindow().getScaleFactor()),0f);
         return y+20;
     }
-    private int line(DrawContext ctx,String value,int x,int y,int w) {
+    public int line(DrawContext ctx,String value,int x,int y,int w) {
         for(var line:client.textRenderer.wrapLines(Text.literal(value),Math.max(1,w))) {
             ctx.drawTextWithShadow(client.textRenderer,line,x,y,0xFFCCCCCC); y+=12;
         }
         return y+2;
     }
-    boolean click(double x,double y,int button) {
+    public boolean click(double x,double y,int button) {
         if(button!=0 || y<top || y>=bottom) return false;
         blur();
         for(var input:inputs) if(y>=input.y && y<input.y+14 && x>=input.x && x<input.x+input.w) {
@@ -179,7 +179,7 @@ final class CommunityLibraryPane {
         for(var widget:buttons) if(com.formacraft.client.ui.widget.HudClickSupport.click(widget,click)) return true;
         return true;
     }
-    private String status() {
+    public String status() {
         var state=ClientCommunityTasks.STATE;
         return switch(state.phase()) {
             case CLOSED -> "未连接"; case OPENING -> "正在连接"; case IDLE -> "已连接";
@@ -190,7 +190,7 @@ final class CommunityLibraryPane {
             case READY -> state.error().equals("recipe_failed") ? "配方未保存，可修改后重试" : "操作完成"; case ERROR -> "操作失败"; case CLOSING -> "正在关闭会话";
         };
     }
-    private static String error(String code) {
+    public static String error(String code) {
         return switch(code) {
             case "community_disabled" -> "服务器尚未配置社区服务";
             case "server_unsupported" -> "服务器不支持社区构件库";

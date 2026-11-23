@@ -135,12 +135,9 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
     // 调试开关
     public static final boolean DEBUG_CAPTURE = false; // 设置为 true 启用调试日志
 
-    public net.minecraft.client.MinecraftClient client() { return client; }
-    public void drawContentBackgroundPublic(net.minecraft.client.gui.DrawContext ctx) { drawContentBackground(ctx); }
     public int contentScissorLeftPublic() { return contentScissorLeft(); }
     public int contentScissorRightPublic() { return contentScissorRight(); }
-    public void drawTooltipCompatPublic(net.minecraft.client.gui.DrawContext ctx, java.util.List<net.minecraft.text.Text> lines, int mx, int my) { drawTooltipCompat(ctx, lines, mx, my); }
-    public boolean superMouseClicked(double x, double y, int button) { return super.mouseClicked(x, y, button); }
+public boolean superMouseClicked(double x, double y, int button) { return super.mouseClicked(x, y, button); }
     @Override protected void drawContents(net.minecraft.client.gui.DrawContext ctx) { ComponentCaptureLayoutRenderer.drawContents(this, ctx); }
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) { return ComponentCaptureActionRouter.mouseClicked(this, mouseX, mouseY, button); }
     @Override public void mouseScrolled(double mouseX, double mouseY, double amount) { ComponentCaptureActionRouter.mouseScrolled(this, mouseX, mouseY, amount); }
@@ -261,11 +258,11 @@ public class ComponentCapturePanel extends BasePanel implements ComponentCapture
         socketIdInput.setFocused(false);
     }
 
-    public int getScaledMouseX() {
+    public int scaledMouseX() {
         return (int) (client.mouse.getX() / client.getWindow().getScaleFactor());
     }
 
-    public int getScaledMouseY() {
+    public int scaledMouseY() {
         return (int) (client.mouse.getY() / client.getWindow().getScaleFactor());
     }
     

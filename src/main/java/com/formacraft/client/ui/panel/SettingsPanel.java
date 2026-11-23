@@ -123,10 +123,7 @@ public class SettingsPanel extends BasePanel implements SettingsPanelRenderHost 
     @Override public void syncBaseUrlPresetFromValue(String baseUrl) { widgets.syncBaseUrlPresetFromValue(baseUrl); }
 
     public void drawContentBackgroundPublic(DrawContext ctx) { drawContentBackground(ctx); }
-    public void drawTooltipCompatPublic(DrawContext ctx, List<Text> lines, int mouseX, int mouseY) {
-        drawTooltipCompat(ctx, lines, mouseX, mouseY);
-    }
-    public boolean superMouseClicked(double x, double y, int button) { return super.mouseClicked(x, y, button); }
+public boolean superMouseClicked(double x, double y, int button) { return super.mouseClicked(x, y, button); }
 
     @Override protected void drawContents(DrawContext ctx) { SettingsPanelInteraction.drawContents(this, ctx); }
     @Override public boolean mouseClicked(double mouseX, double mouseY, int button) { return SettingsPanelInteraction.mouseClicked(this, mouseX, mouseY, button); }
