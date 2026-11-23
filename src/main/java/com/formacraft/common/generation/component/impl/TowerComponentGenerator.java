@@ -103,7 +103,7 @@ public class TowerComponentGenerator implements ComponentGenerator {
 
                     if (hasInterior && y > 0 && isInteriorSpace(x, z, radius, Math.max(1, wallThickness))) {
                         if (storeyed && floorHeight > 0 && y % floorHeight == 0 && y / floorHeight < floors
-                                && !(hasStairs && isSpiralStairCell(x, z, y, radius, wallThickness))) {
+                                && !(hasStairs && needsSpiralHeadroom(x, z, y, radius, wallThickness))) {
                             out.add(place(rp, x, y, z, floorFallback));
                         }
                         continue;
@@ -135,13 +135,25 @@ public class TowerComponentGenerator implements ComponentGenerator {
         return x == sx && z == sz;
     }
 
+    /**
+     * Floor slabs leave headroom above the current tread and the two steps below
+     * (player standing on y-1 / y-2 must clear the deck at y).
+     */
+    private boolean needsSpiralHeadroom(int x, int z, int floorY, int radius, int wall) {
+        for (int stairY = floorY; stairY >= floorY - 2; stairY--) {
+            if (stairY < 0) break;
+            if (isSpiralStairCell(x, z, stairY, radius, wall)) return true;
+        }
+        return false;
+    }
+
     private static String spiralFacing(int y) {
-        // Face toward the next tread around the spiral.
+        // Face toward the next tread: step0 (+X) → step1 (+X,+Z) travels +Z (south).
         return switch (Math.floorMod(y, 8)) {
-            case 0, 1 -> "east";
-            case 2, 3 -> "south";
-            case 4, 5 -> "west";
-            default -> "north";
+            case 0, 1 -> "south";
+            case 2, 3 -> "west";
+            case 4, 5 -> "north";
+            default -> "east";
         };
     }
 

@@ -37,12 +37,16 @@ public class BalconyGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, Math.min(2, d.height())); // 阳台通常只有 1-2 格高
 
-        GlobalConstraints.Facing facing = GlobalConstraints.Facing.SOUTH;
+        GlobalConstraints.Facing outward = GlobalConstraints.Facing.SOUTH;
         if (semantic.slot() != null && semantic.slot().facing() != null) {
-            facing = semantic.slot().facing();
+            outward = semantic.slot().facing();
         }
-        facing = ComponentParamParsers.facingParam(
-                c.params(), facing, "facing", "attach_side", "attachSide");
+        outward = ComponentParamParsers.facingParam(c.params(), outward, "facing");
+        // attach_side = which local edge sticks to the host wall (open railing).
+        // facing = outward cantilever direction; wall edge is the opposite side.
+        GlobalConstraints.Facing attach = ComponentParamParsers.facingOrNull(
+                c.params(), "attach_side", "attachSide");
+        GlobalConstraints.Facing wallSide = attach != null ? attach : opposite(outward);
 
         String floorBlock = ComponentMaterialResolver.resolve(
                 semantic, SemanticPart.FLOOR, "minecraft:oak_planks", "floor_block", "deck_block", "material");
@@ -65,7 +69,7 @@ public class BalconyGenerator implements ComponentGenerator {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
                     boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
-                    if (!isEdge || isWallSide(x, z, width, depth, facing)) continue;
+                    if (!isEdge || isWallSide(x, z, width, depth, wallSide)) continue;
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,
@@ -80,13 +84,22 @@ public class BalconyGenerator implements ComponentGenerator {
         return out;
     }
 
-    /** Edge attached to the host wall (opposite of outward facing). */
-    static boolean isWallSide(int x, int z, int width, int depth, GlobalConstraints.Facing facing) {
+    static GlobalConstraints.Facing opposite(GlobalConstraints.Facing facing) {
         return switch (facing != null ? facing : GlobalConstraints.Facing.SOUTH) {
-            case SOUTH -> z == 0;
-            case NORTH -> z == depth - 1;
-            case EAST -> x == 0;
-            case WEST -> x == width - 1;
+            case NORTH -> GlobalConstraints.Facing.SOUTH;
+            case SOUTH -> GlobalConstraints.Facing.NORTH;
+            case EAST -> GlobalConstraints.Facing.WEST;
+            case WEST -> GlobalConstraints.Facing.EAST;
+        };
+    }
+
+    /** Local edge that attaches to the host wall (no railing). */
+    static boolean isWallSide(int x, int z, int width, int depth, GlobalConstraints.Facing wallSide) {
+        return switch (wallSide != null ? wallSide : GlobalConstraints.Facing.NORTH) {
+            case NORTH -> z == 0;
+            case SOUTH -> z == depth - 1;
+            case EAST -> x == width - 1;
+            case WEST -> x == 0;
         };
     }
 }

@@ -4,7 +4,7 @@ Secondary component generators (tower / balcony / terrace / wall / courtyard / c
 
 Tower circular footprints use `radius = (min(width,depth)-1)/2` so even declared boxes do not overpaint by one cell (GEOMETRY). Hollow towers place roof/battlement cells before the interior skip so the top disk seals (GEOMETRY). Spiral stairs place one facing-tagged tread per Y with a floor hole (GEOMETRY). JSON null material params skip `getOrDefault`→`"null"` traps via `ComponentParamParsers.stringParam` (FORMAT_REPAIR).
 
-Entrance facing tokens are normalized (trim/case/N-S-E-W aliases) with slot/SOUTH fallback instead of raw `Facing.valueOf` (FORMAT_REPAIR). Balcony railings omit the host-wall edge so the door bay stays walkable (GEOMETRY).
+Entrance facing tokens are normalized (trim/case/N-S-E-W aliases) with slot/SOUTH fallback instead of raw `Facing.valueOf` (FORMAT_REPAIR). Balcony railings omit the host-wall edge so the door bay stays walkable (GEOMETRY). `attach_side` names the wall-attached edge directly; `facing` is the outward cantilever and opens the opposite edge when `attach_side` is absent (FORMAT_REPAIR). Tower spiral treads face the next step around the ring and floor decks leave headroom above the current and two lower treads (GEOMETRY).
 
 Local chat reference images use bounded, player-owned chunks and a single-use build reference token (HARD_CONSTRAINT). Only the visual analysis call receives inline image bytes. Planner context uses visual observations and an opaque source label (NONBINDING_HINT).
 

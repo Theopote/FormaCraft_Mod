@@ -48,8 +48,27 @@ class SecondaryComponentGeometryFixTest {
                 .filter(p -> p.dy() == 1 && p.targetBlock() != null && p.targetBlock().contains("stairs"))
                 .count();
         assertEquals(1, stairsAtY1);
-        assertTrue(patches.stream().anyMatch(p -> p.targetBlock() != null
-                && p.targetBlock().contains("stairs") && p.targetBlock().contains("facing=")));
+        // step0 (+X) → step1 (+X,+Z) travels +Z → facing=south
+        assertTrue(patches.stream().anyMatch(p -> p.dy() == 0 && p.targetBlock() != null
+                && p.targetBlock().contains("stairs") && p.targetBlock().contains("facing=south")));
+    }
+
+    @Test
+    void spiralFloorLeavesHeadroomAboveLowerTreads() {
+        var params = new HashMap<String, Object>(Map.of(
+                "hollow", true, "wall_thickness", 1, "floor_count", 2, "floor_height", 4));
+        var c = new Component("TOWER", null, new Vec3i(0, 0, 0), new Dimensions(9, 9, 8),
+                List.of("stairs", "interior"), params);
+        var patches = new TowerComponentGenerator().generate(new SemanticComponent("TOWER", null, c, "DEFAULT"));
+        // Tread at y=2 must keep air at deck y=4 (same xz) — no floor slab there.
+        var tread = patches.stream()
+                .filter(p -> p.dy() == 2 && p.targetBlock() != null && p.targetBlock().contains("stairs"))
+                .findFirst()
+                .orElseThrow();
+        assertFalse(patches.stream().anyMatch(p ->
+                p.dx() == tread.dx() && p.dz() == tread.dz() && p.dy() == 4
+                        && BlockPatch.PLACE.equals(p.action())
+                        && p.targetBlock() != null && !p.targetBlock().contains("stairs")));
     }
 
     @Test
@@ -75,6 +94,16 @@ class SecondaryComponentGeometryFixTest {
     @Test
     void balconyLeavesWallSideOpenForEntry() {
         var params = Map.<String, Object>of("facing", "SOUTH");
+        var c = new Component("BALCONY", null, new Vec3i(0, 0, 0), new Dimensions(5, 3, 2), List.of(), params);
+        var patches = new BalconyGenerator().generate(new SemanticComponent("BALCONY", null, c, "DEFAULT"));
+        assertFalse(patches.stream().anyMatch(p -> p.dy() == 1 && p.dz() == 0));
+        assertTrue(patches.stream().anyMatch(p -> p.dy() == 1 && p.dz() == 2));
+    }
+
+    @Test
+    void balconyAttachSideOpensThatEdgeNotTheOutwardFace() {
+        // attach_side=NORTH means north edge on the host wall; leave z==0 open even if facing were confused.
+        var params = Map.<String, Object>of("attach_side", "NORTH", "facing", "NORTH");
         var c = new Component("BALCONY", null, new Vec3i(0, 0, 0), new Dimensions(5, 3, 2), List.of(), params);
         var patches = new BalconyGenerator().generate(new SemanticComponent("BALCONY", null, c, "DEFAULT"));
         assertFalse(patches.stream().anyMatch(p -> p.dy() == 1 && p.dz() == 0));
