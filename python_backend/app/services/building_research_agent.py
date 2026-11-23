@@ -1134,8 +1134,11 @@ def synthesize_profile_with_llm(
         user += f"\nVisual analysis notes:\n{visual_notes[:1500]}\n"
     user += "\nProduce BuildingProfile JSON."
 
+    from .inference_call import bounded_inference_client
+
     def _call():
-        return client.chat.completions.create(
+        api = bounded_inference_client(client, timeout_sec)
+        return api.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": system},

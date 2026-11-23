@@ -262,8 +262,11 @@ def classify_building_request_with_llm(
     )
     user = f"User request:\n{user_text.strip()}\n\nProduce request_classification JSON."
 
+    from .inference_call import bounded_inference_client
+
     def _call():
-        return client.chat.completions.create(
+        api = bounded_inference_client(client, timeout_sec)
+        return api.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": system},

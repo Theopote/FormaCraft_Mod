@@ -12,6 +12,8 @@ from urllib.parse import quote_plus
 if TYPE_CHECKING:
     from .search_config import SearchRuntimeConfig
 
+from .inference_call import remaining_call_timeout
+
 logger = logging.getLogger(__name__)
 
 _WIKI_USER_AGENT = "FormaCraftResearch/1.0 (formacraft; architecture-research@local)"
@@ -78,7 +80,7 @@ def _search_with_google_cse(
                 "q": query,
                 "num": min(max(1, max_results), 10),
             },
-            timeout=10,
+            timeout=remaining_call_timeout(10),
         )
         resp.raise_for_status()
         items = resp.json().get("items") or []
@@ -133,7 +135,7 @@ def _search_with_tavily(
             "max_results": min(max(1, max_results), 10),
             "include_answer": False,
         },
-        timeout=12,
+        timeout=remaining_call_timeout(12),
     )
     resp.raise_for_status()
     data = resp.json()
@@ -174,7 +176,7 @@ def _search_with_serpapi(
             "api_key": api_key,
             "num": min(max(1, max_results), 10),
         },
-        timeout=12,
+        timeout=remaining_call_timeout(12),
     )
     resp.raise_for_status()
     data = resp.json()
@@ -250,7 +252,7 @@ def _search_wikipedia(query: str, max_results: int = 2, lang: str = "zh") -> Lis
                 "srlimit": max(max_results * 2, 3),
             },
             headers=headers,
-            timeout=8,
+            timeout=remaining_call_timeout(8),
         )
         sr.raise_for_status()
         hits = sr.json().get("query", {}).get("search") or []
@@ -281,7 +283,7 @@ def _search_wikipedia(query: str, max_results: int = 2, lang: str = "zh") -> Lis
                 "format": "json",
             },
             headers=headers,
-            timeout=8,
+            timeout=remaining_call_timeout(8),
         )
         ex.raise_for_status()
         pages = ex.json().get("query", {}).get("pages") or {}
@@ -452,7 +454,7 @@ def _search_with_http(query: str, max_results: int) -> List[Dict[str, str]]:
     try:
         # DuckDuckGo Instant Answer API (简单的 HTTP 请求)
         url = f"https://api.duckduckgo.com/?q={quote_plus(query + ' architecture')}&format=json&no_html=1&skip_disambig=1"
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=remaining_call_timeout(5))
         if response.status_code == 200:
             data = response.json()
             results = []
@@ -511,7 +513,7 @@ def _search_with_bing(
         "textFormat": "Raw"
     }
     
-    response = requests.get(search_url, headers=headers, params=params, timeout=10)
+    response = requests.get(search_url, headers=headers, params=params, timeout=remaining_call_timeout(10))
     response.raise_for_status()
     
     results = []

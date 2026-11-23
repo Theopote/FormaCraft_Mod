@@ -9,9 +9,12 @@ from app.models.request import ReferenceInput
 from app.services.building_research_agent import plan_search_queries, research_building_profile
 from app.services.vision_analyzer import (
     VisualAnalysis,
+    _resolve_vision_model,
+    _validate_inline_data_image,
     analyze_references,
     merge_visual_into_profile,
 )
+from types import SimpleNamespace
 from app.services.building_research_agent import synthesize_profile_rule_based
 
 
@@ -119,6 +122,35 @@ class RequestAdapterReferenceTest(unittest.TestCase):
         assert req.references is not None
         self.assertEqual(len(req.references), 1)
         self.assertEqual(req.references[0].type, "image_url")
+
+
+class VisionSafetyTest(unittest.TestCase):
+    def test_inline_data_image_accepts_small_jpeg(self):
+        # Minimal valid-looking jpeg base64 payload (not decoded for content).
+        url = "data:image/jpeg;base64," + ("A" * 64)
+        self.assertTrue(_validate_inline_data_image(url))
+
+    def test_inline_data_image_rejects_wrong_mime_and_huge_payload(self):
+        self.assertFalse(_validate_inline_data_image("data:text/plain;base64,AAAA"))
+        self.assertFalse(_validate_inline_data_image("data:image/png;base64," + ("B" * 10_000_000)))
+
+    def test_text_only_deepseek_is_not_auto_selected_as_vision_model(self):
+        req = SimpleNamespace(model="deepseek-chat")
+        self.assertEqual(_resolve_vision_model(req), "gpt-4o-mini")
+
+    def test_deepseek_vl_is_accepted_as_vision_model(self):
+        req = SimpleNamespace(model="deepseek-vl2")
+        self.assertEqual(_resolve_vision_model(req), "deepseek-vl2")
+
+    def test_oversized_inline_image_is_skipped_by_analyze_references(self):
+        refs = [
+            ReferenceInput(
+                type="image_base64",
+                content="Z" * 10_000_000,
+            ),
+        ]
+        visual = analyze_references(refs, "build this", req=None)
+        self.assertIsNone(visual)
 
 
 if __name__ == "__main__":

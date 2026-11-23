@@ -13,6 +13,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * 解决"它在哪？"的问题
  */
 public class SpatialIndex {
+    /** Cap nearest search so a huge maxDistance cannot fan out unboundedly. */
+    static final double MAX_NEAREST_DISTANCE = 256.0;
+
     // 区块坐标 -> 该区块内的项目 UUID 列表
     private final Map<ChunkPos, Set<String>> chunkIndex = new ConcurrentHashMap<>();
     
@@ -82,13 +85,11 @@ public class SpatialIndex {
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
                 ChunkPos chunkPos = new ChunkPos(cx, cz);
-                Set<String> uuids = chunkIndex.get(chunkPos);
-                if (uuids != null) {
+                // Atomic empty→remove so a concurrent addMemory cannot lose a fresh UUID.
+                chunkIndex.computeIfPresent(chunkPos, (k, uuids) -> {
                     uuids.remove(uuid);
-                    if (uuids.isEmpty()) {
-                        chunkIndex.remove(chunkPos);
-                    }
-                }
+                    return uuids.isEmpty() ? null : uuids;
+                });
             }
         }
     }
@@ -121,11 +122,13 @@ public class SpatialIndex {
      */
     public ProjectMemory findNearest(Identifier dimension, BlockPos pos, double maxDistance) {
         Objects.requireNonNull(dimension, "dimension");
+        double capped = Math.max(0.0, Math.min(maxDistance, MAX_NEAREST_DISTANCE));
         ChunkPos centerChunk = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
-        int searchRadius = (int) Math.ceil(maxDistance / 16.0) + 1;
+        int searchRadius = (int) Math.ceil(capped / 16.0) + 1;
         
         ProjectMemory nearest = null;
-        double nearestDistance = maxDistance;
+        double nearestDistance = capped;
+        Set<String> seen = new HashSet<>();
         
         for (int dx = -searchRadius; dx <= searchRadius; dx++) {
             for (int dz = -searchRadius; dz <= searchRadius; dz++) {
@@ -134,6 +137,7 @@ public class SpatialIndex {
                 
                 if (uuids != null) {
                     for (String uuid : uuids) {
+                        if (!seen.add(uuid)) continue;
                         ProjectMemory memory = memoryCache.get(uuid);
                         if (inDimension(memory, dimension)) {
                             ProjectMemory.SpatialBounds bounds = memory.getBounds();

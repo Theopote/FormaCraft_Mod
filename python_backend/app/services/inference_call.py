@@ -48,6 +48,12 @@ def remaining_call_timeout(timeout_sec: float) -> float:
     return min(timeout_sec, remaining)
 
 
+def bounded_inference_client(client, timeout_sec: float):
+    timeout = remaining_call_timeout(timeout_sec)
+    with_options = getattr(client, "with_options", None)
+    return with_options(timeout=timeout, max_retries=0) if callable(with_options) else client
+
+
 class TimeoutPoolSaturatedError(RuntimeError):
     """Raised when every timeout-guard worker is already busy."""
 
@@ -59,8 +65,22 @@ def call_with_timeout(fn, timeout_sec: float):
     so research→classify/synth cannot saturate the pool against itself.
     """
     timeout_sec = remaining_call_timeout(timeout_sec)
+    parent = planning_budget.get()
+    deadline = time.monotonic() + timeout_sec
+    if parent is not None:
+        deadline = min(deadline, parent[0])
+    cancelled = parent[1] if parent is not None else threading.Event()
+
+    def run_in_stage():
+        token = planning_budget.set((deadline, cancelled))
+        try:
+            remaining_call_timeout(timeout_sec)
+            return fn()
+        finally:
+            planning_budget.reset(token)
+
     if getattr(_IN_TIMEOUT_WORKER, "active", False):
-        return fn()
+        return run_in_stage()
 
     if not _TIMEOUT_SLOTS.acquire(blocking=False):
         raise TimeoutPoolSaturatedError(
@@ -70,8 +90,7 @@ def call_with_timeout(fn, timeout_sec: float):
     def work():
         _IN_TIMEOUT_WORKER.active = True
         try:
-            remaining_call_timeout(timeout_sec)
-            return fn()
+            return run_in_stage()
         finally:
             _IN_TIMEOUT_WORKER.active = False
             _TIMEOUT_SLOTS.release()
@@ -86,7 +105,6 @@ def call_with_timeout(fn, timeout_sec: float):
     try:
         if planning_budget.get() is None:
             return fut.result(timeout=timeout_sec)
-        deadline = time.monotonic() + timeout_sec
         while not fut.done():
             remaining = remaining_call_timeout(deadline - time.monotonic())
             if remaining <= 0:

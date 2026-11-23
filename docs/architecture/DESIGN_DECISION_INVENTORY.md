@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Building research, classification, vision and search HTTP calls inherit the enclosing planning stage deadline (HARD_CONSTRAINT). SDK retries are disabled for the bounded classification, synthesis and vision attempts.
+
 Build requests pass a bounded planning budget to the Python executor (HARD_CONSTRAINT). Inference waits and LlmPlan provider attempts respect the remaining budget, and disconnected or cancelled callers stop new inference attempts. Design choices are unaffected.
 
 Secondary component generators (tower / balcony / terrace / wall / courtyard / crown / chimney / gate / path / road) resolve materials via explicit params → `DynamicPaletteResolver` / style palette → technical default (`ComponentMaterialResolver`) (FORMAT_REPAIR). This does not invent style; it applies already-authored materials or `style_attributes` so accessories match the main mass.

@@ -26,6 +26,10 @@ _VISION_ENABLED = lambda: (os.getenv("VISION_REFERENCE") or "on").strip().lower(
 _VISION_TIMEOUT_SEC = lambda: float(os.getenv("VISION_REFERENCE_TIMEOUT_SEC", "30"))
 _VISION_MAX_BYTES = int(os.getenv("VISION_MAX_BYTES", "4000000"))
 _VISION_MAX_TOKENS = int(os.getenv("VISION_MAX_TOKENS", "4096"))
+_WEB_SNIPPET_MAX_BYTES = 65_536
+_DATA_IMAGE_MIMES = frozenset({"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"})
+# Auto-detect only known multimodal families. Plain deepseek-chat/reasoner are text-only.
+_VISION_MODEL_HINTS = ("gpt-4o", "gpt-4.1", "vision", "gemini", "claude", "deepseek-vl")
 
 
 class VisualAnalysis:
@@ -92,9 +96,27 @@ def _resolve_vision_model(req: Optional[BuildRequest]) -> str:
         return override
     if req and getattr(req, "model", None):
         m = str(req.model)
-        if any(k in m.lower() for k in ("gpt-4o", "vision", "gemini", "claude", "deepseek")):
+        lower = m.lower()
+        if any(k in lower for k in _VISION_MODEL_HINTS):
             return m
     return "gpt-4o-mini"
+
+
+def _validate_inline_data_image(url: str) -> bool:
+    """Reject oversized / non-image data: URIs before they reach the vision LLM."""
+    if not url.startswith("data:image/"):
+        return False
+    header, sep, payload = url.partition(",")
+    if sep != "," or ";base64" not in header.lower():
+        return False
+    mime = header[len("data:") :].split(";", 1)[0].strip().lower()
+    if mime not in _DATA_IMAGE_MIMES:
+        return False
+    # Decoded size ≈ 3/4 of base64 length; allow small padding slack.
+    max_b64_chars = (_VISION_MAX_BYTES * 4 + 2) // 3 + 64
+    if len(payload.strip()) > max_b64_chars:
+        return False
+    return True
 
 
 def _fetch_web_page_snippet(url: str, max_chars: int = 600) -> str:
@@ -103,10 +125,9 @@ def _fetch_web_page_snippet(url: str, max_chars: int = 600) -> str:
         resp = safe_http_get(
             safe_url,
             timeout=8,
-            max_bytes=_VISION_MAX_BYTES,
+            max_bytes=_WEB_SNIPPET_MAX_BYTES,
             headers={"User-Agent": "FormaCraft/1.0 (architecture research)"},
         )
-        resp.raise_for_status()
         ctype = (resp.headers.get("content-type") or "").lower()
         if "image" in ctype:
             return f"[image content at {safe_url}]"
@@ -222,8 +243,11 @@ def analyze_with_vision_llm(
     for url in image_urls[:3]:
         content.append({"type": "image_url", "image_url": {"url": url, "detail": "low"}})
 
+    from .inference_call import bounded_inference_client
+
     def _call():
-        return client.chat.completions.create(
+        api = bounded_inference_client(client, timeout_sec)
+        return api.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": content}],
             response_format={"type": "json_object"},
@@ -273,12 +297,19 @@ def analyze_references(
                 continue
         img = ref.normalized_image_url()
         if img:
-            if img.startswith(("http://", "https://")):
+            if img.startswith("data:image/"):
+                if not _validate_inline_data_image(img):
+                    logger.warning("Skipping invalid or oversized inline image reference")
+                    continue
+            elif img.startswith(("http://", "https://")):
                 try:
                     validate_reference_url(img)
                 except UnsafeUrlError as e:
                     logger.warning("Skipping unsafe image URL reference: %s", e)
                     continue
+            else:
+                logger.warning("Skipping unsupported image reference scheme")
+                continue
             image_urls.append(img)
         elif ref.is_web_page():
             raw_url = ref.content.strip()

@@ -34,6 +34,19 @@ def test_request_budget_reaches_nested_inference():
         executor.shutdown()
 
 
+def test_inference_client_inherits_shorter_stage_budget():
+    from unittest.mock import Mock
+    from app.services.inference_call import bounded_inference_client, call_with_timeout
+
+    provider = Mock()
+    result = call_with_timeout(
+        lambda: call_with_timeout(lambda: bounded_inference_client(provider, 30), 20), 1,
+    )
+    assert result is provider.with_options.return_value
+    assert 0 < provider.with_options.call_args.kwargs["timeout"] <= 1
+    assert provider.with_options.call_args.kwargs["max_retries"] == 0
+
+
 async def started(event):
     async def poll():
         while not event.is_set():
