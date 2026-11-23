@@ -34,6 +34,11 @@ public final class BuildRequestProcessor {
     private static final FcaLog LOG = FcaLog.of("BuildRequestProcessor");
     private static final ReferenceImageUploads REFERENCE_IMAGES = new ReferenceImageUploads();
 
+    /** Drop in-flight reference image uploads for a player (disconnect). */
+    public static void clearReferenceUploads(java.util.UUID playerId) {
+        REFERENCE_IMAGES.clear(playerId);
+    }
+
     public static void register() {
         ServerPlayNetworking.registerGlobalReceiver(ReferenceImageChunk.ID, (payload, context) ->
                 context.server().execute(() -> {

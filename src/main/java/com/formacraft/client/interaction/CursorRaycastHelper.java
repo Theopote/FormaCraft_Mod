@@ -140,7 +140,15 @@ public final class CursorRaycastHelper {
                 .add(up.multiply(ndcY * tan))
                 .normalize();
 
-        Vec3d start = camera.getCameraPosVec(tickDelta);
+        // Use the render camera position (matches SelectionTool) so third-person (F5)
+        // screen-cursor rays do not start from the player's eye while the view is offset.
+        Vec3d start;
+        try {
+            start = client.gameRenderer.getCamera().getPos();
+        } catch (Throwable t) {
+            LOG.debug("read render camera pos failed; falling back to entity eye", t);
+            start = camera.getCameraPosVec(tickDelta);
+        }
         rayOrigin = start;
         rayDirection = rayDir;
         rayReach = distance;

@@ -84,15 +84,32 @@ public final class OrchestratorProxyHandler {
         };
     }
 
-    /** Drop per-player proxy rate-limit state (disconnect / stop). */
+    /**
+     * Disconnect hook: intentionally keeps {@link #WINDOW_HITS} so reconnect cannot
+     * reset the sliding rate window. Empty windows expire via {@link #tryAdmitRate}
+     * or {@link #sweepStaleWindows}.
+     */
     public static void clearPlayer(UUID playerId) {
-        if (playerId != null) {
-            WINDOW_HITS.remove(playerId);
-        }
+        // no-op for rate window (reconnect bypass fix)
     }
 
+    /** Server stop / tests only — clears all proxy rate windows. */
     public static void clearAll() {
         WINDOW_HITS.clear();
+    }
+
+    /** Expire empty / stale proxy rate windows. */
+    public static void sweepStaleWindows(long nowMs) {
+        long windowMs = Math.max(1, ServerLlmConfig.buildRateLimitWindowSeconds()) * 1000L;
+        WINDOW_HITS.entrySet().removeIf(e -> {
+            Deque<Long> hits = e.getValue();
+            synchronized (hits) {
+                while (!hits.isEmpty() && nowMs - hits.peekFirst() > windowMs) {
+                    hits.removeFirst();
+                }
+                return hits.isEmpty();
+            }
+        });
     }
 
     private static boolean tryAdmitRate(UUID playerId) {

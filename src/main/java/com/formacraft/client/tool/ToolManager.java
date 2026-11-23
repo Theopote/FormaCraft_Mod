@@ -90,6 +90,16 @@ public final class ToolManager {
                 LOG.warn("tool resetWorldState failed toolId={}", tool.getId(), t);
             }
         }
+        try {
+            com.formacraft.client.interaction.AnchorState.clear();
+        } catch (Throwable t) {
+            LOG.warn("AnchorState.clear failed during resetWorldState", t);
+        }
+        try {
+            com.formacraft.client.interaction.CursorRaycastHelper.clear();
+        } catch (Throwable t) {
+            LOG.warn("CursorRaycastHelper.clear failed during resetWorldState", t);
+        }
         worldScope = null;
     }
 

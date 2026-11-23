@@ -57,6 +57,19 @@ class BuildRequestGateTest {
     }
 
     @Test
+    void releaseAllPreservesRateLimitWindow() {
+        UUID id = UUID.randomUUID();
+        BuildRequestGate.recordRateHitForTest(id);
+        BuildRequestGate.recordRateHitForTest(id);
+        assertEquals(2, BuildRequestGate.windowHitsForTest(id));
+        BuildRequestGate.forceAdmitForTest(id);
+        BuildRequestGate.releaseAll(id);
+        assertEquals(0, BuildRequestGate.inFlight(id));
+        assertEquals(2, BuildRequestGate.windowHitsForTest(id),
+                "disconnect must not reset sliding rate window");
+    }
+
+    @Test
     void newerAdmitSupersedesOlderPreviewGeneration() {
         UUID id = UUID.randomUUID();
         BuildRequestGate.Ticket older = BuildRequestGate.forceAdmitForTest(id);

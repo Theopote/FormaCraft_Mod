@@ -19,6 +19,18 @@ final class ComponentLibraryHandler {
         ServerPlayNetworking.registerGlobalReceiver(ComponentLibraryNetworking.Request.ID, (request,context) -> context.server().execute(() -> {
             var player = context.player();
             if (!ServerPlayNetworking.canSend(player, ComponentLibraryNetworking.Response.ID)) return;
+            if (request.action() == ComponentLibraryNetworking.Action.SAVE_RECIPE
+                    || request.action() == ComponentLibraryNetworking.Action.REPLAY_RECIPE
+                    || request.action() == ComponentLibraryNetworking.Action.RESTORE_RECIPE
+                    || request.action() == ComponentLibraryNetworking.Action.DELETE) {
+                var writeDenied = ComponentWriteGate.tryAdmit(player);
+                if (writeDenied != null) {
+                    ServerPlayNetworking.send(player, new ComponentLibraryNetworking.Response(
+                            request.token(), ComponentLibraryNetworking.Reply.ERROR, 0, 0, null,
+                            writeDenied.getString()));
+                    return;
+                }
+            }
             var world = context.server().getSavePath(WorldSavePath.ROOT);
             try {
                 switch (request.action()) {

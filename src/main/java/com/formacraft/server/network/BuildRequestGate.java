@@ -165,37 +165,45 @@ public final class BuildRequestGate {
         }
 
         UUID id = player.getUuid();
-        expireLeases(id, System.currentTimeMillis());
-
         int maxConcurrent = Math.max(1, ServerLlmConfig.buildMaxConcurrentPerPlayer());
-        List<Ticket> leases = IN_FLIGHT.computeIfAbsent(id, u -> new ArrayList<>(2));
-        synchronized (leases) {
-            purgeExpiredLocked(leases, System.currentTimeMillis());
-            if (leases.size() >= maxConcurrent) {
-                return AdmitResult.reject(new Rejection(Text.translatable("formacraft.build.error.concurrent")));
-            }
+        int maxPerWindow = Math.max(1, ServerLlmConfig.buildRateLimitPerWindow());
+        long windowMs = Math.max(1, ServerLlmConfig.buildRateLimitWindowSeconds()) * 1000L;
+        long t = System.currentTimeMillis();
 
-            int maxPerWindow = Math.max(1, ServerLlmConfig.buildRateLimitPerWindow());
-            long windowMs = Math.max(1, ServerLlmConfig.buildRateLimitWindowSeconds()) * 1000L;
-            long t = System.currentTimeMillis();
-            Deque<Long> hits = WINDOW_HITS.computeIfAbsent(id, u -> new ArrayDeque<>());
-            synchronized (hits) {
-                while (!hits.isEmpty() && t - hits.peekFirst() > windowMs) {
-                    hits.removeFirst();
+        // Atomic map update avoids orphan-list races with release/expire remove(playerId, leases).
+        AdmitResult[] box = new AdmitResult[1];
+        IN_FLIGHT.compute(id, (uuid, existing) -> {
+            List<Ticket> leases = existing != null ? existing : new ArrayList<>(2);
+            synchronized (leases) {
+                purgeExpiredLocked(leases, t);
+                if (leases.size() >= maxConcurrent) {
+                    box[0] = AdmitResult.reject(new Rejection(Text.translatable("formacraft.build.error.concurrent")));
+                    return leases.isEmpty() ? null : leases;
                 }
-                if (hits.size() >= maxPerWindow) {
-                    return AdmitResult.reject(new Rejection(Text.translatable(
-                            "formacraft.build.error.rate_limit", maxPerWindow,
-                            ServerLlmConfig.buildRateLimitWindowSeconds())));
-                }
-                hits.addLast(t);
-            }
 
-            long gen = PREVIEW_GENERATION.computeIfAbsent(id, u -> new AtomicLong()).incrementAndGet();
-            Ticket ticket = new Ticket(id, t + LEASE_TTL_MS, gen);
-            leases.add(ticket);
-            return AdmitResult.ok(ticket);
-        }
+                Deque<Long> hits = WINDOW_HITS.computeIfAbsent(id, u -> new ArrayDeque<>());
+                synchronized (hits) {
+                    while (!hits.isEmpty() && t - hits.peekFirst() > windowMs) {
+                        hits.removeFirst();
+                    }
+                    if (hits.size() >= maxPerWindow) {
+                        box[0] = AdmitResult.reject(new Rejection(Text.translatable(
+                                "formacraft.build.error.rate_limit", maxPerWindow,
+                                ServerLlmConfig.buildRateLimitWindowSeconds())));
+                        return leases.isEmpty() ? null : leases;
+                    }
+                    hits.addLast(t);
+                }
+
+                long gen = PREVIEW_GENERATION.computeIfAbsent(id, u -> new AtomicLong()).incrementAndGet();
+                Ticket ticket = new Ticket(id, t + LEASE_TTL_MS, gen);
+                leases.add(ticket);
+                box[0] = AdmitResult.ok(ticket);
+                return leases;
+            }
+        });
+        return box[0] != null ? box[0]
+                : AdmitResult.reject(new Rejection(Text.translatable("formacraft.build.error.internal")));
     }
 
     /** True if {@code ticket} is still the player's newest non-cancelled lease for preview delivery. */
@@ -232,15 +240,13 @@ public final class BuildRequestGate {
             return;
         }
         UUID playerId = ticket.playerId();
-        List<Ticket> leases = IN_FLIGHT.get(playerId);
-        if (leases != null) {
+        IN_FLIGHT.compute(playerId, (uuid, leases) -> {
+            if (leases == null) return null;
             synchronized (leases) {
                 leases.removeIf(t -> t == null || t.id().equals(ticket.id()) || t.isReleased());
-                if (leases.isEmpty()) {
-                    IN_FLIGHT.remove(playerId, leases);
-                }
+                return leases.isEmpty() ? null : leases;
             }
-        }
+        });
         pruneWindow(playerId);
     }
 
@@ -257,7 +263,11 @@ public final class BuildRequestGate {
         releaseOne(playerId);
     }
 
-    /** Drop every in-flight lease for a player (disconnect). */
+    /**
+     * Drop every in-flight lease for a player (disconnect).
+     * Rate-limit {@link #WINDOW_HITS} are intentionally retained so reconnect cannot
+     * reset the sliding window; {@link #sweepStale} expires them by TTL.
+     */
     public static void releaseAll(UUID playerId) {
         if (playerId == null) return;
         List<Ticket> leases = IN_FLIGHT.remove(playerId);
@@ -271,7 +281,6 @@ public final class BuildRequestGate {
                 leases.clear();
             }
         }
-        WINDOW_HITS.remove(playerId);
     }
 
     public static void releaseAll(ServerPlayerEntity player) {
@@ -282,31 +291,27 @@ public final class BuildRequestGate {
 
     private static void releaseOne(UUID playerId) {
         if (playerId == null) return;
-        List<Ticket> leases = IN_FLIGHT.get(playerId);
-        if (leases == null) {
-            pruneWindow(playerId);
-            return;
-        }
-        Ticket victim = null;
-        synchronized (leases) {
-            purgeExpiredLocked(leases, System.currentTimeMillis());
-            Iterator<Ticket> it = leases.iterator();
-            while (it.hasNext()) {
-                Ticket t = it.next();
-                if (t != null && t.tryMarkReleased()) {
-                    victim = t;
-                    it.remove();
-                    break;
+        boolean[] released = {false};
+        IN_FLIGHT.compute(playerId, (uuid, leases) -> {
+            if (leases == null) return null;
+            synchronized (leases) {
+                purgeExpiredLocked(leases, System.currentTimeMillis());
+                Iterator<Ticket> it = leases.iterator();
+                while (it.hasNext()) {
+                    Ticket t = it.next();
+                    if (t != null && t.tryMarkReleased()) {
+                        released[0] = true;
+                        it.remove();
+                        break;
+                    }
+                    if (t == null || t.isReleased()) {
+                        it.remove();
+                    }
                 }
-                if (t == null || t.isReleased()) {
-                    it.remove();
-                }
+                return leases.isEmpty() ? null : leases;
             }
-            if (leases.isEmpty()) {
-                IN_FLIGHT.remove(playerId, leases);
-            }
-        }
-        if (victim != null) {
+        });
+        if (released[0]) {
             pruneWindow(playerId);
         }
     }
@@ -329,21 +334,31 @@ public final class BuildRequestGate {
     static Ticket forceAdmitForTest(UUID playerId, long expiresAtMs) {
         long gen = PREVIEW_GENERATION.computeIfAbsent(playerId, u -> new AtomicLong()).incrementAndGet();
         Ticket ticket = new Ticket(playerId, expiresAtMs, gen);
-        List<Ticket> leases = IN_FLIGHT.computeIfAbsent(playerId, u -> new ArrayList<>(2));
-        synchronized (leases) {
-            leases.add(ticket);
-        }
+        IN_FLIGHT.compute(playerId, (uuid, existing) -> {
+            List<Ticket> leases = existing != null ? existing : new ArrayList<>(2);
+            synchronized (leases) {
+                leases.add(ticket);
+                return leases;
+            }
+        });
         return ticket;
     }
 
-    private static void expireLeases(UUID playerId, long nowMs) {
-        List<Ticket> leases = IN_FLIGHT.get(playerId);
-        if (leases == null) return;
-        synchronized (leases) {
-            purgeExpiredLocked(leases, nowMs);
-            if (leases.isEmpty()) {
-                IN_FLIGHT.remove(playerId, leases);
-            }
+    /** Test-only: record a rate-limit hit without admitting a lease. */
+    static void recordRateHitForTest(UUID playerId) {
+        if (playerId == null) return;
+        Deque<Long> hits = WINDOW_HITS.computeIfAbsent(playerId, u -> new ArrayDeque<>());
+        synchronized (hits) {
+            hits.addLast(System.currentTimeMillis());
+        }
+    }
+
+    /** Test-only: current sliding-window hit count. */
+    static int windowHitsForTest(UUID playerId) {
+        Deque<Long> hits = WINDOW_HITS.get(playerId);
+        if (hits == null) return 0;
+        synchronized (hits) {
+            return hits.size();
         }
     }
 

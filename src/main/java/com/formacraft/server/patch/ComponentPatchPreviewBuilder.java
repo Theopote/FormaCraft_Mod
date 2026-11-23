@@ -80,6 +80,12 @@ public final class ComponentPatchPreviewBuilder {
         int y1 = Math.max(min.getY(), max.getY());
         int z1 = Math.max(min.getZ(), max.getZ());
 
+        long volume = (long) (x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
+        if (volume > com.formacraft.server.network.FormaCraftServerNetworking.MAX_SELECTION_VOLUME) {
+            LOG.warn("fromWorldSelection refused oversized AABB volume={}", volume);
+            return List.of();
+        }
+
         List<BlockPatch> patches = new ArrayList<>();
         for (int x = x0; x <= x1; x++) {
             for (int y = y0; y <= y1; y++) {

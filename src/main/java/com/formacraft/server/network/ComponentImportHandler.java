@@ -23,6 +23,18 @@ final class ComponentImportHandler {
         ServerPlayNetworking.registerGlobalReceiver(ComponentImportNetworking.Request.ID, (request, context) -> context.server().execute(() -> {
             var player = context.player();
             if (player == null || !ServerPlayNetworking.canSend(player, ComponentImportNetworking.Response.ID)) return;
+            // Rate-limit write-starting ops; CHUNK/CANCEL/PREVIEW follow an admitted session.
+            if (request.operation() == ComponentImportNetworking.Operation.START
+                    || request.operation() == ComponentImportNetworking.Operation.CAPTURE_START
+                    || request.operation() == ComponentImportNetworking.Operation.CONFIRM) {
+                var writeDenied = ComponentWriteGate.tryAdmit(player);
+                if (writeDenied != null) {
+                    ServerPlayNetworking.send(player, new ComponentImportNetworking.Response(
+                            request.token(), ComponentImportNetworking.Reply.ERROR,
+                            JsonUtil.toJson(writeDenied.getString())));
+                    return;
+                }
+            }
             var world = context.server().getSavePath(WorldSavePath.ROOT);
             var save = ComponentStorage.SaveContext.forPlayer(world, player.getUuid(), context.server().isDedicated(), player.hasPermissionLevel(2));
             try {

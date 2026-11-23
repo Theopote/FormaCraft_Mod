@@ -20,6 +20,11 @@ final class CommunityPlacementHandler {
     static void dispatch(FormaCraftNetworking.RequestPatchPreviewPayload payload,ServerPlayNetworking.Context context,Runnable legacy) {
         if(payload.communitySource()==null) { context.server().execute(legacy); return; }
         var player=context.player(); if(player==null) return;
+        BuildRequestGate.Rejection denied=BuildRequestGate.checkPermission(player,context.server());
+        if(denied!=null) {
+            error(player,denied.message()!=null?denied.message().getString():"无权限执行此操作");
+            return;
+        }
         var permit=CommunityTaskService.admit(context.server(),player.getUuid()); if(permit==null) return;
         try { context.server().execute(() -> {
             try(permit) {
@@ -32,7 +37,8 @@ final class CommunityPlacementHandler {
         try { CommunityTaskService.get(server).invalidateSelectedRequests(owner); } catch(IOException disabled) { /* No source service. */ }
     }
     private static void prepare(MinecraftServer server,ServerPlayerEntity player,FormaCraftNetworking.RequestPatchPreviewPayload payload) {
-        if(!(player.getEntityWorld() instanceof ServerWorld world) || payload.origin()==null || player.getBlockPos().getSquaredDistance(payload.origin())>96.0*96.0) { error(player,"所选来源预览位置无效或过远"); return; }
+        if(!(player.getEntityWorld() instanceof ServerWorld world) || payload.origin()==null || FormaCraftServerNetworking.originTooFar(player,payload.origin())) { error(player,"所选来源预览位置无效或过远"); return; }
+        if(FormaCraftServerNetworking.selectionVolumeTooLarge(payload.selectionMin(),payload.selectionMax())) { error(player,"选区过大（超过 "+FormaCraftServerNetworking.MAX_SELECTION_VOLUME+" 格）"); return; }
         try {
             var coordinator=CommunityTaskService.get(server); var ref=payload.communitySource(); UUID owner=player.getUuid();
             CommunityTaskService.bridge(server).touch(owner,ref.sessionId());
@@ -47,7 +53,7 @@ final class CommunityPlacementHandler {
                         if(server.getPlayerManager().getPlayer(owner)!=player || player.getEntityWorld()!=world || CommunityTaskService.get(server)!=coordinator
                                 || !coordinator.selectedRequestLatest(owner,ref.sessionId(),ref.taskId(),request.id())) return;
                         if(!coordinator.selectedRequestCurrent(owner,ref.sessionId(),ref.taskId(),request.id())) { error(player,"所选来源预览准备超时，请重试"); return; }
-                        if(player.getBlockPos().getSquaredDistance(payload.origin())>96.0*96.0) { error(player,"预览位置已超出可操作距离"); return; }
+                        if(FormaCraftServerNetworking.originTooFar(player,payload.origin())) { error(player,"预览位置已超出可操作距离"); return; }
                         if(failed!=null) { error(player,"所选来源不可用或预览准备失败，请重新选择来源；不会回退到其他来源"); return; }
                         GenerationRequestContext.begin(owner,dimension,payload.origin());
                         try {

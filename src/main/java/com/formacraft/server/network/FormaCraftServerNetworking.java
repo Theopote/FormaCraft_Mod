@@ -25,6 +25,11 @@ import java.util.UUID;
  * Payload 定义与 codec 留在 {@link FormaCraftNetworking}。
  */
 public final class FormaCraftServerNetworking {
+    /** Same interactive distance used by community placement / patch confirm. */
+    public static final double MAX_PATCH_ORIGIN_DISTANCE = 96.0;
+    /** Inclusive AABB cell budget for world-selection patch preview (matches client capture cap). */
+    public static final long MAX_SELECTION_VOLUME = 64L * 64L * 64L;
+
     private FormaCraftServerNetworking() {}
 
     /** Same dedicated-server OP gate as chat builds; sends a client error and returns true when denied. */
@@ -34,6 +39,23 @@ public final class FormaCraftServerNetworking {
         ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
                 denied.message().getString()));
         return true;
+    }
+
+    /** @return true when selection AABB exceeds {@link #MAX_SELECTION_VOLUME} */
+    static boolean selectionVolumeTooLarge(BlockPos min, BlockPos max) {
+        if (min == null || max == null) return false;
+        long dx = Math.abs((long) max.getX() - min.getX()) + 1L;
+        long dy = Math.abs((long) max.getY() - min.getY()) + 1L;
+        long dz = Math.abs((long) max.getZ() - min.getZ()) + 1L;
+        if (dx > Integer.MAX_VALUE || dy > Integer.MAX_VALUE || dz > Integer.MAX_VALUE) return true;
+        long vol = dx * dy * dz;
+        return vol < 0 || vol > MAX_SELECTION_VOLUME;
+    }
+
+    static boolean originTooFar(ServerPlayerEntity player, BlockPos origin) {
+        if (player == null || origin == null) return true;
+        return player.getBlockPos().getSquaredDistance(origin)
+                > MAX_PATCH_ORIGIN_DISTANCE * MAX_PATCH_ORIGIN_DISTANCE;
     }
 
     public static void registerC2S() {
@@ -67,11 +89,11 @@ public final class FormaCraftServerNetworking {
                         com.formacraft.server.state.PlayerProtectedZoneStorage.clear(id);
                         com.formacraft.server.state.PlayerOutlineStorage.clear(id);
                         OrchestratorProxyHandler.clearPlayer(id);
+                        BuildRequestProcessor.clearReferenceUploads(id);
                     }
                 });
 
         // Patch Undo/Redo（服务端执行）
-        FormaCraftNetworking.registerPayloadTypesC2S();
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PatchUndoPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
@@ -120,6 +142,16 @@ public final class FormaCraftServerNetworking {
 
             BlockPos origin = payload.origin();
             if (origin == null) return;
+            if (originTooFar(player, origin)) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "预览位置无效或过远"));
+                return;
+            }
+            if (selectionVolumeTooLarge(payload.selectionMin(), payload.selectionMax())) {
+                ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildErrorPayload(
+                        "选区过大（超过 " + MAX_SELECTION_VOLUME + " 格）"));
+                return;
+            }
 
             String worldKey = com.formacraft.server.generation.typology.builder.PalacePreviewPlan.worldKeyOf(sw);
             com.formacraft.server.preview.GenerationRequestContext.begin(
@@ -187,6 +219,12 @@ public final class FormaCraftServerNetworking {
             net.minecraft.server.MinecraftServer server = context.server();
             if (server == null) return;
 
+            net.minecraft.text.Text writeDenied = ComponentWriteGate.tryAdmit(player);
+            if (writeDenied != null) {
+                sendComponentSaveAck(player, "", "", false, writeDenied.getString());
+                return;
+            }
+
             String json = payload.json();
             if (json == null || json.isBlank()) {
                 sendComponentSaveAck(player, "", "", false, "保存构件失败：空数据");
@@ -243,10 +281,16 @@ public final class FormaCraftServerNetworking {
 
             byte[] thumbnailPng = payload.thumbnailPng();
             if (saved.isNew() && thumbnailPng != null && thumbnailPng.length > 0) {
-                try {
-                    ComponentStorage.saveThumbnail(saveCtx, saved.imported().assetId(), thumbnailPng);
-                } catch (Throwable t) {
-                    FormacraftMod.LOGGER.warn("Failed to save thumbnail for component {}: {}", def.id, t.getMessage());
+                if (thumbnailPng.length > ComponentStorage.MAX_THUMBNAIL_BYTES) {
+                    FormacraftMod.LOGGER.warn(
+                            "Rejected oversized thumbnail for component {} ({} bytes > {})",
+                            def.id, thumbnailPng.length, ComponentStorage.MAX_THUMBNAIL_BYTES);
+                } else {
+                    try {
+                        ComponentStorage.saveThumbnail(saveCtx, saved.imported().assetId(), thumbnailPng);
+                    } catch (Throwable t) {
+                        FormacraftMod.LOGGER.warn("Failed to save thumbnail for component {}: {}", def.id, t.getMessage());
+                    }
                 }
             }
 
@@ -309,6 +353,7 @@ public final class FormaCraftServerNetworking {
         ServerPlayNetworking.registerGlobalReceiver(FormaCraftNetworking.PreviewAdjustPayload.ID, (payload, context) -> context.server().execute(() -> {
             ServerPlayerEntity player = context.player();
             if (player == null) return;
+            if (denyUnauthorizedBuild(player, context.server())) return;
             if (!PreviewStorage.hasPreview(player)) {
                 try {
                     ServerPlayNetworking.send(player, new FormaCraftNetworking.ResponseBuildStatusPayload("当前没有可调整的预览。"));
