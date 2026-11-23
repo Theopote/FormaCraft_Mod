@@ -46,6 +46,34 @@ class SearchValidateTest(unittest.TestCase):
         self.assertEqual(cfg.provider, "tavily")
         self.assertEqual(cfg.tavily_api_key, "env-tvly")
 
+    @patch("app.services.architecture_researcher._search_wikipedia")
+    @patch("app.services.architecture_researcher._search_with_duckduckgo")
+    @patch("app.services.architecture_researcher._search_with_tavily")
+    def test_auto_continues_after_tavily_failure(self, mock_tavily, mock_ddg, mock_wiki):
+        mock_tavily.side_effect = RuntimeError("Tavily HTTP 401")
+        mock_ddg.return_value = [{"title": "Eiffel Tower", "snippet": "architecture landmark", "url": "https://example.com"}]
+        mock_wiki.return_value = []
+        cfg = SearchRuntimeConfig(provider="auto", tavily_api_key="tvly-wrong")
+        out = validate_search_credentials(cfg)
+        self.assertTrue(out["ok"])
+        self.assertIn("DuckDuckGo", out["message_zh"])
+        mock_tavily.assert_called_once()
+        mock_ddg.assert_called_once()
+
+    def test_validate_exception_message_redacts_api_key(self):
+        cfg = SearchRuntimeConfig(provider="serpapi", serpapi_api_key="SUPERSECRETKEY")
+        with patch(
+            "app.services.architecture_researcher._search_with_serpapi",
+            side_effect=Exception(
+                "401 Client Error: Unauthorized for url: "
+                "https://serpapi.com/search.json?api_key=SUPERSECRETKEY&q=x"
+            ),
+        ):
+            out = validate_search_credentials(cfg)
+        self.assertFalse(out["ok"])
+        self.assertNotIn("SUPERSECRETKEY", out["message_zh"])
+        self.assertIn("api_key=***", out["message_zh"])
+
 
 class TavilySerpapiSearchTest(unittest.TestCase):
     @patch("app.services.architecture_researcher.requests.post")

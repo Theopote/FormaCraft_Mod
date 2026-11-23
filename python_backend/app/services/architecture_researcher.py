@@ -18,6 +18,25 @@ logger = logging.getLogger(__name__)
 
 _WIKI_USER_AGENT = "FormaCraftResearch/1.0 (formacraft; architecture-research@local)"
 
+# Strip secrets that requests.HTTPError may embed in the request URL.
+_SENSITIVE_QUERY_RE = re.compile(
+    r"(?i)([?&](?:api[_-]?key|key|access[_-]?token|token|subscription[_-]?key)=)[^&\s]+"
+)
+
+
+def redact_secrets(text: object) -> str:
+    """Remove api_key=/key= query values from exception/log strings."""
+    return _SENSITIVE_QUERY_RE.sub(r"\1***", str(text) if text is not None else "")
+
+
+def safe_error_message(exc: BaseException) -> str:
+    """User/log-safe error summary — never include credential-bearing URLs."""
+    if isinstance(exc, requests.HTTPError):
+        status = exc.response.status_code if exc.response is not None else "?"
+        return f"HTTP {status}"
+    return redact_secrets(exc)
+
+
 # 非建筑类搜索结果域名（DuckDuckGo 偶发返回购物/金融页）
 _JUNK_URL_FRAGMENTS = (
     "target.com", "amazon.", "ebay.", "moneyvox", "pinterest.com",
@@ -92,8 +111,11 @@ def _search_with_google_cse(
                 "url": item.get("link") or "",
             })
         return out[:max_results]
+    except requests.HTTPError as e:
+        logger.warning("Google CSE search failed for %r: %s", query[:60], safe_error_message(e))
+        return []
     except Exception as e:
-        logger.warning("Google CSE search failed for %r: %s", query[:60], e)
+        logger.warning("Google CSE search failed for %r: %s", query[:60], safe_error_message(e))
         return []
 
 
@@ -126,18 +148,21 @@ def _search_with_tavily(
     if "architecture" not in query.lower() and "建筑" not in query:
         search_q = query + " architecture structure design"
 
-    resp = requests.post(
-        "https://api.tavily.com/search",
-        json={
-            "api_key": api_key,
-            "query": search_q,
-            "search_depth": "basic",
-            "max_results": min(max(1, max_results), 10),
-            "include_answer": False,
-        },
-        timeout=remaining_call_timeout(12),
-    )
-    resp.raise_for_status()
+    try:
+        resp = requests.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": api_key,
+                "query": search_q,
+                "search_depth": "basic",
+                "max_results": min(max(1, max_results), 10),
+                "include_answer": False,
+            },
+            timeout=remaining_call_timeout(12),
+        )
+        resp.raise_for_status()
+    except requests.HTTPError as e:
+        raise RuntimeError(f"Tavily {safe_error_message(e)}") from None
     data = resp.json()
     out: List[Dict[str, str]] = []
     for item in data.get("results") or []:
@@ -168,17 +193,21 @@ def _search_with_serpapi(
     if "architecture" not in query.lower() and "建筑" not in query:
         search_q = query + " architecture structure design"
 
-    resp = requests.get(
-        "https://serpapi.com/search.json",
-        params={
-            "engine": "google",
-            "q": search_q,
-            "api_key": api_key,
-            "num": min(max(1, max_results), 10),
-        },
-        timeout=remaining_call_timeout(12),
-    )
-    resp.raise_for_status()
+    try:
+        resp = requests.get(
+            "https://serpapi.com/search.json",
+            params={
+                "engine": "google",
+                "q": search_q,
+                "api_key": api_key,
+                "num": min(max(1, max_results), 10),
+            },
+            timeout=remaining_call_timeout(12),
+        )
+        resp.raise_for_status()
+    except requests.HTTPError as e:
+        # Never re-raise raw HTTPError — str(e) embeds api_key= in the URL.
+        raise RuntimeError(f"SerpAPI {safe_error_message(e)}") from None
     data = resp.json()
     out: List[Dict[str, str]] = []
     for item in data.get("organic_results") or []:
@@ -357,16 +386,20 @@ def search_architecture_reference(
                 return True
         return False
 
-    if _wiki_pass():
-        return merged[:max_results]
-
-    if provider == "wikipedia_only":
-        return merged[:max_results]
+    # Wiki-first only for auto / wikipedia_only. Explicit paid/DDG providers must hit their source first.
+    if provider in ("auto", "wikipedia_only"):
+        if _wiki_pass() or provider == "wikipedia_only":
+            return merged[:max_results]
 
     if provider in ("auto", "google_cse") and google_cse_configured(cfg):
-        _add(_search_with_google_cse(query, max_results, cfg=cfg))
-        if len(merged) >= max_results:
-            return merged[:max_results]
+        try:
+            _add(_search_with_google_cse(query, max_results, cfg=cfg))
+            if len(merged) >= max_results:
+                return merged[:max_results]
+        except Exception as e:
+            logger.warning("Google CSE search failed: %s", safe_error_message(e))
+            if provider == "google_cse":
+                raise
 
     if provider in ("auto", "tavily") and tavily_configured(cfg):
         try:
@@ -374,7 +407,7 @@ def search_architecture_reference(
             if len(merged) >= max_results:
                 return merged[:max_results]
         except Exception as e:
-            logger.warning("Tavily search failed: %s", e)
+            logger.warning("Tavily search failed: %s", safe_error_message(e))
             if provider == "tavily":
                 raise
 
@@ -384,7 +417,7 @@ def search_architecture_reference(
             if len(merged) >= max_results:
                 return merged[:max_results]
         except Exception as e:
-            logger.warning("SerpAPI search failed: %s", e)
+            logger.warning("SerpAPI search failed: %s", safe_error_message(e))
             if provider == "serpapi":
                 raise
 
@@ -394,18 +427,24 @@ def search_architecture_reference(
             if len(merged) >= max_results:
                 return merged[:max_results]
         except Exception as e:
-            logger.warning("Bing search failed: %s", e)
+            logger.warning("Bing search failed: %s", safe_error_message(e))
+            if provider == "bing":
+                raise
 
     if provider in ("auto", "duckduckgo"):
         try:
             _add(_search_with_duckduckgo(query, max_results))
         except Exception as e:
-            logger.warning("DuckDuckGo search failed: %s, trying Bing", e)
+            logger.warning("DuckDuckGo search failed: %s, trying Bing", safe_error_message(e))
             if provider == "auto":
                 try:
                     _add(_search_with_bing(query, max_results, cfg=cfg))
                 except Exception as e2:
-                    logger.warning("Bing search failed: %s", e2)
+                    logger.warning("Bing search failed: %s", safe_error_message(e2))
+
+    # Explicit non-wiki providers: top up with Wikipedia when the primary source is short.
+    if provider not in ("auto", "wikipedia_only") and len(merged) < max_results:
+        _wiki_pass()
 
     return merged[:max_results]
 
@@ -442,7 +481,7 @@ def _search_with_duckduckgo(query: str, max_results: int) -> List[Dict[str, str]
         logger.info("ddgs not installed, using HTTP fallback")
         return _search_with_http(query, max_results)
     except Exception as e:
-        logger.error(f"DuckDuckGo search error: {e}")
+        logger.error("DuckDuckGo search error: %s", safe_error_message(e))
         raise
 
 
@@ -484,7 +523,7 @@ def _search_with_http(query: str, max_results: int) -> List[Dict[str, str]]:
             
             return results[:max_results]
     except Exception as e:
-        logger.error(f"HTTP search error: {e}")
+        logger.error("HTTP search error: %s", safe_error_message(e))
     
     return []
 
@@ -513,9 +552,12 @@ def _search_with_bing(
         "textFormat": "Raw"
     }
     
-    response = requests.get(search_url, headers=headers, params=params, timeout=remaining_call_timeout(10))
-    response.raise_for_status()
-    
+    try:
+        response = requests.get(search_url, headers=headers, params=params, timeout=remaining_call_timeout(10))
+        response.raise_for_status()
+    except requests.HTTPError as e:
+        raise RuntimeError(f"Bing {safe_error_message(e)}") from None
+
     results = []
     for item in response.json().get("webPages", {}).get("value", []):
         results.append({

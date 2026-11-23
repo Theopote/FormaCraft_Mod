@@ -20,6 +20,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class TempleSideHallMisrouteRepairTest {
 
     @Test
+    void openingOmissionsRespectTheNamedFeature() {
+        for (String prompt : List.of("不要门廊的住宅", "a hall with no doorway", "不要窗花")) {
+            assertEquals(List.of(), RequestIntentInjector.extract(prompt).get("forbids"), prompt);
+        }
+        assertEquals(List.of("entrance"), RequestIntentInjector.extract("没有门的石屋").get("forbids"));
+        for (String prompt : List.of("不要门窗", "不要门廊，也不要门窗")) {
+            assertEquals(List.of("windows", "entrance"), RequestIntentInjector.extract(prompt).get("forbids"), prompt);
+        }
+    }
+
+    @Test
     void attachedFeaturesDoNotDetermineBuildingClass() {
         assertEquals("temple", RequestIntentInjector.extract("建一座带山门的寺庙").get("building_class"));
         assertEquals("generic", RequestIntentInjector.extract("建一座要有塔刹的亭子").get("building_class"));

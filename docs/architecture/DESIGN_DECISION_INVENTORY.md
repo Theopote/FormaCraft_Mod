@@ -1,5 +1,7 @@
 # Design decision inventory
 
+The shared request vocabulary parses explicit exclusions for doors and windows separately from porch, doorway and window ornament exclusions (FORMAT_REPAIR). Compound 门窗 exclusions preserve both user constraints.
+
 Building-class keyword hints skip short Chinese 带…的 feature modifiers and no longer treat 塔刹 as a whole-building marker (NONBINDING_HINT). Both extractors retain the complete original request for planning and extract other constraints from the original text.
 
 English keyword hints recognize a single optional article between a negation and its marker (NONBINDING_HINT). Negation remains local to the marker in both Python extraction and Java compatibility extraction.

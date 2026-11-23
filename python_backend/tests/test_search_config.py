@@ -19,11 +19,48 @@ class SearchConfigTest(unittest.TestCase):
         req.searchProvider = "bing"
         req.searchApiKey = "req-key"
         req.googleCseCx = "cx-123"
-        with patch.dict(os.environ, {"BING_SEARCH_API_KEY": "env-key", "GOOGLE_CSE_CX": "env-cx"}, clear=False):
+        with patch.dict(
+            os.environ,
+            {
+                "BING_SEARCH_API_KEY": "env-key",
+                "GOOGLE_CSE_CX": "env-cx",
+                "TAVILY_API_KEY": "",
+                "SERPAPI_API_KEY": "",
+                "GOOGLE_CSE_API_KEY": "",
+            },
+            clear=False,
+        ):
             cfg = resolve_search_config(req)
         self.assertEqual(cfg.provider, "bing")
         self.assertEqual(cfg.bing_api_key, "req-key")
         self.assertEqual(cfg.google_cse_cx, "cx-123")
+        # Explicit bing must not broadcast the shared key to other vendors.
+        self.assertEqual(cfg.tavily_api_key, "")
+        self.assertEqual(cfg.serpapi_api_key, "")
+        self.assertEqual(cfg.google_api_key, "")
+
+    def test_auto_does_not_broadcast_shared_search_api_key(self):
+        req = MagicMock()
+        req.searchProvider = "auto"
+        req.searchApiKey = "leaked-key"
+        req.googleCseCx = None
+        with patch.dict(
+            os.environ,
+            {
+                "BING_SEARCH_API_KEY": "",
+                "GOOGLE_CSE_API_KEY": "",
+                "TAVILY_API_KEY": "",
+                "SERPAPI_API_KEY": "",
+                "SEARCH_API_KEY": "env-leaked",
+            },
+            clear=False,
+        ):
+            cfg = resolve_search_config(req)
+        self.assertEqual(cfg.provider, "auto")
+        self.assertEqual(cfg.bing_api_key, "")
+        self.assertEqual(cfg.google_api_key, "")
+        self.assertEqual(cfg.tavily_api_key, "")
+        self.assertEqual(cfg.serpapi_api_key, "")
 
     def test_resolve_falls_back_to_env(self):
         with patch.dict(

@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
+from .architecture_researcher import safe_error_message
 from .search_config import SearchRuntimeConfig, VALID_SEARCH_PROVIDERS
 
 logger = logging.getLogger(__name__)
@@ -118,47 +119,68 @@ def validate_search_credentials(cfg: SearchRuntimeConfig) -> Dict[str, Any]:
                 return _ok("serpapi", result_count=n)
             return _fail("serpapi", "SerpAPI 未返回结果，请检查 API Key 或配额。")
 
-        # auto: probe first configured paid API, else DuckDuckGo
+        # auto: probe configured paid APIs with per-provider isolation, then free sources.
         if google_cse_configured(cfg):
-            batch = _search_with_google_cse(_TEST_QUERY, max_results=1, cfg=cfg)
-            n = _count_results(batch)
-            if n > 0:
-                return _ok("auto", result_count=n, message_zh=f"自动模式：Google CSE 可用（{n} 条）。")
+            try:
+                batch = _search_with_google_cse(_TEST_QUERY, max_results=1, cfg=cfg)
+                n = _count_results(batch)
+                if n > 0:
+                    return _ok("auto", result_count=n, message_zh=f"自动模式：Google CSE 可用（{n} 条）。")
+            except Exception as e:
+                logger.warning("auto probe google_cse failed: %s", safe_error_message(e))
         if tavily_configured(cfg):
-            batch = _search_with_tavily(_TEST_QUERY, max_results=1, cfg=cfg)
-            n = _count_results(batch)
-            if n > 0:
-                return _ok("auto", result_count=n, message_zh=f"自动模式：Tavily 可用（{n} 条）。")
+            try:
+                batch = _search_with_tavily(_TEST_QUERY, max_results=1, cfg=cfg)
+                n = _count_results(batch)
+                if n > 0:
+                    return _ok("auto", result_count=n, message_zh=f"自动模式：Tavily 可用（{n} 条）。")
+            except Exception as e:
+                logger.warning("auto probe tavily failed: %s", safe_error_message(e))
         if serpapi_configured(cfg):
-            batch = _search_with_serpapi(_TEST_QUERY, max_results=1, cfg=cfg)
-            n = _count_results(batch)
-            if n > 0:
-                return _ok("auto", result_count=n, message_zh=f"自动模式：SerpAPI 可用（{n} 条）。")
+            try:
+                batch = _search_with_serpapi(_TEST_QUERY, max_results=1, cfg=cfg)
+                n = _count_results(batch)
+                if n > 0:
+                    return _ok("auto", result_count=n, message_zh=f"自动模式：SerpAPI 可用（{n} 条）。")
+            except Exception as e:
+                logger.warning("auto probe serpapi failed: %s", safe_error_message(e))
         if (cfg.bing_api_key or "").strip():
-            batch = _search_with_bing(_TEST_QUERY, max_results=1, cfg=cfg)
+            try:
+                batch = _search_with_bing(_TEST_QUERY, max_results=1, cfg=cfg)
+                n = _count_results(batch)
+                if n > 0:
+                    return _ok("auto", result_count=n, message_zh=f"自动模式：Bing 可用（{n} 条）。")
+            except Exception as e:
+                logger.warning("auto probe bing failed: %s", safe_error_message(e))
+
+        try:
+            batch = _search_with_duckduckgo(_TEST_QUERY, max_results=1)
             n = _count_results(batch)
             if n > 0:
-                return _ok("auto", result_count=n, message_zh=f"自动模式：Bing 可用（{n} 条）。")
+                return _ok(
+                    "auto",
+                    result_count=n,
+                    message_zh="自动模式：未配置付费 API，DuckDuckGo 可用。",
+                )
+        except Exception as e:
+            logger.warning("auto probe duckduckgo failed: %s", safe_error_message(e))
 
-        batch = _search_with_duckduckgo(_TEST_QUERY, max_results=1)
-        n = _count_results(batch)
-        if n > 0:
-            return _ok(
-                "auto",
-                result_count=n,
-                message_zh="自动模式：未配置付费 API，DuckDuckGo 可用。",
-            )
-        wiki = _search_wikipedia(_TEST_QUERY, max_results=1, lang="en")
-        if _count_results(wiki) > 0:
-            return _ok(
-                "auto",
-                result_count=1,
-                message_zh="自动模式：仅 Wikipedia 可达（建议配置 Tavily/SerpAPI/Bing/Google）。",
-            )
+        try:
+            wiki = _search_wikipedia(_TEST_QUERY, max_results=1, lang="en")
+            if _count_results(wiki) > 0:
+                return _ok(
+                    "auto",
+                    result_count=1,
+                    message_zh="自动模式：仅 Wikipedia 可达（建议配置 Tavily/SerpAPI/Bing/Google）。",
+                )
+        except Exception as e:
+            logger.warning("auto probe wikipedia failed: %s", safe_error_message(e))
+
         return _fail("auto", "自动模式探测失败：各搜索源均不可用，请检查网络或 API 配置。")
 
     except ValueError as e:
         return _fail(provider, str(e))
     except Exception as e:
-        logger.warning("Search validate failed provider=%s: %s", provider, e)
-        return _fail(provider, f"搜索校验异常：{e}", detail=type(e).__name__)
+        safe = safe_error_message(e)
+        logger.warning("Search validate failed provider=%s: %s", provider, safe)
+        return _fail(provider, f"搜索校验异常：{safe}", detail=type(e).__name__)

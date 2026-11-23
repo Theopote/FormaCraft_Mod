@@ -137,11 +137,12 @@ final class RequestIntentVocab {
                     {"phrase":"gable","canonical":"gable"}
                   ],
                   "forbids": {
-                    "windows": ["不要窗","无窗","no windows"],
-                    "entrance": ["不要门","无门","no door"]
+                    "windows": ["不要窗","无窗","禁窗","不开窗","不要门窗","无门窗","没有门窗","no windows","without windows"],
+                    "entrance": ["不要门","无门","没有门","禁门","no door","without door","no doors","without doors"]
                   },
                   "forbid_false_friends": {
-                    "entrance": ["无门槛","没门槛","no threshold"]
+                    "windows": ["不要窗花","无窗花"],
+                    "entrance": ["无门槛","没门槛","没有门槛","不设门槛","不要门廊","无门廊","没有门廊","no doorway","without doorway","no threshold","without threshold"]
                   },
                   "tower_subtypes": {
                     "tibetan_stupa": ["藏式","白塔","覆钵","相轮","tibetan","chorten"]

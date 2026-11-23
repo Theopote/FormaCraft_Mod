@@ -19,6 +19,18 @@ from eval.intent_baseline_eval import run_baseline
 
 
 class IntentBaselineTest(unittest.TestCase):
+    def test_opening_omissions_respect_the_named_feature(self):
+        for prompt, expected in [
+            ("不要门廊的住宅", set()),
+            ("a hall with no doorway", set()),
+            ("不要窗花", set()),
+            ("没有门的石屋", {"entrance"}),
+            ("不要门窗", {"entrance", "windows"}),
+            ("不要门廊，也不要门窗", {"entrance", "windows"}),
+        ]:
+            with self.subTest(prompt=prompt):
+                self.assertEqual(expected, set(extract_keyword_intent(prompt)["forbids"]))
+
     def test_english_negation_with_article_stays_local(self):
         cases = [
             ("this is not a pagoda, build a hall", "generic"),

@@ -44,12 +44,25 @@ def resolve_search_config(req: Any = None) -> SearchRuntimeConfig:
     if provider not in VALID_SEARCH_PROVIDERS:
         provider = "auto"
 
-    search_api_key = _pick(req, "searchApiKey", "SEARCH_API_KEY")
-    bing_key = search_api_key or (os.getenv("BING_SEARCH_API_KEY") or "").strip()
-    google_key = search_api_key or (os.getenv("GOOGLE_CSE_API_KEY") or "").strip()
-    tavily_key = search_api_key or (os.getenv("TAVILY_API_KEY") or "").strip()
-    serpapi_key = search_api_key or (os.getenv("SERPAPI_API_KEY") or "").strip()
+    # Per-provider env keys (always). Never broadcast one shared key across vendors.
+    bing_key = (os.getenv("BING_SEARCH_API_KEY") or "").strip()
+    google_key = (os.getenv("GOOGLE_CSE_API_KEY") or "").strip()
+    tavily_key = (os.getenv("TAVILY_API_KEY") or "").strip()
+    serpapi_key = (os.getenv("SERPAPI_API_KEY") or "").strip()
     google_cx = _pick(req, "googleCseCx", "GOOGLE_CSE_CX")
+
+    # Client/env searchApiKey binds ONLY when an explicit paid provider is selected.
+    # auto / duckduckgo / wikipedia_only must not fan the same secret into every vendor.
+    shared_key = _pick(req, "searchApiKey", "SEARCH_API_KEY")
+    if shared_key:
+        if provider == "bing":
+            bing_key = shared_key
+        elif provider == "google_cse":
+            google_key = shared_key
+        elif provider == "tavily":
+            tavily_key = shared_key
+        elif provider == "serpapi":
+            serpapi_key = shared_key
 
     return SearchRuntimeConfig(
         provider=provider,
