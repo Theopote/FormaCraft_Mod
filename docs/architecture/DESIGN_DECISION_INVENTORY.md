@@ -1,5 +1,11 @@
 # Design decision inventory
 
+The Java keyword extractor stops extended negation at the Chinese modifier boundary 的 (NONBINDING_HINT). The shared Python intent baseline is replayed in Java for keyword-only cases.
+
+Request intent vocabulary loading requires the shared versioned asset (HARD_CONSTRAINT on deployment). Java loads it from the mod resources. A standalone Python deployment can set `FORMACRAFT_REQUEST_INTENT_VOCAB_PATH` to the deployed copy of that same asset. Missing or incompatible assets raise an explicit loading error.
+
+Building research `_expand_search_queries` no longer appends hardcoded `stadium` / `deconstructivism` for every architect hint (DESIGN_OVERRIDE removed). Architect queries use `architect_hint["style"]` dynamically (NONBINDING_HINT). Vision-identified `building_name` re-expands search queries before `multi_source_search` (FORMAT_REPAIR). `_DESIGN_BY_RE` requires an explicit 设计/作品/风格/操刀 verb so ordinary 「X的Y」 modifiers remain building names (FORMAT_REPAIR).
+
 The shared request vocabulary parses explicit exclusions for doors and windows separately from porch, doorway and window ornament exclusions (FORMAT_REPAIR). Compound 门窗 exclusions preserve both user constraints.
 
 Building-class keyword hints skip short Chinese 带…的 feature modifiers and no longer treat 塔刹 as a whole-building marker (NONBINDING_HINT). Both extractors retain the complete original request for planning and extract other constraints from the original text.

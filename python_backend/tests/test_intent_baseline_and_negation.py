@@ -6,6 +6,8 @@ import json
 import unittest
 from pathlib import Path
 
+import pytest
+
 from app.services.plan_semantic_gate import detect_semantic_intent, evaluate_plan_semantics
 from app.services.request_intent import (
     attach_request_intent,
@@ -16,6 +18,25 @@ from app.services.request_intent import (
 )
 from app.services.request_intent_vocab import load_request_intent_vocab
 from eval.intent_baseline_eval import run_baseline
+
+
+def test_shared_vocab_requires_the_configured_asset(tmp_path, monkeypatch):
+    asset = tmp_path / "request_intent_vocab_v1.json"
+    monkeypatch.setenv("FORMACRAFT_REQUEST_INTENT_VOCAB_PATH", str(asset))
+    load_request_intent_vocab.cache_clear()
+    try:
+        with pytest.raises(RuntimeError, match="Cannot load shared request intent vocabulary"):
+            load_request_intent_vocab()
+        asset.write_text("{}", encoding="utf-8")
+        with pytest.raises(RuntimeError, match="Invalid shared request intent vocabulary schema"):
+            load_request_intent_vocab()
+        asset.write_text(
+            '{"schema":"formacraft.request_intent_vocab.v1","confidence":{"strong_hit":0.91}}',
+            encoding="utf-8",
+        )
+        assert load_request_intent_vocab()["confidence"] == {"strong_hit": 0.91}
+    finally:
+        load_request_intent_vocab.cache_clear()
 
 
 class IntentBaselineTest(unittest.TestCase):

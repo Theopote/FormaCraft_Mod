@@ -567,7 +567,7 @@ final class RequestIntentKeywordExtractor {
     private static final Pattern CJK_NEGATION_WITH_VERB = Pattern.compile(
             "(?:不要|别要|别|无需|不用|禁止|避免)"
                     + "(?:做成|改成|改为|改用|做成了|改成了|用|当|作为)?"
-                    + "[\\u4e00-\\u9fffA-Za-z0-9_/·\\-]{0,6}$");
+                    + "[\\u4e00-\\u9fffA-Za-z0-9_/·\\-&&[^的]]{0,6}$");
     private static final Pattern ASCII_NEGATION_SUFFIX = Pattern.compile(
             "\\b(?:not|don't|dont|no|without)\\s+(?:(?:a|an|the)\\s+)?$", Pattern.CASE_INSENSITIVE);
 

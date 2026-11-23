@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ..models.building_profile import BuildingProfile, ProfileSource, RequestClassification, profile_from_llm_dict
@@ -126,15 +127,15 @@ _NON_BUILD_HINTS = (
 # 建筑特征关键词（从 snippet 提取 distinctive_elements）
 _FEATURE_KEYWORDS = (
     "dome", "tower", "spire", "courtyard", "atrium", "facade", "colonnade",
-    "arch", "vault", "dome", "pagoda", "minaret", "buttress", "portico",
+    "arch", "vault", "pagoda", "minaret", "buttress", "portico",
     "圆顶", "塔", "庭院", "中庭", "立面", "柱廊", "拱", "穹顶", "飞檐",
     "歇山", "琉璃", "钢结构", "玻璃幕墙", "悬挑", "曲线", "椭圆",
     "流动", "曲面", "参数化", "流线型", "deconstruct", "mesh", "网格",
 )
 
-# 「X设计的Y」解析 + 建筑师/建筑别名（检索词扩展，非硬编码生成）
+# 「X设计/作品/风格/操刀的Y」——必须出现设计类动词，避免「中世纪的石砌城堡」被误拆
 _DESIGN_BY_RE = re.compile(
-    r"(.{1,24}?)(?:设计|作品|风格|操刀)?的(.{2,40}?)(?:[，。,.!！?？]|$)"
+    r"(.{1,24}?)(?:设计|作品|风格|操刀)的(.{2,40}?)(?:[，。,.!！?？]|$)"
 )
 
 _ARCHITECT_HINTS: Dict[str, Dict[str, str]] = {
@@ -330,9 +331,13 @@ def _expand_search_queries(subject: str, user_text: str) -> List[str]:
     if architect_hint:
         arch = architect_hint["architect"]
         building = names[0] if names else subject
+        style = (architect_hint.get("style") or "").strip()
         if building:
-            queries.append(f"{arch} {building} stadium architecture")
-        queries.append(f"{arch} architecture style deconstructivism")
+            queries.append(f"{arch} {building} architecture")
+        if style:
+            queries.append(f"{arch} architecture style {style}")
+        else:
+            queries.append(f"{arch} architecture style")
 
     designer, building = _parse_designer_building(user_text)
     if designer and building:
@@ -895,7 +900,7 @@ def multi_source_search(
     max_results_per_query: int = 3,
     search_fn: Optional[Callable[[str, int], List[Dict[str, str]]]] = None,
 ) -> List[Dict[str, str]]:
-    """并行语义的多 query 搜索，合并去重。"""
+    """并行多 query 搜索，合并去重。"""
     if search_fn is None:
         from .architecture_researcher import search_architecture_reference
 
@@ -904,14 +909,26 @@ def multi_source_search(
     merged: List[Dict[str, str]] = []
     seen_urls: set[str] = set()
     seen_snippets: set[str] = set()
-
     per_q = max(1, max_results_per_query)
-    for query in queries:
+    limit = _building_research_max_results()
+    qlist = [q for q in queries if (q or "").strip()]
+    if not qlist:
+        return merged
+
+    def _run_one(query: str) -> List[Dict[str, str]]:
         try:
-            batch = search_fn(query, per_q) or []
+            return search_fn(query, per_q) or []
         except Exception as e:
-            logger.warning("Search failed for query %r: %s", query, e)
-            batch = []
+            try:
+                from .architecture_researcher import safe_error_message
+                msg = safe_error_message(e)
+            except Exception:
+                msg = str(e)
+            logger.warning("Search failed for query %r: %s", query, msg)
+            return []
+
+    def _absorb(batch: List[Dict[str, str]]) -> bool:
+        """Return True when merged hit the result cap."""
         for item in batch:
             url = (item.get("url") or "").strip()
             snippet = (item.get("snippet") or "").strip()[:200]
@@ -929,17 +946,46 @@ def multi_source_search(
             if snippet:
                 seen_snippets.add(snippet)
             merged.append(item)
-            if len(merged) >= _building_research_max_results():
-                return merged
+            if len(merged) >= limit:
+                return True
+        return False
+
+    workers = min(4, len(qlist))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(_run_one, q) for q in qlist]
+        for fut in as_completed(futures):
+            if fut.cancelled():
+                continue
+            try:
+                batch = fut.result() or []
+            except Exception as e:
+                try:
+                    from .architecture_researcher import safe_error_message
+                    msg = safe_error_message(e)
+                except Exception:
+                    msg = str(e)
+                logger.warning("Parallel search future failed: %s", msg)
+                continue
+            if _absorb(batch):
+                for pending in futures:
+                    pending.cancel()
+                break
     return merged
 
 
 def _extract_features_from_text(text: str) -> List[str]:
     lower = text.lower()
     found: List[str] = []
+    seen: set[str] = set()
     for kw in _FEATURE_KEYWORDS:
-        if kw.lower() in lower or kw in text:
-            found.append(kw)
+        hit = kw.lower() in lower or kw in text
+        if not hit:
+            continue
+        key = kw.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        found.append(kw)
     return found[:8]
 
 
@@ -950,14 +996,34 @@ def _infer_scale_from_text(text: str) -> Dict[str, Optional[int]]:
         "typical_depth_blocks": None,
         "typical_height_blocks": None,
     }
-    # 米 → 方块（1:1 粗略）
-    m = re.search(r"(\d{2,4})\s*(?:m|meters|米)", text, re.IGNORECASE)
-    if m:
+    # 米 → 方块（1:1 粗略）。词边界避免 "20 million"；高度语境不写入宽/深。
+    meter_re = re.compile(
+        r"(?<![A-Za-z0-9.])(\d{2,4})\s*(?:meters?\b|m\b|米)",
+        re.IGNORECASE,
+    )
+    for m in meter_re.finditer(text or ""):
         val = min(int(m.group(1)), 256)
-        hints["typical_width_blocks"] = val
-        hints["typical_depth_blocks"] = val
-    m_h = re.search(r"(\d{1,3})\s*(?:floors|stories|层)", text, re.IGNORECASE)
-    if m_h:
+        start, end = m.span()
+        window = (text or "")[max(0, start - 16) : min(len(text or ""), end + 16)].lower()
+        if any(k in window for k in ("tall", "high", "height", "高约", "高为", "高度", "高")):
+            if hints["typical_height_blocks"] is None:
+                hints["typical_height_blocks"] = val
+            continue
+        if any(k in window for k in ("wide", "width", "宽", "跨度", "span")):
+            if hints["typical_width_blocks"] is None:
+                hints["typical_width_blocks"] = val
+            continue
+        if any(k in window for k in ("deep", "depth", "进深", "长约", "长度")):
+            if hints["typical_depth_blocks"] is None:
+                hints["typical_depth_blocks"] = val
+            continue
+        # Ambiguous plan footprint: fill width then depth once each — never both from one height reading.
+        if hints["typical_width_blocks"] is None:
+            hints["typical_width_blocks"] = val
+        elif hints["typical_depth_blocks"] is None:
+            hints["typical_depth_blocks"] = val
+    m_h = re.search(r"(?<![A-Za-z0-9.])(\d{1,3})\s*(?:floors|stories|层)", text or "", re.IGNORECASE)
+    if m_h and hints["typical_height_blocks"] is None:
         hints["typical_height_blocks"] = min(int(m_h.group(1)) * 4, 128)
     return hints
 
@@ -1305,7 +1371,7 @@ def research_building_profile(
         return None
 
     def _run() -> BuildingProfile:
-        nonlocal subject
+        nonlocal subject, queries
         visual = None
         if has_refs:
             try:
@@ -1319,6 +1385,8 @@ def research_building_profile(
                 )
                 if visual and visual.building_name:
                     subject = visual.building_name
+                    # Refresh search terms with the vision-identified building name.
+                    queries = _expand_search_queries(subject, user_text)
             except Exception as e:
                 logger.warning("Vision reference analysis failed: %s", e)
 
@@ -1343,6 +1411,7 @@ def research_building_profile(
                 client = get_client(req)
                 cfg = build_config(req, default_model="gpt-4o-mini")
                 if client:
+                    # Blueprint path is excluded by not has_full_blueprint above.
                     profile = synthesize_profile_with_llm(
                         client,
                         cfg.model,
@@ -1350,11 +1419,7 @@ def research_building_profile(
                         user_text,
                         results,
                         visual_notes=visual.notes if visual else None,
-                        reference_blueprint=(
-                            visual.reference_blueprint.to_prompt_dict()
-                            if visual and visual.reference_blueprint
-                            else None
-                        ),
+                        reference_blueprint=None,
                         call_with_timeout=call_with_timeout,
                     )
             except Exception as e:

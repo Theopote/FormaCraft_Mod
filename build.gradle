@@ -66,6 +66,10 @@ processResources {
 	}
 }
 
+tasks.named('processTestResources') {
+	from('python_backend/eval/fixtures/intent_baseline_v1.json')
+}
+
 tasks.withType(JavaCompile).configureEach {
 	it.options.release = 21
 }

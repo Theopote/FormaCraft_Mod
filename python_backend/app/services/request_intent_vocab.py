@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict
@@ -23,82 +24,12 @@ _VOCAB_PATH = (
 
 @lru_cache(maxsize=1)
 def load_request_intent_vocab() -> Dict[str, Any]:
-    if not _VOCAB_PATH.is_file():
-        return _fallback_vocab()
-    with _VOCAB_PATH.open("r", encoding="utf-8") as fh:
-        data = json.load(fh)
-    if not isinstance(data, dict):
-        return _fallback_vocab()
+    path = Path(os.getenv("FORMACRAFT_REQUEST_INTENT_VOCAB_PATH") or _VOCAB_PATH)
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"Cannot load shared request intent vocabulary: {path}") from exc
+    if not isinstance(data, dict) or data.get("schema") != "formacraft.request_intent_vocab.v1":
+        raise RuntimeError(f"Invalid shared request intent vocabulary schema: {path}")
     return data
-
-
-def _fallback_vocab() -> Dict[str, Any]:
-    """Minimal inline fallback if asset file is missing at runtime."""
-    return {
-        "schema": "formacraft.request_intent_vocab.v1",
-        "negation_prefixes": [
-            "不要", "别要", "无需", "不用", "不采用", "不使用", "禁止", "避免", "无",
-            "no ", "without ", "not ",
-        ],
-        "building_classes": {
-            "tower_like": {
-                "strong_markers": [
-                    "藏式佛塔", "佛塔", "古塔", "宝塔", "pagoda", "stupa",
-                ],
-                "weak_markers": [],
-            },
-            "gate": {
-                "strong_markers": ["山门", "牌坊", "paifang", "gatehouse", "寺庙山门"],
-            },
-            "garden": {
-                "strong_markers": ["江南园林", "日式庭院", "园林", "courtyard compound"],
-                "weak_markers": ["庭院", "courtyard", "garden"],
-                "weak_suppressors": [
-                    "别墅", "villa", "城堡", "castle", "住宅", "house", "图书馆", "library",
-                ],
-            },
-            "temple": {
-                "strong_markers": ["道观", "寺庙", "庙宇", "大殿", "殿堂", "daoist temple"],
-            },
-        },
-        "roof_types": [
-            {"phrase": "歇山", "canonical": "xieshan"},
-            {"phrase": "庑殿", "canonical": "wudian"},
-            {"phrase": "重檐", "canonical": "double_eave_hip"},
-            {"phrase": "攒尖", "canonical": "pyramid"},
-            {"phrase": "悬山", "canonical": "xuanshan"},
-            {"phrase": "硬山", "canonical": "yingshan"},
-            {"phrase": "平顶", "canonical": "flat"},
-            {"phrase": "双坡", "canonical": "gable"},
-            {"phrase": "gable", "canonical": "gable"},
-        ],
-        "forbids": {
-            "windows": ["不要窗", "无窗", "禁窗", "不开窗", "不要门窗", "无门窗", "没有门窗", "no windows", "without windows"],
-            "entrance": ["不要门", "无门", "没有门", "禁门", "no door", "without door", "no doors", "without doors"],
-        },
-        "forbid_false_friends": {
-            "windows": ["不要窗花", "无窗花"],
-            "entrance": ["无门槛", "没门槛", "没有门槛", "不设门槛", "不要门廊", "无门廊", "没有门廊", "no doorway", "without doorway", "no threshold", "without threshold"],
-        },
-        "tower_subtypes": {
-            "tibetan_stupa": ["藏式", "白塔", "覆钵", "相轮", "喇嘛塔", "tibetan", "chorten"],
-            "dense_eaves_pagoda": ["密檐", "古塔", "宝塔", "pagoda"],
-        },
-        "temple_compound_markers": ["建筑群", "院落", "厢房", "配殿", "三进", "两进", "宫观群"],
-        "materials": {
-            "wall": [
-                {"phrases": ["白墙", "white wall", "white_concrete"], "block": "minecraft:white_concrete"},
-                {"phrases": ["石砖", "stone brick"], "block": "minecraft:stone_bricks"},
-            ],
-            "roof": [
-                {"phrases": ["黑瓦", "black tile", "black_terracotta"], "block": "minecraft:black_terracotta"},
-            ],
-        },
-        "confidence": {
-            "strong_hit": 0.9,
-            "weak_hit": 0.45,
-            "llm_preferred_min": 0.55,
-            "keyword_override_min": 0.8,
-            "scaffold_min": 0.75,
-        },
-    }

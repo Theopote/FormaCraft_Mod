@@ -84,8 +84,11 @@ class ResearchWithReferencesTest(unittest.TestCase):
             ),
         ]
 
+        seen_queries: list[str] = []
+
         def fake_search(q: str, n: int):
-            return [{"title": "Ref", "snippet": "tower glass facade", "url": ""}]
+            seen_queries.append(q)
+            return [{"title": "Ref", "snippet": "tower glass facade architecture", "url": "https://example.com/t"}]
 
         visual = VisualAnalysis(
             building_name="Test Tower",
@@ -104,6 +107,12 @@ class ResearchWithReferencesTest(unittest.TestCase):
         self.assertIsNotNone(profile)
         assert profile is not None
         self.assertEqual(profile.identity.name, "Test Tower")
+        # Vision name must refresh search queries (not leave only generic "照着这个").
+        self.assertTrue(seen_queries, msg="expected multi_source_search to run")
+        self.assertTrue(
+            any("Test Tower" in q for q in seen_queries),
+            msg=seen_queries,
+        )
 
 
 class RequestAdapterReferenceTest(unittest.TestCase):

@@ -10,6 +10,11 @@ from unittest.mock import patch
 
 from app.models.building_profile import BuildingProfile, validate_building_profile
 from app.services.building_research_agent import (
+    _DESIGN_BY_RE,
+    _expand_search_queries,
+    _extract_features_from_text,
+    _infer_scale_from_text,
+    _parse_designer_building,
     format_profile_for_prompt,
     is_building_research_enabled,
     multi_source_search,
@@ -175,6 +180,40 @@ class QueryPlannerTest(unittest.TestCase):
             any(k in joined for k in ("西安奥体中心", "Zaha Hadid", "扎哈", "西安体育馆")),
             msg=queries,
         )
+        self.assertNotIn("stadium", joined.lower())
+        # Style query may be past MAX_QUERIES truncation; expand itself must carry architect style.
+        expanded = _expand_search_queries(subject, "扎哈设计的西安体育馆")
+        self.assertTrue(any("Deconstructivism" in q for q in expanded), msg=expanded)
+        self.assertFalse(any("stadium" in q.lower() for q in expanded), msg=expanded)
+
+    def test_pei_queries_do_not_force_stadium_or_deconstructivism(self):
+        queries = _expand_search_queries("苏州博物馆", "贝聿铭设计的苏州博物馆")
+        joined = " ".join(queries).lower()
+        self.assertIn("i.m. pei", joined)
+        self.assertIn("modernism", joined)
+        self.assertNotIn("stadium", joined)
+        self.assertNotIn("deconstructivism", joined)
+
+    def test_design_by_requires_design_verb(self):
+        self.assertIsNone(_parse_designer_building("中世纪的石砌城堡")[0])
+        self.assertIsNone(_parse_designer_building("带庭院的四合院")[0])
+        self.assertFalse(_DESIGN_BY_RE.search("中世纪的石砌城堡"))
+        designer, building = _parse_designer_building("贝聿铭设计的苏州博物馆")
+        self.assertEqual(designer, "贝聿铭")
+        self.assertIn("苏州博物馆", building)
+
+    def test_infer_scale_ignores_million_and_maps_tall_to_height(self):
+        million = _infer_scale_from_text("20 million visitors each year")
+        self.assertIsNone(million["typical_width_blocks"])
+        self.assertIsNone(million["typical_depth_blocks"])
+        tall = _infer_scale_from_text("the tower is 300m tall")
+        self.assertEqual(tall["typical_height_blocks"], 256)  # capped
+        self.assertIsNone(tall["typical_width_blocks"])
+        self.assertIsNone(tall["typical_depth_blocks"])
+
+    def test_feature_keywords_dedupe_dome(self):
+        feats = _extract_features_from_text("glass dome over the atrium")
+        self.assertEqual(feats.count("dome"), 1)
 
     def test_enrich_profile_from_architect_hint(self):
         base = synthesize_profile_rule_based("西安体育馆", "扎哈设计的西安体育馆", [])
@@ -270,6 +309,32 @@ class MultiSourceSearchTest(unittest.TestCase):
 
         merged = multi_source_search(["q1", "q2"], search_fn=fake_search)
         self.assertEqual(len(merged), 1)
+
+    def test_runs_queries_in_parallel(self):
+        import threading
+        import time
+
+        active = 0
+        max_active = 0
+        lock = threading.Lock()
+
+        def fake_search(query: str, max_results: int):
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+            time.sleep(0.05)
+            with lock:
+                active -= 1
+            return [{
+                "title": query,
+                "snippet": f"{query} architecture structure design",
+                "url": f"https://example.com/{query}",
+            }]
+
+        merged = multi_source_search(["q1", "q2", "q3"], search_fn=fake_search)
+        self.assertEqual(len(merged), 3)
+        self.assertGreaterEqual(max_active, 2)
 
 
 class ResearchIntegrationTest(unittest.TestCase):

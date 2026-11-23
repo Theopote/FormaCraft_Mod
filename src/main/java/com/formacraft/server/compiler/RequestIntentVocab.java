@@ -4,7 +4,9 @@ import com.formacraft.common.json.JsonUtil;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -37,16 +39,18 @@ final class RequestIntentVocab {
             }
             try (InputStream in = RequestIntentVocab.class.getClassLoader().getResourceAsStream(RESOURCE)) {
                 if (in == null) {
-                    CACHED = fallback();
-                } else {
-                    CACHED = JsonUtil.get().fromJson(
-                            new InputStreamReader(in, StandardCharsets.UTF_8), JsonObject.class);
-                    if (CACHED == null) {
-                        CACHED = fallback();
-                    }
+                    throw new IllegalStateException("Missing shared request intent vocabulary: " + RESOURCE);
                 }
-            } catch (Exception e) {
-                CACHED = fallback();
+                JsonObject data = JsonUtil.get().fromJson(
+                        new InputStreamReader(in, StandardCharsets.UTF_8), JsonObject.class);
+                JsonElement schema = data == null ? null : data.get("schema");
+                if (schema == null || !schema.isJsonPrimitive()
+                        || !"formacraft.request_intent_vocab.v1".equals(schema.getAsString())) {
+                    throw new IllegalStateException("Invalid shared request intent vocabulary schema: " + RESOURCE);
+                }
+                CACHED = data;
+            } catch (IOException | JsonParseException e) {
+                throw new IllegalStateException("Cannot load shared request intent vocabulary: " + RESOURCE, e);
             }
             return CACHED;
         }
@@ -114,47 +118,5 @@ final class RequestIntentVocab {
             out.add(row);
         }
         return out;
-    }
-
-    private static JsonObject fallback() {
-        // Minimal fallback mirroring Python — used only if the asset is missing.
-        String json = """
-                {
-                  "negation_prefixes": ["不要","无","禁止","no ","without ","not "],
-                  "building_classes": {
-                    "tower_like": {"strong_markers": ["佛塔","古塔","宝塔","pagoda","stupa"]},
-                    "gate": {"strong_markers": ["山门","牌坊","paifang","gatehouse","寺庙山门"]},
-                    "garden": {
-                      "strong_markers": ["江南园林","日式庭院","园林","courtyard compound"],
-                      "weak_markers": ["庭院","courtyard","garden"],
-                      "weak_suppressors": ["别墅","villa","城堡","castle","住宅","house","图书馆","library"]
-                    },
-                    "temple": {"strong_markers": ["道观","寺庙","庙宇","大殿","殿堂"]}
-                  },
-                  "roof_types": [
-                    {"phrase":"歇山","canonical":"xieshan"},
-                    {"phrase":"重檐","canonical":"double_eave_hip"},
-                    {"phrase":"gable","canonical":"gable"}
-                  ],
-                  "forbids": {
-                    "windows": ["不要窗","无窗","禁窗","不开窗","不要门窗","无门窗","没有门窗","no windows","without windows"],
-                    "entrance": ["不要门","无门","没有门","禁门","no door","without door","no doors","without doors"]
-                  },
-                  "forbid_false_friends": {
-                    "windows": ["不要窗花","无窗花"],
-                    "entrance": ["无门槛","没门槛","没有门槛","不设门槛","不要门廊","无门廊","没有门廊","no doorway","without doorway","no threshold","without threshold"]
-                  },
-                  "tower_subtypes": {
-                    "tibetan_stupa": ["藏式","白塔","覆钵","相轮","tibetan","chorten"]
-                  },
-                  "temple_compound_markers": ["建筑群","院落","厢房","配殿"],
-                  "confidence": {
-                    "strong_hit": 0.9,
-                    "weak_hit": 0.45,
-                    "scaffold_min": 0.75
-                  }
-                }
-                """;
-        return JsonUtil.get().fromJson(json, JsonObject.class);
     }
 }
