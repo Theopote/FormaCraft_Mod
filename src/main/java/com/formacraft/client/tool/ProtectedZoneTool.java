@@ -119,32 +119,28 @@ public final class ProtectedZoneTool implements FormacraftTool {
         float a = preview ? 0.65f : 0.85f;
         VertexRendering.drawBox(ctx.matrices.peek(), ctx.vertexConsumer, box, r, g, b, a);
 
-        // 顶部斜线（线条本身用 ToolRenderUtil）
+        // 顶部斜线：按斜率裁剪进盒子，避免长宽比大时端点独立 clamp 导致畸变
         int topY = max.getY() + 1;
-        int step = 2;
-        // 斜线方向：从 (minX, minZ) -> (maxX, maxZ)
+        double minX = min.getX();
+        double maxX = max.getX() + 1;
+        double minZ = min.getZ();
+        double maxZ = max.getZ() + 1;
+        int span = (max.getX() - min.getX()) + (max.getZ() - min.getZ());
+        int step = Math.max(2, span / 32);
+        double y = topY + 0.02;
+        // 斜线方向：从 (x, minZ) → (x - height, maxZ)
         for (int x = min.getX(); x <= max.getX() + (max.getZ() - min.getZ()); x += step) {
-            int x1 = x;
-            int z1 = min.getZ();
-            int x2 = x - (max.getZ() - min.getZ());
-            int z2 = max.getZ() + 1;
-
-            // 裁剪到盒子范围
-            // 简单做法：逐端点 clamp（视觉足够）
-            x1 = clamp(x1, min.getX(), max.getX() + 1);
-            x2 = clamp(x2, min.getX(), max.getX() + 1);
-
-            double y = topY + 0.02;
+            double x1 = x;
+            double z1 = minZ;
+            double x2 = x - (max.getZ() - min.getZ());
+            double z2 = maxZ;
+            double[] clipped = ToolGeometry.clipSegmentXZ(x1, z1, x2, z2, minX, maxX, minZ, maxZ);
+            if (clipped == null) continue;
             ToolRenderUtil.line(ctx,
-                    x1, y, z1,
-                    x2, y, z2,
+                    clipped[0], y, clipped[1],
+                    clipped[2], y, clipped[3],
                     255, preview ? 200 : 80, 80, 140);
         }
-    }
-
-    private static int clamp(int v, int a, int b) {
-        if (v < a) return a;
-        return Math.min(v, b);
     }
 
     public List<ProtectedZone> getZones() {

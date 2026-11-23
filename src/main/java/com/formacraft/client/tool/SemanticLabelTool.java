@@ -21,7 +21,19 @@ public final class SemanticLabelTool implements FormacraftTool {
     private SemanticLabelTool() {}
 
     /** range：标签“作用范围”（方块），用于告诉 AI 该标签大致影响的区域范围（即便轮廓较小/较大也可单独约束）。 */
-    public record AreaLabel(String name, int range, List<BlockPos> outline, int minY, int maxY) {}
+    public record AreaLabel(
+            String name,
+            int range,
+            List<BlockPos> outline,
+            int minY,
+            int maxY,
+            List<ToolGeometry.FillStripe> fill
+    ) {
+        public static AreaLabel of(String name, int range, List<BlockPos> outline, int minY, int maxY) {
+            List<BlockPos> pts = List.copyOf(outline);
+            return new AreaLabel(name, range, pts, minY, maxY, ToolGeometry.polygonFillStripes(pts));
+        }
+    }
 
     private final List<BlockPos> draft = new ArrayList<>();
     private boolean drafting = false;
@@ -119,7 +131,7 @@ public final class SemanticLabelTool implements FormacraftTool {
         for (AreaLabel l : labels) {
             if (l == null || l.outline() == null || l.outline().size() < 3) continue;
             renderPolygon(ctx, l.outline(), 255, 230, 80, 220, false);
-            renderPolygonFill(ctx, l.outline(), l.minY(), 255, 230, 80, 70);
+            renderCachedFill(ctx, l.fill(), l.minY(), 255, 230, 80, 70);
             renderLabelText(ctx, l);
         }
 
@@ -166,7 +178,7 @@ public final class SemanticLabelTool implements FormacraftTool {
             return;
         }
         int[] yr = defaultYRange(baseY);
-        labels.add(new AreaLabel(pendingName, pendingRange, List.copyOf(draft), yr[0], yr[1]));
+        labels.add(AreaLabel.of(pendingName, pendingRange, draft, yr[0], yr[1]));
         cancelDraft();
     }
 
@@ -204,46 +216,17 @@ public final class SemanticLabelTool implements FormacraftTool {
         }
     }
 
-    private void renderPolygonFill(ToolWorldRenderContext ctx, List<BlockPos> poly, int y,
-                                   int r, int g, int b, int a) {
-        if (poly == null || poly.size() < 3) return;
-        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
-        for (BlockPos p : poly) {
-            minZ = Math.min(minZ, p.getZ());
-            maxZ = Math.max(maxZ, p.getZ());
-        }
-        if (minZ > maxZ) return;
-
+    private void renderCachedFill(
+            ToolWorldRenderContext ctx,
+            List<ToolGeometry.FillStripe> fill,
+            int y,
+            int r, int g, int b, int a
+    ) {
+        if (fill == null || fill.isEmpty()) return;
         double yy = y + 0.02;
-        for (int zz = minZ; zz <= maxZ; zz++) {
-            List<Double> xs = intersectScanline(poly, zz + 0.5);
-            if (xs.size() < 2) continue;
-            xs.sort(Double::compareTo);
-            for (int i = 0; i + 1 < xs.size(); i += 2) {
-                double x1 = xs.get(i);
-                double x2 = xs.get(i + 1);
-                ToolRenderUtil.line(ctx, x1, yy, zz + 0.5, x2, yy, zz + 0.5, r, g, b, a);
-            }
+        for (ToolGeometry.FillStripe s : fill) {
+            ToolRenderUtil.line(ctx, s.x1(), yy, s.z(), s.x2(), yy, s.z(), r, g, b, a);
         }
-    }
-
-    private List<Double> intersectScanline(List<BlockPos> poly, double z) {
-        List<Double> xs = new ArrayList<>();
-        int n = poly.size();
-        for (int i = 0; i < n; i++) {
-            BlockPos a = poly.get(i);
-            BlockPos b = poly.get((i + 1) % n);
-            double z1 = a.getZ() + 0.5;
-            double z2 = b.getZ() + 0.5;
-            double x1 = a.getX() + 0.5;
-            double x2 = b.getX() + 0.5;
-            if (z1 == z2) continue;
-            boolean cond = (z >= Math.min(z1, z2)) && (z < Math.max(z1, z2));
-            if (!cond) continue;
-            double t = (z - z1) / (z2 - z1);
-            xs.add(x1 + t * (x2 - x1));
-        }
-        return xs;
     }
 
     private void renderLabelText(ToolWorldRenderContext ctx, AreaLabel l) {

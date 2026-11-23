@@ -37,6 +37,9 @@ def _check_case(case: Dict[str, Any]) -> List[str]:
             f"building_class: got {intent.get('building_class')!r} expected {expected_cls!r}"
         )
 
+    if "scaffold_eligible" in case and intent.get("scaffold_eligible") != case["scaffold_eligible"]:
+        errors.append(f"scaffold_eligible: got {intent.get('scaffold_eligible')!r}")
+
     if case.get("tower_subtype") and intent.get("tower_subtype") != case["tower_subtype"]:
         errors.append(
             f"tower_subtype: got {intent.get('tower_subtype')!r} expected {case['tower_subtype']!r}"

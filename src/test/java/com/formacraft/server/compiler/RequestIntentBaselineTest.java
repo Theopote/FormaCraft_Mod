@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RequestIntentBaselineTest {
     @TestFactory
-    List<DynamicTest> sharedKeywordBaseline() throws IOException {
+    List<DynamicTest> sharedIntentBaseline() throws IOException {
         try (var input = getClass().getResourceAsStream("/intent_baseline_v1.json")) {
             assertNotNull(input, "Missing shared Python intent baseline");
             var fixture = JsonParser.parseReader(new InputStreamReader(input, StandardCharsets.UTF_8))
@@ -27,10 +27,20 @@ class RequestIntentBaselineTest {
             List<DynamicTest> tests = new ArrayList<>();
             for (var row : fixture.getAsJsonArray("cases")) {
                 JsonObject testCase = row.getAsJsonObject();
-                if (testCase.has("llm_declared")) continue;
                 tests.add(DynamicTest.dynamicTest(testCase.get("id").getAsString(), () -> {
                     String prompt = testCase.get("prompt").getAsString();
                     var intent = RequestIntentKeywordExtractor.extractKeyword(prompt);
+                    if (testCase.has("llm_declared")) {
+                        var declared = testCase.getAsJsonObject("llm_declared");
+                        intent = RequestIntentKeywordExtractor.mergeWithLlmDeclared(intent, Map.of(
+                                "declared_intent", Map.of(
+                                        "building_class", declared.get("building_class").getAsString(),
+                                        "confidence", declared.get("confidence").getAsDouble())));
+                    }
+                    if (testCase.has("scaffold_eligible")) {
+                        assertEquals(testCase.get("scaffold_eligible").getAsBoolean(),
+                                intent.get("scaffold_eligible"), "scaffold_eligible");
+                    }
                     for (String key : List.of("building_class", "tower_subtype", "composition", "roof_type")) {
                         if (testCase.has(key)) {
                             assertEquals(testCase.get(key).getAsString(), intent.get(key), key);
@@ -59,7 +69,7 @@ class RequestIntentBaselineTest {
                     }
                 }));
             }
-            assertFalse(tests.isEmpty(), "Shared fixture has no keyword-only cases");
+            assertFalse(tests.isEmpty(), "Shared fixture has no intent cases");
             return tests;
         }
     }

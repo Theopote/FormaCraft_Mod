@@ -230,9 +230,10 @@ public final class PathTool implements FormacraftTool {
         if (ctx == null) return;
 
         // 已完成路径：橙色
-        for (Path p : INSTANCE.paths) {
+        for (int i = 0; i < INSTANCE.paths.size(); i++) {
+            Path p = INSTANCE.paths.get(i);
             if (p == null || p.polyline == null || p.polyline.size() < 2) continue;
-            boolean selected = INSTANCE.getGenerationPaths().contains(p);
+            boolean selected = i == INSTANCE.selectedPath;
             renderPolyline(ctx, p.polyline, 255, selected ? 210 : 130, 40, selected ? 255 : 110);
         }
 
@@ -289,7 +290,9 @@ public final class PathTool implements FormacraftTool {
             Vec3d c2 = p2.subtract(p3.subtract(p1).multiply(1.0 / 6.0));
 
             double segLen = p1.distanceTo(p2);
-            int steps = (int) Math.max(10, Math.ceil(segLen * 10.0)); // 越长越密
+            // Density scales with length but hard-capped so a 200-block span cannot emit 2k samples/frame.
+            int steps = (int) Math.max(10, Math.ceil(segLen * 10.0));
+            steps = Math.min(steps, 64);
 
             int start = (i == 0) ? 0 : 1; // 避免段与段之间重复点
             for (int s = start; s <= steps; s++) {

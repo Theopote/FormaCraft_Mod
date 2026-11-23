@@ -3,6 +3,7 @@ package com.formacraft.client.tool;
 import com.formacraft.client.interaction.CursorRaycastHelper;
 import com.formacraft.client.ui.input.InputRouter;
 import com.formacraft.common.logging.FcaLog;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.client.MinecraftClient;
@@ -25,6 +26,10 @@ public final class BrushTool implements FormacraftTool {
     public static final BrushTool INSTANCE = new BrushTool();
 
     private static final FcaLog LOG = FcaLog.of("BrushTool");
+    /** Hard cap so multi-stroke paints cannot unbounded-grow client memory/render cost. */
+    static final int MAX_SELECTED = 24_000;
+    private static final int MAX_RENDER_CELLS = 4_000;
+    private static final double MAX_RENDER_DIST_SQ = 96.0 * 96.0;
 
     private BrushTool() {}
 
@@ -43,10 +48,15 @@ public final class BrushTool implements FormacraftTool {
     // 已选中的方块（以 BlockPos#asLong 编码）
     private final LongOpenHashSet selected = new LongOpenHashSet();
     private final BrushSelectionHistory history = new BrushSelectionHistory(selected);
+    /** (x,z) → packed surface cell — erase is O(|hover|) instead of full-set scan. */
+    private final Long2LongOpenHashMap columns = new Long2LongOpenHashMap();
 
     // 当前 hover 预览（每 tick 重算）
     private final LongArrayList hover = new LongArrayList();
 
+    {
+        columns.defaultReturnValue(Long.MIN_VALUE);
+    }
 
     @Override
     public String getId() {
@@ -95,6 +105,7 @@ public final class BrushTool implements FormacraftTool {
 
     public void clearSelected() {
         history.clear();
+        columns.clear();
         strokeButton = -1;
     }
 
@@ -143,29 +154,47 @@ public final class BrushTool implements FormacraftTool {
         if (strokeButton == 0) {
             paintHoverToSelected();
         } else if (strokeButton == 1 && !hover.isEmpty()) {
-            LongOpenHashSet columns = new LongOpenHashSet();
-            for (long packed : hover) {
-                BlockPos p = BlockPos.fromLong(packed);
-                columns.add(BlockPos.asLong(p.getX(), 0, p.getZ()));
-            }
-            for (long packed : selected.toLongArray()) {
-                BlockPos p = BlockPos.fromLong(packed);
-                if (columns.contains(BlockPos.asLong(p.getX(), 0, p.getZ()))) history.remove(packed);
-            }
+            eraseHoverColumns();
+        }
+    }
+
+    private void eraseHoverColumns() {
+        for (int i = 0; i < hover.size(); i++) {
+            long packed = hover.getLong(i);
+            BlockPos p = BlockPos.fromLong(packed);
+            long key = columnKey(p.getX(), p.getZ());
+            long existing = columns.get(key);
+            if (existing == Long.MIN_VALUE) continue;
+            history.remove(existing);
+            columns.remove(key);
         }
     }
 
     @Override
-    public void cancelDraft() { history.cancel(); strokeButton = -1; }
+    public void cancelDraft() {
+        history.cancel();
+        rebuildColumns();
+        strokeButton = -1;
+    }
 
     @Override
     public boolean hasLocalHistory() { return true; }
     public boolean canUndo() { return history.canUndo(); }
     public boolean canRedo() { return history.canRedo(); }
     @Override
-    public boolean undo() { strokeButton = -1; return history.undo(); }
+    public boolean undo() {
+        strokeButton = -1;
+        boolean ok = history.undo();
+        rebuildColumns();
+        return ok;
+    }
     @Override
-    public boolean redo() { strokeButton = -1; return history.redo(); }
+    public boolean redo() {
+        strokeButton = -1;
+        boolean ok = history.redo();
+        rebuildColumns();
+        return ok;
+    }
 
     private void updateHover(World world) {
         hover.clear();
@@ -208,8 +237,29 @@ public final class BrushTool implements FormacraftTool {
     private void paintHoverToSelected() {
         if (hover.isEmpty()) return;
         for (int i = 0; i < hover.size(); i++) {
-            history.add(hover.getLong(i));
+            if (selected.size() >= MAX_SELECTED) break;
+            long packed = hover.getLong(i);
+            history.add(packed);
+            if (selected.contains(packed)) {
+                putColumn(packed);
+            }
         }
+    }
+
+    private void putColumn(long packed) {
+        BlockPos p = BlockPos.fromLong(packed);
+        columns.put(columnKey(p.getX(), p.getZ()), packed);
+    }
+
+    private void rebuildColumns() {
+        columns.clear();
+        for (long packed : selected) {
+            putColumn(packed);
+        }
+    }
+
+    static long columnKey(int x, int z) {
+        return BlockPos.asLong(x, 0, z);
     }
 
     /**
@@ -229,19 +279,33 @@ public final class BrushTool implements FormacraftTool {
     private static void renderSet(ToolWorldRenderContext ctx, LongOpenHashSet set, RenderMode mode,
                                   int r, int g, int b, int a) {
         if (set == null || set.isEmpty()) return;
+        int drawn = 0;
         for (long packed : set) {
             BlockPos p = BlockPos.fromLong(packed);
+            if (!withinRenderDistance(ctx, p)) continue;
             renderOne(ctx, p, mode, r, g, b, a);
+            if (++drawn >= MAX_RENDER_CELLS) break;
         }
     }
 
     private static void renderList(ToolWorldRenderContext ctx, LongArrayList list, RenderMode mode,
                                    int r, int g, int b, int a) {
         if (list == null || list.isEmpty()) return;
+        int drawn = 0;
         for (int i = 0; i < list.size(); i++) {
             BlockPos p = BlockPos.fromLong(list.getLong(i));
+            if (!withinRenderDistance(ctx, p)) continue;
             renderOne(ctx, p, mode, r, g, b, a);
+            if (++drawn >= MAX_RENDER_CELLS) break;
         }
+    }
+
+    private static boolean withinRenderDistance(ToolWorldRenderContext ctx, BlockPos p) {
+        if (p == null) return false;
+        double dx = p.getX() + 0.5 - ctx.cameraX;
+        double dy = p.getY() + 0.5 - ctx.cameraY;
+        double dz = p.getZ() + 0.5 - ctx.cameraZ;
+        return dx * dx + dy * dy + dz * dz <= MAX_RENDER_DIST_SQ;
     }
 
     private static void renderOne(ToolWorldRenderContext ctx, BlockPos p, RenderMode mode,
@@ -286,5 +350,3 @@ public final class BrushTool implements FormacraftTool {
         ToolRenderUtil.line(ctx, x0, yy, z0, x1, yy, z1, r, g, b, Math.max(60, a / 3));
     }
 }
-
-

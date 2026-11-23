@@ -89,4 +89,100 @@ final class ToolGeometry {
         return (abC * abD < 0 && cdA * cdB < 0) || onSegment(a, b, c)
                 || onSegment(a, b, d) || onSegment(c, d, a) || onSegment(c, d, b);
     }
+
+    /** Horizontal fill stripe in XZ (y chosen by the renderer). */
+    record FillStripe(double x1, double x2, double z) {}
+
+    /** Adaptive Z step so large footprints stay near ~64 stripes. */
+    static int fillStep(int minZ, int maxZ) {
+        return Math.max(1, (maxZ - minZ) / 64);
+    }
+
+    /** Precompute polygon scanline fill for committed overlays (avoids per-frame GC). */
+    static List<FillStripe> polygonFillStripes(List<BlockPos> poly) {
+        if (poly == null || poly.size() < 3) return List.of();
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        for (BlockPos p : poly) {
+            minZ = Math.min(minZ, p.getZ());
+            maxZ = Math.max(maxZ, p.getZ());
+        }
+        if (minZ > maxZ) return List.of();
+        int step = fillStep(minZ, maxZ);
+        List<FillStripe> out = new ArrayList<>();
+        List<Double> xs = new ArrayList<>();
+        for (int zz = minZ; zz <= maxZ; zz += step) {
+            xs.clear();
+            intersectScanlineInto(poly, zz + 0.5, xs);
+            if (xs.size() < 2) continue;
+            xs.sort(Double::compareTo);
+            double z = zz + 0.5;
+            for (int i = 0; i + 1 < xs.size(); i += 2) {
+                out.add(new FillStripe(xs.get(i), xs.get(i + 1), z));
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    static List<FillStripe> circleFillStripes(BlockPos center, int radius) {
+        if (center == null || radius <= 0) return List.of();
+        double cx = center.getX() + 0.5;
+        double cz = center.getZ() + 0.5;
+        int step = Math.max(1, radius / 32);
+        List<FillStripe> out = new ArrayList<>();
+        for (int dz = -radius; dz <= radius; dz += step) {
+            double dx = Math.sqrt(Math.max(0.0, (double) radius * radius - (double) dz * dz));
+            out.add(new FillStripe(cx - dx, cx + dx, cz + dz));
+        }
+        return List.copyOf(out);
+    }
+
+    static void intersectScanlineInto(List<BlockPos> poly, double z, List<Double> xs) {
+        int n = poly.size();
+        for (int i = 0; i < n; i++) {
+            BlockPos a = poly.get(i);
+            BlockPos b = poly.get((i + 1) % n);
+            double z1 = a.getZ() + 0.5;
+            double z2 = b.getZ() + 0.5;
+            double x1 = a.getX() + 0.5;
+            double x2 = b.getX() + 0.5;
+            if (z1 == z2) continue;
+            if (!(z >= Math.min(z1, z2) && z < Math.max(z1, z2))) continue;
+            double t = (z - z1) / (z2 - z1);
+            xs.add(x1 + t * (x2 - x1));
+        }
+    }
+
+    /**
+     * Liang–Barsky clip of an XZ segment against an inclusive AABB.
+     * @return {x1,z1,x2,z2} or null if fully outside
+     */
+    static double[] clipSegmentXZ(
+            double x1, double z1, double x2, double z2,
+            double minX, double maxX, double minZ, double maxZ
+    ) {
+        double dx = x2 - x1;
+        double dz = z2 - z1;
+        double u0 = 0.0;
+        double u1 = 1.0;
+        double[] p = {-dx, dx, -dz, dz};
+        double[] q = {x1 - minX, maxX - x1, z1 - minZ, maxZ - z1};
+        for (int i = 0; i < 4; i++) {
+            if (p[i] == 0.0) {
+                if (q[i] < 0.0) return null;
+                continue;
+            }
+            double r = q[i] / p[i];
+            if (p[i] < 0.0) {
+                if (r > u1) return null;
+                if (r > u0) u0 = r;
+            } else {
+                if (r < u0) return null;
+                if (r < u1) u1 = r;
+            }
+        }
+        return new double[]{
+                x1 + u0 * dx, z1 + u0 * dz,
+                x1 + u1 * dx, z1 + u1 * dz
+        };
+    }
 }

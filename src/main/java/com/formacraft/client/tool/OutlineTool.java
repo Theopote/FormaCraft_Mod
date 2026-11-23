@@ -45,6 +45,8 @@ public final class OutlineTool implements FormacraftTool {
     private boolean freeDrawing = false;
 
     private OutlineShape shape;
+    /** Precomputed fill stripes for the committed shape (null while unset). */
+    private List<ToolGeometry.FillStripe> cachedFill = List.of();
 
     @Override
     public String getId() {
@@ -197,6 +199,7 @@ public final class OutlineTool implements FormacraftTool {
 
         int[] yr = defaultYRange(center.getY());
         this.shape = new OutlineShape(OutlineMode.CIRCLE, List.of(), center, r, yr[0], yr[1]);
+        this.cachedFill = ToolGeometry.circleFillStripes(center, r);
         syncToServer();
     }
 
@@ -226,7 +229,9 @@ public final class OutlineTool implements FormacraftTool {
         }
         int baseY = pts.getFirst().getY();
         int[] yr = defaultYRange(baseY);
-        this.shape = new OutlineShape(m, List.copyOf(pts), null, 0, yr[0], yr[1]);
+        List<BlockPos> copy = List.copyOf(pts);
+        this.shape = new OutlineShape(m, copy, null, 0, yr[0], yr[1]);
+        this.cachedFill = ToolGeometry.polygonFillStripes(copy);
         syncToServer();
     }
 
@@ -257,6 +262,7 @@ public final class OutlineTool implements FormacraftTool {
 
     public void clearShape() {
         shape = null;
+        cachedFill = List.of();
         cancelDraft();
         syncToServer();
     }
@@ -265,6 +271,7 @@ public final class OutlineTool implements FormacraftTool {
     public void resetWorldState() {
         // Local-only: avoid syncing empty outline during disconnect / world tear-down.
         shape = null;
+        cachedFill = List.of();
         cancelDraft();
     }
 
@@ -331,16 +338,24 @@ public final class OutlineTool implements FormacraftTool {
             }
         }
 
-        // 已完成的 shape：亮紫 + 半透明条纹填充
+        // 已完成的 shape：亮紫 + 半透明条纹填充（填充线段在提交时缓存）
         if (shape == null) return;
         if (shape.mode == OutlineMode.CIRCLE) {
             renderCircle(ctx, shape.center, shape.radius, 170, 80, 255, 220, false);
-            renderCircleFillStripes(ctx, shape.center, shape.radius, shape.minY, 160, 70, 220, 70);
+            renderCachedFill(ctx, shape.minY, 160, 70, 220, 70);
             return;
         }
         if (shape.points != null && shape.points.size() >= 3) {
             renderPolygon(ctx, shape.points, 170, 80, 255, 220, false);
-            renderPolygonFillStripes(ctx, shape.points, shape.minY, 160, 70, 220, 70);
+            renderCachedFill(ctx, shape.minY, 160, 70, 220, 70);
+        }
+    }
+
+    private void renderCachedFill(ToolWorldRenderContext ctx, int y, int r, int g, int b, int a) {
+        if (cachedFill == null || cachedFill.isEmpty()) return;
+        double yy = y + 0.02;
+        for (ToolGeometry.FillStripe s : cachedFill) {
+            ToolRenderUtil.line(ctx, s.x1(), yy, s.z(), s.x2(), yy, s.z(), r, g, b, a);
         }
     }
 
@@ -389,68 +404,6 @@ public final class OutlineTool implements FormacraftTool {
         }
     }
 
-    private void renderPolygonFillStripes(ToolWorldRenderContext ctx, List<BlockPos> poly, int y,
-                                          int r, int g, int b, int a) {
-        if (poly == null || poly.size() < 3) return;
-        // 只用 XZ，扫描 Z 画水平线段
-        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
-        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
-        for (BlockPos p : poly) {
-            minZ = Math.min(minZ, p.getZ());
-            maxZ = Math.max(maxZ, p.getZ());
-            minX = Math.min(minX, p.getX());
-            maxX = Math.max(maxX, p.getX());
-        }
-        if (minZ > maxZ || minX > maxX) return;
-
-        double yy = y + 0.02;
-        int step = 1;
-        for (int zz = minZ; zz <= maxZ; zz += step) {
-            List<Double> xs = intersectScanline(poly, zz + 0.5);
-            if (xs.size() < 2) continue;
-            xs.sort(Double::compareTo);
-            for (int i = 0; i + 1 < xs.size(); i += 2) {
-                double x1 = xs.get(i);
-                double x2 = xs.get(i + 1);
-                ToolRenderUtil.line(ctx, x1, yy, zz + 0.5, x2, yy, zz + 0.5, r, g, b, a);
-            }
-        }
-    }
-
-    private List<Double> intersectScanline(List<BlockPos> poly, double z) {
-        List<Double> xs = new ArrayList<>();
-        int n = poly.size();
-        for (int i = 0; i < n; i++) {
-            BlockPos a = poly.get(i);
-            BlockPos b = poly.get((i + 1) % n);
-            double z1 = a.getZ() + 0.5;
-            double z2 = b.getZ() + 0.5;
-            double x1 = a.getX() + 0.5;
-            double x2 = b.getX() + 0.5;
-
-            // 典型扫描线交点：忽略水平边，使用半开区间避免重复计数
-            if (z1 == z2) continue;
-            boolean cond = (z >= Math.min(z1, z2)) && (z < Math.max(z1, z2));
-            if (!cond) continue;
-            double t = (z - z1) / (z2 - z1);
-            double x = x1 + t * (x2 - x1);
-            xs.add(x);
-        }
-        return xs;
-    }
-
-    private void renderCircleFillStripes(ToolWorldRenderContext ctx, BlockPos center, int radius, int y,
-                                         int r, int g, int b, int a) {
-        if (center == null || radius <= 0) return;
-        double cx = center.getX() + 0.5;
-        double cz = center.getZ() + 0.5;
-        double yy = y + 0.02;
-        for (int dz = -radius; dz <= radius; dz++) {
-            double zz = cz + dz;
-            double dx = Math.sqrt(Math.max(0.0, radius * radius - dz * dz));
-            ToolRenderUtil.line(ctx, cx - dx, yy, zz, cx + dx, yy, zz, r, g, b, a);
-        }
-    }
 }
 
 
