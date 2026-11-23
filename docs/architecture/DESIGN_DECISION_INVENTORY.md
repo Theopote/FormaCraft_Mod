@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Removed radius from the legacy Roman-temple disambiguation cue list in Python and Java. Radius alone carries geometry information and does not change the declared building class.
+
 Building research, classification, vision and search HTTP calls inherit the enclosing planning stage deadline (HARD_CONSTRAINT). SDK retries are disabled for the bounded classification, synthesis and vision attempts.
 
 Build requests pass a bounded planning budget to the Python executor (HARD_CONSTRAINT). Inference waits and LlmPlan provider attempts respect the remaining budget, and disconnected or cancelled callers stop new inference attempts. Design choices are unaffected.

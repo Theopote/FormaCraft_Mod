@@ -484,7 +484,7 @@ def merge_request_intent(
         lower = text_for_override.lower()
         if any(
             m in text_for_override or m in lower
-            for m in ("罗马", "roman", "tholos", "peristyle", "圆形神殿", "半径")
+            for m in ("罗马", "roman", "tholos", "peristyle", "圆形神殿")
         ):
             out["building_class"] = "generic"
             out["confidence"] = kw_conf

@@ -380,7 +380,7 @@ final class PlanSemanticValidator {
     private static boolean looksClassicalRomanTemple(String corpus, LlmPlan plan) {
         String lower = corpus == null ? "" : corpus.toLowerCase(Locale.ROOT);
         if (lower.contains("罗马") || lower.contains("roman") || lower.contains("tholos")
-                || lower.contains("peristyle") || lower.contains("圆形神殿") || lower.contains("半径")) {
+                || lower.contains("peristyle") || lower.contains("圆形神殿")) {
             return true;
         }
         String style = plan != null && plan.styleProfile() != null

@@ -177,6 +177,27 @@ class BuildingQualityRecoveryPhase1Test {
     }
 
     @Test
+    void daoistTempleWithRadiusStillChecksTempleSemantics() {
+        Component mass = new Component(
+                "MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 6), List.of(), Map.of());
+        Component roof = new Component(
+                "ROOF", "main", new Vec3i(0, 6, 0),
+                new Dimensions(10, 10, 3), List.of(), Map.of("roof_type", "gable"));
+        LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(mass, roof))
+                .planMeta(Map.of("request_intent", Map.of(
+                        "building_class", "temple",
+                        "confidence", 0.92,
+                        "original_text", "建一座半径为8的道观")))
+                .build();
+
+        CapabilityGap gap = PlanSemanticValidator.check(plan).orElseThrow();
+        assertEquals("E_SEMANTIC_FIDELITY", gap.code());
+        assertTrue(gap.message().contains("道观/寺庙"));
+    }
+
+    @Test
     void romanCellaFlatShellWithDomeComponentDoesNotConflictRoofIntent() {
         Component cella = new Component(
                 "MASS_MAIN", "main", new Vec3i(0, 3, 0),

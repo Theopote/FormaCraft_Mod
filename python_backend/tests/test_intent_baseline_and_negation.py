@@ -19,6 +19,10 @@ from eval.intent_baseline_eval import run_baseline
 
 
 class IntentBaselineTest(unittest.TestCase):
+    def test_radius_does_not_reclassify_daoist_temple(self):
+        self.assertEqual("temple", resolve_request_intent("建一座半径为8的道观")["building_class"])
+        self.assertEqual("generic", resolve_request_intent("建一座半径为8的圆形罗马神殿")["building_class"])
+
     def test_shared_vocab_loads(self):
         vocab = load_request_intent_vocab()
         self.assertEqual(vocab.get("schema"), "formacraft.request_intent_vocab.v1")
