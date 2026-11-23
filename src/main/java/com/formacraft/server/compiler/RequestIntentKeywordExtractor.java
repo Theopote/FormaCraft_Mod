@@ -27,6 +27,8 @@ final class RequestIntentKeywordExtractor {
                     + "|upper[- ](?:floor|storey).{0,20}entrance",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final List<String> CLASS_PRIORITY = List.of("tower_like", "gate", "temple", "garden");
+    private static final Pattern FEATURE_MODIFIER = Pattern.compile(
+            "带(?:有)?[^的，。！？；、,\\n]{1,24}的(?=\\p{L})");
 
     static Map<String, Object> extract(String text) {
         return extractKeyword(text == null ? "" : text);
@@ -34,7 +36,7 @@ final class RequestIntentKeywordExtractor {
 
     static Map<String, Object> extractKeyword(String text) {
         String lower = text.toLowerCase(Locale.ROOT);
-        ScoredClass scored = scoreClass(text, lower);
+        ScoredClass scored = scoreClass(text);
         String buildingClass = scored.cls;
         double confidence = scored.confidence;
         List<String> markers = scored.markers;
@@ -362,7 +364,9 @@ final class RequestIntentKeywordExtractor {
                 || "garden".equals(cls) || "temple".equals(cls);
     }
 
-    static ScoredClass scoreClass(String text, String lower) {
+    private static ScoredClass scoreClass(String text) {
+        String classText = FEATURE_MODIFIER.matcher(text).replaceAll(" ");
+        String classLower = classText.toLowerCase(Locale.ROOT);
         String best = "generic";
         double bestScore = 0.0;
         List<String> bestMarkers = new ArrayList<>();
@@ -374,12 +378,12 @@ final class RequestIntentKeywordExtractor {
             if (spec == null) continue;
             List<String> strong = RequestIntentVocab.stringList(spec.getAsJsonArray("strong_markers"));
             List<String> weak = RequestIntentVocab.stringList(spec.getAsJsonArray("weak_markers"));
-            List<String> strongHits = positiveHits(text, lower, strong);
-            List<String> weakHits = positiveHits(text, lower, weak);
+            List<String> strongHits = positiveHits(classText, classLower, strong);
+            List<String> weakHits = positiveHits(classText, classLower, weak);
             if (!weakHits.isEmpty()) {
                 List<String> suppressors = RequestIntentVocab.stringList(
                         spec.getAsJsonArray("weak_suppressors"));
-                if (!suppressors.isEmpty() && containsAny(text, lower, suppressors)) {
+                if (!suppressors.isEmpty() && containsAny(classText, classLower, suppressors)) {
                     weakHits = List.of();
                 }
             }
@@ -565,7 +569,7 @@ final class RequestIntentKeywordExtractor {
                     + "(?:做成|改成|改为|改用|做成了|改成了|用|当|作为)?"
                     + "[\\u4e00-\\u9fffA-Za-z0-9_/·\\-]{0,6}$");
     private static final Pattern ASCII_NEGATION_SUFFIX = Pattern.compile(
-            "(?:(?:do\\s+)?not|don't|dont|no|without)\\s+$", Pattern.CASE_INSENSITIVE);
+            "\\b(?:not|don't|dont|no|without)\\s+(?:(?:a|an|the)\\s+)?$", Pattern.CASE_INSENSITIVE);
 
     /**
      * Overlay keyword roof_type / roof_forbids onto an existing request_intent map.

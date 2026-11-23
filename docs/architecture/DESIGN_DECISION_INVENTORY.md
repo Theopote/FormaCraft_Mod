@@ -1,5 +1,9 @@
 # Design decision inventory
 
+Building-class keyword hints skip short Chinese 带…的 feature modifiers and no longer treat 塔刹 as a whole-building marker (NONBINDING_HINT). Both extractors retain the complete original request for planning and extract other constraints from the original text.
+
+English keyword hints recognize a single optional article between a negation and its marker (NONBINDING_HINT). Negation remains local to the marker in both Python extraction and Java compatibility extraction.
+
 Removed radius from the legacy Roman-temple disambiguation cue list in Python and Java. Radius alone carries geometry information and does not change the declared building class.
 
 Building research, classification, vision and search HTTP calls inherit the enclosing planning stage deadline (HARD_CONSTRAINT). SDK retries are disabled for the bounded classification, synthesis and vision attempts.

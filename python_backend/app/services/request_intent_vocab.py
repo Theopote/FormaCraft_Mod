@@ -43,7 +43,7 @@ def _fallback_vocab() -> Dict[str, Any]:
         "building_classes": {
             "tower_like": {
                 "strong_markers": [
-                    "藏式佛塔", "佛塔", "古塔", "宝塔", "pagoda", "stupa", "塔刹",
+                    "藏式佛塔", "佛塔", "古塔", "宝塔", "pagoda", "stupa",
                 ],
                 "weak_markers": [],
             },

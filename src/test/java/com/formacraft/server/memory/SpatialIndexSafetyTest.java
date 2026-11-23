@@ -59,10 +59,14 @@ class SpatialIndexSafetyTest {
         var wide = memory("cccccccc-cccc-cccc-cccc-cccccccccccc", 0, 20);
         index.addMemory(wide);
         assertSame(wide, index.findNearest(OVERWORLD, new BlockPos(8, 1, 1), 64));
-        // Distance beyond cap should still not explode; far building outside cap is ignored.
+
+        // Cap: a far building must not be selected even when the caller asks for a huge radius.
+        index.clear();
         var far = memory("dddddddd-dddd-dddd-dddd-dddddddddddd", 10_000, 10_004);
         index.addMemory(far);
         assertNull(index.findNearest(OVERWORLD, BlockPos.ORIGIN, 10_000));
+
+        index.addMemory(wide);
         assertSame(wide, index.findNearest(OVERWORLD, new BlockPos(8, 1, 1), 10_000));
     }
 }

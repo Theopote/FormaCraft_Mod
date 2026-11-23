@@ -71,9 +71,9 @@ def _is_negated_at(text: str, start: int) -> bool:
         compact,
     ):
         return True
-    # ASCII: "no "/"without "/"not " must end the preceding window.
+    # English negation may include an article immediately before the marker.
     if re.search(
-        r"(?:(?:do\s+)?not|don't|dont|no|without)\s+$",
+        r"\b(?:not|don't|dont|no|without)\s+(?:(?:a|an|the)\s+)?$",
         lower,
         flags=re.IGNORECASE,
     ):
@@ -131,6 +131,8 @@ def _contains_any_raw(text: str, phrases: List[str]) -> bool:
 
 def _score_building_class(text: str) -> Tuple[str, float, List[str]]:
     """Return (building_class, confidence, markers) from keywords only."""
+    # A feature in 带…的 describes the following noun, not the whole building.
+    text = re.sub(r"带(?:有)?[^的，。！？；、,\n]{1,24}的(?=[^\W\d_])", " ", text)
     classes = _vocab().get("building_classes") or {}
     best_class = "generic"
     best_score = 0.0

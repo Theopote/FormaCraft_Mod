@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class MemoryDimensionTest {
     private static final Identifier OVERWORLD = Identifier.of("minecraft:overworld");
     private static final Identifier NETHER = Identifier.of("minecraft:the_nether");
+
     private ProjectMemory memory(Identifier dimension, int x) {
         var memory = new ProjectMemory();
         memory.setBounds(new ProjectMemory.SpatialBounds(new BlockPos(x, 0, 0), new BlockPos(x + 4, 8, 4), dimension));

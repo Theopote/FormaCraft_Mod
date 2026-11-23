@@ -228,7 +228,7 @@ public final class ChatSendSupport {
 
     public static boolean tryHandlePreviewAdjust(ChatPanel host, String text) {
 
-        if (!(BuildingPreviewState.isActive() || OutlinePreviewState.active) || text == null) {
+        if (!(BuildingPreviewState.isActive() || OutlinePreviewState.isActive()) || text == null) {
             return false;
         }
         ChatPanel.PreviewAdjustCommand cmd = ChatPanel.PreviewAdjustCommand.parse(text, host.client.player != null ? host.client.player.getHorizontalFacing() : null);

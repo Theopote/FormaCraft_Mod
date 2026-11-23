@@ -19,6 +19,16 @@ from eval.intent_baseline_eval import run_baseline
 
 
 class IntentBaselineTest(unittest.TestCase):
+    def test_english_negation_with_article_stays_local(self):
+        cases = [
+            ("this is not a pagoda, build a hall", "generic"),
+            ("not a pagoda, build a lunar archive", "generic"),
+            ("do not build a hall, build a pagoda", "tower_like"),
+        ]
+        for prompt, expected in cases:
+            with self.subTest(prompt=prompt):
+                self.assertEqual(expected, extract_keyword_intent(prompt)["building_class"])
+
     def test_radius_does_not_reclassify_daoist_temple(self):
         self.assertEqual("temple", resolve_request_intent("建一座半径为8的道观")["building_class"])
         self.assertEqual("generic", resolve_request_intent("建一座半径为8的圆形罗马神殿")["building_class"])
@@ -43,6 +53,10 @@ class IntentBaselineTest(unittest.TestCase):
 
     def test_audit_false_positives(self):
         cases = [
+            ("建一座带山门的寺庙", "temple"),
+            ("建一座要有塔刹的亭子", "generic"),
+            ("建一座带塔刹的宝塔", "tower_like"),
+            ("建一座寺庙山门", "gate"),
             ("建一座重檐歇山顶的大殿", "temple"),
             ("建一座20x30的现代图书馆，白墙，不要重檐", "generic"),
             ("建一座带庭院的现代别墅", "generic"),

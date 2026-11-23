@@ -122,7 +122,7 @@ final class RequestIntentVocab {
                 {
                   "negation_prefixes": ["不要","无","禁止","no ","without ","not "],
                   "building_classes": {
-                    "tower_like": {"strong_markers": ["佛塔","古塔","宝塔","pagoda","stupa","塔刹"]},
+                    "tower_like": {"strong_markers": ["佛塔","古塔","宝塔","pagoda","stupa"]},
                     "gate": {"strong_markers": ["山门","牌坊","paifang","gatehouse","寺庙山门"]},
                     "garden": {
                       "strong_markers": ["江南园林","日式庭院","园林","courtyard compound"],

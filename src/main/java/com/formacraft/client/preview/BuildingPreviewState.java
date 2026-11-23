@@ -11,7 +11,7 @@ import com.formacraft.client.preview.PreviewModalState;
  * - cancel/confirm 时清理
  * <p>
  * 说明：
- * - “真实占用方块”优先来自服务端下发的 OutlinePreviewState.blocks
+ * - “真实占用方块”优先来自服务端下发的 OutlinePreviewState 快照
  * - 这里额外保存 origin，用于确认建造时与预览一致
  */
 public final class BuildingPreviewState {

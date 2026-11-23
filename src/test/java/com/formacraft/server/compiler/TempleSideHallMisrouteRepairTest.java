@@ -20,6 +20,24 @@ import static org.junit.jupiter.api.Assertions.*;
 class TempleSideHallMisrouteRepairTest {
 
     @Test
+    void attachedFeaturesDoNotDetermineBuildingClass() {
+        assertEquals("temple", RequestIntentInjector.extract("建一座带山门的寺庙").get("building_class"));
+        assertEquals("generic", RequestIntentInjector.extract("建一座要有塔刹的亭子").get("building_class"));
+        assertEquals("tower_like", RequestIntentInjector.extract("建一座带塔刹的宝塔").get("building_class"));
+        assertEquals("gate", RequestIntentInjector.extract("建一座寺庙山门").get("building_class"));
+    }
+
+    @Test
+    void englishNegationWithArticleStaysLocal() {
+        assertEquals("generic", RequestIntentInjector.extract(
+                "this is not a pagoda, build a hall").get("building_class"));
+        assertEquals("generic", RequestIntentInjector.extract(
+                "not a pagoda, build a lunar archive").get("building_class"));
+        assertEquals("tower_like", RequestIntentInjector.extract(
+                "do not build a hall, build a pagoda").get("building_class"));
+    }
+
+    @Test
     void recoversClassicalDegradeWithPeidianAndYuetai() {
         Component hall = new Component(
                 "MASS_MAIN", "body", new Vec3i(0, 0, 0),

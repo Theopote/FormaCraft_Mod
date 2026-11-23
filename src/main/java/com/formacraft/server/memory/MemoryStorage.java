@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 记忆存储管理器
@@ -18,7 +19,9 @@ import java.util.List;
  * 路径：saves/WorldName/formacraft/memory/
  */
 public class MemoryStorage {
-    
+    /** Cap a single memory JSON so a corrupt/oversized file cannot blow the heap on loadAll. */
+    static final long MAX_MEMORY_FILE_BYTES = 8L * 1024L * 1024L;
+
     /** Memory belongs to the active save, never to the shared process working directory. */
     private static Path getMemoryDir(MinecraftServer server) {
         return directoryFor(java.util.Objects.requireNonNull(server, "server")
@@ -77,12 +80,21 @@ public class MemoryStorage {
         if (!Files.exists(path)) {
             return null;
         }
-        
-        String json = Files.readString(path, StandardCharsets.UTF_8);
+
+        String json = readLimitedString(path);
         ProjectMemory memory = JsonUtil.fromJson(json, ProjectMemory.class);
         
         FormacraftMod.LOGGER.info("Loaded memory: {} from {}", uuid, path);
         return memory;
+    }
+
+    /** Read memory JSON only when size is within {@link #MAX_MEMORY_FILE_BYTES}. */
+    static String readLimitedString(Path path) throws IOException {
+        long size = Files.size(path);
+        if (size > MAX_MEMORY_FILE_BYTES) {
+            throw new IOException("Memory file too large (" + size + " bytes > " + MAX_MEMORY_FILE_BYTES + "): " + path);
+        }
+        return Files.readString(path, StandardCharsets.UTF_8);
     }
     
     /**
@@ -127,15 +139,14 @@ public class MemoryStorage {
     }
     
     /**
-     * 清理 UUID，防止路径遍历攻击
+     * 清理 UUID，防止路径遍历攻击。校验前统一小写，允许输入含大写十六进制。
      */
-    private static String sanitizeUuid(String uuid) {
+    static String sanitizeUuid(String uuid) {
         if (uuid == null) {
             throw new IllegalArgumentException("UUID cannot be null");
         }
-        // 移除所有非字母数字、连字符的字符
-        String sanitized = uuid.replaceAll("[^a-zA-Z0-9-]", "");
-        // 验证 UUID 格式（基本检查）
+        // 移除所有非字母数字、连字符的字符，再统一小写以匹配校验正则
+        String sanitized = uuid.replaceAll("[^a-zA-Z0-9-]", "").toLowerCase(Locale.ROOT);
         if (sanitized.length() != 36 || !sanitized.matches("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")) {
             throw new IllegalArgumentException("Invalid UUID format: " + uuid);
         }

@@ -2,7 +2,6 @@ package com.formacraft.server.memory;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.ChunkPos;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,11 +15,15 @@ public class SpatialIndex {
     /** Cap nearest search so a huge maxDistance cannot fan out unboundedly. */
     static final double MAX_NEAREST_DISTANCE = 256.0;
 
-    // 区块坐标 -> 该区块内的项目 UUID 列表
-    private final Map<ChunkPos, Set<String>> chunkIndex = new ConcurrentHashMap<>();
+    // Packed chunk (x,z) -> UUIDs in that chunk. Avoid ChunkPos keys: its clinit needs full MC bootstrap.
+    private final Map<Long, Set<String>> chunkIndex = new ConcurrentHashMap<>();
     
     // UUID -> ProjectMemory 的快速查找
     private final Map<String, ProjectMemory> memoryCache = new ConcurrentHashMap<>();
+
+    static long chunkKey(int chunkX, int chunkZ) {
+        return (((long) chunkX) << 32) | (chunkZ & 0xffffffffL);
+    }
     
     /**
      * 添加记忆到索引
@@ -49,8 +52,7 @@ public class SpatialIndex {
         
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
-                ChunkPos chunkPos = new ChunkPos(cx, cz);
-                chunkIndex.computeIfAbsent(chunkPos, k -> ConcurrentHashMap.newKeySet()).add(uuid);
+                chunkIndex.computeIfAbsent(chunkKey(cx, cz), k -> ConcurrentHashMap.newKeySet()).add(uuid);
             }
         }
     }
@@ -84,9 +86,8 @@ public class SpatialIndex {
         
         for (int cx = minChunkX; cx <= maxChunkX; cx++) {
             for (int cz = minChunkZ; cz <= maxChunkZ; cz++) {
-                ChunkPos chunkPos = new ChunkPos(cx, cz);
                 // Atomic empty→remove so a concurrent addMemory cannot lose a fresh UUID.
-                chunkIndex.computeIfPresent(chunkPos, (k, uuids) -> {
+                chunkIndex.computeIfPresent(chunkKey(cx, cz), (k, uuids) -> {
                     uuids.remove(uuid);
                     return uuids.isEmpty() ? null : uuids;
                 });
@@ -99,8 +100,7 @@ public class SpatialIndex {
      */
     public List<ProjectMemory> findAt(Identifier dimension, BlockPos pos) {
         Objects.requireNonNull(dimension, "dimension");
-        ChunkPos chunkPos = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
-        Set<String> uuids = chunkIndex.get(chunkPos);
+        Set<String> uuids = chunkIndex.get(chunkKey(pos.getX() >> 4, pos.getZ() >> 4));
         
         if (uuids == null || uuids.isEmpty()) {
             return Collections.emptyList();
@@ -123,7 +123,8 @@ public class SpatialIndex {
     public ProjectMemory findNearest(Identifier dimension, BlockPos pos, double maxDistance) {
         Objects.requireNonNull(dimension, "dimension");
         double capped = Math.max(0.0, Math.min(maxDistance, MAX_NEAREST_DISTANCE));
-        ChunkPos centerChunk = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4);
+        int centerChunkX = pos.getX() >> 4;
+        int centerChunkZ = pos.getZ() >> 4;
         int searchRadius = (int) Math.ceil(capped / 16.0) + 1;
         
         ProjectMemory nearest = null;
@@ -132,8 +133,7 @@ public class SpatialIndex {
         
         for (int dx = -searchRadius; dx <= searchRadius; dx++) {
             for (int dz = -searchRadius; dz <= searchRadius; dz++) {
-                ChunkPos chunkPos = new ChunkPos(centerChunk.x + dx, centerChunk.z + dz);
-                Set<String> uuids = chunkIndex.get(chunkPos);
+                Set<String> uuids = chunkIndex.get(chunkKey(centerChunkX + dx, centerChunkZ + dz));
                 
                 if (uuids != null) {
                     for (String uuid : uuids) {

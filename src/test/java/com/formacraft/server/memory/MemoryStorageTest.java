@@ -30,4 +30,29 @@ class MemoryStorageTest {
         assertEquals("preserved", Files.readString(target.resolve("existing.json")));
         try (var files = Files.list(temporary)) { assertEquals(1, files.count()); }
     }
+
+    @Test void sanitizeUuidLowercasesUpperHexDigits() {
+        assertEquals(
+                "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                MemoryStorage.sanitizeUuid("AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")
+        );
+    }
+
+    @Test void readLimitedStringRejectsOversizedFiles() throws IOException {
+        Path small = temporary.resolve("ok.json");
+        Files.writeString(small, "x".repeat(64));
+        Path big = temporary.resolve("too-big.json");
+        try (var out = Files.newOutputStream(big)) {
+            long remaining = MemoryStorage.MAX_MEMORY_FILE_BYTES + 1;
+            byte[] chunk = new byte[1024 * 64];
+            while (remaining > 0) {
+                int n = (int) Math.min(chunk.length, remaining);
+                out.write(chunk, 0, n);
+                remaining -= n;
+            }
+        }
+        IOException ex = assertThrows(IOException.class, () -> MemoryStorage.readLimitedString(big));
+        assertTrue(ex.getMessage().contains("too large"));
+        assertEquals("x".repeat(64), MemoryStorage.readLimitedString(small));
+    }
 }

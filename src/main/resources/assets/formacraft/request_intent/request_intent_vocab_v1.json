@@ -9,10 +9,10 @@
     "tower_like": {
       "strong_markers": [
         "藏式佛塔", "佛塔", "古塔", "宝塔", "密檐塔", "密檐古塔",
-        "pagoda", "stupa", "dense_eaves_pagoda", "tibetan_stupa", "塔刹"
+        "pagoda", "stupa", "dense_eaves_pagoda", "tibetan_stupa"
       ],
       "weak_markers": [],
-      "note": "重檐 is a roof attribute, never a tower marker."
+      "note": "重檐 and 塔刹 describe features, not the building class."
     },
     "gate": {
       "strong_markers": ["寺庙山门", "山门", "牌坊", "paifang", "gatehouse", "temple gate"]
