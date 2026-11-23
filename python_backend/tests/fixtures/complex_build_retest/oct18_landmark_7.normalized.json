@@ -84,6 +84,9 @@
           ],
           "roof_y_local": 21,
           "floor_layout_fits": true,
+          "floor_layout_path": "components[0]",
+          "available_floor_layout_height": 20,
+          "required_floor_layout_height": 20,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
           "multi_mass": {
@@ -429,8 +432,7 @@
         "window_ratio": 0.35,
         "building_id": "grotto_cliff",
         "wall_pattern": "gradient",
-        "floor_cornice": true,
-        "envelope_source": "floor_band_datum"
+        "floor_cornice": true
       },
       "features": [
         "pilasters",

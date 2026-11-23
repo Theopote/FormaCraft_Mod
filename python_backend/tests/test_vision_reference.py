@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import unittest
 from unittest.mock import patch
 
@@ -113,6 +114,46 @@ class ResearchWithReferencesTest(unittest.TestCase):
             any("Test Tower" in q for q in seen_queries),
             msg=seen_queries,
         )
+
+    def test_vision_name_reenables_search_under_named_only(self):
+        """named_only + image + no extractable name → should_search False until vision names it."""
+        refs = [
+            ReferenceInput(
+                type="image_url",
+                content="https://example.com/building.jpg",
+            ),
+        ]
+        seen_queries: list[str] = []
+
+        def fake_search(q: str, n: int):
+            seen_queries.append(q)
+            return [{"title": "T", "snippet": "architecture", "url": "https://example.com/t"}]
+
+        visual = VisualAnalysis(
+            building_name="Louvre Pyramid",
+            distinctive_elements=["glass", "pyramid"],
+            confidence=0.8,
+        )
+        with patch.dict(os.environ, {"BUILDING_RESEARCH_MODE": "named_only"}, clear=False), patch(
+            "app.services.vision_analyzer.analyze_references",
+            return_value=visual,
+        ), patch(
+            "app.services.building_research_agent._building_research_max_queries",
+            return_value=2,
+        ):
+            should, queries, _ = plan_search_queries("这个", has_references=True)
+            self.assertFalse(should, msg="pre-vision named_only should not search generic text")
+            profile = research_building_profile(
+                "这个",
+                references=refs,
+                search_fn=fake_search,
+            )
+        self.assertIsNotNone(profile)
+        self.assertTrue(seen_queries, msg="vision name must flip should_search on")
+        self.assertTrue(any("Louvre Pyramid" in q for q in seen_queries), seen_queries)
+        # Truncate after vision refresh (expand can produce more than max).
+        unique = list(dict.fromkeys(seen_queries))
+        self.assertLessEqual(len(unique), 2, unique)
 
 
 class RequestAdapterReferenceTest(unittest.TestCase):

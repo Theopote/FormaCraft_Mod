@@ -24,6 +24,10 @@ Removed radius from the legacy Roman-temple disambiguation cue list in Python an
 
 Building research, classification, vision and search HTTP calls inherit the enclosing planning stage deadline (HARD_CONSTRAINT). SDK retries are disabled for the bounded classification, synthesis and vision attempts.
 
+When vision identifies `building_name`, research refreshes and truncates queries to `_building_research_max_queries()` and may set `should_search=True` if `research_mode() != "off"` (NONBINDING_HINT). This does not invent a typology or style; it only enables open-world lookup for the vision-reported name (including `named_only` / image+minimal text paths that previously skipped search).
+
+When vision identifies `building_name`, research refreshes and truncates queries to `_building_research_max_queries()` and may set `should_search=True` if `research_mode() != "off"` (NONBINDING_HINT). This does not invent a typology or style; it only enables open-world lookup for the vision-reported name (including `named_only` / image+minimal text paths that previously skipped search).
+
 Build requests pass a bounded planning budget to the Python executor (HARD_CONSTRAINT). Inference waits and LlmPlan provider attempts respect the remaining budget, and disconnected or cancelled callers stop new inference attempts. Design choices are unaffected.
 
 Secondary component generators (tower / balcony / terrace / wall / courtyard / crown / chimney / gate / path / road) resolve materials via explicit params → `DynamicPaletteResolver` / style palette → technical default (`ComponentMaterialResolver`) (FORMAT_REPAIR). This does not invent style; it applies already-authored materials or `style_attributes` so accessories match the main mass.

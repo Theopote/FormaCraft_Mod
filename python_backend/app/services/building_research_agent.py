@@ -1371,7 +1371,7 @@ def research_building_profile(
         return None
 
     def _run() -> BuildingProfile:
-        nonlocal subject, queries
+        nonlocal subject, queries, should_search
         visual = None
         if has_refs:
             try:
@@ -1386,7 +1386,13 @@ def research_building_profile(
                 if visual and visual.building_name:
                     subject = visual.building_name
                     # Refresh search terms with the vision-identified building name.
-                    queries = _expand_search_queries(subject, user_text)
+                    queries = _expand_search_queries(subject, user_text)[
+                        : _building_research_max_queries()
+                    ]
+                    # named_only / image+minimal text may have set should_search=False
+                    # before vision named the building — re-enable when research is on.
+                    if research_mode() != "off" and queries:
+                        should_search = True
             except Exception as e:
                 logger.warning("Vision reference analysis failed: %s", e)
 

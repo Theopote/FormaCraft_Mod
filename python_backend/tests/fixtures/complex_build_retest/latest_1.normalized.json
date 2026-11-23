@@ -207,11 +207,11 @@
       "diagnostics": [],
       "validation_stage": "plan",
       "scope_bindings": {
-        "named_main_body": [
-          "inn_main"
-        ],
         "named_tower": [
           "tower_main"
+        ],
+        "named_main_body": [
+          "inn_main"
         ]
       },
       "resolved_buildings": [
@@ -240,6 +240,9 @@
           ],
           "roof_y_local": 11,
           "floor_layout_fits": true,
+          "floor_layout_path": "components[0]",
+          "available_floor_layout_height": 12,
+          "required_floor_layout_height": 12,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
           "multi_mass": {

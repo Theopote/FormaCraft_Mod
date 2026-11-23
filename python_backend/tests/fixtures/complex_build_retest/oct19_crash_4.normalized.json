@@ -116,9 +116,6 @@
       "diagnostics": [],
       "validation_stage": "plan",
       "scope_bindings": {
-        "named_main_body": [
-          "palace_main"
-        ],
         "named_tower": [
           "tower_nw",
           "tower_ne",
@@ -126,6 +123,9 @@
           "tower_se",
           "gate_tower",
           "bell_tower"
+        ],
+        "named_main_body": [
+          "palace_main"
         ]
       },
       "resolved_buildings": [
@@ -154,6 +154,9 @@
           ],
           "roof_y_local": 14,
           "floor_layout_fits": true,
+          "floor_layout_path": "components[16]",
+          "available_floor_layout_height": 15,
+          "required_floor_layout_height": 15,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
           "multi_mass": {

@@ -91,6 +91,9 @@
           ],
           "roof_y_local": 3,
           "floor_layout_fits": true,
+          "floor_layout_path": "components[3]",
+          "available_floor_layout_height": 4,
+          "required_floor_layout_height": 4,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
           "multi_mass": {

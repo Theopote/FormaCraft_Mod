@@ -712,6 +712,11 @@ public final class ComponentTool implements FormacraftTool {
                 return;
             }
             List<BlockPos> local = buildLocalBlocks(client);
+            if (local == null) {
+                HudToast.show("预览失败：选区过大（超过 "
+                        + ComponentToolJsonBuilder.MAX_CAPTURE_VOLUME + " 格）", true);
+                return;
+            }
             if (local.isEmpty()) {
                 HudToast.show("预览失败：选区内没有非空气方块", true);
                 return;
@@ -827,6 +832,16 @@ public final class ComponentTool implements FormacraftTool {
             max = draft.selection.aabbMax;
         }
         if (min == null || max == null) return out;
+
+        long volume = (long) (max.getX() - min.getX() + 1)
+                * (max.getY() - min.getY() + 1)
+                * (max.getZ() - min.getZ() + 1);
+        if (volume > ComponentToolJsonBuilder.MAX_CAPTURE_VOLUME) {
+            FormacraftMod.LOGGER.warn(
+                    "[ComponentTool] preview AABB too large: {} cells (max {})",
+                    volume, ComponentToolJsonBuilder.MAX_CAPTURE_VOLUME);
+            return null;
+        }
 
         BlockPos.Mutable mutable = new BlockPos.Mutable();
         for (int x = min.getX(); x <= max.getX(); x++) {

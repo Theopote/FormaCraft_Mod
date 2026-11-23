@@ -87,6 +87,9 @@
           ],
           "roof_y_local": 21,
           "floor_layout_fits": true,
+          "floor_layout_path": "components[1]",
+          "available_floor_layout_height": 22,
+          "required_floor_layout_height": 20,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
           "multi_mass": {
@@ -171,6 +174,9 @@
           ],
           "roof_y_local": 21,
           "floor_layout_fits": true,
+          "floor_layout_path": "components[2]",
+          "available_floor_layout_height": 22,
+          "required_floor_layout_height": 20,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
           "multi_mass": {
@@ -255,6 +261,9 @@
           ],
           "roof_y_local": 21,
           "floor_layout_fits": true,
+          "floor_layout_path": "components[3]",
+          "available_floor_layout_height": 22,
+          "required_floor_layout_height": 20,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
           "multi_mass": {

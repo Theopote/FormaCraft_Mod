@@ -181,15 +181,15 @@
         "named_keep": [
           "keep_main"
         ],
-        "named_main_body": [
-          "keep_main"
-        ],
         "named_tower": [
           "tower_nw",
           "tower_ne",
           "tower_sw",
           "tower_se",
           "gate_tower_south"
+        ],
+        "named_main_body": [
+          "keep_main"
         ]
       },
       "resolved_buildings": [
@@ -218,6 +218,9 @@
           ],
           "roof_y_local": 13,
           "floor_layout_fits": true,
+          "floor_layout_path": "components[0]",
+          "available_floor_layout_height": 14,
+          "required_floor_layout_height": 12,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
           "multi_mass": {

@@ -32,13 +32,18 @@ class LandmarkCompatibilityTest(unittest.TestCase):
         result = self.normalize(plan)
         self.assertTrue(any(d['code'] == 'E_HOST_UNKNOWN' for d in result['proportion_hints']['building_contract']['diagnostics']))
 
-    def test_floor_repair_is_bounded_and_preserves_storeys(self):
+    def test_floor_envelope_rejects_short_body_without_silent_height_bump(self):
         raw = json.loads((ROOT / 'oct18_landmark_7.json').read_text(encoding='utf-8'))
-        result = self.normalize(raw)
+        short = deepcopy(raw)
+        short['components'][0]['dimensions']['height'] = 19
+        result = self.normalize(short)
         main = result['components'][0]
-        self.assertEqual(20, main['dimensions']['height'])
+        self.assertEqual(19, main['dimensions']['height'])
         self.assertEqual(5, main['params']['floor_count'])
         self.assertEqual(4, main['params']['floor_height'])
+        self.assertEqual('E_BUILDING_CONTRACT', result['capability_gap']['code'])
+        diagnostics = result['proportion_hints']['building_contract']['diagnostics']
+        self.assertTrue(any(d['code'] == 'E_FLOOR_ENVELOPE' for d in diagnostics), diagnostics)
         raw['components'][0]['dimensions']['height'] = 12
         invalid = self.normalize(raw)
         self.assertEqual('E_BUILDING_CONTRACT', invalid['capability_gap']['code'])

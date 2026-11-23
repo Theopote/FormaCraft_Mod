@@ -186,12 +186,12 @@
       "diagnostics": [],
       "validation_stage": "plan",
       "scope_bindings": {
-        "named_main_body": [
-          "library_main"
-        ],
         "named_tower": [
           "north_tower",
           "south_tower"
+        ],
+        "named_main_body": [
+          "library_main"
         ]
       },
       "resolved_buildings": [
@@ -219,6 +219,9 @@
           ],
           "roof_y_local": 15,
           "floor_layout_fits": true,
+          "floor_layout_path": "components[0]",
+          "available_floor_layout_height": 16,
+          "required_floor_layout_height": 16,
           "coordinate_stage": "plan",
           "geometry_status": "parameters_only",
           "multi_mass": {
