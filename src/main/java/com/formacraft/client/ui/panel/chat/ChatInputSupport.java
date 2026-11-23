@@ -63,6 +63,7 @@ public final class ChatInputSupport {
         host.sendButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
         host.referenceButton.setPosition(bounds.btnX(), bounds.btnY() - ChatPanel.SEND_BUTTON_SIZE - 1);
         host.referenceButton.setMessage(Text.literal(host.readingReferenceImage ? "…" : hasReferenceImage(host) ? "×" : "+"));
+        host.referenceButton.active = !host.readingReferenceImage;
         host.referenceButton.render(ctx, (int) mouseX, (int) mouseY, 0.0f);
 
         host.stopButton.setPosition(bounds.btnX(), bounds.stopY());
@@ -119,27 +120,39 @@ public final class ChatInputSupport {
             host.referenceImageFile = null;
             return;
         }
+        // tinyfd must not run on the Minecraft render/input thread — it blocks the
+        // GLFW loop and can hard-freeze the client until the native dialog returns.
         String clipboard = host.client.keyboard.getClipboard().strip();
-        String selected;
-        try {
-            selected = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_inputBox(
-                    Text.translatable("formacraft.chat.reference.title").getString(),
-                    Text.translatable("formacraft.chat.reference.invalid").getString(),
-                    isReferenceImageUrl(clipboard) ? clipboard : "");
-        } catch (RuntimeException | LinkageError unavailable) {
-            host.messages.add(ChatMessage.error(Text.translatable("formacraft.chat.reference.dialog_unavailable").getString()));
-            host.scrollOffset = 0;
-            return;
-        }
-        if (selected == null) return;
-        String value = selected.strip();
-        if (isReferenceImageUrl(value)) {
-            int separator = value.indexOf(':');
-            host.referenceImageUrl = value.substring(0, separator).toLowerCase(Locale.ROOT) + value.substring(separator);
-        } else {
-            host.messages.add(ChatMessage.error(Text.translatable("formacraft.chat.reference.invalid").getString()));
-            host.scrollOffset = 0;
-        }
+        String title = Text.translatable("formacraft.chat.reference.title").getString();
+        String hint = Text.translatable("formacraft.chat.reference.invalid").getString();
+        String initial = isReferenceImageUrl(clipboard) ? clipboard : "";
+        host.readingReferenceImage = true;
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                return org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_inputBox(title, hint, initial);
+            } catch (RuntimeException | LinkageError unavailable) {
+                throw new java.util.concurrent.CompletionException(unavailable);
+            }
+        }).whenComplete((selected, failure) -> host.client.execute(() -> {
+            host.readingReferenceImage = false;
+            if (failure != null) {
+                host.messages.add(ChatMessage.error(
+                        Text.translatable("formacraft.chat.reference.dialog_unavailable").getString()));
+                host.scrollOffset = 0;
+                return;
+            }
+            if (selected == null) return;
+            String value = selected.strip();
+            if (isReferenceImageUrl(value)) {
+                int separator = value.indexOf(':');
+                host.referenceImageUrl = value.substring(0, separator).toLowerCase(Locale.ROOT)
+                        + value.substring(separator);
+            } else {
+                host.messages.add(ChatMessage.error(
+                        Text.translatable("formacraft.chat.reference.invalid").getString()));
+                host.scrollOffset = 0;
+            }
+        }));
     
     }
 
@@ -157,29 +170,41 @@ public final class ChatInputSupport {
             host.addAIError(Text.translatable("formacraft.chat.reference.upload_failed").getString());
             return;
         }
-        String selected;
-        try (var stack = org.lwjgl.system.MemoryStack.stackPush()) {
-            var filters = stack.mallocPointer(3);
-            filters.put(stack.UTF8("*.png")).put(stack.UTF8("*.jpg")).put(stack.UTF8("*.jpeg")).flip();
-            selected = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
-                    Text.translatable("formacraft.chat.reference.title").getString(), null, filters, "PNG / JPEG", false);
-        } catch (RuntimeException | LinkageError unavailable) {
-            host.addAIError(Text.translatable("formacraft.chat.reference.dialog_unavailable").getString());
-            return;
-        }
-        if (selected == null) return;
+        String title = Text.translatable("formacraft.chat.reference.title").getString();
         host.readingReferenceImage = true;
         var connection = host.client.getNetworkHandler();
         CompletableFuture.supplyAsync(() -> {
-            try (var input = java.nio.file.Files.newInputStream(java.nio.file.Path.of(selected))) {
-                return input.readNBytes(com.formacraft.common.network.ReferenceImageChunk.MAX_BYTES + 1);
-            } catch (java.io.IOException | RuntimeException failure) {
-                throw new java.util.concurrent.CompletionException(failure);
+            final String selected;
+            try (var stack = org.lwjgl.system.MemoryStack.stackPush()) {
+                var filters = stack.mallocPointer(3);
+                filters.put(stack.UTF8("*.png")).put(stack.UTF8("*.jpg")).put(stack.UTF8("*.jpeg")).flip();
+                selected = org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
+                        title, null, filters, "PNG / JPEG", false);
+            } catch (RuntimeException | LinkageError unavailable) {
+                return new ReferencePick(null, "formacraft.chat.reference.dialog_unavailable");
             }
-        }).whenComplete((bytes, failure) -> host.client.execute(() -> {
+            if (selected == null) return new ReferencePick(null, null); // cancelled
+            try (var input = java.nio.file.Files.newInputStream(java.nio.file.Path.of(selected))) {
+                return new ReferencePick(
+                        input.readNBytes(com.formacraft.common.network.ReferenceImageChunk.MAX_BYTES + 1),
+                        null);
+            } catch (java.io.IOException | RuntimeException failure) {
+                return new ReferencePick(null, "formacraft.chat.reference.file_invalid");
+            }
+        }).whenComplete((pick, failure) -> host.client.execute(() -> {
             host.readingReferenceImage = false;
             if (host.client.getNetworkHandler() != connection) return;
-            if (failure != null || bytes.length == 0
+            if (failure != null || pick == null) {
+                host.addAIError(Text.translatable("formacraft.chat.reference.dialog_unavailable").getString());
+                return;
+            }
+            if (pick.errorKey() != null) {
+                host.addAIError(Text.translatable(pick.errorKey()).getString());
+                return;
+            }
+            byte[] bytes = pick.bytes();
+            if (bytes == null) return; // cancelled
+            if (bytes.length == 0
                     || bytes.length > com.formacraft.common.network.ReferenceImageChunk.MAX_BYTES
                     || com.formacraft.common.network.ReferenceImageChunk.mimeType(bytes) == null) {
                 host.addAIError(Text.translatable("formacraft.chat.reference.file_invalid").getString());
@@ -190,6 +215,8 @@ public final class ChatInputSupport {
         }));
     
     }
+
+    private record ReferencePick(byte[] bytes, String errorKey) {}
 
     public static boolean isReferenceImageUrl(String value) {
 
