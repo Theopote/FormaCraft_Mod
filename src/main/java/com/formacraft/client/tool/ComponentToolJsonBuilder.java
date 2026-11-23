@@ -26,6 +26,9 @@ import java.util.Map;
  * 构件捕获：从选区/草案构造 ComponentDefinition JSON。
  */
 final class ComponentToolJsonBuilder {
+    /** Inclusive AABB cell budget before capture refuses to allocate a full volume scan. */
+    static final long MAX_CAPTURE_VOLUME = 64L * 64L * 64L;
+
     private ComponentToolJsonBuilder() {}
 
     static String build(MinecraftClient client, ComponentToolState state, List<ComponentSocket> sockets,
@@ -50,6 +53,7 @@ final class ComponentToolJsonBuilder {
                 maxY = Math.max(maxY, pos.getY());
                 maxZ = Math.max(maxZ, pos.getZ());
             }
+            if (minX == Integer.MAX_VALUE) return null;
             min = new BlockPos(minX, minY, minZ);
             max = new BlockPos(maxX, maxY, maxZ);
         } else {
@@ -68,6 +72,16 @@ final class ComponentToolJsonBuilder {
         int maxX = max.getX();
         int maxY = max.getY();
         int maxZ = max.getZ();
+
+        if (!draft.hasExplicitSelection()) {
+            long volume = (long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
+            if (volume > MAX_CAPTURE_VOLUME) {
+                FormacraftMod.LOGGER.warn(
+                        "[ComponentToolJsonBuilder] capture AABB too large: {} cells (max {})",
+                        volume, MAX_CAPTURE_VOLUME);
+                return null;
+            }
+        }
 
         ComponentDefinition def = new ComponentDefinition();
         def.id = makeId(state.category, state.name);
@@ -112,46 +126,51 @@ final class ComponentToolJsonBuilder {
         }
 
         def.blocks = new ArrayList<>();
+        record Captured(int dx, int dy, int dz, BlockState state) {}
+        List<Captured> captured = new ArrayList<>();
         int minDy = Integer.MAX_VALUE;
+        BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-        java.util.Set<BlockPos> blocksToScan;
         if (draft.hasExplicitSelection()) {
-            blocksToScan = draft.selection.blocks;
+            for (BlockPos p : draft.selection.blocks) {
+                if (p == null) continue;
+                BlockState bs = client.world.getBlockState(p);
+                if (bs == null || bs.isAir()) continue;
+                int dy = p.getY() - anchor.getY();
+                minDy = Math.min(minDy, dy);
+                captured.add(new Captured(
+                        p.getX() - anchor.getX(),
+                        dy,
+                        p.getZ() - anchor.getZ(),
+                        bs));
+            }
         } else {
-            blocksToScan = new java.util.HashSet<>();
+            // Single-pass AABB scan with Mutable — never materialize every air cell into a HashSet.
             for (int x = minX; x <= maxX; x++) {
                 for (int y = minY; y <= maxY; y++) {
                     for (int z = minZ; z <= maxZ; z++) {
-                        blocksToScan.add(new BlockPos(x, y, z));
+                        mutable.set(x, y, z);
+                        BlockState bs = client.world.getBlockState(mutable);
+                        if (bs == null || bs.isAir()) continue;
+                        int dy = y - anchor.getY();
+                        minDy = Math.min(minDy, dy);
+                        captured.add(new Captured(x - anchor.getX(), dy, z - anchor.getZ(), bs));
                     }
                 }
             }
         }
+        if (minDy == Integer.MAX_VALUE) minDy = 0;
 
-        if (state.semanticTagOnSave || state.semanticSkin) {
-            for (BlockPos p : blocksToScan) {
-                if (p == null) continue;
-                BlockState bs = client.world.getBlockState(p);
-                if (bs == null || bs.isAir()) continue;
-                minDy = Math.min(minDy, p.getY() - anchor.getY());
-            }
-            if (minDy == Integer.MAX_VALUE) minDy = 0;
-        }
-
-        for (BlockPos p : blocksToScan) {
-            if (p == null) continue;
-            BlockState bs = client.world.getBlockState(p);
-            if (bs == null || bs.isAir()) continue;
-
+        for (Captured c : captured) {
             ComponentDefinition.BlockEntry be = new ComponentDefinition.BlockEntry();
-            be.dx = p.getX() - anchor.getX();
-            be.dy = p.getY() - anchor.getY();
-            be.dz = p.getZ() - anchor.getZ();
-            be.block = serializeBlockState(bs);
+            be.dx = c.dx();
+            be.dy = c.dy();
+            be.dz = c.dz();
+            be.block = serializeBlockState(c.state());
             if (state.semanticTagOnSave) {
-                be.semantic = guessSemanticPart(bs, be.dy, minDy);
+                be.semantic = guessSemanticPart(c.state(), be.dy, minDy);
             } else if (state.semanticSkin) {
-                be.semantic = (state.semanticPart != null) ? state.semanticPart : guessSemanticPart(bs, be.dy, minDy);
+                be.semantic = (state.semanticPart != null) ? state.semanticPart : guessSemanticPart(c.state(), be.dy, minDy);
             }
             def.blocks.add(be);
         }
@@ -362,7 +381,13 @@ final class ComponentToolJsonBuilder {
 
     static String makeId(ComponentCategory cat, String name) {
         String n = (name == null ? "" : name).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "_");
-        if (n.isBlank()) n = "component";
+        n = n.replaceAll("^_+|_+$", "");
+        if (n.isBlank() || "_".equals(n)) {
+            String prefix = (cat != null ? cat.name() : ComponentCategory.GENERIC.name()).toLowerCase(Locale.ROOT);
+            // Stable short suffix so pure-CJK names do not all collapse to the same id.
+            int hash = Math.floorMod((name == null ? "" : name).hashCode(), 0xFFFF);
+            n = prefix + "_component_" + Integer.toHexString(hash);
+        }
         return n;
     }
 

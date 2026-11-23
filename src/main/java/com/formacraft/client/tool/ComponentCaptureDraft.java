@@ -192,6 +192,31 @@ public class ComponentCaptureDraft {
         return selection.explicit && selection.blocks != null && !selection.blocks.isEmpty();
     }
 
+    /** Drop BlockPos-bearing capture fields after disconnect / world switch. */
+    public void clearWorldScoped() {
+        selection.explicit = false;
+        selection.blocks = null;
+        selection.aabbMin = null;
+        selection.aabbMax = null;
+        host.referenceBlock = null;
+        host.normal = null;
+        host.confirmed = false;
+        anchor.worldPos = null;
+        anchor.localNormalized = null;
+        anchor.confirmed = false;
+        orientation.insideMarkWorld = null;
+        orientation.outsideMarkWorld = null;
+        orientation.bottomMarkWorld = null;
+        orientation.topMarkWorld = null;
+        orientation.confirmed = false;
+        connectors.confirmed = false;
+        phase = DraftPhase.EMPTY;
+        dirty = false;
+        lastHealth = null;
+        snapshotBeforeAutoFix = null;
+        lastAutoFixReport = null;
+    }
+
     public void updatePhase() {
         boolean hasSelection = selection.explicit
                 ? (selection.blocks != null && !selection.blocks.isEmpty())
