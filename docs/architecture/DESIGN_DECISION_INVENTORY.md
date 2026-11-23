@@ -1,5 +1,7 @@
 # Design decision inventory
 
+The shared garden vocabulary no longer uses 现代 / modern to suppress a weak courtyard hint (NONBINDING_HINT). Style and building composition can coexist in the original request.
+
 Java building-class keyword hints continue scanning after a negated occurrence of a marker (NONBINDING_HINT), matching Python's handling of later positive occurrences.
 
 The Java keyword extractor stops extended negation at the Chinese modifier boundary 的 (NONBINDING_HINT). The shared Python intent baseline is replayed in Java for keyword-only cases.

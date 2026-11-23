@@ -52,6 +52,8 @@
     {"id": "watchtower", "prompt": "建一座瞭望塔", "building_class": "generic"},
     {"id": "water_pavilion", "prompt": "建一座水边亭子", "building_class": "generic"},
     {"id": "modern_villa", "prompt": "建一座现代别墅", "building_class": "generic"},
+    {"id": "modern_courtyard_cn", "prompt": "建一座现代风格的庭院", "building_class": "garden", "scaffold_eligible": false},
+    {"id": "modern_courtyard_en", "prompt": "Build a modern courtyard", "building_class": "garden", "scaffold_eligible": false},
     {"id": "dense_eaves_explicit", "prompt": "生成一座密檐塔", "building_class": "tower_like"},
     {"id": "pagoda_finial_only", "prompt": "建一座带塔刹的宝塔", "building_class": "tower_like"},
     {"id": "tibetan_chorten", "prompt": "build a white chorten stupa", "building_class": "tower_like", "tower_subtype": "tibetan_stupa"},

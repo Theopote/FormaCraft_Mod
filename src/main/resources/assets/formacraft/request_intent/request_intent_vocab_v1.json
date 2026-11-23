@@ -22,7 +22,7 @@
       "weak_markers": ["庭院", "courtyard", "garden"],
       "weak_suppressors": [
         "别墅", "villa", "城堡", "castle", "住宅", "房子", "house", "home",
-        "图书馆", "library", "大殿", "殿堂", "现代", "modern", "塔楼", "tower",
+        "图书馆", "library", "大殿", "殿堂", "塔楼", "tower",
         "教堂", "church", "cathedral", "亭", "pavilion"
       ],
       "note": "Bare English 'garden' is weak — 'house with a garden' must stay generic."

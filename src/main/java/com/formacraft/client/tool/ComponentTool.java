@@ -111,18 +111,22 @@ public final class ComponentTool implements FormacraftTool {
                     net.minecraft.client.MinecraftClient.getInstance(), state, loadedComponent);
             if (placeResult.placed) {
                 loadedComponent = null;
+                hoverSnapshot.placement = null;
+                hoverSnapshot.pos = null;
+                hoverSnapshot.face = null;
+                ComponentSocketPreviewState.clear();
             }
             return placeResult.consumed;
         }
         if (button != 0) return false;
         if (!state.pickingAnchor && !state.pickingSocket) return true;
 
-        if (!SelectionTool.INSTANCE.hasSelection()) return true;
+        ComponentCaptureDraft draft = effectiveDraft();
+        if (!state.useLibrary && !ComponentToolCaptureSupport.hasValidSelection(draft)) return true;
         BlockHitResult hit = CursorRaycastHelper.getLastBlockHit();
         if (hit == null) return true;
 
         BlockPos pos = hit.getBlockPos();
-        ComponentCaptureDraft draft = effectiveDraft();
         if (!state.useLibrary) {
             if (state.pickingAnchor && !ComponentToolCaptureSupport.isAnchorAllowed(state, pos, draft)) return true;
             if (state.pickingSocket && !ComponentToolCaptureSupport.isInSelectionBlocks(state, draft, pos)) return true;
@@ -504,18 +508,31 @@ public final class ComponentTool implements FormacraftTool {
             if (want.isEmpty()) want = "socket_" + state.socketCount;
         }
         String id = uniqueSocketId(want);
+        SocketContext ctx = state.socketContext != null ? state.socketContext : SocketContext.WALL;
+        int w = Math.max(1, state.socketW);
+        int h = Math.max(1, state.socketH);
+        int d = Math.max(1, state.socketD);
+        SizeConstraint size = switch (ctx) {
+            case GROUND -> SizeConstraint.rect(w, d, w, d); // horizontal footprint
+            case EDGE -> SizeConstraint.line(w, w);
+            default -> SizeConstraint.rect(w, h, w, h);
+        };
+        String tag = switch (ctx) {
+            case WALL -> "opening";
+            case ROOF, ROOF_EDGE -> "roof";
+            case EDGE -> "edge";
+            case CORNER -> "corner";
+            case GROUND -> "ground";
+            case INTERIOR -> "interior";
+        };
+        SocketShape shape = (ctx == SocketContext.EDGE) ? SocketShape.LINE : SocketShape.RECT;
         ComponentSocket s = ComponentSocket.builder(id)
                 .role(SocketRole.CONSUMER)
-                .shape(SocketShape.RECT)
-                .context(SocketContext.WALL)
+                .shape(shape)
+                .context(ctx)
                 .facingPolicy(SocketFacingPolicy.IN_OUT)
-                .size(SizeConstraint.rect(
-                        Math.max(1, state.socketW),
-                        Math.max(1, state.socketH),
-                        Math.max(1, state.socketW),
-                        Math.max(1, state.socketH)
-                ))
-                .tag("opening")
+                .size(size)
+                .tag(tag)
                 .build();
         sockets.add(s);
         ComponentDefinition.SocketPlacement placement = new ComponentDefinition.SocketPlacement();
@@ -525,9 +542,10 @@ public final class ComponentTool implements FormacraftTool {
         placement.dz = state.socketOriginLocal.getZ();
         placement.facing = (state.socketFacing != null ? state.socketFacing : Direction.SOUTH).name();
         pendingSocketPlacements.add(placement);
-        int w = s.size.min.length > 0 ? s.size.min[0] : 0;
-        int h = s.size.min.length > 1 ? s.size.min[1] : 0;
-        HudToast.show("已添加连接位：" + id + " (" + s.context + ") " + w + "x" + h);
+        int toastW = s.size.min.length > 0 ? s.size.min[0] : 0;
+        int toastH = s.size.min.length > 1 ? s.size.min[1] : d;
+        HudToast.show("已添加连接位：" + id + " (" + s.context + ") " + toastW + "x" + toastH
+                + (ctx == SocketContext.GROUND || ctx == SocketContext.WALL ? " d=" + d : ""));
     }
 
     public void toggleSocketPreview(net.minecraft.client.MinecraftClient client) {
@@ -544,7 +562,7 @@ public final class ComponentTool implements FormacraftTool {
             HudToast.show("连接位预览失败：请先选择 Anchor", true);
             return;
         }
-        if (!SelectionTool.INSTANCE.hasSelection()) {
+        if (!ComponentToolCaptureSupport.hasValidSelection(effectiveDraft())) {
             HudToast.show("连接位预览失败：请先完成选区", true);
             return;
         }
@@ -689,7 +707,7 @@ public final class ComponentTool implements FormacraftTool {
         }
 
         if (!state.useLibrary) {
-            if (!SelectionTool.INSTANCE.hasSelection()) {
+            if (!ComponentToolCaptureSupport.hasValidSelection(effectiveDraft())) {
                 HudToast.show("预览失败：请先完成选区", true);
                 return;
             }
@@ -730,6 +748,19 @@ public final class ComponentTool implements FormacraftTool {
         ComponentPreviewState.clear(); ComponentSocketPreviewState.clear();
         hoverSnapshot.placement = null; hoverSnapshot.pos = null; hoverSnapshot.face = null;
         state.completeCaptureSave(false); state.captureTypeChosen = false;
+        // Drop world-scoped capture residue so the next join cannot inherit old BlockPos / sockets.
+        sockets.clear();
+        pendingSocketPlacements.clear();
+        state.socketCount = 0;
+        state.socketOriginLocal = null;
+        state.pickingAnchor = false;
+        state.pickingSocket = false;
+        state.anchorWorld = null;
+        state.explicitSelectedBlocks = null;
+        state.useExplicitSelection = false;
+        state.captureActive = false;
+        state.captureDraft.clearWorldScoped();
+        scratchDraft.clearWorldScoped();
     }
 
     public void preview(net.minecraft.client.MinecraftClient client) {
@@ -759,7 +790,7 @@ public final class ComponentTool implements FormacraftTool {
                 return;
             }
             componentId = def.id;
-        } else if (!SelectionTool.INSTANCE.hasSelection()) {
+        } else if (!ComponentToolCaptureSupport.hasValidSelection(effectiveDraft())) {
             HudToast.show("放置失败：请先完成选区", true);
             return;
         }
@@ -771,21 +802,37 @@ public final class ComponentTool implements FormacraftTool {
 
     private List<BlockPos> buildLocalBlocks(net.minecraft.client.MinecraftClient client) {
         List<BlockPos> out = new ArrayList<>();
+        ComponentCaptureDraft draft = effectiveDraft();
+        BlockPos anchor = draft.anchor.worldPos;
+        if (anchor == null || client == null || client.world == null) return out;
+
+        if (draft.hasExplicitSelection()) {
+            for (BlockPos p : draft.selection.blocks) {
+                if (p == null) continue;
+                BlockState bs = client.world.getBlockState(p);
+                if (bs == null || bs.isAir()) continue;
+                out.add(new BlockPos(
+                        p.getX() - anchor.getX(),
+                        p.getY() - anchor.getY(),
+                        p.getZ() - anchor.getZ()));
+            }
+            return out;
+        }
+
         BlockPos min = SelectionTool.INSTANCE.getMin();
         BlockPos max = SelectionTool.INSTANCE.getMax();
+        if (min == null || max == null) {
+            min = draft.selection.aabbMin;
+            max = draft.selection.aabbMax;
+        }
         if (min == null || max == null) return out;
 
-        BlockPos anchor = effectiveDraft().anchor.worldPos;
-        if (anchor == null) return out;
-
+        BlockPos.Mutable mutable = new BlockPos.Mutable();
         for (int x = min.getX(); x <= max.getX(); x++) {
             for (int y = min.getY(); y <= max.getY(); y++) {
                 for (int z = min.getZ(); z <= max.getZ(); z++) {
-                    BlockPos p = new BlockPos(x, y, z);
-                    BlockState bs = null;
-                    if (client.world != null) {
-                        bs = client.world.getBlockState(p);
-                    }
+                    mutable.set(x, y, z);
+                    BlockState bs = client.world.getBlockState(mutable);
                     if (bs == null || bs.isAir()) continue;
                     out.add(new BlockPos(x - anchor.getX(), y - anchor.getY(), z - anchor.getZ()));
                 }
