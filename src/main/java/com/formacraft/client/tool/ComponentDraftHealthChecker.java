@@ -53,7 +53,7 @@ public final class ComponentDraftHealthChecker {
         if (draft.anchor.worldPos == null) {
             result.add(HealthCheckResult.CheckItem.error(
                     "H2-1", "未设置构件锚点",
-                    "请右键点击方块设置锚点", "构件无法稳定放置",
+                    "请左键点击方块设置锚点", "构件无法稳定放置",
                     HealthCheckResult.FixAction.AUTO, "自动推荐锚点（底部中心）"));
         } else {
             result.add(HealthCheckResult.CheckItem.ok("H2-1", "锚点已设置"));
@@ -112,24 +112,25 @@ public final class ComponentDraftHealthChecker {
             }
         }
 
-        // 偶数宽度锚点提示
+        // Even width/depth: allow either of the two center cells (tolerance 0.51).
+        // Odd dims are skipped — a single cell can sit on the geometric center.
         if (min != null && max != null && draft.anchor.worldPos != null) {
             int w = max.getX() - min.getX() + 1;
             int d = max.getZ() - min.getZ() + 1;
             int ax = draft.anchor.worldPos.getX() - min.getX();
             int az = draft.anchor.worldPos.getZ() - min.getZ();
-            if (w % 2 == 0 && Math.abs((ax + 0.5) - (w / 2.0)) > 0.25) {
+            if (isOffEvenSymmetryCenter(ax, w)) {
                 result.add(HealthCheckResult.CheckItem.warn(
                         "H2-5", "锚点不在对称中心",
-                        "构件宽度为偶数时建议锚点在中心线",
+                        "构件宽度为偶数时建议锚点落在中间两格之一",
                         "可能导致对齐偏移",
                         HealthCheckResult.FixAction.NONE,
                         "建议将锚点移动到中心线"));
             }
-            if (d % 2 == 0 && Math.abs((az + 0.5) - (d / 2.0)) > 0.25) {
+            if (isOffEvenSymmetryCenter(az, d)) {
                 result.add(HealthCheckResult.CheckItem.warn(
                         "H2-5", "锚点不在对称中心",
-                        "构件厚度为偶数时建议锚点在中心线",
+                        "构件厚度为偶数时建议锚点落在中间两格之一",
                         "可能导致对齐偏移",
                         HealthCheckResult.FixAction.NONE,
                         "建议将锚点移动到中心线"));
@@ -150,5 +151,15 @@ public final class ComponentDraftHealthChecker {
         }
 
         return result;
+    }
+
+    /**
+     * For even {@code size}, block index {@code local} is "off center" when its cell center
+     * is farther than ~0.51 from the geometric mid-line — i.e. not one of the two middle cells.
+     * Odd sizes always return false (single center cell is exact).
+     */
+    static boolean isOffEvenSymmetryCenter(int local, int size) {
+        if (size <= 0 || size % 2 != 0) return false;
+        return Math.abs((local + 0.5) - (size / 2.0)) > 0.51;
     }
 }

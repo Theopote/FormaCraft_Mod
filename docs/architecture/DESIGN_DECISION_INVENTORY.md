@@ -1,5 +1,9 @@
 # Design decision inventory
 
+The precise phrase 藏式白塔 provides a weak tower hint (NONBINDING_HINT). It cannot qualify a request for scaffolding or override a confident model declaration. Bare 塔 remains open-ended.
+
+Weak building-class suppressors apply within the same punctuation-delimited clause (NONBINDING_HINT). A pavilion mentioned in a separate clause no longer suppresses a courtyard hint.
+
 The shared garden vocabulary no longer uses 现代 / modern to suppress a weak courtyard hint (NONBINDING_HINT). Style and building composition can coexist in the original request.
 
 Java building-class keyword hints continue scanning after a negated occurrence of a marker (NONBINDING_HINT), matching Python's handling of later positive occurrences.

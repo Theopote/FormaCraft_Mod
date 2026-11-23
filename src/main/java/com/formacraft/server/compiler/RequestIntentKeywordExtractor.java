@@ -27,6 +27,7 @@ final class RequestIntentKeywordExtractor {
                     + "|upper[- ](?:floor|storey).{0,20}entrance",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final List<String> CLASS_PRIORITY = List.of("tower_like", "gate", "temple", "garden");
+    private static final Pattern CLAUSE_BOUNDARY = Pattern.compile("[,，。！？!?；;\\n]");
     private static final Pattern FEATURE_MODIFIER = Pattern.compile(
             "带(?:有)?[^的，。！？；、,\\n]{1,24}的(?=\\p{L})");
 
@@ -383,8 +384,16 @@ final class RequestIntentKeywordExtractor {
             if (!weakHits.isEmpty()) {
                 List<String> suppressors = RequestIntentVocab.stringList(
                         spec.getAsJsonArray("weak_suppressors"));
-                if (!suppressors.isEmpty() && containsAny(classText, classLower, suppressors)) {
-                    weakHits = List.of();
+                if (!suppressors.isEmpty()) {
+                    weakHits = CLAUSE_BOUNDARY.splitAsStream(classText)
+                            .flatMap(clause -> {
+                                String clauseLower = clause.toLowerCase(Locale.ROOT);
+                                return containsAny(clause, clauseLower, suppressors)
+                                        ? java.util.stream.Stream.<String>empty()
+                                        : positiveHits(clause, clauseLower, weak).stream();
+                            })
+                            .distinct()
+                            .toList();
                 }
             }
             if (strongHits.isEmpty() && weakHits.isEmpty()) continue;

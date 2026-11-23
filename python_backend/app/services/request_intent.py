@@ -152,10 +152,14 @@ def _score_building_class(text: str) -> Tuple[str, float, List[str]]:
         weak = list(spec.get("weak_markers") or [])
         strong_hits = _find_positive_hits(text, strong)
         weak_hits = _find_positive_hits(text, weak)
-        if weak_hits:
-            suppressors = list(spec.get("weak_suppressors") or [])
-            if suppressors and _contains_any_raw(text, suppressors):
-                weak_hits = []
+        suppressors = list(spec.get("weak_suppressors") or [])
+        if weak_hits and suppressors:
+            weak_hits = list(dict.fromkeys(
+                marker
+                for clause in re.split(r"[,，。！？!?；;\n]", text)
+                if not _contains_any_raw(clause, suppressors)
+                for marker in _find_positive_hits(clause, weak)
+            ))
         if not strong_hits and not weak_hits:
             continue
         score = strong_w if strong_hits else weak_w

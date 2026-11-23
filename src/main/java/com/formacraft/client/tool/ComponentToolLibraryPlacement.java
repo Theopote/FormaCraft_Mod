@@ -28,6 +28,19 @@ import java.util.List;
 final class ComponentToolLibraryPlacement {
     private ComponentToolLibraryPlacement() {}
 
+    /** Cached local-block list + last preview pose to avoid per-tick realloc. */
+    private static final class PreviewCache {
+        ComponentDefinition component;
+        List<BlockPos> localBlocks;
+        BlockPos hitPos;
+        Direction face;
+        Direction facing;
+        Mirror mirror;
+        PlacementResult.Status status;
+    }
+
+    private static final PreviewCache PREVIEW_CACHE = new PreviewCache();
+
     /** 悬停合法性检测输出（由 ComponentTool 持有）。 */
     static final class HoverSnapshot {
         PlacementResult placement;
@@ -44,6 +57,16 @@ final class ComponentToolLibraryPlacement {
             this.consumed = consumed;
             this.placed = placed;
         }
+    }
+
+    static void clearPreviewCache() {
+        PREVIEW_CACHE.component = null;
+        PREVIEW_CACHE.localBlocks = null;
+        PREVIEW_CACHE.hitPos = null;
+        PREVIEW_CACHE.face = null;
+        PREVIEW_CACHE.facing = null;
+        PREVIEW_CACHE.mirror = null;
+        PREVIEW_CACHE.status = null;
     }
 
     static void tryUpdatePlacementPreview(
@@ -71,21 +94,56 @@ final class ComponentToolLibraryPlacement {
         hoverOut.pos = hitPos.toImmutable();
         hoverOut.face = face;
 
-        BlockPos anchor = anchorFromHit(hitPos, face);
+        Direction fromFacing = fromFacing(loadedComponent);
+        Direction previewFacing = resolvePlacementFacing(loadedComponent, state, pc, client);
+        Mirror m = state.mirror != null ? state.mirror : Mirror.NONE;
 
+        boolean samePose = PREVIEW_CACHE.component == loadedComponent
+                && hitPos.equals(PREVIEW_CACHE.hitPos)
+                && face == PREVIEW_CACHE.face
+                && previewFacing == PREVIEW_CACHE.facing
+                && m == PREVIEW_CACHE.mirror
+                && PREVIEW_CACHE.localBlocks != null
+                && ComponentPreviewState.isActive();
+
+        if (samePose) {
+            if (PREVIEW_CACHE.status != pr.status) {
+                applyPreviewColor(pr.status);
+                PREVIEW_CACHE.status = pr.status;
+            }
+            return;
+        }
+
+        List<BlockPos> local = localBlocksFor(loadedComponent);
+        BlockPos anchor = anchorFromHit(hitPos, face);
+        ComponentTransform t = new ComponentTransform(previewFacing, m);
+        ComponentPreviewState.show(local, anchor, fromFacing, t);
+        applyPreviewColor(pr.status);
+
+        PREVIEW_CACHE.component = loadedComponent;
+        PREVIEW_CACHE.localBlocks = local;
+        PREVIEW_CACHE.hitPos = hitPos.toImmutable();
+        PREVIEW_CACHE.face = face;
+        PREVIEW_CACHE.facing = previewFacing;
+        PREVIEW_CACHE.mirror = m;
+        PREVIEW_CACHE.status = pr.status;
+    }
+
+    private static List<BlockPos> localBlocksFor(ComponentDefinition loadedComponent) {
+        if (PREVIEW_CACHE.component == loadedComponent && PREVIEW_CACHE.localBlocks != null) {
+            return PREVIEW_CACHE.localBlocks;
+        }
         List<BlockPos> local = new ArrayList<>(loadedComponent.blocks.size());
         for (ComponentDefinition.BlockEntry be : loadedComponent.blocks) {
             if (be == null) continue;
             local.add(new BlockPos(be.dx, be.dy, be.dz));
         }
+        return local;
+    }
 
-        Direction fromFacing = fromFacing(loadedComponent);
-        Direction previewFacing = resolvePlacementFacing(loadedComponent, state, pc, client);
-        Mirror m = state.mirror != null ? state.mirror : Mirror.NONE;
-        ComponentTransform t = new ComponentTransform(previewFacing, m);
-        ComponentPreviewState.show(local, anchor, fromFacing, t);
-
-        switch (pr.status) {
+    private static void applyPreviewColor(PlacementResult.Status status) {
+        if (status == null) return;
+        switch (status) {
             case VALID -> ComponentPreviewState.setColor(0.20f, 0.95f, 0.25f, 0.75f);
             case WARN -> ComponentPreviewState.setColor(1.00f, 0.85f, 0.20f, 0.80f);
             case INVALID -> ComponentPreviewState.setColor(1.00f, 0.25f, 0.25f, 0.85f);
@@ -127,6 +185,7 @@ final class ComponentToolLibraryPlacement {
 
         state.useLibrary = false;
         ComponentPreviewState.clear();
+        clearPreviewCache();
         return new PlaceResult(true, true);
     }
 

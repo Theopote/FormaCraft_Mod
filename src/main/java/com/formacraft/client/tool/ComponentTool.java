@@ -746,6 +746,7 @@ public final class ComponentTool implements FormacraftTool {
         state.useLibrary = false; state.librarySelectedId = null; state.librarySelectedName = null;
         state.setComponentForValidation(null);
         ComponentPreviewState.clear(); ComponentSocketPreviewState.clear();
+        ComponentToolLibraryPlacement.clearPreviewCache();
         hoverSnapshot.placement = null; hoverSnapshot.pos = null; hoverSnapshot.face = null;
         state.completeCaptureSave(false); state.captureTypeChosen = false;
         // Drop world-scoped capture residue so the next join cannot inherit old BlockPos / sockets.

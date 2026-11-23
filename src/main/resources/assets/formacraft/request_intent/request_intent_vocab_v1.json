@@ -11,7 +11,7 @@
         "藏式佛塔", "佛塔", "古塔", "宝塔", "密檐塔", "密檐古塔",
         "pagoda", "stupa", "dense_eaves_pagoda", "tibetan_stupa"
       ],
-      "weak_markers": [],
+      "weak_markers": ["藏式白塔"],
       "note": "重檐 and 塔刹 describe features, not the building class."
     },
     "gate": {

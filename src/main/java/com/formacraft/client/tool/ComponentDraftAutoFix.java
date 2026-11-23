@@ -20,12 +20,19 @@ public final class ComponentDraftAutoFix {
         Bounds bounds = resolveBounds(draft, fallbackMin, fallbackMax);
         boolean hasBounds = bounds.min != null && bounds.max != null;
 
-        // Fix: anchor missing -> bottom center
+        // Fix: anchor missing -> bottom center (snap into explicit selection if needed)
         if (draft.anchor.worldPos == null && hasBounds) {
             int cx = (bounds.min.getX() + bounds.max.getX()) / 2;
             int cz = (bounds.min.getZ() + bounds.max.getZ()) / 2;
-            draft.anchor.worldPos = new BlockPos(cx, bounds.min.getY(), cz);
-            report.add("设置锚点为底部中心");
+            BlockPos candidate = new BlockPos(cx, bounds.min.getY(), cz);
+            if (draft.hasExplicitSelection() && !draft.selection.blocks.contains(candidate)) {
+                BlockPos nearest = nearestBlock(candidate, draft.selection.blocks);
+                if (nearest != null) candidate = nearest;
+                report.add("设置锚点为选区内距底部中心最近的方块");
+            } else {
+                report.add("设置锚点为底部中心");
+            }
+            draft.anchor.worldPos = candidate;
         }
 
         // Fix: inside/outside marks missing -> derive from host or anchor
@@ -121,6 +128,22 @@ public final class ComponentDraftAutoFix {
             return dx >= 0 ? Direction.EAST : Direction.WEST;
         }
         return dz >= 0 ? Direction.SOUTH : Direction.NORTH;
+    }
+
+    /** Closest selected block to {@code target} (squared Euclidean). */
+    static BlockPos nearestBlock(BlockPos target, java.util.Collection<BlockPos> blocks) {
+        if (target == null || blocks == null || blocks.isEmpty()) return null;
+        BlockPos best = null;
+        double bestDist = Double.POSITIVE_INFINITY;
+        for (BlockPos p : blocks) {
+            if (p == null) continue;
+            double d = p.getSquaredDistance(target);
+            if (d < bestDist) {
+                bestDist = d;
+                best = p;
+            }
+        }
+        return best;
     }
 
     private static final class Bounds {
