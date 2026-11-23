@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Java building-class keyword hints continue scanning after a negated occurrence of a marker (NONBINDING_HINT), matching Python's handling of later positive occurrences.
+
 The Java keyword extractor stops extended negation at the Chinese modifier boundary 的 (NONBINDING_HINT). The shared Python intent baseline is replayed in Java for keyword-only cases.
 
 Request intent vocabulary loading requires the shared versioned asset (HARD_CONSTRAINT on deployment). Java loads it from the mod resources. A standalone Python deployment can set `FORMACRAFT_REQUEST_INTENT_VOCAB_PATH` to the deployed copy of that same asset. Missing or incompatible assets raise an explicit loading error.

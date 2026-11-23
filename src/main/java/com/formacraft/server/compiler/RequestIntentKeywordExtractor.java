@@ -412,7 +412,7 @@ final class RequestIntentKeywordExtractor {
         for (Map<String, String> entry : roofs) {
             String phrase = entry.get("phrase");
             String canonical = entry.get("canonical").toLowerCase(Locale.ROOT);
-            int[] span = findPositiveSpan(text, lower, phrase, occupied);
+            int[] span = findAvailableSpan(text, lower, phrase, occupied, 0);
             if (span == null) continue;
             occupied.add(span);
             if (isNegatedAt(text, span[0])) {
@@ -525,19 +525,20 @@ final class RequestIntentKeywordExtractor {
         List<String> hits = new ArrayList<>();
         List<int[]> occupied = new ArrayList<>();
         for (String marker : ordered) {
-            int[] span = findPositiveSpan(text, lower, marker, occupied);
+            int[] span = findAvailableSpan(text, lower, marker, occupied, 0);
+            while (span != null && isNegatedAt(text, span[0])) {
+                span = findAvailableSpan(text, lower, marker, occupied, span[1]);
+            }
             if (span == null) continue;
-            if (isNegatedAt(text, span[0])) continue;
             hits.add(marker);
             occupied.add(span);
         }
         return hits;
     }
 
-    static int[] findPositiveSpan(
-            String text, String lower, String needle, List<int[]> occupied) {
+    private static int[] findAvailableSpan(
+            String text, String lower, String needle, List<int[]> occupied, int start) {
         String nl = needle.toLowerCase(Locale.ROOT);
-        int start = 0;
         while (true) {
             int idx = indexOf(text, lower, needle, nl, start);
             if (idx < 0) return null;

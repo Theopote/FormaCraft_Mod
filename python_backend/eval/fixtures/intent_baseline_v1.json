@@ -79,6 +79,8 @@
     {"id": "house_without_porch", "prompt": "不要门廊的住宅", "building_class": "generic", "forbids_excludes": "entrance"},
     {"id": "declared_novel_building", "prompt": "Build a lunar archive with no windows", "llm_declared": {"building_class": "generic", "confidence": 0.9}, "building_class": "generic", "forbids_contains": "windows", "scaffold_eligible": false},
     {"id": "declared_class_over_weak_hint", "prompt": "Build a courtyard", "llm_declared": {"building_class": "generic", "confidence": 0.9}, "building_class": "generic", "scaffold_eligible": false},
-    {"id": "declared_tower_without_keyword_agreement", "prompt": "建一座螺旋观景建筑", "llm_declared": {"building_class": "tower_like", "confidence": 0.9}, "building_class": "tower_like", "scaffold_eligible": false}
+    {"id": "declared_tower_without_keyword_agreement", "prompt": "建一座螺旋观景建筑", "llm_declared": {"building_class": "tower_like", "confidence": 0.9}, "building_class": "tower_like", "scaffold_eligible": false},
+    {"id": "declared_pavilion_with_finial", "prompt": "建一座要有塔刹的亭子", "llm_declared": {"building_class": "generic", "confidence": 0.9}, "building_class": "generic", "scaffold_eligible": false},
+    {"id": "positive_marker_after_negation", "prompt": "Do not build a pagoda here. Build a pagoda across the river.", "building_class": "tower_like"}
   ]
 }
