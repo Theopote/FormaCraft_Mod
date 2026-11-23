@@ -36,25 +36,18 @@ public class PathComponentGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, Math.min(2, d.height()));
 
-        String styleProfile = getStyleProfile(semantic);
-        Palette palette = PaletteLibrary.forStyle(styleProfile);
-
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    SemanticPart part;
-                    if (x == 0 || x == width - 1 || z == 0 || z == depth - 1) {
-                        part = SemanticPart.ROAD_EDGE;
-                    } else {
-                        part = SemanticPart.ROAD_SURFACE;
+                    SemanticPart part = (x == 0 || x == width - 1 || z == 0 || z == depth - 1)
+                            ? SemanticPart.ROAD_EDGE : SemanticPart.ROAD_SURFACE;
+                    String block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                            semantic, part, null, "path_block", "floor_block", "material");
+                    if (block == null || block.isBlank()) {
+                        block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                                semantic, SemanticPart.ROAD_SURFACE, "minecraft:gravel",
+                                "path_block", "floor_block", "material");
                     }
-
-                    String block = palette.pick(part);
-                    if (block == null || block.isEmpty()) {
-                        part = SemanticPart.ROAD_SURFACE;
-                        block = palette.pick(part);
-                    }
-
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,

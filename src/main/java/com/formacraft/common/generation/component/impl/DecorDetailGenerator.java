@@ -44,7 +44,8 @@ public class DecorDetailGenerator implements ComponentGenerator {
             String container = explicitMaterial(c);
             container = com.formacraft.common.palette.dynamic.DynamicPaletteResolver.mapMaterialToBlock(container == null ? "sandstone" : container);
             if (container == null) container = "minecraft:sandstone";
-            String foliage = String.valueOf(c.params().getOrDefault("foliage_block", "minecraft:oak_leaves[persistent=true]"));
+            String foliage = com.formacraft.common.generation.component.util.ComponentParamParsers.stringParam(
+                    c.params(), "minecraft:oak_leaves[persistent=true]", "foliage_block", "foliageBlock");
             for (int x=0;x<width;x++) for (int z=0;z<depth;z++) {
                 out.add(new BlockPatch(BlockPatch.PLACE,rp.x()+x,rp.y(),rp.z()+z,container));
                 out.add(new BlockPatch(BlockPatch.PLACE,rp.x()+x,rp.y()+1,rp.z()+z,foliage));

@@ -95,7 +95,9 @@ public class MassMainGenerator implements ComponentGenerator {
         Map<String, Object> params = c.params();
 
         if (params != null && "pyramid".equals(params.get("volume_geometry"))) {
-            String block = DynamicPaletteResolver.mapMaterialToBlock(String.valueOf(params.getOrDefault("wall_block",params.getOrDefault("material","glass"))));
+            String block = DynamicPaletteResolver.mapMaterialToBlock(
+                    com.formacraft.common.generation.component.util.ComponentParamParsers.stringParam(
+                            params, "glass", "wall_block", "material"));
             if (block == null) block = "minecraft:glass";
             for (int y=0;y<height;y++) {
                 int w=Math.max(1,(int)Math.ceil(width*(height-y)/(double)height));
@@ -419,7 +421,10 @@ public class MassMainGenerator implements ComponentGenerator {
                         boolean post = com.formacraft.common.generation.component.util.OpenFramePolicy
                                 .isPost(footprint, localX, localZ, currentWidth, currentDepth, massParams);
                         String block = y == 0 ? getBlockForPart(SemanticPart.FLOOR, semantic, palette)
-                                : post ? String.valueOf(massParams.getOrDefault("pillar_block", getBlockForPart(SemanticPart.WALL, semantic, palette))) : "minecraft:air";
+                                : post ? com.formacraft.common.generation.component.util.ComponentParamParsers.stringParam(
+                                        massParams, getBlockForPart(SemanticPart.WALL, semantic, palette),
+                                        "pillar_block", "pillarBlock")
+                                : "minecraft:air";
                         out.add(new BlockPatch("minecraft:air".equals(block) ? BlockPatch.REMOVE : BlockPatch.PLACE,
                                 rp.x() + mass.offsetX + localX, rp.y() + mass.offsetY + y,
                                 rp.z() + mass.offsetZ + localZ, block));

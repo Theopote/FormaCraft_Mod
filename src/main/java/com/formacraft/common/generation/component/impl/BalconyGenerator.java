@@ -2,12 +2,13 @@ package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
+import com.formacraft.common.generation.component.util.ComponentMaterialResolver;
+import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.GlobalConstraints;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.common.palette.component.Palette;
-import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
@@ -15,9 +16,8 @@ import java.util.List;
 
 /**
  * BalconyGenerator（阳台生成器）
- * 
- * 生成阳台/挑檐平台
- * 包括平台、栏杆、支撑结构
+ *
+ * 生成阳台/挑檐平台：平台 + 外挑三面栏杆（靠主墙一侧留空以便开门通行）。
  */
 public class BalconyGenerator implements ComponentGenerator {
 
@@ -37,49 +37,42 @@ public class BalconyGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, Math.min(2, d.height())); // 阳台通常只有 1-2 格高
 
-        String styleProfile = getStyleProfile(semantic);
-        Palette palette = PaletteLibrary.forStyle(styleProfile);
+        GlobalConstraints.Facing facing = GlobalConstraints.Facing.SOUTH;
+        if (semantic.slot() != null && semantic.slot().facing() != null) {
+            facing = semantic.slot().facing();
+        }
+        facing = ComponentParamParsers.facingParam(
+                c.params(), facing, "facing", "attach_side", "attachSide");
 
-        // 生成阳台平台（底部）
+        String floorBlock = ComponentMaterialResolver.resolve(
+                semantic, SemanticPart.FLOOR, "minecraft:oak_planks", "floor_block", "deck_block", "material");
+        String railBlock = ComponentMaterialResolver.resolve(
+                semantic, SemanticPart.RAILING, "minecraft:oak_fence", "railing_block", "fence_block", "trim_block");
+
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                SemanticPart part = SemanticPart.FLOOR;
-                String block = palette.pick(part);
-                if (block == null || block.isEmpty()) {
-                    block = "minecraft:oak_planks";
-                }
-                
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         rp.x() + x,
                         rp.y(),
                         rp.z() + z,
-                        block
+                        floorBlock
                 ));
             }
         }
 
-        // 生成栏杆（边缘）
         if (height >= 2) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 只在边缘放置栏杆
                     boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
-                    if (isEdge) {
-                        SemanticPart part = SemanticPart.RAILING;
-                        String block = palette.pick(part);
-                        if (block == null || block.isEmpty()) {
-                            block = "minecraft:oak_fence";
-                        }
-                        
-                        out.add(new BlockPatch(
-                                BlockPatch.PLACE,
-                                rp.x() + x,
-                                rp.y() + 1,
-                                rp.z() + z,
-                                block
-                        ));
-                    }
+                    if (!isEdge || isWallSide(x, z, width, depth, facing)) continue;
+                    out.add(new BlockPatch(
+                            BlockPatch.PLACE,
+                            rp.x() + x,
+                            rp.y() + 1,
+                            rp.z() + z,
+                            railBlock
+                    ));
                 }
             }
         }
@@ -87,48 +80,13 @@ public class BalconyGenerator implements ComponentGenerator {
         return out;
     }
 
-    private String getStyleProfile(SemanticComponent semantic) {
-        // 1. 优先使用 SemanticComponent 中的 styleProfile
-        if (semantic != null && semantic.styleProfile() != null && !semantic.styleProfile().isBlank()) {
-            return semantic.styleProfile();
-        }
-
-        // 2. 尝试从 Component 的 features 推断风格
-        Component c = semantic != null ? semantic.source() : null;
-        if (c != null && c.features() != null) {
-            for (String feature : c.features()) {
-                if (feature == null) continue;
-                String lower = feature.toLowerCase();
-                if (lower.contains("chinese") || lower.contains("中式") || lower.contains("traditional")) {
-                    return "CHINESE_TRADITIONAL";
-                }
-                if (lower.contains("medieval") || lower.contains("gothic")) {
-                    return "MEDIEVAL_CLASSIC";
-                }
-                if (lower.contains("modern") || lower.contains("contemporary")) {
-                    return "MODERN";
-                }
-            }
-        }
-
-        // 3. 默认
-        return "DEFAULT";
-    }
-    
-    private boolean hasFeature(Component c, String... keywords) {
-        if (c == null || c.features() == null) {
-            return false;
-        }
-        
-        List<String> features = c.features();
-        for (String keyword : keywords) {
-            for (String feature : features) {
-                if (feature != null && feature.toLowerCase().contains(keyword.toLowerCase())) {
-                    return true;
-                }
-            }
-        }
-        return false;
+    /** Edge attached to the host wall (opposite of outward facing). */
+    static boolean isWallSide(int x, int z, int width, int depth, GlobalConstraints.Facing facing) {
+        return switch (facing != null ? facing : GlobalConstraints.Facing.SOUTH) {
+            case SOUTH -> z == 0;
+            case NORTH -> z == depth - 1;
+            case EAST -> x == 0;
+            case WEST -> x == width - 1;
+        };
     }
 }
-

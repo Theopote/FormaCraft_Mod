@@ -41,28 +41,22 @@ public class TerraceGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(0, d.height()); // 露台可以是平面（height=0）
 
-        String styleProfile = getStyleProfile(semantic);
-        Palette palette = PaletteLibrary.forStyle(styleProfile);
-
         // 检查是否有栏杆特征
         boolean hasRailing = hasFeature(c, "railing", "fence", "barrier", "guard");
-        
+        String floorBlock = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                semantic, SemanticPart.FLOOR, "minecraft:stone_bricks", "floor_block", "material");
+        String railBlock = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                semantic, SemanticPart.RAILING, "minecraft:oak_fence", "railing_block", "fence_block", "trim_block");
+
         // 生成露台平台（地板）
         for (int x = 0; x < width; x++) {
             for (int z = 0; z < depth; z++) {
-                SemanticPart part = SemanticPart.FLOOR;
-                String block = palette.pick(part);
-                if (block == null || block.isEmpty()) {
-                    // 默认使用石头或木板
-                    block = "minecraft:stone_bricks";
-                }
-                
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         rp.x() + x,
                         rp.y(),
                         rp.z() + z,
-                        block
+                        floorBlock
                 ));
             }
         }
@@ -71,21 +65,14 @@ public class TerraceGenerator implements ComponentGenerator {
         if (hasRailing && height >= 1) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 只在边缘放置栏杆
                     boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
                     if (isEdge) {
-                        SemanticPart part = SemanticPart.RAILING;
-                        String block = palette.pick(part);
-                        if (block == null || block.isEmpty()) {
-                            block = "minecraft:oak_fence";
-                        }
-                        
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
                                 rp.x() + x,
                                 rp.y() + 1,
                                 rp.z() + z,
-                                block
+                                railBlock
                         ));
                     }
                 }

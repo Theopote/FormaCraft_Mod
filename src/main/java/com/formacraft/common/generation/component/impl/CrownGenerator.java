@@ -41,7 +41,9 @@ public class CrownGenerator implements ComponentGenerator {
 
         int centerX = rp.x() + width / 2;
         int centerZ = rp.z() + depth / 2;
-        if ("center".equalsIgnoreCase(String.valueOf(params.getOrDefault("anchor_mode", params.get("anchorMode"))))) {
+        String anchorMode = com.formacraft.common.generation.component.util.ComponentParamParsers.stringParam(
+                params, null, "anchor_mode", "anchorMode");
+        if ("center".equalsIgnoreCase(anchorMode)) {
             centerX = c.relativePosition().x();
             centerZ = c.relativePosition().z();
         }
@@ -54,17 +56,15 @@ public class CrownGenerator implements ComponentGenerator {
         }
         int segments = ComponentCrownDecorator.resolveSegments(params);
 
-        String styleProfile = semantic.styleProfile() != null ? semantic.styleProfile() : "MEDIEVAL_CLASSIC";
-        Palette palette = PaletteLibrary.forStyle(styleProfile);
-        String block = palette.pick(SemanticPart.ROOF_SURFACE);
+        String block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                semantic, SemanticPart.ROOF_SURFACE, null, "roof_block", "material", "block");
         if (block == null || block.isBlank()) {
-            block = palette.pick(SemanticPart.DECOR);
+            block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                    semantic, SemanticPart.DECOR, null, "accent_block");
         }
         if (block == null || block.isBlank()) {
-            block = palette.pick(SemanticPart.WALL_ACCENT);
-        }
-        if (block == null || block.isBlank()) {
-            block = "minecraft:quartz_block";
+            block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                    semantic, SemanticPart.WALL_ACCENT, "minecraft:quartz_block", "wall_block");
         }
 
         ComponentCrownRevolveSolver.emitRevolveSolid(

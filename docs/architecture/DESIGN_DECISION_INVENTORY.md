@@ -1,5 +1,11 @@
 # Design decision inventory
 
+Secondary component generators (tower / balcony / terrace / wall / courtyard / crown / chimney / gate / path / road) resolve materials via explicit params → `DynamicPaletteResolver` / style palette → technical default (`ComponentMaterialResolver`) (FORMAT_REPAIR). This does not invent style; it applies already-authored materials or `style_attributes` so accessories match the main mass.
+
+Tower circular footprints use `radius = (min(width,depth)-1)/2` so even declared boxes do not overpaint by one cell (GEOMETRY). Hollow towers place roof/battlement cells before the interior skip so the top disk seals (GEOMETRY). Spiral stairs place one facing-tagged tread per Y with a floor hole (GEOMETRY). JSON null material params skip `getOrDefault`→`"null"` traps via `ComponentParamParsers.stringParam` (FORMAT_REPAIR).
+
+Entrance facing tokens are normalized (trim/case/N-S-E-W aliases) with slot/SOUTH fallback instead of raw `Facing.valueOf` (FORMAT_REPAIR). Balcony railings omit the host-wall edge so the door bay stays walkable (GEOMETRY).
+
 Local chat reference images use bounded, player-owned chunks and a single-use build reference token (HARD_CONSTRAINT). Only the visual analysis call receives inline image bytes. Planner context uses visual observations and an opaque source label (NONBINDING_HINT).
 
 Chat image URL attachments use existing build references. An unreadable image produces `E_REFERENCE_IMAGE_UNAVAILABLE` before text-only planning (HARD_CONSTRAINT). Successful visual observations remain advisory (NONBINDING_HINT).

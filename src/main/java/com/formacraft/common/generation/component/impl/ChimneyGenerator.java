@@ -37,23 +37,13 @@ public class ChimneyGenerator implements ComponentGenerator {
         int depth = Math.max(1, Math.min(3, d.depth()));
         int height = Math.max(3, d.height()); // 烟囱通常较高
 
-        String styleProfile = getStyleProfile(semantic);
-        Palette palette = PaletteLibrary.forStyle(styleProfile);
-
         // 生成烟囱（细长的垂直结构）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 根据位置确定语义部位
                     SemanticPart part = determinePart(y, height, width, depth, x, z);
-                    Object material = c.params() == null ? null : c.params().get("material");
-                    String block = material instanceof String text && !text.isBlank() ? text : null;
-                    if (block == null) block = palette.pick(part);
-                    else if (!block.contains(":")) block = "minecraft:" + block;
-                    if (block == null || block.isEmpty()) {
-                        block = "minecraft:bricks";
-                    }
-                    
+                    String block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                            semantic, part, "minecraft:bricks", "material", "wall_block", "chimney_block");
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,

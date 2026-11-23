@@ -36,69 +36,45 @@ public class CourtyardSpaceGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, Math.min(2, d.height())); // 庭院通常只有 1-2 格高
 
-        String styleProfile = getStyleProfile(semantic);
-        Palette palette = PaletteLibrary.forStyle(styleProfile);
-
-        // 检查特征，决定生成什么
         boolean hasGarden = c.features() != null && c.features().stream()
                 .anyMatch(f -> f != null && (f.contains("garden") || f.contains("pond") || f.contains("bed")));
         boolean hasPath = c.features() != null && c.features().stream()
                 .anyMatch(f -> f != null && f.contains("path"));
 
-        // 生成铺装地面
+        String pathBlock = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                semantic, SemanticPart.ROAD_SURFACE, null, "path_block", "floor_block", "material");
+        if (pathBlock == null || pathBlock.isBlank()) {
+            pathBlock = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                    semantic, SemanticPart.COURTYARD_FLOOR, "minecraft:stone_bricks",
+                    "floor_block", "material");
+        }
+        String courtBlock = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                semantic, SemanticPart.COURTYARD_FLOOR, null, "floor_block", "material");
+        if (courtBlock == null || courtBlock.isBlank()) {
+            courtBlock = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                    semantic, SemanticPart.FLOOR, "minecraft:stone_bricks", "floor_block", "material");
+        }
+
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 如果是路径区域，使用路径材质
                     if (hasPath && isPathArea(x, z, width, depth)) {
-                        SemanticPart part = SemanticPart.ROAD_SURFACE;
-                        String block = palette.pick(part);
-                        if (block == null || block.isEmpty()) {
-                            // 回退到 COURTYARD_FLOOR 或 FLOOR
-                            part = SemanticPart.COURTYARD_FLOOR;
-                            block = palette.pick(part);
-                            if (block == null || block.isEmpty()) {
-                                part = SemanticPart.FLOOR;
-                                block = palette.pick(part);
-                            }
-                        }
-                        if (block == null || block.isEmpty()) {
-                            block = "minecraft:stone_bricks";
-                        }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
                                 rp.x() + x,
                                 rp.y() + y,
                                 rp.z() + z,
-                                block
+                                pathBlock
                         ));
                     } else if (hasGarden && isGardenArea(x, z, width, depth)) {
-                        // 花园区域：使用不同的材质或留空（由后续处理）
-                        continue; // 暂时跳过，或使用特殊材质
+                        continue;
                     } else {
-                        // 普通铺装（优先使用 COURTYARD_FLOOR，回退到 FLOOR 或 ROAD_SURFACE）
-                        SemanticPart part = SemanticPart.COURTYARD_FLOOR;
-                        String block = palette.pick(part);
-                        if (block == null || block.isEmpty()) {
-                            // 如果没有 COURTYARD_FLOOR，尝试 FLOOR
-                            part = SemanticPart.FLOOR;
-                            block = palette.pick(part);
-                        }
-                        if (block == null || block.isEmpty()) {
-                            // 如果还没有，尝试 ROAD_SURFACE
-                            part = SemanticPart.ROAD_SURFACE;
-                            block = palette.pick(part);
-                        }
-                        if (block == null || block.isEmpty()) {
-                            // 最后的默认值
-                            block = "minecraft:stone_bricks";
-                        }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
                                 rp.x() + x,
                                 rp.y() + y,
                                 rp.z() + z,
-                                block
+                                courtBlock
                         ));
                     }
                 }

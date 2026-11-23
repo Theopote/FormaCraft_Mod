@@ -59,9 +59,6 @@ public class WallComponentGenerator implements ComponentGenerator {
             rp = new Vec3i(rp.x() - width / 2, rp.y(), rp.z() - depth / 2);
         }
 
-        String styleProfile = getStyleProfile(semantic);
-        Palette palette = PaletteLibrary.forStyle(styleProfile);
-
         boolean hasWindows = hasFeature(c, "windows", "window", "arrow_slits");
         boolean hasDecor = hasFeature(c, "decor", "decoration", "ornament", "carved");
         boolean hasBattlements = hasFeature(c, "battlements", "battlement", "crenelation");
@@ -101,11 +98,9 @@ public class WallComponentGenerator implements ComponentGenerator {
                         if (onGateSide && y < gateHeight && axis >= (span-gateWidth)/2 && axis < (span+gateWidth)/2) continue;
                     }
                     if (hasWindows && isWindowPosition(x, z, width, depth, y, height)) {
-                        SemanticPart part = SemanticPart.WINDOW;
-                        String block = palette.pick(part);
-                        if (block == null || block.isEmpty()) {
-                            block = "minecraft:glass";
-                        }
+                        String block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                                semantic, SemanticPart.WINDOW, "minecraft:glass",
+                                "glass_block", "window_block");
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
                                 rp.x() + x,
@@ -117,11 +112,12 @@ public class WallComponentGenerator implements ComponentGenerator {
                     }
 
                     if (hasDecor && isDecorPosition(x, z, width, depth, y, height)) {
-                        SemanticPart part = SemanticPart.DECOR;
-                        String block = palette.pick(part);
-                        if (block == null || block.isEmpty()) {
-                            part = SemanticPart.WALL_ACCENT;
-                            block = palette.pick(part);
+                        String block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                                semantic, SemanticPart.DECOR, null, "accent_block", "trim_block");
+                        if (block == null || block.isBlank()) {
+                            block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                                    semantic, SemanticPart.WALL_ACCENT, "minecraft:stone_bricks",
+                                    "wall_block", "accent_block");
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
@@ -134,11 +130,12 @@ public class WallComponentGenerator implements ComponentGenerator {
                     }
 
                     if (hasBattlements && isBattlementPosition(x, z, width, depth, y, height)) {
-                        SemanticPart part = SemanticPart.BATTLEMENT;
-                        String block = palette.pick(part);
-                        if (block == null || block.isEmpty()) {
-                            part = SemanticPart.WALL_ACCENT;
-                            block = palette.pick(part);
+                        String block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                                semantic, SemanticPart.BATTLEMENT, null, "wall_block", "accent_block");
+                        if (block == null || block.isBlank()) {
+                            block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                                    semantic, SemanticPart.WALL_ACCENT, "minecraft:stone_bricks",
+                                    "wall_block", "accent_block");
                         }
                         out.add(new BlockPatch(
                                 BlockPatch.PLACE,
@@ -153,7 +150,8 @@ public class WallComponentGenerator implements ComponentGenerator {
                     SemanticPart part = determinePart(y, height, width, depth, x, z);
                     String block = (explicitWall != null && !explicitWall.isBlank() && y > 0 && y < height - 1)
                             ? normalizeBlockId(explicitWall)
-                            : palette.pick(part);
+                            : com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                                    semantic, part, null, "wall_block", "material");
                     if (block == null || block.isBlank()) {
                         block = explicitWall != null ? normalizeBlockId(explicitWall) : "minecraft:stone_bricks";
                     }

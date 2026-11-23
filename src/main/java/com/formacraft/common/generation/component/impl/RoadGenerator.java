@@ -40,22 +40,15 @@ public class RoadGenerator implements ComponentGenerator {
         int depth = Math.max(1, d.depth());
         int height = Math.max(1, d.height());
 
-        // 获取风格
-        String styleProfile = "MEDIEVAL_CLASSIC"; // 默认
-        Palette palette = PaletteLibrary.forStyle(styleProfile);
-
-        // 生成平面道路（使用 Palette 权重随机）
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 for (int z = 0; z < depth; z++) {
-                    // 判断是否为边缘
                     boolean isEdge = (x == 0 || x == width - 1 || z == 0 || z == depth - 1);
-                    SemanticPart part = (isEdge && width >= 3 && depth >= 3) 
-                            ? SemanticPart.ROAD_EDGE 
+                    SemanticPart part = (isEdge && width >= 3 && depth >= 3)
+                            ? SemanticPart.ROAD_EDGE
                             : SemanticPart.ROAD_SURFACE;
-                    
-                    String block = palette.pick(part);
-
+                    String block = com.formacraft.common.generation.component.util.ComponentMaterialResolver.resolve(
+                            semantic, part, "minecraft:gravel", "road_block", "floor_block", "material");
                     out.add(new BlockPatch(
                             BlockPatch.PLACE,
                             rp.x() + x,
