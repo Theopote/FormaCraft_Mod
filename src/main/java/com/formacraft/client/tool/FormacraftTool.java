@@ -19,6 +19,12 @@ public interface FormacraftTool {
     /** Cancel an unfinished gesture without removing committed constraints. */
     default void cancelDraft() {}
 
+    /**
+     * Drop committed + draft world-scoped state (disconnect / dimension / save switch).
+     * Default only cancels the active gesture; tools that keep BlockPos overlays override.
+     */
+    default void resetWorldState() { cancelDraft(); }
+
     /** Enter completes a draft; Backspace removes its last point. */
     default boolean finishDraft() { return false; }
     default boolean removeLastDraftPoint() { return false; }

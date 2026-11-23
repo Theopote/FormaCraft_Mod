@@ -176,6 +176,12 @@ public final class ProtectedZoneTool implements FormacraftTool {
         syncToServer();
     }
 
+    @Override
+    public void resetWorldState() {
+        zones.clear();
+        cancelDraft();
+    }
+
     private void syncToServer() {
         sync.accept(List.copyOf(zones));
     }

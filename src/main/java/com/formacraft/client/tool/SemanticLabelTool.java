@@ -82,6 +82,11 @@ public final class SemanticLabelTool implements FormacraftTool {
     }
 
     @Override
+    public void resetWorldState() {
+        clearLabels();
+    }
+
+    @Override
     public boolean onMouseClick(double mx, double my, int button) {
         if (button != 0 && button != 1) return false;
         if (button == 1) {

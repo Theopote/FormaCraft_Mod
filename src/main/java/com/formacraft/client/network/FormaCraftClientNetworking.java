@@ -36,6 +36,8 @@ public final class FormaCraftClientNetworking {
                 (handler, client) -> {
                     com.formacraft.client.component.ClientComponentSourceState.INSTANCE.clear();
                     com.formacraft.client.tool.ComponentTool.INSTANCE.onCaptureDisconnected();
+                    // Spatial tools hold BlockPos from the previous world — clear before the next join.
+                    com.formacraft.client.tool.ToolManager.resetWorldState();
                 });
         ClientPlayNetworking.registerGlobalReceiver(com.formacraft.common.network.ComponentSourceNetworking.Response.ID,
                 (payload, context) -> context.client().execute(() ->

@@ -73,6 +73,11 @@ public final class SymmetryTool implements FormacraftTool {
     }
 
     @Override
+    public void resetWorldState() {
+        clearAxis();
+    }
+
+    @Override
     public void cancelDraft() {
         if (selecting) clearAxis();
     }

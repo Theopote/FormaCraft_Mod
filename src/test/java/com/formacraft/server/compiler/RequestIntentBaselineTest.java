@@ -10,6 +10,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -41,6 +42,20 @@ class RequestIntentBaselineTest {
                     }
                     if (testCase.has("forbids_excludes")) {
                         assertFalse(forbids.contains(testCase.get("forbids_excludes").getAsString()));
+                    }
+                    if (testCase.has("roof_forbids_contains")) {
+                        var roofForbids = (List<?>) intent.get("roof_forbids");
+                        String expected = testCase.get("roof_forbids_contains").getAsString();
+                        assertTrue(roofForbids.contains(expected), () -> "Missing roof exclusion: " + expected);
+                    }
+                    if (testCase.has("materials_wall")) {
+                        var materials = (Map<?, ?>) intent.get("materials");
+                        assertEquals(testCase.get("materials_wall").getAsString(), materials.get("wall"), "materials.wall");
+                    }
+                    if (testCase.has("footprint")) {
+                        var footprint = testCase.getAsJsonArray("footprint");
+                        assertEquals(Map.of("width", footprint.get(0).getAsInt(),
+                                "depth", footprint.get(1).getAsInt()), intent.get("footprint"), "footprint");
                     }
                 }));
             }

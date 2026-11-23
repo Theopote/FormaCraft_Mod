@@ -36,6 +36,13 @@ public final class WorkPlaneTool implements FormacraftTool {
     }
     public void clear() { state().clear(); dragStart = null; }
 
+    @Override
+    public void resetWorldState() {
+        state.clear();
+        dragStart = null;
+        worldScope = null;
+    }
+
     @Override public boolean onMouseClick(double mx, double my, int button) {
         if (button != 0 && button != 1) return false;
         var state = state();

@@ -124,9 +124,11 @@ public final class OutlineTool implements FormacraftTool {
             }
             case FREE_DRAW -> {
                 // free draw 主要靠 tick 采样；这里用于“开始”
+                // Always start a fresh stroke so a previous invalid draft cannot concatenate.
+                draft.clear();
                 selecting = true;
                 freeDrawing = true;
-                if (draft.isEmpty()) draft.add(pos);
+                draft.add(pos);
             }
         }
         return true;
@@ -205,6 +207,10 @@ public final class OutlineTool implements FormacraftTool {
         }
         List<BlockPos> pts = ToolGeometry.normalizePolygon(draft);
         if (!ToolGeometry.validPolygon(pts)) {
+            // FREE_DRAW must not leave a poisoned draft; POLYGON keeps points so the user can backspace.
+            if (mode == OutlineMode.FREE_DRAW) {
+                cancelDraft();
+            }
             com.formacraft.client.ui.toast.HudToast.show("轮廓无效：请退点修正重叠、交叉或零面积", true);
             return;
         }
@@ -253,6 +259,13 @@ public final class OutlineTool implements FormacraftTool {
         shape = null;
         cancelDraft();
         syncToServer();
+    }
+
+    @Override
+    public void resetWorldState() {
+        // Local-only: avoid syncing empty outline during disconnect / world tear-down.
+        shape = null;
+        cancelDraft();
     }
 
     private void syncToServer() {

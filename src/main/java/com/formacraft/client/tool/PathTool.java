@@ -133,6 +133,11 @@ public final class PathTool implements FormacraftTool {
         cancelDraft();
     }
 
+    @Override
+    public void resetWorldState() {
+        clearAll();
+    }
+
     public void cancelDraft() {
         draft.clear();
         hover = null;

@@ -99,6 +99,12 @@ public final class BrushTool implements FormacraftTool {
     }
 
     @Override
+    public void resetWorldState() {
+        clearSelected();
+        hover.clear();
+    }
+
+    @Override
     public void onDeactivate() {
         // 不自动清空 selected（用户希望作为参考范围保留）
         hover.clear();

@@ -18,6 +18,9 @@ public final class ToolManager {
 
     private static FormacraftTool activeTool = null;
 
+    /** Tracks {@link MinecraftClient#world} identity for cross-world / disconnect cleanup. */
+    private static Object worldScope;
+
     static {
         // 插件化加载（包含内建工具 BuiltinToolsEntrypoint）
         ToolPluginLoader.loadOnce();
@@ -69,10 +72,38 @@ public final class ToolManager {
         return activeTool.onMouseClick(mx, my, button);
     }
 
+    /**
+     * Clear every tool's world-scoped draft + committed constraints and deactivate.
+     * Call on disconnect and when {@code client.world} identity changes.
+     */
+    public static void resetWorldState() {
+        if (activeTool != null) {
+            try { activeTool.onDeactivate(); } catch (Throwable t) {
+                LOG.warn("tool onDeactivate failed during resetWorldState toolId={}", activeTool.getId(), t);
+            }
+            activeTool = null;
+        }
+        for (FormacraftTool tool : tools.values()) {
+            try {
+                tool.resetWorldState();
+            } catch (Throwable t) {
+                LOG.warn("tool resetWorldState failed toolId={}", tool.getId(), t);
+            }
+        }
+        worldScope = null;
+    }
+
     public static void tick() {
-        if (activeTool == null) return;
-        // 避免启动早期 NPE
         MinecraftClient client = MinecraftClient.getInstance();
+        Object world = client == null ? null : client.world;
+        if (worldScope != world) {
+            // Leaving a previous world (dimension / save / unload). null→world first attach keeps empty tools.
+            if (worldScope != null) {
+                resetWorldState();
+            }
+            worldScope = world;
+        }
+        if (activeTool == null) return;
         if (client == null || client.world == null) return;
         if (!com.formacraft.client.ui.FormacraftUIState.isOpen
                 || com.formacraft.client.preview.PreviewModalState.isLocked()) {
@@ -88,4 +119,3 @@ public final class ToolManager {
         }
     }
 }
-

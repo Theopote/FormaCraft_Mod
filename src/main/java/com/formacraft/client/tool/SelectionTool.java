@@ -44,10 +44,6 @@ public final class SelectionTool implements FormacraftTool {
     private static final double ANCHOR_OFFSET = 0.05; // 锚点稍微突出于面
     /** 角点大小 */
     private static final double CORNER_SIZE = 0.12;
-    /** 射线相交最大距离 */
-    private static final double MAX_RAY_DISTANCE = 500.0;
-    /** 射线方向分量阈值（避免除零） */
-    private static final double RAY_DIR_EPSILON = 1e-6;
     
     // ==================== 选区状态 ====================
     private BlockPos start;
@@ -109,9 +105,9 @@ public final class SelectionTool implements FormacraftTool {
             return false;
         }
 
-        // 如果已有选区，检查是否点击在锚点上
+        // 如果已有选区，检查是否点击在锚点上（点击前即时刷新，避免上一 tick 过期缓存）
         if (hasSelection()) {
-            // 使用缓存的悬停面，避免重复计算
+            updateCaches();
             if (cachedHoveredFace != null) {
                 // 开始拖拽
                 draggingFace = cachedHoveredFace;
@@ -471,83 +467,6 @@ public final class SelectionTool implements FormacraftTool {
     }
     
     /**
-     * 计算射线与面的交点
-     * @param face 面的方向
-     * @return 交点坐标，如果射线不与面相交则返回面的中心
-     */
-    private Vec3d getRayIntersectionWithFace(Direction face) {
-        BlockPos min = getMin();
-        BlockPos max = getMax();
-        if (min == null || max == null || cachedCameraPos == null || cachedMouseRayDir == null) {
-            return Vec3d.ZERO;
-        }
-        
-        double planeCoord = getPlaneCoord(face, min, max);
-        double t = getT(face, planeCoord);
-
-        // 检查交点是否有效
-        if (t > 0 && t < MAX_RAY_DISTANCE) {
-            Vec3d intersection = cachedCameraPos.add(cachedMouseRayDir.multiply(t));
-            Vec3d faceCenter = getFaceCenter(min, max, face);
-            Vec3d offset = intersection.subtract(faceCenter);
-            
-            // 移除垂直于面的分量（投影到面上）
-            switch (face.getAxis()) {
-                case X -> offset = new Vec3d(0, offset.y, offset.z);
-                case Y -> offset = new Vec3d(offset.x, 0, offset.z);
-                case Z -> offset = new Vec3d(offset.x, offset.y, 0);
-            }
-            
-            return faceCenter.add(offset);
-        }
-        
-        // 如果射线没有与面相交，返回面的中心
-        return getFaceCenter(min, max, face);
-    }
-
-    private double getT(Direction face, double planeCoord) {
-        double t = Double.MAX_VALUE;
-
-        // 根据面计算交点参数t
-        switch (face.getAxis()) {
-            case X -> {
-                if (Math.abs(cachedMouseRayDir.x) > RAY_DIR_EPSILON) {
-                    t = (planeCoord - cachedCameraPos.x) / cachedMouseRayDir.x;
-                }
-            }
-            case Y -> {
-                if (Math.abs(cachedMouseRayDir.y) > RAY_DIR_EPSILON) {
-                    t = (planeCoord - cachedCameraPos.y) / cachedMouseRayDir.y;
-                }
-            }
-            case Z -> {
-                if (Math.abs(cachedMouseRayDir.z) > RAY_DIR_EPSILON) {
-                    t = (planeCoord - cachedCameraPos.z) / cachedMouseRayDir.z;
-                }
-            }
-        }
-        return t;
-    }
-
-    /**
-     * 获取面的平面坐标（沿轴的位置）
-     * @param face 面的方向
-     * @param min 最小坐标
-     * @param max 最大坐标
-     * @return 平面坐标值
-     */
-    private double getPlaneCoord(Direction face, BlockPos min, BlockPos max) {
-        return switch (face) {
-            case WEST -> min.getX();
-            case EAST -> max.getX() + 1;
-            case DOWN -> min.getY();
-            case UP -> max.getY() + 1;
-            case NORTH -> min.getZ();
-            case SOUTH -> max.getZ() + 1;
-        };
-    }
-    
-    /**
      * 获取面的中心位置
      * @param min 最小坐标
      * @param max 最大坐标
@@ -624,15 +543,27 @@ public final class SelectionTool implements FormacraftTool {
             end = null;
             selecting = false;
         }
+        cachedHoveredFace = null;
+        // HUD close / lock only calls cancelDraft — restore default cursor so resize cursors do not stick.
+        restoreDefaultCursor();
     }
 
     @Override
     public void onDeactivate() {
         cancelDraft();
-        cachedHoveredFace = null;
+    }
+
+    @Override
+    public void resetWorldState() {
+        clear();
+    }
+
+    private void restoreDefaultCursor() {
         long window = getClientWindow();
-        if (window != 0 && currentCursorHandle != 0) GLFW.glfwSetCursor(window, 0);
-        currentCursorHandle = 0;
+        if (window != 0 && currentCursorHandle != 0) {
+            GLFW.glfwSetCursor(window, 0);
+            currentCursorHandle = 0;
+        }
     }
     
     // ==================== 辅助方法：光标管理 ====================
@@ -739,12 +670,7 @@ public final class SelectionTool implements FormacraftTool {
         cachedCameraPos = null;
         cachedMouseRayDir = null;
         
-        // 清理光标句柄
-        long window = getClientWindow();
-        if (window != 0 && currentCursorHandle != 0) {
-            GLFW.glfwSetCursor(window, 0);
-            currentCursorHandle = 0;
-        }
+        restoreDefaultCursor();
     }
     
     /**
