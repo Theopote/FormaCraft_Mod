@@ -1,7 +1,9 @@
 """Synchronous inference waiting policy, independent of planning and routing."""
 import concurrent.futures
+import contextvars
 import os
 import threading
+import time
 from typing import Optional
 
 from ..models.request import BuildRequest
@@ -32,6 +34,18 @@ _TIMEOUT_POOL = concurrent.futures.ThreadPoolExecutor(
 )
 _TIMEOUT_SLOTS = threading.BoundedSemaphore(_TIMEOUT_POOL_WORKERS)
 _IN_TIMEOUT_WORKER = threading.local()
+planning_budget = contextvars.ContextVar("planning_budget", default=None)
+
+
+def remaining_call_timeout(timeout_sec: float) -> float:
+    budget = planning_budget.get()
+    if budget is None:
+        return timeout_sec
+    deadline, cancelled = budget
+    remaining = deadline - time.monotonic()
+    if cancelled.is_set() or remaining <= 0:
+        raise TimeoutError("Build planning budget expired or was cancelled")
+    return min(timeout_sec, remaining)
 
 
 class TimeoutPoolSaturatedError(RuntimeError):
@@ -44,6 +58,7 @@ def call_with_timeout(fn, timeout_sec: float):
     Nested calls from inside an already-guarded worker run inline (no second slot),
     so research→classify/synth cannot saturate the pool against itself.
     """
+    timeout_sec = remaining_call_timeout(timeout_sec)
     if getattr(_IN_TIMEOUT_WORKER, "active", False):
         return fn()
 
@@ -55,22 +70,34 @@ def call_with_timeout(fn, timeout_sec: float):
     def work():
         _IN_TIMEOUT_WORKER.active = True
         try:
+            remaining_call_timeout(timeout_sec)
             return fn()
         finally:
             _IN_TIMEOUT_WORKER.active = False
             _TIMEOUT_SLOTS.release()
 
+    context = contextvars.copy_context()
     try:
-        fut = _TIMEOUT_POOL.submit(work)
+        fut = _TIMEOUT_POOL.submit(context.run, work)
     except Exception:
         _TIMEOUT_SLOTS.release()
         raise
 
     try:
-        return fut.result(timeout=timeout_sec)
+        if planning_budget.get() is None:
+            return fut.result(timeout=timeout_sec)
+        deadline = time.monotonic() + timeout_sec
+        while not fut.done():
+            remaining = remaining_call_timeout(deadline - time.monotonic())
+            if remaining <= 0:
+                raise TimeoutError("Inference stage timed out")
+            concurrent.futures.wait({fut}, timeout=min(0.1, remaining))
+        remaining_call_timeout(timeout_sec)
+        return fut.result()
     except concurrent.futures.TimeoutError as e:
         try:
-            fut.cancel()
+            if fut.cancel():
+                _TIMEOUT_SLOTS.release()
         except Exception:
             pass
         # Slot stays held until the still-running worker finishes.

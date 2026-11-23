@@ -387,13 +387,15 @@ def call_chat_with_llm_plan_response_formats(
                 try:
                     # Also bound the underlying HTTP call; the outer watchdog
                     # alone cannot cancel a blocked SDK worker.
-                    attempt_client = (client.with_options(timeout=attempt_timeout, max_retries=0)
+                    from ..services.inference_call import remaining_call_timeout
+                    call_timeout = remaining_call_timeout(attempt_timeout)
+                    attempt_client = (client.with_options(timeout=call_timeout, max_retries=0)
                                       if callable(getattr(client, 'with_options', None)) else client)
                     response = call_with_timeout(
                         lambda rf=response_format, api=attempt_client, msgs=attempt_messages: api.chat.completions.create(
                             model=model, messages=msgs, response_format=rf, temperature=temperature,
                             **({"max_tokens": max_tokens} if max_tokens is not None else {})),
-                        attempt_timeout,
+                        call_timeout,
                     )
                     break
                 except Exception as failure:

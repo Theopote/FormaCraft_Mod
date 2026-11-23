@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Build requests pass a bounded planning budget to the Python executor (HARD_CONSTRAINT). Inference waits and LlmPlan provider attempts respect the remaining budget, and disconnected or cancelled callers stop new inference attempts. Design choices are unaffected.
+
 Secondary component generators (tower / balcony / terrace / wall / courtyard / crown / chimney / gate / path / road) resolve materials via explicit params → `DynamicPaletteResolver` / style palette → technical default (`ComponentMaterialResolver`) (FORMAT_REPAIR). This does not invent style; it applies already-authored materials or `style_attributes` so accessories match the main mass.
 
 Tower circular footprints use `radius = (min(width,depth)-1)/2` so even declared boxes do not overpaint by one cell (GEOMETRY). Hollow towers place roof/battlement cells before the interior skip so the top disk seals (GEOMETRY). Spiral stairs place one facing-tagged tread per Y with a floor hole (GEOMETRY). JSON null material params skip `getOrDefault`→`"null"` traps via `ComponentParamParsers.stringParam` (FORMAT_REPAIR).

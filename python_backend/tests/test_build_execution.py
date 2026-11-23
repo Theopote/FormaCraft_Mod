@@ -18,6 +18,22 @@ class Connection:
         return self.disconnected
 
 
+def test_request_budget_reaches_nested_inference():
+    from app.services.inference_call import call_with_timeout, remaining_call_timeout
+
+    executor = PlanningExecutor(1, 5)
+    connection = Connection()
+    connection.headers = {"X-FormaCraft-Planning-Seconds": "1"}
+    try:
+        def generate():
+            return call_with_timeout(lambda: remaining_call_timeout(30), 30)
+
+        remaining = asyncio.run(executor.run(connection, generate))
+        assert 0 < remaining <= 1
+    finally:
+        executor.shutdown()
+
+
 async def started(event):
     async def poll():
         while not event.is_set():

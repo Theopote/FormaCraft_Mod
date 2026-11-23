@@ -252,6 +252,8 @@ public class OrchestratorClient {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/build"))
                     .header("Content-Type", "application/json")
+                    .header("X-FormaCraft-Planning-Seconds",
+                            Long.toString(Math.max(1, Math.min(595, ORCHESTRATOR_TIMEOUT_SEC - 5))))
                     .timeout(Duration.ofSeconds(ORCHESTRATOR_TIMEOUT_SEC))
                     .POST(HttpRequest.BodyPublishers.ofString(json));
             applySecret(builder);
