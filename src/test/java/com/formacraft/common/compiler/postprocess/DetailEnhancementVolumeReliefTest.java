@@ -52,7 +52,37 @@ class DetailEnhancementVolumeReliefTest {
                 && BlockPatch.PLACE.equals(p.action()));
         boolean northPilaster = out.stream().anyMatch(p -> p.dx() == 3 && p.dz() == -1 && p.dy() > 0
                 && BlockPatch.PLACE.equals(p.action()));
-        assertTrue(eastPilaster || northPilaster, "corner pilasters should extrude on adjacent faces");
+        assertTrue(eastPilaster && northPilaster, "corner pilasters must extrude on both adjacent faces");
+        // Pilasters emit before plinth, so stair bases survive at minY
+        assertTrue(out.stream().anyMatch(p -> p.dx() == 4 && p.dz() == 0 && p.dy() == 0
+                        && p.targetBlock() != null && p.targetBlock().contains("stairs")),
+                "pilaster stair base must not be swallowed by plinth slabs");
+    }
+
+    @Test
+    void secondVolumeStillGetsReliefAfterFirstVolumeBudget() {
+        // First volume huge enough to consume a large budget; second must still receive plinth
+        var v1 = new PostProcessContext.BuildingVolume("big",
+                new ComponentFootprintUtil.Bounds(0, 0, 0, 40, 8, 40), 4);
+        var v2 = new PostProcessContext.BuildingVolume("wing",
+                new ComponentFootprintUtil.Bounds(50, 0, 0, 56, 6, 6), 3);
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "subtle", "classic", "subtle", null, null);
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleAttributes(attrs).build();
+        PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN, List.of(v1, v2));
+        List<BlockPatch> input = new ArrayList<>();
+        for (int x = 0; x < 40; x++) for (int z = 0; z < 40; z++)
+            if (x == 0 || x == 39 || z == 0 || z == 39)
+                for (int y = 0; y < 8; y++)
+                    input.add(new BlockPatch(BlockPatch.PLACE, x, y, z, "minecraft:stone_bricks"));
+        for (int x = 50; x < 56; x++) for (int z = 0; z < 6; z++)
+            if (x == 50 || x == 55 || z == 0 || z == 5)
+                for (int y = 0; y < 6; y++)
+                    input.add(new BlockPatch(BlockPatch.PLACE, x, y, z, "minecraft:stone_bricks"));
+        List<BlockPatch> out = new DetailEnhancementPostProcessor().process(input, ctx);
+        assertTrue(out.stream().anyMatch(p -> p.dx() >= 50 && p.dx() <= 56 && p.dz() == -1 && p.dy() == 0),
+                "second volume must still receive plinth after first volume uses its own budget");
     }
 
     @Test

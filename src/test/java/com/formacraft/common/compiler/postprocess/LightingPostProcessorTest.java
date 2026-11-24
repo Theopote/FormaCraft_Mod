@@ -77,6 +77,34 @@ class LightingPostProcessorTest {
     }
 
     @Test
+    void eavesHangingLanternRequiresBlockAbove() {
+        var volume = new PostProcessContext.BuildingVolume("m",
+                new ComponentFootprintUtil.Bounds(0, 0, 0, 7, 5, 7), 4);
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "subtle", "classic", "none", "warm_lantern", "high");
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleAttributes(attrs).build();
+        PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN, List.of(volume));
+        List<BlockPatch> input = new ArrayList<>();
+        for (int x = 0; x <= 6; x++) {
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 3, 0, "minecraft:stone_bricks"));
+            // Overhang / eave slab above the future light cell so hanging is legal
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 4, -1, "minecraft:oak_slab[type=bottom]"));
+        }
+        List<BlockPatch> out = new LightingPostProcessor().process(input, ctx);
+        List<BlockPatch> hanging = out.stream()
+                .filter(p -> !input.contains(p))
+                .filter(p -> p.dz() == -1 && p.dy() == 3)
+                .filter(p -> p.targetBlock() != null && p.targetBlock().contains("hanging=true"))
+                .toList();
+        assertFalse(hanging.isEmpty(), "with solid above, eaves may place hanging lanterns");
+        for (BlockPatch light : hanging) {
+            assertTrue(input.stream().anyMatch(p -> p.dx() == light.dx() && p.dy() == light.dy() + 1 && p.dz() == light.dz()),
+                    "every hanging lantern must have authored solid at (x,y+1,z)");
+        }
+    }
+
+    @Test
     void lightingStyleNoneEmitsNothing() {
         var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, "none", null);

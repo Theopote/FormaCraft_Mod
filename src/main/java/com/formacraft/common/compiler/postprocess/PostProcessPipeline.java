@@ -100,10 +100,13 @@ public class PostProcessPipeline {
             if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), null)
                     && (processor instanceof DetailRulePostProcessor || processor instanceof WindowOrderPostProcessor
                     || processor instanceof DetailEnhancementPostProcessor)) continue;
-            // Incremental FACADE_WINDOWS/ENTRANCE-only patches must stay tiny (e.g. 4 glass cells).
+            // Incremental opening/glass patches must stay tiny (e.g. 4 glass cells) —
+            // no façade trim, relief, weathering, or lanterns around a 2×2 insert.
             if (openingOnlyPatch && (processor instanceof DetailEnhancementPostProcessor
                     || processor instanceof WindowOrderPostProcessor
-                    || processor instanceof DetailRulePostProcessor)) continue;
+                    || processor instanceof DetailRulePostProcessor
+                    || processor instanceof LightingPostProcessor
+                    || processor instanceof MaterialVariationPostProcessor)) continue;
             List<BlockPatch> previous = new ArrayList<>(result);
             String name = processor.getClass().getSimpleName();
             try (var materials = com.formacraft.common.palette.component.PaletteSelectionScope.open(
@@ -206,7 +209,10 @@ public class PostProcessPipeline {
         return result;
     }
 
-    /** True when the plan only carries opening/facade satellites (no host mass). */
+    /**
+     * True when the plan only carries opening/facade satellites (no host mass).
+     * Includes bounded glass {@code PRIMITIVE} boxes after {@code IncrementalWindowQuery.normalize}.
+     */
     static boolean isOpeningOnlyPatchPlan(com.formacraft.common.llm.dto.LlmPlan plan) {
         if (plan == null || plan.components() == null || plan.components().isEmpty()) return false;
         boolean anyOpening = false;
@@ -215,12 +221,17 @@ public class PostProcessPipeline {
             String t = c.componentType().trim().toUpperCase(java.util.Locale.ROOT);
             if (t.startsWith("MASS_") || "TOWER".equals(t) || "STRUCTURE".equals(t)
                     || "FOUNDATION".equals(t) || "ROOF".equals(t) || "ROOF_STRUCTURE".equals(t)
-                    || t.contains("ASSEMBLY")) {
+                    || t.contains("ASSEMBLY") || "WALL".equals(t) || "SHELL_BOX".equals(t)
+                    || "BOX_SHELL".equals(t)) {
                 return false;
             }
             if (t.contains("WINDOW") || t.contains("ENTRANCE") || t.contains("DOOR")
-                    || t.contains("FACADE") || "OPENING".equals(t)) {
+                    || t.contains("FACADE") || "OPENING".equals(t)
+                    || "SIGNAGE".equals(t) || t.contains("DECOR")
+                    || com.formacraft.common.network.IncrementalPrimitivePolicy.allows(c)) {
                 anyOpening = true;
+            } else {
+                return false;
             }
         }
         return anyOpening;

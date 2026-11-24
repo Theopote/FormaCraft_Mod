@@ -43,6 +43,9 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
 
         Map<Long, BlockPatch> solid = foldSolid(patches);
         if (solid.isEmpty()) return patches;
+        // Courtyard/skywell detection must use pre-enhancement occupancy — a pilaster base
+        // must not be mistaken for yard paving that would suppress the shaft above it.
+        Map<Long, BlockPatch> authoredSolid = Map.copyOf(solid);
 
         String styleProfile = context.plan() != null && context.plan().styleProfile() != null
                 ? context.plan().styleProfile() : "MEDIEVAL_CLASSIC";
@@ -84,25 +87,25 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
 
             // Corner pilasters before plinth so stair bases are not blocked by the slab ring
             if (deep || hints.facadeRelief() == AestheticPassHints.FacadeRelief.SUBTLE) {
-                placed += emitCornerPilasters(enhancements, solid, clearance, decoRestrict,
+                placed += emitCornerPilasters(enhancements, solid, authoredSolid, clearance, decoRestrict,
                         minX, maxX, minY, maxY, minZ, maxZ, wallShape, stairs, deep,
                         MAX_OUTWARD_PER_VOLUME - placed);
             }
 
             // Base plinth (+1 outward slabs)
-            placed += emitPlinth(enhancements, solid, clearance, decoRestrict,
+            placed += emitPlinth(enhancements, solid, authoredSolid, clearance, decoRestrict,
                     minX, maxX, minY, maxY, minZ, maxZ, SubVoxelBlockStates.slab(slab, false),
                     MAX_OUTWARD_PER_VOLUME - placed);
 
             // Belt courses at each floor junction
             for (int y = minY + floorH; y < maxY; y += floorH) {
-                placed += emitBelt(enhancements, solid, clearance, decoRestrict,
+                placed += emitBelt(enhancements, solid, authoredSolid, clearance, decoRestrict,
                         minX, maxX, y, minZ, maxZ, minY, maxY, SubVoxelBlockStates.slab(slab, true),
                         MAX_OUTWARD_PER_VOLUME - placed);
             }
 
             // Cornice brackets under top edge (per-volume budget only — never break the volume loop)
-            placed += emitCornice(enhancements, solid, clearance, decoRestrict,
+            placed += emitCornice(enhancements, solid, authoredSolid, clearance, decoRestrict,
                     minX, maxX, maxY, minZ, maxZ, minY, stairs, MAX_OUTWARD_PER_VOLUME - placed);
         }
 
@@ -126,23 +129,25 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
     }
 
     private static int emitPlinth(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                  Map<Long, BlockPatch> authoredSolid,
                                   Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
                                   int minX, int maxX, int minY, int maxY, int minZ, int maxZ,
                                   String block, int budget) {
         if (budget <= 0 || block == null) return 0;
         int n = 0;
         for (int x = minX; x <= maxX; x++) {
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, minY, minZ - 1, block, budget - n, minY, maxY);
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, minY, maxZ + 1, block, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, x, minY, minZ - 1, block, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, x, minY, maxZ + 1, block, budget - n, minY, maxY);
         }
         for (int z = minZ; z <= maxZ; z++) {
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, minX - 1, minY, z, block, budget - n, minY, maxY);
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, maxX + 1, minY, z, block, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, minX - 1, minY, z, block, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, maxX + 1, minY, z, block, budget - n, minY, maxY);
         }
         return n;
     }
 
     private static int emitCornerPilasters(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                           Map<Long, BlockPatch> authoredSolid,
                                            Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
                                            int minX, int maxX, int minY, int maxY, int minZ, int maxZ,
                                            String shaft, String stairs, boolean deep, int budget) {
@@ -156,10 +161,10 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
             // Both adjacent outward normals so N/S faces are not skipped
             Direction dirX = ox < 0 ? Direction.WEST : Direction.EAST;
             Direction dirZ = oz < 0 ? Direction.NORTH : Direction.SOUTH;
-            n += emitOnePilaster(out, solid, clearance, decoRestrict,
+            n += emitOnePilaster(out, solid, authoredSolid, clearance, decoRestrict,
                     cx + dirX.getOffsetX(), cz + dirX.getOffsetZ(),
                     minY, maxY, shaft, stairs, deep, dirX, budget - n);
-            n += emitOnePilaster(out, solid, clearance, decoRestrict,
+            n += emitOnePilaster(out, solid, authoredSolid, clearance, decoRestrict,
                     cx + dirZ.getOffsetX(), cz + dirZ.getOffsetZ(),
                     minY, maxY, shaft, stairs, deep, dirZ, budget - n);
         }
@@ -167,6 +172,7 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
     }
 
     private static int emitOnePilaster(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                       Map<Long, BlockPatch> authoredSolid,
                                        Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
                                        int px, int pz, int minY, int maxY,
                                        String shaft, String stairs, boolean deep, Direction dir, int budget) {
@@ -175,36 +181,38 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
         String base = SubVoxelBlockStates.outwardStairs(stairs, dir, false);
         String cap = SubVoxelBlockStates.outwardStairs(stairs, dir, true);
         if (base != null) {
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, minY, pz, base, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, px, minY, pz, base, budget - n, minY, maxY);
         }
         int top = deep ? maxY : Math.min(maxY, minY + Math.max(4, (maxY - minY) / 2));
         for (int y = minY + 1; y < top; y++) {
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, y, pz, shaft, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, px, y, pz, shaft, budget - n, minY, maxY);
         }
         if (cap != null && top <= maxY) {
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, top, pz, cap, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, px, top, pz, cap, budget - n, minY, maxY);
         }
         return n;
     }
 
     private static int emitBelt(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                Map<Long, BlockPatch> authoredSolid,
                                 Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
                                 int minX, int maxX, int y, int minZ, int maxZ,
                                 int minY, int maxY, String block, int budget) {
         if (budget <= 0 || block == null) return 0;
         int n = 0;
         for (int x = minX; x <= maxX; x++) {
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, y, minZ - 1, block, budget - n, minY, maxY);
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, y, maxZ + 1, block, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, x, y, minZ - 1, block, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, x, y, maxZ + 1, block, budget - n, minY, maxY);
         }
         for (int z = minZ; z <= maxZ; z++) {
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, minX - 1, y, z, block, budget - n, minY, maxY);
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, maxX + 1, y, z, block, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, minX - 1, y, z, block, budget - n, minY, maxY);
+            n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, maxX + 1, y, z, block, budget - n, minY, maxY);
         }
         return n;
     }
 
     private static int emitCornice(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                   Map<Long, BlockPatch> authoredSolid,
                                    Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
                                    int minX, int maxX, int maxY, int minZ, int maxZ,
                                    int minY, String stairs, int budget) {
@@ -221,14 +229,14 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
                     // require the wall cell itself at (x, maxY, inward).
                     if (solid.containsKey(pack(x, maxY + 1, z))) continue;
                     if (!solid.containsKey(pack(x, maxY, z - d.getOffsetZ()))) continue;
-                    n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, maxY, z, bracket, budget - n, minY, maxY);
+                    n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, x, maxY, z, bracket, budget - n, minY, maxY);
                 }
             } else {
                 int x = d == Direction.WEST ? minX - 1 : maxX + 1;
                 for (int z = minZ; z <= maxZ; z += 2) {
                     if (solid.containsKey(pack(x, maxY + 1, z))) continue;
                     if (!solid.containsKey(pack(x - d.getOffsetX(), maxY, z))) continue;
-                    n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, maxY, z, bracket, budget - n, minY, maxY);
+                    n += tryPlaceOutward(out, solid, authoredSolid, clearance, decoRestrict, x, maxY, z, bracket, budget - n, minY, maxY);
                 }
             }
         }
@@ -237,10 +245,11 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
 
     /**
      * Place one outward relief cell. Mid-air shafts into courtyard / skywell columns
-     * (ground solid present, clear air above) are skipped so wing-facing "outward"
-     * faces do not fill internal yards.
+     * (authored ground + open column, no wall attachment) are skipped so wing-facing
+     * "outward" faces do not fill internal yards. Courtyard checks use {@code authoredSolid}.
      */
     private static int tryPlaceOutward(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                       Map<Long, BlockPatch> authoredSolid,
                                        Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
                                        int x, int y, int z, String block, int budget,
                                        int volumeMinY, int volumeMaxY) {
@@ -253,8 +262,12 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
         for (Direction d : Direction.values()) {
             if (clearance.contains(pos.offset(d))) return 0;
         }
-        // Courtyard / skywell: paved ground + open column — never stack mid-air relief into the yard.
-        if (y > volumeMinY && hasGroundPad(solid, x, z, volumeMinY) && openColumn(solid, x, z, y, volumeMaxY)) {
+        // Courtyard / skywell: authored paving + open column, detached from walls.
+        // Façade pilasters/cornice sit next to a wall (authored neighbor) and must proceed.
+        if (y > volumeMinY
+                && hasGroundPad(authoredSolid, x, z, volumeMinY)
+                && openColumn(authoredSolid, x, z, y, volumeMaxY)
+                && !hasHorizontalNeighbor(authoredSolid, x, y, z)) {
             return 0;
         }
         out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));
@@ -264,6 +277,13 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
 
     private static boolean hasGroundPad(Map<Long, BlockPatch> solid, int x, int z, int minY) {
         return solid.containsKey(pack(x, minY, z)) || solid.containsKey(pack(x, minY - 1, z));
+    }
+
+    private static boolean hasHorizontalNeighbor(Map<Long, BlockPatch> solid, int x, int y, int z) {
+        return solid.containsKey(pack(x + 1, y, z))
+                || solid.containsKey(pack(x - 1, y, z))
+                || solid.containsKey(pack(x, y, z + 1))
+                || solid.containsKey(pack(x, y, z - 1));
     }
 
     private static boolean openColumn(Map<Long, BlockPatch> solid, int x, int z, int fromY, int toY) {

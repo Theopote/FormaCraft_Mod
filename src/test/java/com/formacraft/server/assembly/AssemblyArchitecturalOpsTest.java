@@ -70,6 +70,37 @@ class AssemblyArchitecturalOpsTest {
     }
 
     @Test
+    void arcadeArchDoesNotIntrudeIntoNextPier() {
+        // pierWidth=1, baySpan=4 → pier columns every 5 along; arch samples must stay in the open bay
+        int length = 25, pierHeight = 6, baySpan = 4, pierWidth = 1, depth = 2;
+        var blocks = run(op("ARCADE_SERIES",
+                "length", length, "pierHeight", pierHeight, "baySpan", baySpan,
+                "pierWidth", pierWidth, "depth", depth, "archProfile", "flat_lintel",
+                "cornice", false, "fillSpandrel", false,
+                "material", "minecraft:stone_bricks", "archMaterial", "minecraft:smooth_stone"));
+        int pitch = baySpan + pierWidth;
+        int bays = Math.max(1, (length - pierWidth) / pitch);
+        int used = bays * baySpan + (bays + 1) * pierWidth;
+        int start = -(used / 2);
+        Set<Integer> pierAlong = new HashSet<>();
+        for (int bay = 0; bay <= bays; bay++) {
+            for (int p = 0; p < pierWidth; p++) pierAlong.add(start + bay * pitch + p);
+        }
+        Set<Integer> archAlong = new HashSet<>();
+        for (var b : blocks) {
+            BlockPos pos = b.getPos();
+            if (pos.getY() == pierHeight && b.getTargetState().isOf(Blocks.SMOOTH_STONE)) {
+                archAlong.add(pos.getX()); // axis=X → along is X
+            }
+        }
+        assertFalse(archAlong.isEmpty(), "expected arch lintel cells");
+        for (int along : archAlong) {
+            assertFalse(pierAlong.contains(along),
+                    "arch cell at along=" + along + " must not land on a pier column " + pierAlong);
+        }
+    }
+
+    @Test
     void arcadeRejectsBaySpanLargerThanLength() {
         var ex = assertThrows(AssemblyArchitecturalOps.InvalidArchitecturalParam.class,
                 () -> run(op("ARCADE_SERIES", "length", 5, "pierHeight", 4, "baySpan", 8)));
@@ -114,14 +145,19 @@ class AssemblyArchitecturalOpsTest {
         assertTrue(blocks.stream().anyMatch(b -> b.getTargetState().isOf(Blocks.IRON_BARS)));
         assertTrue(blocks.stream().anyMatch(b -> b.getTargetState().isOf(Blocks.LIGHT_GRAY_STAINED_GLASS)));
 
-        // Backing fills the full interior panel (not only behind fins): spacing=2 → glass between fin columns
+        // Full curtain backing: interior u∈[1..w-2], y∈[1..h-2] all have glass at z=-1
+        int expectedBacking = (12 - 2) * (10 - 2); // (w-2)*(h-2)
+        long glassCells = blocks.stream()
+                .filter(b -> b.getTargetState().isOf(Blocks.LIGHT_GRAY_STAINED_GLASS))
+                .filter(b -> b.getPos().getZ() == -1)
+                .count();
+        assertEquals(expectedBacking, glassCells, "backing must fully tile the curtain panel");
         long glassBetweenFins = blocks.stream()
                 .filter(b -> b.getTargetState().isOf(Blocks.LIGHT_GRAY_STAINED_GLASS))
                 .filter(b -> {
                     BlockPos p = b.getPos();
-                    // facing SOUTH → backing at z=-1; fin columns at odd u from 1
                     return p.getZ() == -1 && p.getY() >= 1 && p.getY() <= 8
-                            && ((p.getX() + 6) % 2 == 0); // even local u between fins
+                            && ((p.getX() + 6) % 2 == 0);
                 })
                 .count();
         assertTrue(glassBetweenFins > 0, "backing must fill gaps between louvers");
