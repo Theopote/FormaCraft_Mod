@@ -86,6 +86,11 @@ Core rules:
   requests preset:<id> or typology:<id> / typology_id=<id>. Naming a known building alone
   is research evidence — design with catalog components (or report a capability gap).
 - When proportion hints apply, output top-level proportion_hints with numeric ratio targets.
+- Composition (NON-BINDING): prefer silhouette hierarchy (primary mass taller/wider than wings),
+  a base–shaft–cornice reading, void/solid rhythm on façades, and roughly 60/30/10 main/accent/highlight materials.
+- Optional style_attributes aesthetic knobs (no coordinates): facade_relief=flat|subtle|deep,
+  window_trim=none|classic|arch|modern|east_asian, weathering=none|subtle|medium|heavy,
+  lighting_style=none|warm_lantern|modern_sleek|soul_gothic, lighting_density=low|normal|high.
 - Respect outline, protected zones, path corridors, and selection bounds from the request context.
 - Respond with pure JSON only (no markdown fences, no commentary).
 """
@@ -94,7 +99,8 @@ _SCHEMA_HINT = """
 LlmPlan JSON shape (provider may also enforce response_format):
 - mode: "build" | "patch"
 - style_profile: string preset id (optional)
-- style_attributes: object with wall_material/roof_material/…; palette/materials must be role→block maps
+- style_attributes: object with wall_material/roof_material/…; palette/materials must be role→block maps;
+  optional facade_relief/window_trim/weathering/lighting_style/lighting_density
 - anchor: {x,y,z} optional when request already has player pos
 - components[]: REQUIRED non-empty for mode=build — {component_type, slot_id?, relative_position, dimensions, features[], params{}}
 - plan_meta.declared_intent: {building_class: generic|tower_like|gate|garden|temple, confidence: 0..1}

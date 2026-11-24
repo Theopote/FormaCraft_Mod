@@ -1,28 +1,29 @@
 package com.formacraft.common.compiler.postprocess;
 
-import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+import com.formacraft.common.generation.component.util.SubVoxelBlockStates;
+import com.formacraft.common.palette.component.MaterialBlockFamily;
 import com.formacraft.common.palette.component.Palette;
 import com.formacraft.common.palette.component.PaletteLibrary;
+import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.semantic.SemanticPart;
-import com.formacraft.FormacraftMod;
+import com.formacraft.common.style.AestheticPassHints;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * DetailEnhancementPostProcessor（细节装饰增强后处理器）
- * 
- * 在基础结构上添加细节装饰元素，使建筑更加丰富和真实。
- * 
- * 功能：
- * - 在墙体边缘添加装饰块
- * - 在屋顶边缘添加檐口
- * - 在角落添加装饰柱
- * - 在顶部添加装饰元素
+ * Volume-aware façade relief: plinth, pilasters, belt courses, cornice brackets (+1 extrusion).
  */
 public class DetailEnhancementPostProcessor implements PostProcessor {
+    private static final int MAX_OUTWARD_PER_VOLUME = 800;
+
     @Override
     public PostProcessWritePolicy writePolicy() {
         return PostProcessWritePolicy.REPLACE_WITHIN_SCOPE;
@@ -30,24 +31,200 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
 
     @Override
     public List<BlockPatch> process(List<BlockPatch> patches, PostProcessContext context) {
-        if (patches == null || patches.isEmpty()) {
+        if (patches == null || patches.isEmpty() || context == null) {
             return patches;
         }
 
-        List<BlockPatch> result = new ArrayList<>(patches);
-        String styleProfile = context.plan().styleProfile() != null 
-                ? context.plan().styleProfile() 
-                : "MEDIEVAL_CLASSIC";
+        AestheticPassHints.Resolved hints = AestheticPassHints.resolve(context.plan(), null);
+        if (hints.facadeRelief() == AestheticPassHints.FacadeRelief.FLAT) {
+            return patches;
+        }
+
+        Map<Long, BlockPatch> solid = foldSolid(patches);
+        if (solid.isEmpty()) return patches;
+
+        String styleProfile = context.plan() != null && context.plan().styleProfile() != null
+                ? context.plan().styleProfile() : "MEDIEVAL_CLASSIC";
         Palette palette = PaletteLibrary.forStyle(styleProfile);
+        String wallBase = palette.pick(SemanticPart.WALL_BASE);
+        if (wallBase == null || wallBase.isBlank()) wallBase = "minecraft:stone_bricks";
+        String accent = palette.pick(SemanticPart.WALL_ACCENT);
+        if (accent == null || accent.isBlank()) accent = wallBase;
+        String stairs = MaterialBlockFamily.stairs(wallBase);
+        if (stairs == null) stairs = MaterialBlockFamily.stairsOrStoneBrick(wallBase);
+        String slab = MaterialBlockFamily.slab(wallBase);
+        if (slab == null) slab = "minecraft:stone_brick_slab";
+        String wallShape = MaterialBlockFamily.wall(accent);
+        if (wallShape == null) wallShape = accent;
 
+        List<BlockPatch> enhancements = new ArrayList<>();
+        List<PostProcessContext.BuildingVolume> volumes = context.buildingVolumes();
+        if (volumes == null || volumes.isEmpty()) {
+            // Fallback: single AABB from solids
+            int[] aabb = aabbOf(solid);
+            volumes = List.of(new PostProcessContext.BuildingVolume(
+                    "global",
+                    new ComponentFootprintUtil.Bounds(aabb[0], aabb[1], aabb[2], aabb[3] + 1, aabb[4] + 1, aabb[5] + 1),
+                    Math.max(3, (aabb[4] - aabb[1] + 1) / 2)));
+        }
+
+        boolean deep = hints.facadeRelief() == AestheticPassHints.FacadeRelief.DEEP;
+        Set<BlockPos> clearance = context.protectedClearance() != null ? context.protectedClearance() : Set.of();
+        Set<BlockPos> decoRestrict = context.decorationRestrictions() != null
+                ? context.decorationRestrictions() : Set.of();
+
+        for (PostProcessContext.BuildingVolume volume : volumes) {
+            int placed = 0;
+            var b = volume.bounds();
+            int minX = b.minX(), maxX = b.maxX() - 1;
+            int minY = b.minY(), maxY = b.maxY() - 1;
+            int minZ = b.minZ(), maxZ = b.maxZ() - 1;
+            int floorH = Math.max(3, volume.floorHeight());
+
+            // Base plinth (+1 outward slabs)
+            placed += emitPlinth(enhancements, solid, clearance, decoRestrict,
+                    minX, maxX, minY, minZ, maxZ, SubVoxelBlockStates.slab(slab, false), MAX_OUTWARD_PER_VOLUME - placed);
+
+            if (deep || hints.facadeRelief() == AestheticPassHints.FacadeRelief.SUBTLE) {
+                placed += emitCornerPilasters(enhancements, solid, clearance, decoRestrict,
+                        minX, maxX, minY, maxY, minZ, maxZ, wallShape, stairs, deep,
+                        MAX_OUTWARD_PER_VOLUME - placed);
+            }
+
+            // Belt courses at each floor junction
+            for (int y = minY + floorH; y < maxY; y += floorH) {
+                placed += emitBelt(enhancements, solid, clearance, decoRestrict,
+                        minX, maxX, y, minZ, maxZ, SubVoxelBlockStates.slab(slab, true),
+                        MAX_OUTWARD_PER_VOLUME - placed);
+            }
+
+            // Cornice brackets under top edge
+            placed += emitCornice(enhancements, solid, clearance, decoRestrict,
+                    minX, maxX, maxY, minZ, maxZ, stairs, MAX_OUTWARD_PER_VOLUME - placed);
+
+            if (placed >= MAX_OUTWARD_PER_VOLUME) break;
+        }
+
+        if (enhancements.isEmpty()) return patches;
+        List<BlockPatch> result = new ArrayList<>(patches.size() + enhancements.size());
+        result.addAll(patches);
+        result.addAll(enhancements);
+        FormacraftMod.LOGGER.debug("DetailEnhancementPostProcessor: added {} relief patches", enhancements.size());
+        return result;
+    }
+
+    private static int emitPlinth(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                  Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
+                                  int minX, int maxX, int minY, int minZ, int maxZ,
+                                  String block, int budget) {
+        if (budget <= 0 || block == null) return 0;
+        int n = 0;
+        for (int x = minX; x <= maxX; x++) {
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, minY, minZ - 1, block, budget - n);
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, minY, maxZ + 1, block, budget - n);
+        }
+        for (int z = minZ; z <= maxZ; z++) {
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, minX - 1, minY, z, block, budget - n);
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, maxX + 1, minY, z, block, budget - n);
+        }
+        return n;
+    }
+
+    private static int emitCornerPilasters(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                           Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
+                                           int minX, int maxX, int minY, int maxY, int minZ, int maxZ,
+                                           String shaft, String stairs, boolean deep, int budget) {
+        int n = 0;
+        int[][] corners = {{minX, minZ}, {minX, maxZ}, {maxX, minZ}, {maxX, maxZ}};
+        int[][] outward = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
+        for (int i = 0; i < corners.length; i++) {
+            int cx = corners[i][0], cz = corners[i][1];
+            int ox = outward[i][0] != 0 ? Integer.signum(outward[i][0]) : 0;
+            int oz = outward[i][1] != 0 ? Integer.signum(outward[i][1]) : 0;
+            // Prefer cardinal outward from the nearer face
+            Direction dir = Math.abs(ox) >= Math.abs(oz)
+                    ? (ox < 0 ? Direction.WEST : Direction.EAST)
+                    : (oz < 0 ? Direction.NORTH : Direction.SOUTH);
+            int px = cx + dir.getOffsetX();
+            int pz = cz + dir.getOffsetZ();
+            String base = SubVoxelBlockStates.outwardStairs(stairs, dir, false);
+            String cap = SubVoxelBlockStates.outwardStairs(stairs, dir, true);
+            if (base != null) n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, minY, pz, base, budget - n);
+            int top = deep ? maxY : Math.min(maxY, minY + Math.max(4, (maxY - minY) / 2));
+            for (int y = minY + 1; y < top; y++) {
+                n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, y, pz, shaft, budget - n);
+            }
+            if (cap != null && top <= maxY) {
+                n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, top, pz, cap, budget - n);
+            }
+        }
+        return n;
+    }
+
+    private static int emitBelt(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
+                                int minX, int maxX, int y, int minZ, int maxZ,
+                                String block, int budget) {
+        if (budget <= 0 || block == null) return 0;
+        int n = 0;
+        for (int x = minX; x <= maxX; x++) {
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, y, minZ - 1, block, budget - n);
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, y, maxZ + 1, block, budget - n);
+        }
+        for (int z = minZ; z <= maxZ; z++) {
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, minX - 1, y, z, block, budget - n);
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, maxX + 1, y, z, block, budget - n);
+        }
+        return n;
+    }
+
+    private static int emitCornice(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                   Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
+                                   int minX, int maxX, int maxY, int minZ, int maxZ,
+                                   String stairs, int budget) {
+        if (budget <= 0) return 0;
+        int n = 0;
+        Direction[] dirs = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+        for (Direction d : dirs) {
+            String bracket = SubVoxelBlockStates.outwardStairs(stairs, d, true);
+            if (bracket == null) continue;
+            if (d == Direction.NORTH || d == Direction.SOUTH) {
+                int z = d == Direction.NORTH ? minZ - 1 : maxZ + 1;
+                for (int x = minX; x <= maxX; x += 2) {
+                    // Skip if roof already occupies the cell above the wall
+                    if (solid.containsKey(pack(x, maxY + 1, z - d.getOffsetZ()))) continue;
+                    n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, maxY, z, bracket, budget - n);
+                }
+            } else {
+                int x = d == Direction.WEST ? minX - 1 : maxX + 1;
+                for (int z = minZ; z <= maxZ; z += 2) {
+                    if (solid.containsKey(pack(x - d.getOffsetX(), maxY + 1, z))) continue;
+                    n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, maxY, z, bracket, budget - n);
+                }
+            }
+        }
+        return n;
+    }
+
+    private static int tryPlaceOutward(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                       Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
+                                       int x, int y, int z, String block, int budget) {
+        if (budget <= 0 || block == null || block.isBlank()) return 0;
+        long key = pack(x, y, z);
+        if (solid.containsKey(key)) return 0;
+        BlockPos pos = new BlockPos(x, y, z);
+        if (clearance.contains(pos) || decoRestrict.contains(pos)) return 0;
+        // Avoid door bays: skip if adjacent to clearance
+        for (Direction d : Direction.values()) {
+            if (clearance.contains(pos.offset(d))) return 0;
+        }
+        out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));
+        solid.put(key, out.get(out.size() - 1));
+        return 1;
+    }
+
+    private static Map<Long, BlockPatch> foldSolid(List<BlockPatch> patches) {
         Map<Long, BlockPatch> solid = new HashMap<>();
-        int minX = Integer.MAX_VALUE;
-        int minY = Integer.MAX_VALUE;
-        int minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE;
-        int maxY = Integer.MIN_VALUE;
-        int maxZ = Integer.MIN_VALUE;
-
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
             long key = pack(patch.dx(), patch.dy(), patch.dz());
@@ -55,149 +232,24 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
             if (BlockPatch.REMOVE.equals(patch.action()) || "minecraft:air".equals(target)
                     || "minecraft:cave_air".equals(target) || "minecraft:void_air".equals(target)) {
                 solid.remove(key);
-            } else if (target != null && !target.isBlank()) solid.put(key, patch);
-        }
-        for (BlockPatch patch : solid.values()) {
-            minX = Math.min(minX, patch.dx()); minY = Math.min(minY, patch.dy()); minZ = Math.min(minZ, patch.dz());
-            maxX = Math.max(maxX, patch.dx()); maxY = Math.max(maxY, patch.dy()); maxZ = Math.max(maxZ, patch.dz());
-        }
-
-        if (solid.isEmpty()) {
-            return result;
-        }
-
-        List<BlockPatch> enhancements = new ArrayList<>();
-        Map<Long, Integer> topYByXZ = new HashMap<>();
-        for (BlockPatch patch : solid.values()) {
-            long key = packXZ(patch.dx(), patch.dz());
-            int top = topYByXZ.getOrDefault(key, Integer.MIN_VALUE);
-            if (patch.dy() > top) {
-                topYByXZ.put(key, patch.dy());
+            } else if (target != null && !target.isBlank()) {
+                solid.put(key, patch);
             }
         }
-
-        // An exterior column can end at the foundation or a displaced detail, not the roof.
-        // Cornices must be authored/hosted components rather than inferred from global maxima.
-        addCornerPillars(enhancements, solid, palette, minX, maxX, minZ, maxZ, minY, maxY);
-        addBeltCourse(enhancements, solid, palette, minX, maxX, minZ, maxZ, minY, maxY);
-
-        // Optional decoration must not fill circulation clearance reserved by compiled assemblies.
-        if (context != null && !context.protectedClearance().isEmpty()) {
-            enhancements.removeIf(patch -> context.protectedClearance().contains(
-                new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz())));
-        }
-        result.addAll(enhancements);
-        
-        if (!enhancements.isEmpty()) {
-            FormacraftMod.LOGGER.debug("DetailEnhancementPostProcessor: added {} enhancement patches", 
-                    enhancements.size());
-        }
-
-        return result;
+        return solid;
     }
 
-    /**
-     * 在墙体顶部添加檐口装饰
-     */
-    private void addCornice(List<BlockPatch> enhancements,
-                            Map<Long, BlockPatch> solid,
-                            Map<Long, Integer> topYByXZ,
-                            Palette palette,
-                            int minX, int maxX, int minZ, int maxZ) {
-        if (enhancements.size() > 1500) return;
-        String decor = palette.pick(SemanticPart.DECOR);
-        if (decor == null || decor.isBlank()) {
-            decor = "minecraft:stone_brick_slab";
+    private static int[] aabbOf(Map<Long, BlockPatch> solid) {
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        for (BlockPatch p : solid.values()) {
+            minX = Math.min(minX, p.dx()); minY = Math.min(minY, p.dy()); minZ = Math.min(minZ, p.dz());
+            maxX = Math.max(maxX, p.dx()); maxY = Math.max(maxY, p.dy()); maxZ = Math.max(maxZ, p.dz());
         }
-
-        for (Map.Entry<Long, Integer> entry : topYByXZ.entrySet()) {
-            int x = unpackX(entry.getKey());
-            int z = unpackZ(entry.getKey());
-            if (x != minX && x != maxX && z != minZ && z != maxZ) {
-                continue;
-            }
-            int y = entry.getValue() + 1;
-            long key = pack(x, y, z);
-            if (solid.containsKey(key)) continue;
-            enhancements.add(new BlockPatch(BlockPatch.PLACE, x, y, z, decor));
-            if (enhancements.size() > 1500) return;
-        }
-    }
-
-    /**
-     * 在角落添加装饰柱
-     */
-    private void addCornerPillars(List<BlockPatch> enhancements,
-                                  Map<Long, BlockPatch> solid,
-                                  Palette palette,
-                                  int minX, int maxX, int minZ, int maxZ,
-                                  int minY, int maxY) {
-        String accent = palette.pick(SemanticPart.WALL_ACCENT);
-        if (accent == null || accent.isBlank()) {
-            accent = "minecraft:stone_bricks";
-        }
-        int[][] corners = new int[][] {
-                {minX, minZ},
-                {minX, maxZ},
-                {maxX, minZ},
-                {maxX, maxZ}
-        };
-        for (int[] corner : corners) {
-            int x = corner[0];
-            int z = corner[1];
-            for (int y = minY; y <= maxY; y++) {
-                long key = pack(x, y, z);
-                BlockPatch existing = solid.get(key);
-                if (existing == null || !com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
-                    .isCorniceCandidateBlock(existing.targetBlock())) continue;
-                enhancements.add(new BlockPatch(BlockPatch.REPLACE, x, y, z, accent));
-                if (enhancements.size() > 1500) return;
-            }
-        }
-    }
-
-    /**
-     * 在边缘添加装饰块
-     */
-    private void addBeltCourse(List<BlockPatch> enhancements,
-                               Map<Long, BlockPatch> solid,
-                               Palette palette,
-                               int minX, int maxX, int minZ, int maxZ,
-                               int minY, int maxY) {
-        int height = Math.max(1, maxY - minY + 1);
-        if (height < 5) return;
-        int beltY = minY + Math.max(2, height / 2);
-        String accent = palette.pick(SemanticPart.WALL_ACCENT);
-        if (accent == null || accent.isBlank()) {
-            accent = "minecraft:stone_bricks";
-        }
-        for (int x = minX; x <= maxX; x++) {
-            for (int z = minZ; z <= maxZ; z++) {
-                if (x != minX && x != maxX && z != minZ && z != maxZ) continue;
-                long key = pack(x, beltY, z);
-                BlockPatch existing = solid.get(key);
-                if (existing == null || !com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
-                    .isCorniceCandidateBlock(existing.targetBlock())) continue;
-                enhancements.add(new BlockPatch(BlockPatch.REPLACE, x, beltY, z, accent));
-                if (enhancements.size() > 1500) return;
-            }
-        }
+        return new int[]{minX, minY, minZ, maxX, maxY, maxZ};
     }
 
     private static long pack(int x, int y, int z) {
         return (((long) x) << 42) ^ (((long) y) << 21) ^ (z & 0x1fffffL);
     }
-
-    private static long packXZ(int x, int z) {
-        return (((long) x) << 32) ^ (z & 0xffffffffL);
-    }
-
-    private static int unpackX(long key) {
-        return (int) (key >> 32);
-    }
-
-    private static int unpackZ(long key) {
-        return (int) key;
-    }
 }
-

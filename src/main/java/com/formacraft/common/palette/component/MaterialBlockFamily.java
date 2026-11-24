@@ -18,6 +18,31 @@ public final class MaterialBlockFamily {
     public static String fence(String block) { return shape(block, "fence"); }
     public static String pane(String block) { return shape(block, "pane"); }
 
+    /** Wood-family trapdoor when registered; stone/terracotta/concrete return null. */
+    public static String trapdoor(String block) {
+        if (block == null || block.isBlank()) return null;
+        String path = pathOf(block);
+        if (path == null) return null;
+        if (!(path.contains("plank") || path.contains("log") || path.contains("wood")
+                || path.contains("oak") || path.contains("spruce") || path.contains("birch")
+                || path.contains("jungle") || path.contains("acacia") || path.contains("dark_oak")
+                || path.contains("mangrove") || path.contains("cherry") || path.contains("bamboo")
+                || path.contains("crimson") || path.contains("warped"))) {
+            return null;
+        }
+        return shape(block, "trapdoor");
+    }
+
+    /** Button when a matching family exists; otherwise null. */
+    public static String button(String block) { return shape(block, "button"); }
+
+    private static String pathOf(String block) {
+        String base = block.split("\\[", 2)[0];
+        if (!base.contains(":")) base = "minecraft:" + base;
+        Identifier id = Identifier.tryParse(base);
+        return id == null ? null : id.getPath();
+    }
+
     /**
      * Full cube in the same family as stairs/slab (for slope fill under stair surfaces).
      * e.g. oak_stairs → oak_planks, stone_brick_stairs → stone_bricks.
@@ -94,6 +119,8 @@ public final class MaterialBlockFamily {
         if (name.endsWith("_wall")) return name.substring(0, name.length() - 5);
         if (name.endsWith("_fence")) return name.substring(0, name.length() - 6);
         if (name.endsWith("_pane")) return name.substring(0, name.length() - 5);
+        if (name.endsWith("_trapdoor")) return name.substring(0, name.length() - 9);
+        if (name.endsWith("_button")) return name.substring(0, name.length() - 7);
         if (name.endsWith("_planks")) return name.substring(0, name.length() - 7);
         if (name.equals("quartz_block")) return "quartz";
         if (name.equals("bricks")) return "brick";
@@ -109,6 +136,13 @@ public final class MaterialBlockFamily {
         String path = id.getPath();
         if (path.contains("terracotta") || path.contains("concrete") || path.contains("wool")
                 || path.contains("glass") && !"pane".equals(shape) || path.equals("dirt") || path.equals("grass_block")) {
+            return null;
+        }
+        if ("trapdoor".equals(shape) && !(path.contains("plank") || path.contains("oak") || path.contains("spruce")
+                || path.contains("birch") || path.contains("jungle") || path.contains("acacia")
+                || path.contains("dark_oak") || path.contains("mangrove") || path.contains("cherry")
+                || path.contains("bamboo") || path.contains("crimson") || path.contains("warped")
+                || path.contains("wood") || path.contains("log"))) {
             return null;
         }
         return id.getNamespace() + ":" + stem + "_" + shape;

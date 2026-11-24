@@ -125,40 +125,115 @@ public final class ComponentWindowOrderDecorator {
             String trimStair,
             String trimSlab
     ) {
+        emitWindowOrder(out, opening, level, trimBlock, trimStair, trimSlab,
+                com.formacraft.common.style.AestheticPassHints.WindowTrim.CLASSIC, null);
+    }
+
+    public static void emitWindowOrder(
+            List<BlockPatch> out,
+            FacadeOpening opening,
+            OrderLevel level,
+            String trimBlock,
+            String trimStair,
+            String trimSlab,
+            com.formacraft.common.style.AestheticPassHints.WindowTrim trimStyle,
+            String trapdoorId
+    ) {
         if (level == OrderLevel.OFF || opening == null) {
             return;
         }
+        if (trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.NONE) {
+            return;
+        }
         Direction outDir = opening.outward();
-        boolean sill = true;
+        int width = opening.axisMax() - opening.axisMin() + 1;
+        boolean sill = trimStyle != com.formacraft.common.style.AestheticPassHints.WindowTrim.MODERN
+                || true; // modern still gets continuous shade bands below
         boolean lintel = true;
-        boolean sides = level == OrderLevel.FULL;
+        boolean sides = level == OrderLevel.FULL
+                && trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.CLASSIC;
         boolean pediment = level == OrderLevel.FULL && opening.centeredOnBuilding() && opening.onPrimaryFacade()
-                && (opening.axisMax() - opening.axisMin()) >= 1;
+                && width >= 2
+                && trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.CLASSIC;
+
+        if (trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.MODERN) {
+            // Brise-soleil: continuous top slab band; optional bottom shade.
+            String topSlab = SubVoxelBlockStates.slab(trimSlab, true);
+            String botSlab = SubVoxelBlockStates.slab(trimSlab, false);
+            if (opening.yMax() + 1 <= 320) {
+                for (int axis = opening.axisMin() - 1; axis <= opening.axisMax() + 1; axis++) {
+                    addOutwardPlace(out, outDir, opening.fixedCoord(), axis, opening.yMax() + 1, topSlab);
+                }
+            }
+            if (opening.yMin() > 0) {
+                for (int axis = opening.axisMin() - 1; axis <= opening.axisMax() + 1; axis++) {
+                    addOutwardPlace(out, outDir, opening.fixedCoord(), axis, opening.yMin() - 1, botSlab);
+                }
+            }
+            return;
+        }
 
         if (sill && opening.yMin() > 0) {
+            String sillBlock = trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.EAST_ASIAN
+                    ? SubVoxelBlockStates.slab(trimSlab, false)
+                    : (trimSlab != null ? trimSlab : "minecraft:stone_brick_slab");
+            if (trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.CLASSIC
+                    || trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.ARCH) {
+                sillBlock = SubVoxelBlockStates.outwardStairs(trimStair, outDir, false);
+                if (sillBlock == null) sillBlock = SubVoxelBlockStates.slab(trimSlab, false);
+            }
             for (int axis = opening.axisMin() - 1; axis <= opening.axisMax() + 1; axis++) {
-                addOnFace(out, outDir, opening.fixedCoord(), axis, opening.yMin() - 1, trimSlab);
+                addOutwardPlace(out, outDir, opening.fixedCoord(), axis, opening.yMin() - 1, sillBlock);
             }
         }
         if (lintel && opening.yMax() + 1 <= 320) {
-            for (int axis = opening.axisMin(); axis <= opening.axisMax(); axis++) {
-                addOnFace(out, outDir, opening.fixedCoord(), axis, opening.yMax() + 1,
-                        ComponentFloorCorniceDecorator.corniceStairBlock(trimStair, outDir));
+            if (trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.EAST_ASIAN
+                    && trapdoorId != null) {
+                String eave = SubVoxelBlockStates.shutterTrapdoor(trapdoorId, outDir, false);
+                for (int axis = opening.axisMin(); axis <= opening.axisMax(); axis++) {
+                    addOutwardPlace(out, outDir, opening.fixedCoord(), axis, opening.yMax() + 1, eave);
+                }
+            } else if (trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.ARCH && width >= 3) {
+                for (int axis = opening.axisMin(); axis <= opening.axisMax(); axis++) {
+                    boolean corner = axis == opening.axisMin() || axis == opening.axisMax();
+                    String block = corner
+                            ? SubVoxelBlockStates.outwardStairs(trimStair, outDir, true)
+                            : SubVoxelBlockStates.slab(trimSlab, true);
+                    addOutwardPlace(out, outDir, opening.fixedCoord(), axis, opening.yMax() + 1, block);
+                }
+            } else {
+                for (int axis = opening.axisMin(); axis <= opening.axisMax(); axis++) {
+                    addOutwardPlace(out, outDir, opening.fixedCoord(), axis, opening.yMax() + 1,
+                            SubVoxelBlockStates.outwardStairs(trimStair, outDir, true) != null
+                                    ? SubVoxelBlockStates.outwardStairs(trimStair, outDir, true)
+                                    : ComponentFloorCorniceDecorator.corniceStairBlock(trimStair, outDir));
+                }
             }
         }
         if (sides) {
             for (int y = opening.yMin(); y <= opening.yMax(); y++) {
-                addOnFace(out, outDir, opening.fixedCoord(), opening.axisMin() - 1, y, trimBlock);
-                addOnFace(out, outDir, opening.fixedCoord(), opening.axisMax() + 1, y, trimBlock);
+                addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMin() - 1, y, trimBlock);
+                addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMax() + 1, y, trimBlock);
+            }
+        }
+        // Classic shutters for narrow windows
+        if (trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.CLASSIC
+                && trapdoorId != null && width <= 2) {
+            String shutter = SubVoxelBlockStates.shutterTrapdoor(trapdoorId, outDir, true);
+            for (int y = opening.yMin(); y <= opening.yMax(); y++) {
+                addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMin() - 1, y, shutter);
+                addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMax() + 1, y, shutter);
             }
         }
         if (pediment) {
             int cx = opening.centerAxis();
-            addOnFace(out, outDir, opening.fixedCoord(), cx, opening.yMax() + 2,
+            addOutwardPlace(out, outDir, opening.fixedCoord(), cx, opening.yMax() + 2,
                     ComponentFloorCorniceDecorator.corniceStairBlock(trimStair, outDir));
             if (opening.axisMin() <= cx - 1 && opening.axisMax() >= cx + 1) {
-                addOnFace(out, outDir, opening.fixedCoord(), cx - 1, opening.yMax() + 1, trimSlab);
-                addOnFace(out, outDir, opening.fixedCoord(), cx + 1, opening.yMax() + 1, trimSlab);
+                addOutwardPlace(out, outDir, opening.fixedCoord(), cx - 1, opening.yMax() + 1,
+                        SubVoxelBlockStates.slab(trimSlab, true));
+                addOutwardPlace(out, outDir, opening.fixedCoord(), cx + 1, opening.yMax() + 1,
+                        SubVoxelBlockStates.slab(trimSlab, true));
             }
         }
     }
@@ -251,6 +326,11 @@ public final class ComponentWindowOrderDecorator {
     }
 
     private static void addOnFace(List<BlockPatch> out, Direction outward, int fixedCoord, int axis, int y, String block) {
+        addOutwardPlace(out, outward, fixedCoord, axis, y, block);
+    }
+
+    /** Place trim one cell outward from the façade plane (air niche / visual depth). */
+    private static void addOutwardPlace(List<BlockPatch> out, Direction outward, int fixedCoord, int axis, int y, String block) {
         if (block == null || block.isBlank()) {
             return;
         }
@@ -259,18 +339,18 @@ public final class ComponentWindowOrderDecorator {
         switch (outward) {
             case SOUTH -> {
                 x = axis;
-                z = fixedCoord;
+                z = fixedCoord + 1;
             }
             case NORTH -> {
                 x = axis;
-                z = fixedCoord;
+                z = fixedCoord - 1;
             }
             case WEST -> {
-                x = fixedCoord;
+                x = fixedCoord - 1;
                 z = axis;
             }
             case EAST -> {
-                x = fixedCoord;
+                x = fixedCoord + 1;
                 z = axis;
             }
             default -> {
@@ -278,7 +358,7 @@ public final class ComponentWindowOrderDecorator {
                 z = fixedCoord;
             }
         }
-        out.add(new BlockPatch(BlockPatch.REPLACE, x, y, z, block));
+        out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));
     }
 
     public static long[] packCell(int x, int y, int z) {

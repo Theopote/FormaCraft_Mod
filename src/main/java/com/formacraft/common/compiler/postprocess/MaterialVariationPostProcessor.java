@@ -1,21 +1,14 @@
 package com.formacraft.common.compiler.postprocess;
 
-import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.style.AestheticPassHints;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * MaterialVariationPostProcessor（材质变化后处理器）
- * 
- * 根据风格配置和随机性，对 BlockPatch 的材质进行变化，
- * 使建筑看起来更加自然和真实。
- * 
- * 功能：
- * - 根据风格配置调整材质
- * - 添加材质变化（例如：石头有裂纹、有苔藓）
- * - 保持语义一致性（相同 SemanticPart 使用相似的材质）
+ * Height-aware weathering / material micro-variation.
  */
 public class MaterialVariationPostProcessor implements PostProcessor {
 
@@ -30,9 +23,39 @@ public class MaterialVariationPostProcessor implements PostProcessor {
             return patches;
         }
 
-        List<BlockPatch> result = new ArrayList<>(patches.size());
+        AestheticPassHints.Resolved hints = AestheticPassHints.resolve(
+                context != null ? context.plan() : null, null);
+        if (hints.weathering() == AestheticPassHints.Weathering.NONE) {
+            return patches;
+        }
 
-        // 对每个 patch 进行材质变化
+        int baseMinY = Integer.MAX_VALUE;
+        if (context != null && context.buildingVolumes() != null) {
+            for (var v : context.buildingVolumes()) {
+                baseMinY = Math.min(baseMinY, v.bounds().minY());
+            }
+        }
+        if (baseMinY == Integer.MAX_VALUE) {
+            for (BlockPatch p : patches) {
+                if (p != null) baseMinY = Math.min(baseMinY, p.dy());
+            }
+        }
+        if (baseMinY == Integer.MAX_VALUE) baseMinY = 0;
+
+        int nearBoost = switch (hints.weathering()) {
+            case SUBTLE -> 12;
+            case MEDIUM -> 16;
+            case HEAVY -> 22;
+            default -> 0;
+        };
+        int midRate = switch (hints.weathering()) {
+            case SUBTLE -> 5;
+            case MEDIUM -> 7;
+            case HEAVY -> 10;
+            default -> 0;
+        };
+
+        List<BlockPatch> result = new ArrayList<>(patches.size());
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
             if (context != null && context.protectedMaterials().contains(
@@ -49,7 +72,9 @@ public class MaterialVariationPostProcessor implements PostProcessor {
                 result.add(patch);
                 continue;
             }
-            String replacement = pickVariation(target, patch.dx(), patch.dy(), patch.dz());
+            int relY = patch.dy() - baseMinY;
+            int threshold = relY <= 2 ? nearBoost : midRate;
+            String replacement = pickVariation(target, patch.dx(), patch.dy(), patch.dz(), threshold, hints.weathering());
             if (replacement == null || replacement.equals(target)) {
                 result.add(patch);
             } else {
@@ -61,32 +86,44 @@ public class MaterialVariationPostProcessor implements PostProcessor {
         return result;
     }
 
-    private String pickVariation(String blockId, int x, int y, int z) {
+    private String pickVariation(String blockId, int x, int y, int z, int threshold,
+                                 AestheticPassHints.Weathering weathering) {
         String lower = blockId.toLowerCase(java.util.Locale.ROOT);
-        if (lower.contains("glass") || lower.contains("pane") || lower.contains("air")) {
+        if (lower.contains("glass") || lower.contains("pane") || lower.contains("air")
+                || lower.contains("door") || lower.contains("lantern") || lower.contains("torch")) {
             return blockId;
         }
-        int hash = stableHash(x, y, z);
-        int roll = Math.floorMod(hash, 100);
+        int roll = Math.floorMod(stableHash(x, y, z), 100);
+        if (roll >= threshold) return blockId;
 
         if (lower.equals("minecraft:stone_bricks")) {
-            if (roll < 4) return "minecraft:mossy_stone_bricks";
-            if (roll < 7) return "minecraft:cracked_stone_bricks";
-            return blockId;
+            return roll % 2 == 0 ? "minecraft:mossy_stone_bricks" : "minecraft:cracked_stone_bricks";
         }
         if (lower.equals("minecraft:cobblestone")) {
-            if (roll < 6) return "minecraft:mossy_cobblestone";
-            return blockId;
+            return "minecraft:mossy_cobblestone";
         }
         if (lower.equals("minecraft:deepslate_bricks")) {
-            if (roll < 5) return "minecraft:cracked_deepslate_bricks";
-            return blockId;
+            return "minecraft:cracked_deepslate_bricks";
         }
         if (lower.equals("minecraft:deepslate_tiles")) {
-            if (roll < 4) return "minecraft:cracked_deepslate_tiles";
-            return blockId;
+            return "minecraft:cracked_deepslate_tiles";
         }
-
+        if (lower.equals("minecraft:bricks")) {
+            return roll % 2 == 0 ? "minecraft:granite" : "minecraft:terracotta";
+        }
+        if (lower.equals("minecraft:sandstone")) {
+            return roll % 2 == 0 ? "minecraft:smooth_sandstone" : "minecraft:cut_sandstone";
+        }
+        if (lower.equals("minecraft:polished_andesite")) {
+            return roll % 2 == 0 ? "minecraft:andesite" : "minecraft:stone";
+        }
+        if (lower.equals("minecraft:oak_planks") && weathering.ordinal() >= AestheticPassHints.Weathering.MEDIUM.ordinal()) {
+            return "minecraft:stripped_oak_log";
+        }
+        if (lower.equals("minecraft:white_concrete")
+                && weathering.ordinal() >= AestheticPassHints.Weathering.MEDIUM.ordinal()) {
+            return roll % 2 == 0 ? "minecraft:calcite" : "minecraft:diorite";
+        }
         return blockId;
     }
 
@@ -97,4 +134,3 @@ public class MaterialVariationPostProcessor implements PostProcessor {
         return h;
     }
 }
-

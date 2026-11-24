@@ -53,6 +53,8 @@ public class PostProcessPipeline {
         pipeline.add(new WindowOrderPostProcessor());
         pipeline.add(new DetailEnhancementPostProcessor());
         pipeline.add(new MaterialVariationPostProcessor());
+        // Lighting is independent of noComplexDecor; gated only by lighting_style=none.
+        pipeline.add(new LightingPostProcessor());
         return pipeline;
     }
 

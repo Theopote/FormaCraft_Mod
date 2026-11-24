@@ -36,13 +36,15 @@ public class WindowOrderPostProcessor implements PostProcessor {
         }
         LlmPlan plan = context.plan();
         Map<String, Object> facadeParams = readFacadeWindowParams(plan);
-        if (!ComponentWindowOrderDecorator.shouldApply(plan, facadeParams, null)) {
+        var hints = com.formacraft.common.style.AestheticPassHints.resolve(plan, facadeParams);
+        if (hints.windowTrim() == com.formacraft.common.style.AestheticPassHints.WindowTrim.NONE) {
             return patches;
         }
         ComponentWindowOrderDecorator.OrderLevel level =
                 ComponentWindowOrderDecorator.resolveLevel(plan, facadeParams, null);
+        // Aesthetic trim defaults on even when legacy window_order is OFF.
         if (level == ComponentWindowOrderDecorator.OrderLevel.OFF) {
-            return patches;
+            level = ComponentWindowOrderDecorator.OrderLevel.MEDIUM;
         }
 
         int minX = Integer.MAX_VALUE;
@@ -107,10 +109,15 @@ public class WindowOrderPostProcessor implements PostProcessor {
         }
         String stair = ComponentFloorCorniceDecorator.inferStairsBlock(trim);
         String slab = ComponentWindowOrderDecorator.inferSlabBlock(trim);
+        String trapdoor = com.formacraft.common.palette.component.MaterialBlockFamily.trapdoor(trim);
+        if (trapdoor == null) {
+            trapdoor = com.formacraft.common.palette.component.MaterialBlockFamily.trapdoor("minecraft:oak_planks");
+        }
 
         List<BlockPatch> surrounds = new ArrayList<>();
         for (ComponentWindowOrderDecorator.FacadeOpening opening : openings) {
-            ComponentWindowOrderDecorator.emitWindowOrder(surrounds, opening, level, trim, stair, slab);
+            ComponentWindowOrderDecorator.emitWindowOrder(
+                    surrounds, opening, level, trim, stair, slab, hints.windowTrim(), trapdoor);
             if (surrounds.size() > MAX_SURROUND_PATCHES) {
                 break;
             }

@@ -269,19 +269,9 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                                     : facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.NORTH ? -1 : 0;
                         }
                     }
-                    for (int layer = 1; layer < thickness; layer++)
-                        out.add(new BlockPatch(BlockPatch.REMOVE, rp.x() + x + inwardX * layer,
-                                rp.y() + y, rp.z() + z + inwardZ * layer, "minecraft:air"));
-                    com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.record(
-                            rp.x()+x,rp.y()+y,rp.z()+z,
-                            com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.WINDOW);
-                    out.add(new BlockPatch(
-                            BlockPatch.PLACE,
-                            rp.x() + x,
-                            rp.y() + y,
-                            rp.z() + z,
-                            block
-                    ));
+                    com.formacraft.common.generation.component.util.RecessedGlazing.emit(
+                            out, rp.x() + x, rp.y() + y, rp.z() + z, inwardX, inwardZ, thickness, block,
+                            com.formacraft.common.generation.component.util.RecessedGlazing.recessEnabled(params));
                 }
             }
         }

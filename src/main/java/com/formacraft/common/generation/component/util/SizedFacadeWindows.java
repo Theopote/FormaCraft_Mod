@@ -25,12 +25,10 @@ public final class SizedFacadeWindows {
             int ix = "EAST".equals(face) ? 1 : "WEST".equals(face) ? -1 : 0;
             int iz = "SOUTH".equals(face) ? 1 : "NORTH".equals(face) ? -1 : 0;
             var out = new ArrayList<BlockPatch>();
+            boolean recess = RecessedGlazing.recessEnabled(params);
             for (int start:starts) for (int a=start;a<start+count;a++) for (int y=0;y<Math.min(windowHeight,height);y++) {
                 int x=rp.x()+(alongZ ? 0 : a), z=rp.z()+(alongZ ? a : 0);
-                for (int layer=1;layer<thickness;layer++)
-                    out.add(new BlockPatch(BlockPatch.REMOVE,x+ix*layer,rp.y()+y,z+iz*layer,"minecraft:air"));
-                GeneratedSurfaceCapture.record(x,rp.y()+y,z,GeneratedSurfaceCapture.Role.WINDOW);
-                out.add(new BlockPatch(BlockPatch.PLACE,x,rp.y()+y,z,block));
+                RecessedGlazing.emit(out, x, rp.y()+y, z, ix, iz, thickness, block, recess);
             }
             return out;
         }
@@ -100,10 +98,8 @@ public final class SizedFacadeWindows {
                         if(cell==null) continue;
                         x=cell[0]; z=cell[1]; ix=cell[2]; iz=cell[3];
                     }
-                    for(int layer=1;layer<thickness;layer++) out.add(new BlockPatch(BlockPatch.REMOVE,
-                            rp.x()+x+ix*layer,rp.y()+y,rp.z()+z+iz*layer,"minecraft:air"));
-                    GeneratedSurfaceCapture.record(rp.x()+x,rp.y()+y,rp.z()+z,GeneratedSurfaceCapture.Role.WINDOW);
-                    out.add(new BlockPatch(BlockPatch.PLACE,rp.x()+x,rp.y()+y,rp.z()+z,block));
+                    RecessedGlazing.emit(out, rp.x()+x, rp.y()+y, rp.z()+z, ix, iz, thickness, block,
+                            RecessedGlazing.recessEnabled(params));
                 }
             }
         }

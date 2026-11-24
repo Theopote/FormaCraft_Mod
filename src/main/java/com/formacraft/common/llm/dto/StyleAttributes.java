@@ -43,7 +43,18 @@ public record StyleAttributes(
         @JsonProperty("materials") Map<String, String> materials,
         @JsonProperty("block_palette") Map<String, String> blockPalette,
         @JsonProperty("primary_material") String primaryMaterial,
-        @JsonProperty("roof_form") String roofForm
+        @JsonProperty("roof_form") String roofForm,
+
+        /** Optional aesthetic post-pass: flat|subtle|deep */
+        @JsonProperty("facade_relief") String facadeRelief,
+        /** none|classic|arch|modern|east_asian */
+        @JsonProperty("window_trim") String windowTrim,
+        /** none|subtle|medium|heavy */
+        @JsonProperty("weathering") String weathering,
+        /** none|warm_lantern|modern_sleek|soul_gothic */
+        @JsonProperty("lighting_style") String lightingStyle,
+        /** low|normal|high */
+        @JsonProperty("lighting_density") String lightingDensity
 ) {
     /** Backward-compatible 8-arg ctor used across tests and bridges. */
     public StyleAttributes(
@@ -58,6 +69,27 @@ public record StyleAttributes(
     ) {
         this(wallColor, wallMaterial, roofColor, roofMaterial, accentMaterial, floorMaterial,
                 decorativeElements, customAttributes, null, null, null, null, null);
+    }
+
+    /** Compat for palette-map constructors (pre aesthetic-pass fields). */
+    public StyleAttributes(
+            String wallColor,
+            String wallMaterial,
+            String roofColor,
+            String roofMaterial,
+            String accentMaterial,
+            String floorMaterial,
+            List<String> decorativeElements,
+            Map<String, String> customAttributes,
+            Map<String, String> palette,
+            Map<String, String> materials,
+            Map<String, String> blockPalette,
+            String primaryMaterial,
+            String roofForm
+    ) {
+        this(wallColor, wallMaterial, roofColor, roofMaterial, accentMaterial, floorMaterial,
+                decorativeElements, customAttributes, palette, materials, blockPalette, primaryMaterial, roofForm,
+                null, null, null, null, null);
     }
 
     public boolean hasDecorativeElement(String element) {

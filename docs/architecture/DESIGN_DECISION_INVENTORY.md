@@ -26,7 +26,7 @@ Building research, classification, vision and search HTTP calls inherit the encl
 
 When vision identifies `building_name`, research refreshes and truncates queries to `_building_research_max_queries()` and may set `should_search=True` if `research_mode() != "off"` (NONBINDING_HINT). This does not invent a typology or style; it only enables open-world lookup for the vision-reported name (including `named_only` / image+minimal text paths that previously skipped search).
 
-When vision identifies `building_name`, research refreshes and truncates queries to `_building_research_max_queries()` and may set `should_search=True` if `research_mode() != "off"` (NONBINDING_HINT). This does not invent a typology or style; it only enables open-world lookup for the vision-reported name (including `named_only` / image+minimal text paths that previously skipped search).
+Facade aesthetic post-pass knobs (`facade_relief`, `window_trim`, `weathering`, `lighting_style`, `lighting_density`) are optional StyleAttributes / params (TECHNICAL_DEFAULT when absent from `style_profile`; USER_EXPLICIT `none`/`flat`/`no_complex_decor` wins). Composition lines in `llm_plan_system_prompt` (silhouette, base–shaft–cornice, 60-30-10) are NONBINDING_HINT only. Java owns deterministic sub-voxel trim, +1 relief pad, and PLACE_ONLY lighting — never substitutes building typology.
 
 Build requests pass a bounded planning budget to the Python executor (HARD_CONSTRAINT). Inference waits and LlmPlan provider attempts respect the remaining budget, and disconnected or cancelled callers stop new inference attempts. Design choices are unaffected.
 

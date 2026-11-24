@@ -79,7 +79,10 @@ public class PostProcessWriteScope {
         return volumeOrSurfaceBounded;
     }
 
-    /** Scope that also accepts any cell inside buildingVolumes. */
+    /** Exterior PLACE pad beyond volume AABB (Chebyshev / AABB expand by 1). Carve stays interior. */
+    public static final int EXTERIOR_PLACE_PAD = 1;
+
+    /** Scope that also accepts any cell inside buildingVolumes (+1 PLACE pad). */
     private static final class VolumeAwareScope extends PostProcessWriteScope {
         private final PostProcessContext ctx;
         private final Set<BlockPos> clearance;
@@ -96,8 +99,9 @@ public class PostProcessWriteScope {
         public boolean allowsPlace(BlockPos pos) {
             if (pos == null) return false;
             BlockPos p = pos.toImmutable();
+            if (clearance.contains(p)) return false;
             if (explicitPlace.contains(p)) return true;
-            return inVolume(p);
+            return inVolume(p) || inExteriorPad(p);
         }
 
         @Override
@@ -112,6 +116,20 @@ public class PostProcessWriteScope {
         private boolean inVolume(BlockPos p) {
             for (var v : ctx.buildingVolumes()) {
                 if (v.contains(p.getX(), p.getY(), p.getZ())) return true;
+            }
+            return false;
+        }
+
+        /** Half-open volume AABB expanded by {@link #EXTERIOR_PLACE_PAD} on every axis. */
+        private boolean inExteriorPad(BlockPos p) {
+            int pad = EXTERIOR_PLACE_PAD;
+            for (var v : ctx.buildingVolumes()) {
+                var b = v.bounds();
+                if (p.getX() >= b.minX() - pad && p.getX() < b.maxX() + pad
+                        && p.getY() >= b.minY() - pad && p.getY() < b.maxY() + pad
+                        && p.getZ() >= b.minZ() - pad && p.getZ() < b.maxZ() + pad) {
+                    return true;
+                }
             }
             return false;
         }
