@@ -21,6 +21,9 @@ import java.util.Random;
  * only interior partitions/circulation elements.
  */
 public final class BspFloorPlanGenerator {
+    /** Storey height in blocks (floor deck to next floor deck). */
+    public static final int STOREY_HEIGHT = 4;
+
     private BspFloorPlanGenerator() {}
 
     private enum DoorSide { NORTH, SOUTH, EAST, WEST }
@@ -46,7 +49,8 @@ public final class BspFloorPlanGenerator {
                              int h,
                              FloorPlanConfig cfg,
                              Materials mats) {
-        if (blocks == null || origin == null || world == null || cfg == null || mats == null) return;
+        // world is unused (GEOMETRY-only); keep param for call-site compatibility.
+        if (blocks == null || origin == null || cfg == null || mats == null) return;
         if (w < 11 || d < 11 || h < 8) return;
 
         int halfW = w / 2;
@@ -70,32 +74,36 @@ public final class BspFloorPlanGenerator {
         seed ^= ((long) w * 131L) ^ ((long) d * 71L) ^ ((long) h * 19L);
         Random baseRng = new Random(seed);
 
-        for (int y0 = 0; y0 <= h; y0 += 4) {
-            int yTop = Math.min(h, y0 + 3);
+        for (int y0 = 0; y0 <= h; y0 += STOREY_HEIGHT) {
+            int yTop = Math.min(h, y0 + STOREY_HEIGHT - 1);
             int wallY0 = y0 + 1;
-            int wallY1 = Math.min(yTop, y0 + 3);
+            int wallY1 = Math.min(yTop, y0 + STOREY_HEIGHT - 1);
             if (wallY0 > wallY1) continue;
 
             Random rng = new Random(baseRng.nextLong() ^ (y0 * 1315423911L));
 
-            // core perimeter walls
+            // core perimeter walls + doors into the corridor ring
             placeRectRing(blocks, origin, core, wallY0, wallY1, mats.coreWall);
+            carveCoreDoorsToRing(blocks, origin, core, wallY0, Math.min(wallY1, wallY0 + 1));
 
-            // core stairs + shaft
+            // core stairs + shaft (aligned to STOREY_HEIGHT)
             placeCoreStairs(blocks, origin, core, y0, h, mats.stairs, rng);
 
-            // BSP rooms
+            // BSP rooms — shared split line (no 1-block gap between siblings)
             ArrayList<Rect> rooms = new ArrayList<>();
             if (ring.x0 - 1 >= xMin) splitRooms(new Rect(xMin, zMin, ring.x0 - 1, zMax), minRoom, rng, 0, maxDepth, splitChance, rooms);
             if (ring.x1 + 1 <= xMax) splitRooms(new Rect(ring.x1 + 1, zMin, xMax, zMax), minRoom, rng, 0, maxDepth, splitChance, rooms);
             if (ring.z0 - 1 >= zMin) splitRooms(new Rect(ring.x0, zMin, ring.x1, ring.z0 - 1), minRoom, rng, 0, maxDepth, splitChance, rooms);
             if (ring.z1 + 1 <= zMax) splitRooms(new Rect(ring.x0, ring.z1 + 1, ring.x1, zMax), minRoom, rng, 0, maxDepth, splitChance, rooms);
 
+            int doorY1 = Math.min(wallY1, wallY0 + 1);
             for (Rect r : rooms) {
                 placeRectRing(blocks, origin, r, wallY0, wallY1, mats.roomWall);
                 DoorSide ds = chooseDoorSideTowardRing(r, ring);
-                carveDoorToRing(blocks, origin, r, ring, ds, wallY0, Math.min(wallY1, wallY0 + 1), rng);
+                carveDoorToRing(blocks, origin, r, ring, ds, wallY0, doorY1, rng);
             }
+            // Connect adjacent rooms that share a wall (avoids island rooms after BSP splits)
+            carveAdjacentRoomDoors(blocks, origin, rooms, wallY0, doorY1, rng);
         }
     }
 
@@ -115,14 +123,15 @@ public final class BspFloorPlanGenerator {
             int span = r.w();
             int cut = minSize + rng.nextInt(Math.max(1, span - (minSize * 2) + 1));
             int xLine = r.x0 + cut;
-            splitRooms(new Rect(r.x0, r.z0, xLine - 1, r.z1), minSize, rng, depth + 1, maxDepth, splitChance, out);
-            splitRooms(new Rect(xLine + 1, r.z0, r.x1, r.z1), minSize, rng, depth + 1, maxDepth, splitChance, out);
+            // Share xLine as the common wall — no empty gap between siblings
+            splitRooms(new Rect(r.x0, r.z0, xLine, r.z1), minSize, rng, depth + 1, maxDepth, splitChance, out);
+            splitRooms(new Rect(xLine, r.z0, r.x1, r.z1), minSize, rng, depth + 1, maxDepth, splitChance, out);
         } else {
             int span = r.d();
             int cut = minSize + rng.nextInt(Math.max(1, span - (minSize * 2) + 1));
             int zLine = r.z0 + cut;
-            splitRooms(new Rect(r.x0, r.z0, r.x1, zLine - 1), minSize, rng, depth + 1, maxDepth, splitChance, out);
-            splitRooms(new Rect(r.x0, zLine + 1, r.x1, r.z1), minSize, rng, depth + 1, maxDepth, splitChance, out);
+            splitRooms(new Rect(r.x0, r.z0, r.x1, zLine), minSize, rng, depth + 1, maxDepth, splitChance, out);
+            splitRooms(new Rect(r.x0, zLine, r.x1, r.z1), minSize, rng, depth + 1, maxDepth, splitChance, out);
         }
     }
 
@@ -141,6 +150,23 @@ public final class BspFloorPlanGenerator {
         }
     }
 
+    /** Open the core on all four sides into the corridor ring. */
+    private static void carveCoreDoorsToRing(List<PlannedBlock> blocks, BlockPos origin, Rect core, int y0, int y1) {
+        if (core.w() < 3 || core.d() < 3) return;
+        int mx = (core.x0 + core.x1) / 2;
+        int mz = (core.z0 + core.z1) / 2;
+        carveAirColumn(blocks, origin, core.x0, y0, y1, mz);
+        carveAirColumn(blocks, origin, core.x1, y0, y1, mz);
+        carveAirColumn(blocks, origin, mx, y0, y1, core.z0);
+        carveAirColumn(blocks, origin, mx, y0, y1, core.z1);
+    }
+
+    private static void carveAirColumn(List<PlannedBlock> blocks, BlockPos origin, int x, int y0, int y1, int z) {
+        for (int y = y0; y <= y1; y++) {
+            blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.AIR.getDefaultState()));
+        }
+    }
+
     private static DoorSide chooseDoorSideTowardRing(Rect room, Rect ring) {
         int dxW = Math.abs(room.x0 - ring.x1);
         int dxE = Math.abs(room.x1 - ring.x0);
@@ -151,6 +177,50 @@ public final class BspFloorPlanGenerator {
         if (best == dxE) return DoorSide.EAST;
         if (best == dzN) return DoorSide.NORTH;
         return DoorSide.SOUTH;
+    }
+
+    /** One door on each shared wall between room pairs (O(n²); room counts stay small). */
+    private static void carveAdjacentRoomDoors(List<PlannedBlock> blocks,
+                                               BlockPos origin,
+                                               List<Rect> rooms,
+                                               int y0,
+                                               int y1,
+                                               Random rng) {
+        if (rooms == null || rooms.size() < 2) return;
+        for (int i = 0; i < rooms.size(); i++) {
+            Rect a = rooms.get(i);
+            for (int j = i + 1; j < rooms.size(); j++) {
+                carveSharedWallDoor(blocks, origin, a, rooms.get(j), y0, y1, rng);
+            }
+        }
+    }
+
+    private static void carveSharedWallDoor(List<PlannedBlock> blocks,
+                                            BlockPos origin,
+                                            Rect a,
+                                            Rect b,
+                                            int y0,
+                                            int y1,
+                                            Random rng) {
+        // Vertical shared wall (same X column)
+        if (a.x1 == b.x0 || a.x0 == b.x1) {
+            int x = a.x1 == b.x0 ? a.x1 : a.x0;
+            int zLo = Math.max(a.z0, b.z0) + 1;
+            int zHi = Math.min(a.z1, b.z1) - 1;
+            if (zHi < zLo) return;
+            int z = zLo + (rng != null ? rng.nextInt(zHi - zLo + 1) : 0);
+            carveAirColumn(blocks, origin, x, y0, y1, z);
+            return;
+        }
+        // Horizontal shared wall (same Z row)
+        if (a.z1 == b.z0 || a.z0 == b.z1) {
+            int z = a.z1 == b.z0 ? a.z1 : a.z0;
+            int xLo = Math.max(a.x0, b.x0) + 1;
+            int xHi = Math.min(a.x1, b.x1) - 1;
+            if (xHi < xLo) return;
+            int x = xLo + (rng != null ? rng.nextInt(xHi - xLo + 1) : 0);
+            carveAirColumn(blocks, origin, x, y0, y1, z);
+        }
     }
 
     private static void carveDoorToRing(List<PlannedBlock> blocks,
@@ -165,30 +235,28 @@ public final class BspFloorPlanGenerator {
         int z;
         switch (side) {
             case WEST -> {
-                x = room.x1;
-                if (x < ring.x0 - 1 || x > ring.x1 + 1) return;
-                z = clamp(room.z0 + 1 + rng.nextInt(Math.max(1, room.d() - 2)), room.z0 + 1, room.z1 - 1);
-            }
-            case EAST -> {
                 x = room.x0;
                 if (x < ring.x0 - 1 || x > ring.x1 + 1) return;
                 z = clamp(room.z0 + 1 + rng.nextInt(Math.max(1, room.d() - 2)), room.z0 + 1, room.z1 - 1);
             }
+            case EAST -> {
+                x = room.x1;
+                if (x < ring.x0 - 1 || x > ring.x1 + 1) return;
+                z = clamp(room.z0 + 1 + rng.nextInt(Math.max(1, room.d() - 2)), room.z0 + 1, room.z1 - 1);
+            }
             case NORTH -> {
-                z = room.z1;
+                z = room.z0;
                 if (z < ring.z0 - 1 || z > ring.z1 + 1) return;
                 x = clamp(room.x0 + 1 + rng.nextInt(Math.max(1, room.w() - 2)), room.x0 + 1, room.x1 - 1);
             }
             case SOUTH -> {
-                z = room.z0;
+                z = room.z1;
                 if (z < ring.z0 - 1 || z > ring.z1 + 1) return;
                 x = clamp(room.x0 + 1 + rng.nextInt(Math.max(1, room.w() - 2)), room.x0 + 1, room.x1 - 1);
             }
             default -> { return; }
         }
-        for (int y = y0; y <= y1; y++) {
-            blocks.add(new PlannedBlock(origin.add(x, y, z), Blocks.AIR.getDefaultState()));
-        }
+        carveAirColumn(blocks, origin, x, y0, y1, z);
     }
 
     private static void placeCoreStairs(List<PlannedBlock> blocks,
@@ -203,9 +271,9 @@ public final class BspFloorPlanGenerator {
         int sx0 = core.x0 + 1;
         int sz0 = core.z0 + 1;
 
-        // carve a 3x3 shaft for headroom + floor openings
+        // Clear only through the next storey opening (not an extra 2-block void above the run)
         int clearY0 = y0 + 1;
-        int clearY1 = Math.min(h + 2, y0 + 6);
+        int clearY1 = Math.min(h + 2, y0 + STOREY_HEIGHT);
         for (int x = sx0; x < sx0 + 3; x++) {
             for (int z = sz0; z < sz0 + 3; z++) {
                 for (int y = clearY0; y <= clearY1; y++) {
@@ -214,19 +282,20 @@ public final class BspFloorPlanGenerator {
             }
         }
 
-        int band = Math.max(0, y0 / 4);
+        int band = Math.max(0, y0 / STOREY_HEIGHT);
         boolean flip = (band % 2) == 1;
 
         BlockState stairs = stairsBase != null ? stairsBase : Blocks.STONE_BRICK_STAIRS.getDefaultState();
         if (!(stairs.getBlock() instanceof StairsBlock)) stairs = Blocks.STONE_BRICK_STAIRS.getDefaultState();
 
-        // small deterministic jitter in shaft
+        // 3 stair treads + landing at next floor (y0 + STOREY_HEIGHT)
         int x1 = sx0, z1 = sz0;
         int x2 = sx0 + 1, z2 = sz0;
         int x3 = sx0 + 1, z3 = sz0 + 1;
+        int x4 = sx0 + 2, z4 = sz0 + 1;
         if (rng != null && rng.nextBoolean()) {
-            if (flip) { x1 = sx0 + 1; x2 = sx0 + 1; x3 = sx0 + 2; }
-            else { z1 = sz0 + 1; z2 = sz0 + 1; z3 = sz0 + 2; }
+            if (flip) { x1 = sx0 + 1; x2 = sx0 + 1; x3 = sx0 + 2; x4 = sx0 + 2; }
+            else { z1 = sz0 + 1; z2 = sz0 + 1; z3 = sz0 + 2; z4 = sz0 + 2; }
         }
 
         Direction f1 = flip ? Direction.SOUTH : Direction.EAST;
@@ -237,7 +306,12 @@ public final class BspFloorPlanGenerator {
         placeStair(blocks, origin.add(x2, y0 + 2, z2), stairs, f2);
         placeStair(blocks, origin.add(x3, y0 + 3, z3), stairs, f3);
 
-        if (y0 + 4 <= h) blocks.add(new PlannedBlock(origin.add(x3, y0 + 4, z3), Blocks.AIR.getDefaultState()));
+        int landingY = y0 + STOREY_HEIGHT;
+        if (landingY <= h + 2) {
+            blocks.add(new PlannedBlock(origin.add(x4, landingY, z4), Blocks.STONE_BRICKS.getDefaultState()));
+            blocks.add(new PlannedBlock(origin.add(x4, landingY + 1, z4), Blocks.AIR.getDefaultState()));
+            blocks.add(new PlannedBlock(origin.add(x4, landingY + 2, z4), Blocks.AIR.getDefaultState()));
+        }
     }
 
     private static void placeStair(List<PlannedBlock> blocks, BlockPos pos, BlockState stairBase, Direction facing) {
@@ -256,5 +330,3 @@ public final class BspFloorPlanGenerator {
         return Math.max(min, Math.min(max, v));
     }
 }
-
-

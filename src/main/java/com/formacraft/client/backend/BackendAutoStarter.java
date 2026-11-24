@@ -174,11 +174,7 @@ public final class BackendAutoStarter {
             try {
                 Process proc = backendProcess;
                 if (proc == null || !proc.isAlive()) return status = "没有本模组启动的进程；外部服务请在原窗口停止";
-                proc.destroy();
-                if (!proc.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
-                    proc.destroyForcibly();
-                    if (!proc.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) return status = "停止未完成，请检查日志";
-                }
+                destroyProcessTree(proc);
                 backendProcess = null;
                 lastError = null;
                 return status = "后端已停止；点击启动可恢复";
@@ -186,6 +182,29 @@ public final class BackendAutoStarter {
                 Thread.currentThread().interrupt(); return status = "停止被中断";
             } finally { starting.set(false); }
         });
+    }
+
+    /**
+     * Destroy launcher shell and any child python/uvicorn processes (Windows leaves orphans
+     * when only the outer {@code py}/venv Process is destroyed).
+     */
+    private static void destroyProcessTree(Process proc) throws InterruptedException {
+        if (proc == null) return;
+        try {
+            proc.descendants().forEach(ProcessHandle::destroy);
+        } catch (Exception ex) {
+            FormacraftMod.LOGGER.debug("[BackendAutoStarter] descendants destroy failed", ex);
+        }
+        proc.destroy();
+        if (!proc.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
+            try {
+                proc.descendants().forEach(ProcessHandle::destroyForcibly);
+            } catch (Exception ex) {
+                FormacraftMod.LOGGER.debug("[BackendAutoStarter] descendants destroyForcibly failed", ex);
+            }
+            proc.destroyForcibly();
+            proc.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+        }
     }
 
     private static boolean isLocalhostEndpoint(String endpoint, int port) {
@@ -220,45 +239,6 @@ public final class BackendAutoStarter {
                     && com.google.gson.JsonParser.parseString(resp.body()).getAsJsonObject().get("ok").getAsBoolean();
         } catch (Exception e) {
             return false;
-        }
-    }
-
-    /**
-     * 将 orchestratorEndpoint 规整为用于健康检查的“基址”（只保留 scheme://host:port）。
-     * 例如：
-     * - http://localhost:8000 -> http://localhost:8000
-     * - http://localhost:8000/models -> http://localhost:8000
-     */
-    private static String normalizeBaseEndpointForHealth(String endpoint, int port) {
-        int pDefault = port > 0 ? port : 8000;
-        if (endpoint == null || endpoint.isBlank()) {
-            return "http://localhost:" + pDefault;
-        }
-        String v = endpoint.trim();
-        try {
-            URI uri = URI.create(v);
-            String scheme = (uri.getScheme() == null || uri.getScheme().isBlank()) ? "http" : uri.getScheme();
-            String host = uri.getHost();
-            int p = uri.getPort();
-            if (p <= 0) p = pDefault;
-
-            // 容错：用户可能填了 "localhost:8000"（无 scheme）
-            if (host == null || host.isBlank()) {
-                if (!v.startsWith("http://") && !v.startsWith("https://")) {
-                    URI uri2 = URI.create("http://" + v);
-                    scheme = (uri2.getScheme() == null || uri2.getScheme().isBlank()) ? "http" : uri2.getScheme();
-                    host = uri2.getHost();
-                    p = uri2.getPort();
-                    if (p <= 0) p = pDefault;
-                }
-            }
-
-            if (host == null || host.isBlank()) {
-                return "http://localhost:" + p;
-            }
-            return scheme + "://" + host + ":" + p;
-        } catch (Exception e) {
-            return "http://localhost:" + pDefault;
         }
     }
 
@@ -367,12 +347,29 @@ public final class BackendAutoStarter {
             pb.redirectErrorStream(true);
             Process proc = pb.start();
 
+            // Drain stdout asynchronously so warnings cannot fill the pipe and stall waitFor.
+            java.util.concurrent.atomic.AtomicReference<String> outRef = new java.util.concurrent.atomic.AtomicReference<>("");
+            Thread drain = new Thread(() -> {
+                try {
+                    outRef.set(new String(proc.getInputStream().readNBytes(4000), java.nio.charset.StandardCharsets.UTF_8));
+                } catch (IOException ignored) {
+                    // Probe output is best-effort.
+                }
+            }, "formacraft-probe-drain");
+            drain.setDaemon(true);
+            drain.start();
+
             boolean done = proc.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
             if (!done) {
                 proc.destroyForcibly();
                 return ProbeResult.UNAVAILABLE;
             }
-            String out = new String(proc.getInputStream().readNBytes(4000), java.nio.charset.StandardCharsets.UTF_8);
+            try {
+                drain.join(1000);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+            String out = outRef.get() != null ? outRef.get() : "";
             int code = proc.exitValue();
             if (code == 0) return ProbeResult.OK;
 
@@ -531,7 +528,7 @@ public final class BackendAutoStarter {
                 try {
                     Process bp = backendProcess;
                     if (bp != null && bp.isAlive()) {
-                        bp.destroy();
+                        destroyProcessTree(bp);
                     }
                 } catch (Exception ex) {
                     FormacraftMod.LOGGER.debug("[BackendAutoStarter] shutdown hook destroy failed", ex);

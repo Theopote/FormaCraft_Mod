@@ -27,6 +27,22 @@ def test_loopback_without_secret_allowed(monkeypatch):
     assert client.get("/health").status_code == 200
 
 
+def test_forwarded_for_without_secret_rejected(monkeypatch):
+    """Reverse-proxy peers look like loopback TCP; X-Forwarded-For must force auth."""
+    monkeypatch.delenv(ENV_SECRET, raising=False)
+    client = TestClient(_app())
+    res = client.get("/health", headers={"X-Forwarded-For": "203.0.113.10"})
+    assert res.status_code == 401
+    assert "FORMACRAFT_ORCHESTRATOR_SECRET" in res.json()["detail"]
+
+
+def test_forwarded_header_without_secret_rejected(monkeypatch):
+    monkeypatch.delenv(ENV_SECRET, raising=False)
+    client = TestClient(_app())
+    res = client.get("/health", headers={"Forwarded": "for=203.0.113.10;proto=https"})
+    assert res.status_code == 401
+
+
 def test_secret_required_when_configured(monkeypatch):
     monkeypatch.setenv(ENV_SECRET, "s3cret")
     client = TestClient(_app())
@@ -35,6 +51,12 @@ def test_secret_required_when_configured(monkeypatch):
     assert ok.status_code == 200
     bad = client.get("/health", headers={HEADER_NAME: "wrong"})
     assert bad.status_code == 401
+    # Proxied + secret still works
+    proxied = client.get(
+        "/health",
+        headers={HEADER_NAME: "s3cret", "X-Forwarded-For": "203.0.113.10"},
+    )
+    assert proxied.status_code == 200
 
 
 def test_models_rejects_private_base_url():

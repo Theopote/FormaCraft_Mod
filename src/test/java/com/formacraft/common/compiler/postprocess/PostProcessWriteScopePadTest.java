@@ -29,4 +29,18 @@ class PostProcessWriteScopePadTest {
         assertTrue(scope.allowsCarve(new BlockPos(5, 3, 5)));
         assertFalse(scope.allowsCarve(new BlockPos(-1, 3, 5))); // carve stays interior
     }
+
+    @Test
+    void seedOnlyModePadsPlaceNeighborhoodButNotCarve() {
+        PostProcessContext ctx = PostProcessContext.create(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true).build(),
+                new BlockPos(0, 64, 0),
+                List.of());
+        PostProcessWriteScope scope = PostProcessWriteScope.fromContext(ctx, Set.of(new BlockPos(0, 0, 0)));
+        assertTrue(scope.allowsPlace(new BlockPos(0, 0, 0)));
+        assertTrue(scope.allowsPlace(new BlockPos(1, 0, 0)));
+        assertFalse(scope.allowsPlace(new BlockPos(2, 0, 0)));
+        assertTrue(scope.allowsCarve(new BlockPos(0, 0, 0)));
+        assertFalse(scope.allowsCarve(new BlockPos(1, 0, 0)));
+    }
 }

@@ -29,7 +29,7 @@ public final class RoadAStar {
     }
 
     /**
-     * @param stepPenalty extra cost for dy=±1 moves (higher => prefer detours to keep flatter grade)
+     * @param stepPenalty extra cost per |dy| block of vertical change (higher => prefer flatter grade)
      * @param localSlopePenalty cost per localSlope unit (higher => avoid rugged/steep areas)
      */
     public static List<BlockPos> findPath(BlockPos start,
@@ -61,6 +61,9 @@ public final class RoadAStar {
         int expansions = 0;
         while (!open.isEmpty() && expansions < budget) {
             RoadNode cur = open.poll();
+            // Skip stale duplicates left in the PQ after a better gCost was found
+            Integer knownBest = best.get(keyXZ(cur.pos));
+            if (knownBest != null && cur.gCost > knownBest) continue;
             expansions++;
             if (sameXZ(cur.pos, goalPos)) return reconstruct(cur);
 
@@ -97,10 +100,11 @@ public final class RoadAStar {
         return Math.abs(a.getX() - b.getX()) + Math.abs(a.getZ() - b.getZ());
     }
 
-    private static int moveCost(RoadSurface surface, int dy, int localSlope, int stepPenalty, int slopePenalty, int bridgePenalty) {
+    /** Package-visible for unit tests — steeper |dy| must cost strictly more. */
+    static int moveCost(RoadSurface surface, int dy, int localSlope, int stepPenalty, int slopePenalty, int bridgePenalty) {
         int base = 1;
         if (surface == RoadSurface.BRIDGE) base += bridgePenalty;
-        if (Math.abs(dy) == 1) base += stepPenalty;
+        if (dy != 0) base += Math.abs(dy) * stepPenalty;
         if (slopePenalty > 0 && localSlope > 0) base += (localSlope * slopePenalty);
         return base;
     }

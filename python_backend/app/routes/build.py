@@ -13,6 +13,7 @@ from ..services.ai_planner import (
 from ..services.planning_route_policy import _should_generate_city, _should_generate_composite
 from ..services.intent_clarification import maybe_clarification_response
 from ..services.planning_execution import planning_executor
+from ..services.architecture_researcher import safe_error_message
 
 router = APIRouter()
 
@@ -69,7 +70,7 @@ async def build_endpoint(request: Request) -> dict:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate plan: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate plan: {safe_error_message(e)}")
 
 
 def _generate_response(build_req: BuildRequest) -> dict:

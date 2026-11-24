@@ -4,6 +4,10 @@ When FORMACRAFT_ORCHESTRATOR_SECRET is set, every request must present matching
 X-FormaCraft-Secret. When the client is not loopback, a secret is always required
 (even if unset — reject with a clear error so operators cannot accidentally expose
 an unauthenticated LLM proxy on the LAN/WAN).
+
+Requests that carry ``X-Forwarded-For`` / ``Forwarded`` are never treated as
+loopback (the TCP peer may be a local reverse proxy). Set the shared secret
+before exposing the orchestrator behind Nginx/Caddy.
 """
 
 from __future__ import annotations
@@ -27,7 +31,18 @@ def configured_secret() -> str | None:
     return raw or None
 
 
+def _has_forwarded_client_hint(request: Request) -> bool:
+    """True when a reverse proxy advertised an upstream client (untrusted as loopback)."""
+    if (request.headers.get("x-forwarded-for") or "").strip():
+        return True
+    forwarded = (request.headers.get("forwarded") or "").strip().lower()
+    return "for=" in forwarded
+
+
 def _client_is_loopback(request: Request) -> bool:
+    # Proxied traffic must not inherit loopback trust from the proxy's TCP peer.
+    if _has_forwarded_client_hint(request):
+        return False
     host = request.client.host if request.client else None
     if not host:
         # No peer info (some ASGI servers / unit harnesses): treat as local-only.
