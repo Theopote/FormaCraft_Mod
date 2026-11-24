@@ -81,15 +81,16 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
             int minZ = b.minZ(), maxZ = b.maxZ() - 1;
             int floorH = Math.max(3, volume.floorHeight());
 
-            // Base plinth (+1 outward slabs)
-            placed += emitPlinth(enhancements, solid, clearance, decoRestrict,
-                    minX, maxX, minY, minZ, maxZ, SubVoxelBlockStates.slab(slab, false), MAX_OUTWARD_PER_VOLUME - placed);
-
+            // Corner pilasters before plinth so stair bases are not blocked by the slab ring
             if (deep || hints.facadeRelief() == AestheticPassHints.FacadeRelief.SUBTLE) {
                 placed += emitCornerPilasters(enhancements, solid, clearance, decoRestrict,
                         minX, maxX, minY, maxY, minZ, maxZ, wallShape, stairs, deep,
                         MAX_OUTWARD_PER_VOLUME - placed);
             }
+
+            // Base plinth (+1 outward slabs)
+            placed += emitPlinth(enhancements, solid, clearance, decoRestrict,
+                    minX, maxX, minY, minZ, maxZ, SubVoxelBlockStates.slab(slab, false), MAX_OUTWARD_PER_VOLUME - placed);
 
             // Belt courses at each floor junction
             for (int y = minY + floorH; y < maxY; y += floorH) {
@@ -98,11 +99,9 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
                         MAX_OUTWARD_PER_VOLUME - placed);
             }
 
-            // Cornice brackets under top edge
+            // Cornice brackets under top edge (per-volume budget only — never break the volume loop)
             placed += emitCornice(enhancements, solid, clearance, decoRestrict,
                     minX, maxX, maxY, minZ, maxZ, stairs, MAX_OUTWARD_PER_VOLUME - placed);
-
-            if (placed >= MAX_OUTWARD_PER_VOLUME) break;
         }
 
         if (enhancements.isEmpty()) return patches;
@@ -139,24 +138,36 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
         int[][] outward = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
         for (int i = 0; i < corners.length; i++) {
             int cx = corners[i][0], cz = corners[i][1];
-            int ox = outward[i][0] != 0 ? Integer.signum(outward[i][0]) : 0;
-            int oz = outward[i][1] != 0 ? Integer.signum(outward[i][1]) : 0;
-            // Prefer cardinal outward from the nearer face
-            Direction dir = Math.abs(ox) >= Math.abs(oz)
-                    ? (ox < 0 ? Direction.WEST : Direction.EAST)
-                    : (oz < 0 ? Direction.NORTH : Direction.SOUTH);
-            int px = cx + dir.getOffsetX();
-            int pz = cz + dir.getOffsetZ();
-            String base = SubVoxelBlockStates.outwardStairs(stairs, dir, false);
-            String cap = SubVoxelBlockStates.outwardStairs(stairs, dir, true);
-            if (base != null) n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, minY, pz, base, budget - n);
-            int top = deep ? maxY : Math.min(maxY, minY + Math.max(4, (maxY - minY) / 2));
-            for (int y = minY + 1; y < top; y++) {
-                n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, y, pz, shaft, budget - n);
-            }
-            if (cap != null && top <= maxY) {
-                n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, top, pz, cap, budget - n);
-            }
+            int ox = outward[i][0];
+            int oz = outward[i][1];
+            // Both adjacent outward normals so N/S faces are not skipped
+            Direction dirX = ox < 0 ? Direction.WEST : Direction.EAST;
+            Direction dirZ = oz < 0 ? Direction.NORTH : Direction.SOUTH;
+            n += emitOnePilaster(out, solid, clearance, decoRestrict,
+                    cx + dirX.getOffsetX(), cz + dirX.getOffsetZ(),
+                    minY, maxY, shaft, stairs, deep, dirX, budget - n);
+            n += emitOnePilaster(out, solid, clearance, decoRestrict,
+                    cx + dirZ.getOffsetX(), cz + dirZ.getOffsetZ(),
+                    minY, maxY, shaft, stairs, deep, dirZ, budget - n);
+        }
+        return n;
+    }
+
+    private static int emitOnePilaster(List<BlockPatch> out, Map<Long, BlockPatch> solid,
+                                       Set<BlockPos> clearance, Set<BlockPos> decoRestrict,
+                                       int px, int pz, int minY, int maxY,
+                                       String shaft, String stairs, boolean deep, Direction dir, int budget) {
+        if (budget <= 0) return 0;
+        int n = 0;
+        String base = SubVoxelBlockStates.outwardStairs(stairs, dir, false);
+        String cap = SubVoxelBlockStates.outwardStairs(stairs, dir, true);
+        if (base != null) n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, minY, pz, base, budget - n);
+        int top = deep ? maxY : Math.min(maxY, minY + Math.max(4, (maxY - minY) / 2));
+        for (int y = minY + 1; y < top; y++) {
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, y, pz, shaft, budget - n);
+        }
+        if (cap != null && top <= maxY) {
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, px, top, pz, cap, budget - n);
         }
         return n;
     }
@@ -191,14 +202,17 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
             if (d == Direction.NORTH || d == Direction.SOUTH) {
                 int z = d == Direction.NORTH ? minZ - 1 : maxZ + 1;
                 for (int x = minX; x <= maxX; x += 2) {
-                    // Skip if roof already occupies the cell above the wall
-                    if (solid.containsKey(pack(x, maxY + 1, z - d.getOffsetZ()))) continue;
+                    // Skip only when roof already occupies the cornice cell's column;
+                    // require the wall cell itself at (x, maxY, inward).
+                    if (solid.containsKey(pack(x, maxY + 1, z))) continue;
+                    if (!solid.containsKey(pack(x, maxY, z - d.getOffsetZ()))) continue;
                     n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, maxY, z, bracket, budget - n);
                 }
             } else {
                 int x = d == Direction.WEST ? minX - 1 : maxX + 1;
                 for (int z = minZ; z <= maxZ; z += 2) {
-                    if (solid.containsKey(pack(x - d.getOffsetX(), maxY + 1, z))) continue;
+                    if (solid.containsKey(pack(x, maxY + 1, z))) continue;
+                    if (!solid.containsKey(pack(x - d.getOffsetX(), maxY, z))) continue;
                     n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, maxY, z, bracket, budget - n);
                 }
             }

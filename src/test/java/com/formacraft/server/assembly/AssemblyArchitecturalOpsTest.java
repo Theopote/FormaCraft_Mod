@@ -114,8 +114,35 @@ class AssemblyArchitecturalOpsTest {
         assertTrue(blocks.stream().anyMatch(b -> b.getTargetState().isOf(Blocks.IRON_BARS)));
         assertTrue(blocks.stream().anyMatch(b -> b.getTargetState().isOf(Blocks.LIGHT_GRAY_STAINED_GLASS)));
 
+        // Backing fills the full interior panel (not only behind fins): spacing=2 → glass between fin columns
+        long glassBetweenFins = blocks.stream()
+                .filter(b -> b.getTargetState().isOf(Blocks.LIGHT_GRAY_STAINED_GLASS))
+                .filter(b -> {
+                    BlockPos p = b.getPos();
+                    // facing SOUTH → backing at z=-1; fin columns at odd u from 1
+                    return p.getZ() == -1 && p.getY() >= 1 && p.getY() <= 8
+                            && ((p.getX() + 6) % 2 == 0); // even local u between fins
+                })
+                .count();
+        assertTrue(glassBetweenFins > 0, "backing must fill gaps between louvers");
+
         assertThrows(AssemblyArchitecturalOps.InvalidArchitecturalParam.class,
                 () -> run(op("LOUVER_SKIN", "w", 12, "h", 10)));
+    }
+
+    @Test
+    void buttressArrayCountSpreadsEvenlyWithoutStacking() {
+        var blocks = run(op("BUTTRESS_ARRAY",
+                "length", 10, "height", 8, "outward", "SOUTH", "reach", 3,
+                "count", 5, "style", "stepped", "axis", "X",
+                "material", "minecraft:stone_bricks"));
+        // Outer pier bases at reach=3 south of axis — distinct X positions for count=5
+        Set<Integer> alongXs = new HashSet<>();
+        for (var b : blocks) {
+            BlockPos p = b.getPos();
+            if (p.getZ() == 3 && p.getY() == 0) alongXs.add(p.getX());
+        }
+        assertEquals(5, alongXs.size(), "count=5 must place five distinct buttress stations, got " + alongXs);
     }
 
     @Test

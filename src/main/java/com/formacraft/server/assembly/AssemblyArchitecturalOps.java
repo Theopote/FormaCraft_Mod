@@ -104,8 +104,8 @@ public final class AssemblyArchitecturalOps {
 
         for (int bay = 0; bay < bays; bay++) {
             int archStart = start + bay * pitch + pierWidth;
-            for (int s = 0; s <= baySpan; s++) {
-                double t = baySpan == 0 ? 0.0 : s / (double) baySpan;
+            for (int s = 0; s < baySpan; s++) {
+                double t = baySpan <= 1 ? 0.5 : s / (double) (baySpan - 1);
                 int riseY = archY(profile, t, archRise);
                 int along = archStart + s;
                 for (int dy = 0; dy < depth; dy++) {
@@ -128,8 +128,9 @@ public final class AssemblyArchitecturalOps {
                 for (int dy = -1; dy <= depth; dy++) {
                     int cross = -halfDepth + dy;
                     if (dy >= 0 && dy < depth) continue;
+                    Direction outward = corniceOutward(axis, dy < 0);
                     placeAxis(out, ctx, origin, adapter, axis, along, topY + 1, cross,
-                            orientStair(corniceMat, axis, true));
+                            orientStairFacing(corniceMat, outward, true));
                 }
                 for (int dy = 0; dy < depth; dy++) {
                     int cross = -halfDepth + dy;
@@ -160,7 +161,6 @@ public final class AssemblyArchitecturalOps {
         int count = adapter.i(op.get("count"), -1);
         if (count > 0) {
             count = adapter.clamp(count, 2, 24);
-            spacing = Math.max(3, length / Math.max(1, count - 1));
         } else {
             count = Math.max(2, (length / spacing) + 1);
             count = adapter.clamp(count, 2, 24);
@@ -176,7 +176,8 @@ public final class AssemblyArchitecturalOps {
 
         int start = -(length / 2);
         for (int i = 0; i < count; i++) {
-            int along = start + Math.min(length - 1, i * spacing);
+            int along = count == 1 ? start
+                    : start + (int) Math.round(i * (length - 1) / (double) (count - 1));
             if ("flying".equals(style)) {
                 placeFlyingButtress(out, ctx, origin, adapter, axis, along, height, reach, width,
                         outward, flyerTiers, pinnacleHeight, mat, trim);
@@ -328,6 +329,15 @@ public final class AssemblyArchitecturalOps {
             placeFacing(out, ctx, origin, adapter, facing, w - hx - 1, y, 0, frame);
         }
 
+        // Full curtain backing first so gaps between fins are not open
+        if (backing != null) {
+            for (int u = 1; u < w - 1; u++) {
+                for (int y = 1; y < h - 1; y++) {
+                    placeFacing(out, ctx, origin, adapter, facing, u - hx, y, -1, backing);
+                }
+            }
+        }
+
         if ("horizontal".equals(orientation)) {
             for (int y = 1; y < h - 1; y += spacing) {
                 for (int u = 1; u < w - 1; u++) {
@@ -337,9 +347,6 @@ public final class AssemblyArchitecturalOps {
                         for (int d = 0; d < depth; d++) {
                             placeFacing(out, ctx, origin, adapter, facing, u - hx, y + t, d, mat);
                         }
-                    }
-                    if (backing != null) {
-                        placeFacing(out, ctx, origin, adapter, facing, u - hx, y, -1, backing);
                     }
                 }
             }
@@ -352,9 +359,6 @@ public final class AssemblyArchitecturalOps {
                     for (int d = 0; d < depth; d++) {
                         placeFacing(out, ctx, origin, adapter, facing, u - hx, y, d, mat);
                     }
-                    if (backing != null) {
-                        placeFacing(out, ctx, origin, adapter, facing, u - hx, y, -1, backing);
-                    }
                 }
             }
         } else {
@@ -366,9 +370,6 @@ public final class AssemblyArchitecturalOps {
                         for (int d = 0; d < depth; d++) {
                             placeFacing(out, ctx, origin, adapter, facing, u - hx + t, y, d, mat);
                         }
-                    }
-                    if (backing != null) {
-                        placeFacing(out, ctx, origin, adapter, facing, u - hx, y, -1, backing);
                     }
                 }
             }
@@ -667,8 +668,20 @@ public final class AssemblyArchitecturalOps {
     }
 
     private static BlockState orientStair(BlockState state, String axis, boolean top) {
+        Direction face = "Z".equals(axis) ? Direction.EAST : Direction.SOUTH;
+        return orientStairFacing(state, face, top);
+    }
+
+    /** Cornice side facing: negative cross → north/west, positive → south/east. */
+    private static Direction corniceOutward(String axis, boolean negativeCross) {
+        if ("Z".equals(axis)) {
+            return negativeCross ? Direction.WEST : Direction.EAST;
+        }
+        return negativeCross ? Direction.NORTH : Direction.SOUTH;
+    }
+
+    private static BlockState orientStairFacing(BlockState state, Direction face, boolean top) {
         if (state.getBlock() instanceof StairsBlock) {
-            Direction face = "Z".equals(axis) ? Direction.EAST : Direction.SOUTH;
             return state.with(Properties.HORIZONTAL_FACING, face)
                     .with(Properties.BLOCK_HALF, top ? BlockHalf.TOP : BlockHalf.BOTTOM);
         }

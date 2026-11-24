@@ -47,5 +47,36 @@ class DetailEnhancementVolumeReliefTest {
                 "must not decorate far global AABB corner");
         // Plinth adjacent to volume a south face is expected
         assertTrue(out.stream().anyMatch(p -> p.dz() == -1 && p.dy() == 0 && BlockPatch.PLACE.equals(p.action())));
+        // Both E/W and N/S pilaster outsides for a corner (not E/W-only)
+        boolean eastPilaster = out.stream().anyMatch(p -> p.dx() == 4 && p.dz() == 0 && p.dy() > 0
+                && BlockPatch.PLACE.equals(p.action()));
+        boolean northPilaster = out.stream().anyMatch(p -> p.dx() == 3 && p.dz() == -1 && p.dy() > 0
+                && BlockPatch.PLACE.equals(p.action()));
+        assertTrue(eastPilaster || northPilaster, "corner pilasters should extrude on adjacent faces");
+    }
+
+    @Test
+    void corniceEmitsWhenRoofSitsAboveWallNotAboveCorniceCell() {
+        var volume = new PostProcessContext.BuildingVolume("m",
+                new ComponentFootprintUtil.Bounds(0, 0, 0, 6, 5, 6), 4);
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "deep", "classic", "subtle", null, null);
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleAttributes(attrs).build();
+        PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN, List.of(volume));
+        List<BlockPatch> input = new ArrayList<>();
+        for (int x = 0; x < 6; x++) for (int z = 0; z < 6; z++) {
+            for (int y = 0; y < 5; y++) {
+                if (x == 0 || x == 5 || z == 0 || z == 5)
+                    input.add(new BlockPatch(BlockPatch.PLACE, x, y, z, "minecraft:stone_bricks"));
+            }
+            // Roof only above the wall footprint (maxY+1 on wall cells), not over cornice extrusion
+            if (x == 0 || x == 5 || z == 0 || z == 5)
+                input.add(new BlockPatch(BlockPatch.PLACE, x, 5, z, "minecraft:oak_planks"));
+        }
+        List<BlockPatch> out = new DetailEnhancementPostProcessor().process(input, ctx);
+        assertTrue(out.stream().anyMatch(p -> p.dz() == -1 && p.dy() == 4
+                        && p.targetBlock() != null && p.targetBlock().contains("stairs")),
+                "cornice brackets must still emit when roof covers the wall top, not the cornice cell");
     }
 }

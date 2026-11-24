@@ -210,19 +210,19 @@ public final class ComponentWindowOrderDecorator {
                 }
             }
         }
-        if (sides) {
-            for (int y = opening.yMin(); y <= opening.yMax(); y++) {
-                addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMin() - 1, y, trimBlock);
-                addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMax() + 1, y, trimBlock);
-            }
-        }
-        // Classic shutters for narrow windows
-        if (trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.CLASSIC
-                && trapdoorId != null && width <= 2) {
+        // Classic shutters for narrow windows share side cells with FULL side posts — prefer shutters
+        boolean hasShutters = trimStyle == com.formacraft.common.style.AestheticPassHints.WindowTrim.CLASSIC
+                && trapdoorId != null && width <= 2;
+        if (hasShutters) {
             String shutter = SubVoxelBlockStates.shutterTrapdoor(trapdoorId, outDir, true);
             for (int y = opening.yMin(); y <= opening.yMax(); y++) {
                 addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMin() - 1, y, shutter);
                 addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMax() + 1, y, shutter);
+            }
+        } else if (sides) {
+            for (int y = opening.yMin(); y <= opening.yMax(); y++) {
+                addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMin() - 1, y, trimBlock);
+                addOutwardPlace(out, outDir, opening.fixedCoord(), opening.axisMax() + 1, y, trimBlock);
             }
         }
         if (pediment) {

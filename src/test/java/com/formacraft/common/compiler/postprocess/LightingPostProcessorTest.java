@@ -29,18 +29,51 @@ class LightingPostProcessorTest {
             input.add(new BlockPatch(BlockPatch.PLACE, x, 0, z, "minecraft:oak_planks"));
             input.add(new BlockPatch(BlockPatch.PLACE, x, 5, z, "minecraft:oak_planks"));
         }
-        // Door on south face
+        // Door on south face + façade posts so flanking lights can wall-mount
         input.add(new BlockPatch(BlockPatch.PLACE, 4, 1, 0, "minecraft:oak_door[facing=south,half=lower,hinge=left,open=false,powered=false]"));
         input.add(new BlockPatch(BlockPatch.PLACE, 4, 2, 0, "minecraft:oak_door[facing=south,half=upper,hinge=left,open=false,powered=false]"));
+        input.add(new BlockPatch(BlockPatch.PLACE, 3, 3, 0, "minecraft:stone_bricks"));
+        input.add(new BlockPatch(BlockPatch.PLACE, 5, 3, 0, "minecraft:stone_bricks"));
 
         List<BlockPatch> out = new LightingPostProcessor().process(input, ctx);
         List<BlockPatch> added = out.stream().filter(p -> !input.contains(p)).toList();
         assertFalse(added.isEmpty());
         assertTrue(added.stream().allMatch(p -> BlockPatch.PLACE.equals(p.action())));
-        // Symmetric flanking around door x=4 on south (+z outward → lights at x=3 and x=5)
-        boolean left = added.stream().anyMatch(p -> p.dx() == 3 && p.dy() == 3);
-        boolean right = added.stream().anyMatch(p -> p.dx() == 5 && p.dy() == 3);
-        assertTrue(left || right, "expected entrance flanking lights");
+        // Outside door plane (z=1), flanking at x=3/5, y=doorY+2 — not wall-plane z=0, and not duplicated by upper half
+        long entranceAtY3 = added.stream().filter(p -> p.dy() == 3 && (p.dx() == 3 || p.dx() == 5) && p.dz() == 1).count();
+        long entranceAtY4 = added.stream().filter(p -> p.dy() == 4 && (p.dx() == 3 || p.dx() == 5) && p.dz() == 1).count();
+        assertTrue(entranceAtY3 >= 1, "expected entrance flanking lights outside the door");
+        assertEquals(0, entranceAtY4, "upper door half must not place a second light row");
+        assertTrue(added.stream().noneMatch(p -> (p.dx() == 3 || p.dx() == 5) && p.dy() == 3 && p.dz() == 0),
+                "lights must not sit inside the wall plane");
+    }
+
+    @Test
+    void eavesHangingRequiresSupportOrWallFallback() {
+        var volume = new PostProcessContext.BuildingVolume("m",
+                new ComponentFootprintUtil.Bounds(0, 0, 0, 7, 5, 7), 4);
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "subtle", "classic", "none", "warm_lantern", "high");
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleAttributes(attrs).build();
+        PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN, List.of(volume));
+        List<BlockPatch> input = new ArrayList<>();
+        // North wall only — eaves light at z=-1 attaches as wall torch (no block above)
+        for (int x = 0; x <= 6; x++) {
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 3, 0, "minecraft:stone_bricks"));
+        }
+        List<BlockPatch> out = new LightingPostProcessor().process(input, ctx);
+        List<BlockPatch> eaves = out.stream()
+                .filter(p -> !input.contains(p))
+                .filter(p -> p.dz() == -1 && p.dy() == 3)
+                .toList();
+        assertFalse(eaves.isEmpty(), "expected eaves lights against the north wall");
+        assertTrue(eaves.stream().allMatch(p -> p.targetBlock() != null && p.targetBlock().contains("wall_torch")),
+                "without a block above, eaves must fall back to wall_torch, got " + eaves);
+        assertTrue(eaves.stream().noneMatch(p -> {
+            String t = p.targetBlock() == null ? "" : p.targetBlock();
+            return t.contains("lantern") && t.contains("hanging=true");
+        }), "unsupported hanging lanterns must not be placed on eaves");
     }
 
     @Test

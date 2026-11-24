@@ -49,7 +49,7 @@ public class LightingPostProcessor implements PostProcessor {
             }
             air.remove(key);
             solid.put(key, p.targetBlock());
-            if (isDoor(p.targetBlock())) {
+            if (isDoor(p.targetBlock()) && !isUpperDoorHalf(p.targetBlock())) {
                 doors.add(new DoorHint(p.dx(), p.dy(), p.dz(), p.targetBlock()));
             }
         }
@@ -65,15 +65,16 @@ public class LightingPostProcessor implements PostProcessor {
         List<BlockPatch> lights = new ArrayList<>();
         Set<BlockPos> clearance = context.protectedClearance() != null ? context.protectedClearance() : Set.of();
 
-        // Entrance flanking lights
+        // Entrance flanking lights (outside the door plane, lower half only)
         for (DoorHint door : doors) {
             Direction out = guessDoorOutward(door, solid);
             int lx = door.x + out.getOffsetX();
             int lz = door.z + out.getOffsetZ();
-            placeIfAir(lights, solid, clearance, door.x + perpX(out), door.y + 2, door.z + perpZ(out),
-                    wallOrHanging(hanging, standing, solid, door.x + perpX(out), door.y + 2, door.z + perpZ(out), out));
-            placeIfAir(lights, solid, clearance, door.x - perpX(out), door.y + 2, door.z - perpZ(out),
-                    wallOrHanging(hanging, standing, solid, door.x - perpX(out), door.y + 2, door.z - perpZ(out), out));
+            int ly = door.y + 2;
+            placeSupportedLight(lights, solid, clearance, lx + perpX(out), ly, lz + perpZ(out),
+                    hanging, standing, out);
+            placeSupportedLight(lights, solid, clearance, lx - perpX(out), ly, lz - perpZ(out),
+                    hanging, standing, out);
             if (lights.size() >= MAX_LIGHTS) break;
         }
 
@@ -86,13 +87,13 @@ public class LightingPostProcessor implements PostProcessor {
                 int minZ = b.minZ(), maxZ = b.maxZ() - 1;
                 int y = Math.max(minY + 2, maxY - 1);
                 for (int x = minX; x <= maxX; x += cadence) {
-                    placeIfAir(lights, solid, clearance, x, y, minZ - 1, hanging);
-                    placeIfAir(lights, solid, clearance, x, y, maxZ + 1, hanging);
+                    placeSupportedLight(lights, solid, clearance, x, y, minZ - 1, hanging, standing, Direction.NORTH);
+                    placeSupportedLight(lights, solid, clearance, x, y, maxZ + 1, hanging, standing, Direction.SOUTH);
                     if (lights.size() >= MAX_LIGHTS) break;
                 }
                 for (int z = minZ; z <= maxZ; z += cadence) {
-                    placeIfAir(lights, solid, clearance, minX - 1, y, z, hanging);
-                    placeIfAir(lights, solid, clearance, maxX + 1, y, z, hanging);
+                    placeSupportedLight(lights, solid, clearance, minX - 1, y, z, hanging, standing, Direction.WEST);
+                    placeSupportedLight(lights, solid, clearance, maxX + 1, y, z, hanging, standing, Direction.EAST);
                     if (lights.size() >= MAX_LIGHTS) break;
                 }
 
@@ -143,13 +144,24 @@ public class LightingPostProcessor implements PostProcessor {
         };
     }
 
-    private static String wallOrHanging(String hanging, String standing, Map<Long, String> solid,
-                                        int x, int y, int z, Direction out) {
-        if (solid.containsKey(pack(x, y - 1, z))) return standing;
-        if (solid.containsKey(pack(x - out.getOffsetX(), y, z - out.getOffsetZ()))) {
-            return SubVoxelBlockStates.wallTorch(out);
+    /**
+     * Place a light only when it has Minecraft-legal support: floor for standing,
+     * block above for hanging, else wall torch on the façade behind; otherwise skip
+     * (bare hanging lanterns drop as items on block updates).
+     */
+    private static void placeSupportedLight(List<BlockPatch> out, Map<Long, String> solid, Set<BlockPos> clearance,
+                                            int x, int y, int z, String hanging, String standing, Direction outDir) {
+        if (solid.containsKey(pack(x, y - 1, z))) {
+            placeIfAir(out, solid, clearance, x, y, z, standing);
+            return;
         }
-        return hanging;
+        if (solid.containsKey(pack(x, y + 1, z))) {
+            placeIfAir(out, solid, clearance, x, y, z, hanging);
+            return;
+        }
+        if (solid.containsKey(pack(x - outDir.getOffsetX(), y, z - outDir.getOffsetZ()))) {
+            placeIfAir(out, solid, clearance, x, y, z, SubVoxelBlockStates.wallTorch(outDir));
+        }
     }
 
     private static void placeIfAir(List<BlockPatch> out, Map<Long, String> solid, Set<BlockPos> clearance,
@@ -189,6 +201,11 @@ public class LightingPostProcessor implements PostProcessor {
         if (id == null) return false;
         String lower = id.toLowerCase(Locale.ROOT);
         return lower.contains("_door") && !lower.contains("trapdoor");
+    }
+
+    private static boolean isUpperDoorHalf(String id) {
+        if (id == null) return false;
+        return id.toLowerCase(Locale.ROOT).contains("half=upper");
     }
 
     private static boolean isAir(String id) {

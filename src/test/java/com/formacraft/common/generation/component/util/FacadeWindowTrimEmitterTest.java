@@ -41,6 +41,24 @@ class FacadeWindowTrimEmitterTest {
     }
 
     @Test
+    void classicFullNarrowWindowPrefersShuttersOverSidePosts() {
+        var opening = new ComponentWindowOrderDecorator.FacadeOpening(
+                Direction.SOUTH, 0, 2, 3, 2, 3, true, true); // width 2
+        List<BlockPatch> out = new ArrayList<>();
+        ComponentWindowOrderDecorator.emitWindowOrder(
+                out, opening, ComponentWindowOrderDecorator.OrderLevel.FULL,
+                "minecraft:stone_bricks", "minecraft:stone_brick_stairs", "minecraft:stone_brick_slab",
+                AestheticPassHints.WindowTrim.CLASSIC, "minecraft:oak_trapdoor");
+        List<BlockPatch> sideCells = out.stream()
+                .filter(p -> (p.dx() == 1 || p.dx() == 4) && p.dy() >= 2 && p.dy() <= 3 && p.dz() == 1)
+                .toList();
+        assertFalse(sideCells.isEmpty());
+        assertTrue(sideCells.stream().allMatch(p -> p.targetBlock() != null && p.targetBlock().contains("trapdoor")),
+                "narrow CLASSIC FULL must place shutters, not full-block side posts");
+        assertTrue(sideCells.stream().noneMatch(p -> "minecraft:stone_bricks".equals(p.targetBlock())));
+    }
+
+    @Test
     void subVoxelStatesEncodeFacing() {
         String stairs = SubVoxelBlockStates.outwardStairs("minecraft:oak_stairs", Direction.SOUTH, true);
         assertNotNull(stairs);
