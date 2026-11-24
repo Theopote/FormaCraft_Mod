@@ -14,6 +14,7 @@ import net.minecraft.util.math.Direction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -105,6 +106,17 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
         }
 
         if (enhancements.isEmpty()) return patches;
+
+        Set<BlockPos> seeds = new HashSet<>();
+        for (BlockPatch p : patches) {
+            if (p == null || BlockPatch.REMOVE.equals(p.action())) continue;
+            seeds.add(new BlockPos(p.dx(), p.dy(), p.dz()));
+        }
+        PostProcessWriteScope scope = PostProcessWriteScope.fromContext(context, seeds);
+        enhancements.removeIf(p -> p == null
+                || !scope.allowsPlace(new BlockPos(p.dx(), p.dy(), p.dz())));
+        if (enhancements.isEmpty()) return patches;
+
         List<BlockPatch> result = new ArrayList<>(patches.size() + enhancements.size());
         result.addAll(patches);
         result.addAll(enhancements);

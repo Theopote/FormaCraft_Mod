@@ -125,6 +125,17 @@ public class LightingPostProcessor implements PostProcessor {
         }
 
         if (lights.isEmpty()) return patches;
+
+        Set<BlockPos> seeds = new HashSet<>();
+        for (BlockPatch p : patches) {
+            if (p == null || BlockPatch.REMOVE.equals(p.action())) continue;
+            seeds.add(new BlockPos(p.dx(), p.dy(), p.dz()));
+        }
+        PostProcessWriteScope scope = PostProcessWriteScope.fromContext(context, seeds);
+        lights.removeIf(p -> p == null
+                || !scope.allowsPlace(new BlockPos(p.dx(), p.dy(), p.dz())));
+        if (lights.isEmpty()) return patches;
+
         List<BlockPatch> merged = new ArrayList<>(patches.size() + lights.size());
         merged.addAll(patches);
         merged.addAll(lights);

@@ -39,11 +39,32 @@ public class PostProcessWriteScope {
             // Volume membership is checked dynamically via containsVolume; seeds/surfaces are explicit.
             return new VolumeAwareScope(placeable, clearance, ctx, true);
         }
-        // No volume/surface: seed-only (never unbounded).
+        // No volume/surface: seed neighborhood pad for aesthetic PLACE (window trim / lights),
+        // never unbounded. Carve stays on exact seeds.
         Set<BlockPos> carveable = new HashSet<>(seeds);
         carveable.removeAll(clearance);
-        Set<BlockPos> place = new HashSet<>(seeds);
+        Set<BlockPos> place = expandChebyshev(seeds, EXTERIOR_PLACE_PAD);
+        place.removeAll(clearance);
         return new PostProcessWriteScope(place, carveable, false);
+    }
+
+    /** Inclusive Chebyshev ball around each seed (pad=1 → 3×3×3 neighborhood). */
+    static Set<BlockPos> expandChebyshev(Set<BlockPos> seeds, int pad) {
+        if (seeds == null || seeds.isEmpty() || pad <= 0) {
+            return seeds == null ? Set.of() : Set.copyOf(seeds);
+        }
+        Set<BlockPos> out = new HashSet<>(seeds.size() * 8);
+        for (BlockPos s : seeds) {
+            if (s == null) continue;
+            for (int dx = -pad; dx <= pad; dx++) {
+                for (int dy = -pad; dy <= pad; dy++) {
+                    for (int dz = -pad; dz <= pad; dz++) {
+                        out.add(s.add(dx, dy, dz));
+                    }
+                }
+            }
+        }
+        return out;
     }
 
     /** Clearance-only scope for ProtectedClearanceRestorer. */

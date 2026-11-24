@@ -131,8 +131,9 @@ public class WindowOrderPostProcessor implements PostProcessor {
         for (var p : patches) if (com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.occupied(p))
             seeds.add(new net.minecraft.util.math.BlockPos(p.dx(),p.dy(),p.dz()));
         var scope = PostProcessWriteScope.fromContext(context,seeds);
-        if (!context.buildingVolumes().isEmpty() || !context.generatedSurfaces().isEmpty())
-            surrounds.removeIf(p -> !scope.allowsPlace(new net.minecraft.util.math.BlockPos(p.dx(),p.dy(),p.dz())));
+        // Always clip to write scope — pediments at +2 and missing volume AABBs must not hard-fail compile.
+        surrounds.removeIf(p -> p == null
+                || !scope.allowsPlace(new net.minecraft.util.math.BlockPos(p.dx(), p.dy(), p.dz())));
 
         // Window trim is optional. Never replace a balcony, opening clearance,
         // or another authored component just to add a surround.
