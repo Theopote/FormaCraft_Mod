@@ -2,12 +2,11 @@ package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
+import com.formacraft.common.generation.component.util.PathStripUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.common.palette.component.Palette;
-import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
@@ -15,21 +14,25 @@ import java.util.List;
 
 /**
  * RoadGenerator（道路生成器 v2）
- * 
- * 使用 Palette 权重随机生成平面道路
- * 
- * 核心提升：
- * - ✅ 使用 PaletteResolver（gravel / cobblestone / stone）
- * - ✅ 支持道路边缘（ROAD_EDGE）
+ *
+ * Palette 权重平面道路；有 params.from/to 时与 PATH 共用折线条带（GEOMETRY）。
  */
 public class RoadGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
-        List<BlockPatch> out = new ArrayList<>();
+        Component c = semantic == null ? null : semantic.source();
+        if (c == null) return List.of();
 
-        Component c = semantic.source();
-        if (c == null || c.dimensions() == null || c.relativePosition() == null) {
+        PathStripUtil.Endpoints endpoints = PathStripUtil.resolveEndpoints(c);
+        if (endpoints != null) {
+            return PathStripUtil.emitStrip(
+                    semantic, endpoints, "minecraft:gravel",
+                    "road_block", "floor_block", "material", "path_block");
+        }
+
+        List<BlockPatch> out = new ArrayList<>();
+        if (c.dimensions() == null || c.relativePosition() == null) {
             return out;
         }
 
@@ -63,4 +66,3 @@ public class RoadGenerator implements ComponentGenerator {
         return out;
     }
 }
-

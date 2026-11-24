@@ -48,6 +48,7 @@ flowchart TD
 | **B** | **仅**显式 `outputFormat=buildingspec` / `kind=buildingspec` | `BuildingSpec` | Compat only; not silent Java house fallback | GR → StructureGenerator |
 | **B-edit** | `isPatch && requestsLegacyBuildingSpec` 或 `forma_edit_*` | Updated BuildingSpec/CitySpec JSON | `editLegacy*` → `/edit/building|/edit/city`（deprecated） | GR / city builders |
 | **C** | 显式 buildingspec 下的 city / composite kinds | CitySpec / CompositeSpec | Compat | City / composite builders |
+| **A-site** | Default LlmPlan multi-building / campus / garden compounds | Multiple MASS* + `building_id` + PATH/ROAD/COURTYARD/PLAZA (`from`/`to` strip or AABB) | LLM/user site composition; Java GEOMETRY only (`PathStripUtil`, `LlmPlanPathSmartEmit`→RoadPlanner) | CPC → UGR — **not** Path C / CityBuilder |
 
 ## Routing authority sources (must stay consistent)
 

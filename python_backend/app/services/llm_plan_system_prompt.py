@@ -34,6 +34,16 @@ Core rules:
   * Temple gate / paifang / mountain gate: wide shallow gate mass (or STRUCTURE/ASSEMBLY), not a deep house.
   * Daoist temple / monastery compounds: hall masses + courtyards/paths as needed.
   * Gardens / 江南园林 / 日式庭院: PATH/COURTYARD/ASSEMBLY composition; not only one residential house.
+  * Multi-building / campus / courtyard compounds (NON-BINDING site composition — not a CitySpec template):
+    emit ≥2 independent hosts (MASS_MAIN / MASS_SECONDARY / TOWER / GATE / HALL as needed) with distinct
+    params.building_id, non-overlapping relative_position footprints, and each host's own roof/facade/entrance
+    when openings or roofs are part of the design. Connect hosts with PATH / ROAD / COURTYARD / PLAZA.
+    Prefer PATH/ROAD params.from + params.to (local {x,y,z} in the same frame as relative_position) and optional
+    params.waypoints[{x,y,z}, ...] / params.width over one huge AABB pad. Do not collapse a campus into a single
+    HOUSE mass. Do not invent CitySpec / city presets — only explicit preset:<id> / typology:<id> or
+    outputFormat=buildingspec may use city/composite executors. Unknown or dense sites stay composable operators;
+    if geometry cannot execute, leave a capability gap rather than a disguised template city.
+    Honour negation (不要城市街区 / just two pavilions and a path): keep the requested masses + path only.
 - Always set plan_meta.declared_intent = {building_class, confidence} where building_class is one of
   generic|tower_like|gate|garden|temple. Honour negations (不要/无/no): e.g. 不要重檐 must not select double eaves;
   无门槛 is NOT「无门」.
@@ -109,6 +119,8 @@ LlmPlan JSON shape (provider may also enforce response_format):
   optional facade_relief/window_trim/weathering/lighting_style/lighting_density
 - anchor: {x,y,z} optional when request already has player pos
 - components[]: REQUIRED non-empty for mode=build — {component_type, slot_id?, relative_position, dimensions, features[], params{}}
+  Multi-building sites: distinct params.building_id on independent hosts; PATH/ROAD may use params.from/params.to
+  (local {x,y,z}) + optional waypoints/width instead of a single AABB pad.
 - plan_meta.declared_intent: {building_class: generic|tower_like|gate|garden|temple, confidence: 0..1}
 - patch: {origin?, blocks:[{action,dx,dy,dz,targetBlock}]} for incremental edits
 - features may include strings:

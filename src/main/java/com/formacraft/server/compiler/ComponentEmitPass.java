@@ -105,6 +105,10 @@ final class ComponentEmitPass {
                         : new BlockPos(roofSlotAnchor.x(), roofSlotAnchor.y(), roofSlotAnchor.z())).ifPresent(flatRoofs::add);
                 var surfaceCells = new ArrayList<GeneratedSurfaceCapture.Cell>();
                 try (var surfaceCapture = GeneratedSurfaceCapture.captureTo(surfaceCells::add)) {
+                    var smartPath = LlmPlanPathSmartEmit.tryEmit(semantic, world, globalAnchor, slot.anchor());
+                    if (smartPath.isPresent()) {
+                        patches = smartPath.get();
+                    } else {
                     var routed = GenerationHub.generateComponentResult(semantic, world);
                     if (routed != null && !routed.commitAllowed() && routed.isHardFail()
                             && !isSoftGenerationFailure(c)) {
@@ -228,7 +232,8 @@ final class ComponentEmitPass {
                         }
                     }
                     patches = routed != null && routed.commitAllowed() ? routed.patches() : List.of();
-                }
+                    }
+                    }
                 var missingSurfaces = GeneratedSurfaceCapture.missing(surfaceCells, patches);
                 if (!missingSurfaces.isEmpty()) {
                     var first = missingSurfaces.getFirst();

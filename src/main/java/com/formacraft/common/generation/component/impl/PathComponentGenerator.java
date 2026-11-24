@@ -2,12 +2,11 @@ package com.formacraft.common.generation.component.impl;
 
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
+import com.formacraft.common.generation.component.util.PathStripUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
-import com.formacraft.common.palette.component.Palette;
-import com.formacraft.common.palette.component.PaletteLibrary;
 import com.formacraft.common.semantic.SemanticPart;
 
 import java.util.ArrayList;
@@ -16,16 +15,24 @@ import java.util.List;
 /**
  * PathComponentGenerator（构件层路径生成器）
  *
- * 生成路径/道路（铺装地面）
+ * 生成路径/道路（铺装地面）。有 params.from/to 时走折线条带；否则保留 AABB 垫板。
  */
 public class PathComponentGenerator implements ComponentGenerator {
 
     @Override
     public List<BlockPatch> generate(SemanticComponent semantic) {
-        List<BlockPatch> out = new ArrayList<>();
+        Component c = semantic == null ? null : semantic.source();
+        if (c == null) return List.of();
 
-        Component c = semantic.source();
-        if (c == null || c.dimensions() == null || c.relativePosition() == null) {
+        PathStripUtil.Endpoints endpoints = PathStripUtil.resolveEndpoints(c);
+        if (endpoints != null) {
+            return PathStripUtil.emitStrip(
+                    semantic, endpoints, "minecraft:gravel",
+                    "path_block", "floor_block", "material");
+        }
+
+        List<BlockPatch> out = new ArrayList<>();
+        if (c.dimensions() == null || c.relativePosition() == null) {
             return out;
         }
 
@@ -60,9 +67,5 @@ public class PathComponentGenerator implements ComponentGenerator {
         }
 
         return out;
-    }
-
-    private String getStyleProfile(SemanticComponent semantic) {
-        return "MEDIEVAL_CLASSIC";
     }
 }
