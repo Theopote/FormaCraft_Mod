@@ -27,7 +27,8 @@ class ComponentWindowOrderDecoratorTest {
                 "minecraft:stone_brick_stairs",
                 "minecraft:stone_brick_slab"
         );
-        assertTrue(patches.stream().anyMatch(p -> p.targetBlock().contains("slab") && p.dy() == 1));
+        // CLASSIC sill uses outward stairs (not slab); lintel/pediment remain stairs above the opening.
+        assertTrue(patches.stream().anyMatch(p -> p.targetBlock().contains("stairs") && p.dy() == 1));
         assertTrue(patches.stream().anyMatch(p -> p.targetBlock().contains("stairs") && p.dy() == 5));
         assertTrue(patches.stream().anyMatch(p -> p.targetBlock().contains("stairs") && p.dy() == 6));
     }

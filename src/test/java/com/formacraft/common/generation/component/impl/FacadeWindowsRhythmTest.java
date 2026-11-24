@@ -30,16 +30,23 @@ class FacadeWindowsRhythmTest {
             Slot slot = new Slot("s", new Vec3i(0, 0, 0), facing, null, null, null);
             var blocks = com.formacraft.test.PatchTestSnapshot.blocks(new FacadeWindowsGenerator().generate(
                     new SemanticComponent("FACADE_WINDOWS", slot, component, "DEFAULT")));
-            Vec3i south = new Vec3i(2, 3, 8);
-            Vec3i north = new Vec3i(2, 3, 20);
-            Vec3i east = new Vec3i(-4, 3, 14);
-            Vec3i west = new Vec3i(8, 3, 14);
-            Map<GlobalConstraints.Facing, Vec3i> centers = Map.of(
-                    GlobalConstraints.Facing.SOUTH, south, GlobalConstraints.Facing.NORTH, north,
-                    GlobalConstraints.Facing.EAST, east, GlobalConstraints.Facing.WEST, west);
-            for (var face : centers.entrySet()) {
+            // Outer face centers; RecessedGlazing (thickness≥2) sits one cell inward from each.
+            Vec3i southOuter = new Vec3i(2, 3, 8);
+            Vec3i northOuter = new Vec3i(2, 3, 20);
+            Vec3i eastOuter = new Vec3i(-4, 3, 14);
+            Vec3i westOuter = new Vec3i(8, 3, 14);
+            Map<GlobalConstraints.Facing, Vec3i> recessed = Map.of(
+                    GlobalConstraints.Facing.SOUTH, new Vec3i(2, 3, 9),
+                    GlobalConstraints.Facing.NORTH, new Vec3i(2, 3, 19),
+                    GlobalConstraints.Facing.EAST, new Vec3i(-3, 3, 14),
+                    GlobalConstraints.Facing.WEST, new Vec3i(7, 3, 14));
+            Map<GlobalConstraints.Facing, Vec3i> outers = Map.of(
+                    GlobalConstraints.Facing.SOUTH, southOuter, GlobalConstraints.Facing.NORTH, northOuter,
+                    GlobalConstraints.Facing.EAST, eastOuter, GlobalConstraints.Facing.WEST, westOuter);
+            for (var face : recessed.entrySet()) {
                 if (face.getKey() == facing) {
-                    assertFalse(blocks.containsKey(face.getValue()), "entrance bay must remain clear on " + facing);
+                    assertFalse(blocks.containsKey(outers.get(facing)), "entrance bay must remain clear on " + facing);
+                    assertFalse(blocks.containsKey(face.getValue()), "entrance recess must remain clear on " + facing);
                 } else {
                     assertTrue(blocks.containsKey(face.getValue()), "other facades must retain center windows");
                 }

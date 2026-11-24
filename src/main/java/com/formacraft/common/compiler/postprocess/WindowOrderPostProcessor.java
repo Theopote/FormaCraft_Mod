@@ -42,9 +42,11 @@ public class WindowOrderPostProcessor implements PostProcessor {
         }
         ComponentWindowOrderDecorator.OrderLevel level =
                 ComponentWindowOrderDecorator.resolveLevel(plan, facadeParams, null);
-        // Aesthetic trim defaults on even when legacy window_order is OFF.
+        // Do not coerce OFF → MEDIUM. Auto-trim expands outward cells and breaks local
+        // window-edit locality (ConstraintParity earth-house). Explicit window_order /
+        // typology cues in resolveLevel still enable MEDIUM/FULL.
         if (level == ComponentWindowOrderDecorator.OrderLevel.OFF) {
-            level = ComponentWindowOrderDecorator.OrderLevel.MEDIUM;
+            return patches;
         }
 
         int minX = Integer.MAX_VALUE;

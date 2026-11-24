@@ -3,7 +3,6 @@ package com.formacraft.client.preview;
 import com.formacraft.common.model.build.BuildingSpec;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
-import com.formacraft.client.preview.PreviewModalState;
 
 /**
  * 建筑预览状态中心：

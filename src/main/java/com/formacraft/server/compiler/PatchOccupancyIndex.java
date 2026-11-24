@@ -348,6 +348,23 @@ public final class PatchOccupancyIndex {
         return params != null && Boolean.TRUE.equals(params.get("allow_patch_overwrite"));
     }
 
+    /**
+     * Authored braziers / glow fixtures may occupy a façade window cell (e.g. dwarven hall
+     * shroomlight next to glass) without requiring allow_patch_overwrite on every fixture.
+     */
+    private static boolean isLightFixtureOverOpening(Component writer, PlaceRecord previous, String nextBlock) {
+        if (writer == null || previous == null || nextBlock == null) return false;
+        String prevType = previous.writerType() == null ? "" : previous.writerType().toUpperCase(Locale.ROOT);
+        if (!OPENING_WRITERS.contains(prevType) && !prevType.contains("WINDOW")) return false;
+        String writerType = writer.componentType() == null ? "" : writer.componentType().toUpperCase(Locale.ROOT);
+        if (!Set.of("PRIMITIVE", "DECOR", "DECOR_DETAIL", "LIGHTING").contains(writerType)) return false;
+        String n = nextBlock.toLowerCase(Locale.ROOT);
+        return n.contains("shroomlight") || n.contains("glowstone") || n.contains("sea_lantern")
+                || n.contains("lantern") || n.contains("torch") || n.contains("end_rod")
+                || n.contains("ochre_froglight") || n.contains("pearlescent_froglight")
+                || n.contains("verdant_froglight");
+    }
+
     private static PostProcessWritePolicy policyOf(Component writer) {
         Map<String, Object> params = writer == null ? null : writer.params();
         if (params == null) return PostProcessWritePolicy.PLACE_ONLY;
@@ -424,8 +441,12 @@ public final class PatchOccupancyIndex {
                     removeSet.remove(pos);
                     continue;
                 }
+                // Attached / colliding chimney shafts pierce host mass, roof, and façade openings
+                // on the same cell (terrain case_1: house_chimney vs house_windows at wall attach).
+                String prevType = prev.writerType() == null ? "" : prev.writerType();
                 boolean chimneyFooting = "CHIMNEY".equals(type)
-                        && (Set.of("FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType())
+                        && (Set.of("FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prevType)
+                            || OPENING_WRITERS.contains(prevType)
                             || (prev.owner() != null && prev.owner().params() != null
                                 && bindsToOwner(writer,
                                     prev.owner().params().get("component_id") == null ? null
@@ -433,18 +454,17 @@ public final class PatchOccupancyIndex {
                                     prev.owner().params().get("host_id") == null ? null
                                             : String.valueOf(prev.owner().params().get("host_id")).trim())
                                 && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_ANCILLARY", "TOWER",
-                                        "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType()))
+                                        "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prevType))
                             || (prev.owner() != null
                                 && java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
                                 && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_ANCILLARY", "TOWER",
-                                        "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(
-                                        prev.writerType() == null ? "" : prev.writerType()))
+                                        "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prevType))
                             // Unbound industrial stacks still need to pierce adjacent masses/roofs.
                             || (writer.params() != null
                                 && writer.params().get("host_id") == null
                                 && writer.params().get("hostId") == null
                                 && Set.of("MASS_MAIN", "MAIN_MASS", "MASS_SECONDARY", "MASS_ANCILLARY", "TOWER",
-                                        "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prev.writerType())));
+                                        "FOUNDATION", "ROOF", "ROOF_STRUCTURE").contains(prevType)));
                 boolean gateOnPath = "GATE".equals(type)
                         && prev.writerType() != null
                         && GATE_PATH_SURFACES.contains(prev.writerType());
@@ -466,7 +486,8 @@ public final class PatchOccupancyIndex {
                         && !isBoundUpperMassSeam(writer, prev, pos)
                         && !isHostedDormerRoofJoin(writer, prev, pos, offset)
                         && !isSameSlotCrownPeerJoin(writer, prev, pos)
-                        && !isSoftFoliageOverRail(writer, prev, p.targetBlock()))) {
+                        && !isSoftFoliageOverRail(writer, prev, p.targetBlock())
+                        && !isLightFixtureOverOpening(writer, prev, p.targetBlock()))) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
                             type, p.targetBlock(),
                             approachPathKeepsAgainstSitePlate(prev.writerType(), type)

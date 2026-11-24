@@ -62,14 +62,18 @@ class SurfaceOwnershipLedgerTest {
     }
 
     @Test
-    void sameHostFlatRoofEdgeWindowCarveIsAllowed() {
+    void sameHostFlatRoofEdgeWindowCarveIsDenied() {
+        // Flat-roof cells stay protected from façade window carve so coverage cannot be punched
+        // (cyberpunk/adobe E_FLAT_ROOF_COVERAGE). openingCarvable is ledger metadata only.
         var ledger = acceptFlatRoof5x5();
         var windows = component("FACADE_WINDOWS", "win1", Map.of(
                 "component_id", "win1", "host_id", "b1", "building_id", "b1"));
         BlockPos edge = new BlockPos(0, 6, 2);
-        assertFalse(ledger.isProtectedFromWindows(windows, edge));
+        assertTrue(ledger.isProtectedFromWindows(windows, edge));
         assertTrue(ledger.check(windows, List.of(
-                new BlockPatch(BlockPatch.PLACE, 0, 6, 2, "minecraft:glass"))).isEmpty());
+                new BlockPatch(BlockPatch.PLACE, 0, 6, 2, "minecraft:glass"))).isPresent());
+        assertTrue(ledger.check(windows, List.of(
+                new BlockPatch(BlockPatch.REMOVE, 0, 6, 2, "minecraft:air"))).isPresent());
     }
 
     @Test

@@ -325,6 +325,8 @@ public final class ComponentPlanCompiler {
                 clearance.addAll(flight.clearance());
                 clearance.addAll(flight.occupied());
             }
+            // Internal portals must stay open through lighting / façade relief.
+            clearance.addAll(DeclaredInteriorOpeningCompiler.passageClearance(components, slotMap));
             PostProcessContext context = new PostProcessContext(plan, globalAnchor,
                     plan.anchor() == null ? new Vec3i(0, 0, 0) : plan.anchor(),
                     buildingVolumes, clearance, generatedSurfaces, protectedMaterials, decorationRestrictions);

@@ -249,10 +249,16 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                     String block = getBlockForWindow(semantic, palette, part, isLattice, windowStyle);
 
                     int thickness = Math.max(1, ComponentParamParsers.intParam(params, 1, "wall_thickness", "wallThickness"));
-                    // Full-mass façades must clear the cell behind the glazing so an inner floor
-                    // plate / second shell cannot leave spruce blockage (Style round3).
-                    if (width > 2 && depth > 2) {
+                    // Wood lattice must remain coplanar with the host wall so seal/frame votes
+                    // see white-wall neighbors. Forced depth-2 recess is for solid glazing only
+                    // (inner floor / second-shell spruce blockage, Style round3).
+                    boolean latticeLike = isLattice
+                            || (block != null && (block.contains("fence") || block.contains("iron_bars")));
+                    if (width > 2 && depth > 2 && !latticeLike) {
                         thickness = Math.max(thickness, 2);
+                    }
+                    if (latticeLike) {
+                        thickness = 1;
                     }
                     int inwardX;
                     int inwardZ;
@@ -269,9 +275,10 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
                                     : facing == com.formacraft.common.llm.dto.GlobalConstraints.Facing.NORTH ? -1 : 0;
                         }
                     }
+                    boolean recess = !latticeLike
+                            && com.formacraft.common.generation.component.util.RecessedGlazing.recessEnabled(params);
                     com.formacraft.common.generation.component.util.RecessedGlazing.emit(
-                            out, rp.x() + x, rp.y() + y, rp.z() + z, inwardX, inwardZ, thickness, block,
-                            com.formacraft.common.generation.component.util.RecessedGlazing.recessEnabled(params));
+                            out, rp.x() + x, rp.y() + y, rp.z() + z, inwardX, inwardZ, thickness, block, recess);
                 }
             }
         }

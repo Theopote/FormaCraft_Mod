@@ -59,33 +59,76 @@ final class DeclaredInteriorOpeningCompiler {
     private static void add(List<Component> out,Component host,Component target,String side,int start,int width,int height,
                             ComponentFootprintUtil.Bounds b,Vec3i a,String key) {
         boolean axis=Set.of("EAST","WEST").contains(side);
-        int x=axis?(side.equals("EAST")?b.maxX()-1:b.minX()):start-a.x()-1;
-        int z=axis?start-a.z()-1:(side.equals("SOUTH")?b.maxZ()-1:b.minZ());
+        // Thickness 2 matches validate()/passageCells depth 0..1 (wall cell + one inward cell).
+        // min_corner sits on the inward-most cell so the box covers both the wall plane and the
+        // first interior cell — otherwise FACADE_WINDOWS glass can reseal the passage face.
+        int thick = 2;
+        int x = axis
+                ? (side.equals("EAST") ? b.maxX() - thick : b.minX())
+                : start - a.x() - 1;
+        int z = axis
+                ? start - a.z() - 1
+                : (side.equals("SOUTH") ? b.maxZ() - thick : b.minZ());
         var p=new HashMap<String,Object>();
         p.put("component_id","internal_portal:"+key+":"+side);p.put("host_id",id(host));p.put("building_id",id(host));
         p.put("target_host_id",id(target));p.put("anchor_mode","min_corner");p.put("facing",side);
         p.put("door_width",width);p.put("door_height",height);p.put("door_block","minecraft:air");
         p.put("entrance_type","doorway");p.put("clear_passage",true);p.put("compiler_internal_portal",true);
         out.add(new Component("ENTRANCE",host.slotId(),new Vec3i(x,b.minY()+1,z),
-                new Dimensions(axis?1:width+2,axis?width+2:1,height),List.of(),p));
+                new Dimensions(axis ? thick : width + 2, axis ? width + 2 : thick, height),List.of(),p));
     }
+    /** Passage air cells that postprocess (lighting / relief) must not refill. */
+    static Set<BlockPos> passageClearance(List<Component> parts, Map<String, Slot> slots) {
+        Set<BlockPos> out = new HashSet<>();
+        if (parts == null) return out;
+        for (var c : parts) {
+            if (c == null || c.params() == null
+                    || !Boolean.TRUE.equals(c.params().get("compiler_internal_portal"))) continue;
+            out.addAll(passageCells(c, slots));
+        }
+        return out;
+    }
+
+    static List<BlockPos> passageCells(Component c, Map<String, Slot> slots) {
+        List<BlockPos> cells = new ArrayList<>();
+        if (c == null || c.params() == null || c.relativePosition() == null) return cells;
+        var a = CourtyardAnchorCompiler.anchor(slots, c.slotId());
+        var r = c.relativePosition();
+        boolean axis = Set.of("EAST", "WEST").contains(String.valueOf(c.params().get("facing")));
+        Object widthRaw = c.params().get("door_width");
+        int width = widthRaw instanceof Number n ? n.intValue() : 2;
+        String side = String.valueOf(c.params().get("facing"));
+        int inward = Set.of("EAST", "SOUTH").contains(side) ? -1 : 1;
+        int height = c.dimensions() != null ? Math.max(2, c.dimensions().height()) : 2;
+        for (int u = 1; u <= width; u++) {
+            for (int y = 0; y < height; y++) {
+                for (int depth = 0; depth <= 1; depth++) {
+                    cells.add(new BlockPos(
+                            a.x() + r.x() + (axis ? inward * depth : u),
+                            a.y() + r.y() + y,
+                            a.z() + r.z() + (axis ? u : inward * depth)));
+                }
+            }
+        }
+        return cells;
+    }
+
     static boolean validate(List<Component> parts,List<BlockPatch> patches,Map<String,Slot> slots) {
         var cells=new HashMap<BlockPos,net.minecraft.block.BlockState>();
         for(var p:patches) cells.put(new BlockPos(p.dx(),p.dy(),p.dz()),BlockPatchTargetResolver.resolve(p));
         for(var c:parts) {
             if(c.params()==null || !Boolean.TRUE.equals(c.params().get("compiler_internal_portal"))) continue;
-            var a=CourtyardAnchorCompiler.anchor(slots,c.slotId());var r=c.relativePosition();
-            boolean axis=Set.of("EAST","WEST").contains(String.valueOf(c.params().get("facing")));
-            int width=((Number)c.params().get("door_width")).intValue();
-            String side=String.valueOf(c.params().get("facing"));
-            int inward=Set.of("EAST","SOUTH").contains(side)?-1:1;
-            for(int u=1;u<=width;u++) for(int y=0;y<2;y++) for(int depth=0;depth<=1;depth++) {
-                var pos=new BlockPos(a.x()+r.x()+(axis?inward*depth:u),a.y()+r.y()+y,
-                        a.z()+r.z()+(axis?u:inward*depth));
-                var state=cells.get(pos);
-                if(state!=null && !state.isAir()) {fail("内部通道被后续构件封堵："+id(c)+" "+pos);return false;}
-                var floor=cells.get(pos.down(y+1));
-                if(floor==null || floor.isAir()) {fail("内部通道缺少连续地板："+id(c));return false;}
+            for (var pos : passageCells(c, slots)) {
+                // Validate the same lower band as before (y offset 0..1 relative to portal origin).
+                int localY = pos.getY() - (CourtyardAnchorCompiler.anchor(slots, c.slotId()).y() + c.relativePosition().y());
+                if (localY < 0 || localY > 1) continue;
+                var state = cells.get(pos);
+                if (state != null && !state.isAir()) {
+                    fail("内部通道被后续构件封堵：" + id(c) + " " + pos + " block=" + state);
+                    return false;
+                }
+                var floor = cells.get(pos.down(localY + 1));
+                if (floor == null || floor.isAir()) {fail("内部通道缺少连续地板："+id(c));return false;}
             }
         }
         return true;

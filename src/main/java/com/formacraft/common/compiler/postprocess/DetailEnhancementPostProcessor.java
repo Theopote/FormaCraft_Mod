@@ -40,6 +40,13 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
         if (hints.facadeRelief() == AestheticPassHints.FacadeRelief.FLAT) {
             return patches;
         }
+        // Underground / terrain-preserve halls must not grow +1 exterior pilasters outside the
+        // authored envelope (ConstraintParity dwarven excavation bounds).
+        if (context.plan() != null && context.plan().globalConstraints() != null
+                && context.plan().globalConstraints().terrainStrategy()
+                == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.PRESERVE) {
+            return patches;
+        }
 
         Map<Long, BlockPatch> solid = foldSolid(patches);
         if (solid.isEmpty()) return patches;
@@ -64,12 +71,9 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
         List<BlockPatch> enhancements = new ArrayList<>();
         List<PostProcessContext.BuildingVolume> volumes = context.buildingVolumes();
         if (volumes == null || volumes.isEmpty()) {
-            // Fallback: single AABB from solids
-            int[] aabb = aabbOf(solid);
-            volumes = List.of(new PostProcessContext.BuildingVolume(
-                    "global",
-                    new ComponentFootprintUtil.Bounds(aabb[0], aabb[1], aabb[2], aabb[3] + 1, aabb[4] + 1, aabb[5] + 1),
-                    Math.max(3, (aabb[4] - aabb[1] + 1) / 2)));
+            // No compiler volume metadata → do not invent a global AABB ring
+            // (StyleFeedbackRegressionTest: implicit decoration must not expand the footprint).
+            return patches;
         }
 
         boolean deep = hints.facadeRelief() == AestheticPassHints.FacadeRelief.DEEP;
@@ -262,12 +266,12 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
         for (Direction d : Direction.values()) {
             if (clearance.contains(pos.offset(d))) return 0;
         }
-        // Courtyard / skywell: authored paving + open column, detached from walls.
-        // Façade pilasters/cornice sit next to a wall (authored neighbor) and must proceed.
+        // Courtyard / skywell: authored paving + open air above. Wing-adjacent courtyard
+        // cells still have a wall neighbor — do NOT exempt them, or pilaster shafts fill the yard.
+        // True exterior façades rarely have authored ground pad at the outward cell.
         if (y > volumeMinY
                 && hasGroundPad(authoredSolid, x, z, volumeMinY)
-                && openColumn(authoredSolid, x, z, y, volumeMaxY)
-                && !hasHorizontalNeighbor(authoredSolid, x, y, z)) {
+                && openColumn(authoredSolid, x, z, y, volumeMaxY)) {
             return 0;
         }
         out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));

@@ -9,6 +9,11 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ExteriorIntegrityGuardTest {
+    @org.junit.jupiter.api.BeforeAll
+    static void bootstrap() {
+        com.formacraft.test.MinecraftRegistryTestBootstrap.initialize();
+    }
+
     @Test void capturedCurvedWallAndOverhangAreProtectedOutsideBoundingFaces() {
         var curved = block(1, 3, 2, "minecraft:stone_bricks");
         var overhang = block(-2, 7, 2, "minecraft:stone_bricks");

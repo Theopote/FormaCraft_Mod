@@ -33,7 +33,8 @@ public final class WindowSealCompiler {
                     || !woodOnly && (s.getBlock() instanceof PaneBlock
                     || s.isOf(Blocks.GLASS) || s.getBlock() instanceof StainedGlassBlock))) remaining.add(p);
         });
-        List<BlockPatch> result = new ArrayList<>();
+        // Courtyard lattices often connect around corners into a non-planar blob; seal planar faces.
+        List<Set<BlockPos>> candidates = new ArrayList<>();
         while (!remaining.isEmpty()) {
             BlockPos start = remaining.iterator().next();
             remaining.remove(start);
@@ -44,6 +45,12 @@ public final class WindowSealCompiler {
                 for (BlockPos n : List.of(p.up(),p.down(),p.east(),p.west(),p.north(),p.south()))
                     if (remaining.remove(n)) {group.add(n);queue.add(n);}
             }
+            candidates.addAll(planarFaces(group));
+        }
+        Set<BlockPos> sealed = new HashSet<>();
+        List<BlockPatch> result = new ArrayList<>();
+        for (Set<BlockPos> group : candidates) {
+            if (group.isEmpty()) continue;
             int x0=group.stream().mapToInt(BlockPos::getX).min().orElseThrow(), x1=group.stream().mapToInt(BlockPos::getX).max().orElseThrow();
             int y0=group.stream().mapToInt(BlockPos::getY).min().orElseThrow(), y1=group.stream().mapToInt(BlockPos::getY).max().orElseThrow();
             int z0=group.stream().mapToInt(BlockPos::getZ).min().orElseThrow(), z1=group.stream().mapToInt(BlockPos::getZ).max().orElseThrow();
@@ -82,10 +89,39 @@ public final class WindowSealCompiler {
             var sorted=votes.entrySet().stream().sorted(Map.Entry.<BlockState,Integer>comparingByValue().reversed()).toList();
             if(sorted.getFirst().getValue()<4 || sorted.size()>1 && sorted.get(1).getValue().equals(sorted.getFirst().getValue())) continue;
             String material=BlockStateStringUtil.fromState(sorted.getFirst().getKey());
-            for(BlockPos p:group) result.add(new BlockPatch(BlockPatch.REPLACE,p.getX()-origin.getX(),p.getY()-origin.getY(),p.getZ()-origin.getZ(),material));
+            for(BlockPos p:group) {
+                if (!sealed.add(p)) continue;
+                result.add(new BlockPatch(BlockPatch.REPLACE,p.getX()-origin.getX(),p.getY()-origin.getY(),p.getZ()-origin.getZ(),material));
+            }
         }
         result.sort(Comparator.comparingInt(BlockPatch::dx).thenComparingInt(BlockPatch::dy).thenComparingInt(BlockPatch::dz));
         return List.copyOf(result);
+    }
+
+    /**
+     * Split a 6-connected lattice blob into axis-aligned planar faces.
+     * Corner-connected courtyard bands otherwise fail the planar-wall gate.
+     */
+    static List<Set<BlockPos>> planarFaces(Set<BlockPos> group) {
+        if (group == null || group.isEmpty()) return List.of();
+        int x0=group.stream().mapToInt(BlockPos::getX).min().orElseThrow(), x1=group.stream().mapToInt(BlockPos::getX).max().orElseThrow();
+        int z0=group.stream().mapToInt(BlockPos::getZ).min().orElseThrow(), z1=group.stream().mapToInt(BlockPos::getZ).max().orElseThrow();
+        if (x0 == x1 || z0 == z1) return List.of(Set.copyOf(group));
+        List<Set<BlockPos>> faces = new ArrayList<>();
+        Map<Integer, Set<BlockPos>> byX = new HashMap<>();
+        Map<Integer, Set<BlockPos>> byZ = new HashMap<>();
+        for (BlockPos p : group) {
+            byX.computeIfAbsent(p.getX(), k -> new HashSet<>()).add(p);
+            byZ.computeIfAbsent(p.getZ(), k -> new HashSet<>()).add(p);
+        }
+        // Prefer the longer run on each axis so corner posts attach to the dominant facade.
+        for (Set<BlockPos> face : byZ.values()) {
+            if (face.size() >= 4) faces.add(Set.copyOf(face));
+        }
+        for (Set<BlockPos> face : byX.values()) {
+            if (face.size() >= 4) faces.add(Set.copyOf(face));
+        }
+        return faces.isEmpty() ? List.of(Set.copyOf(group)) : faces;
     }
 
     private static boolean whiteWall(BlockState s) {

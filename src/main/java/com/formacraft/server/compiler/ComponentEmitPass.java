@@ -389,6 +389,18 @@ final class ComponentEmitPass {
                                             GeneratedSurfaceCapture.Role.DOOR_OPENING));
                                     portalClearance.add(worldPos);
                                     surfaceLedger.reserveClearance(worldPos);
+                                    // Wall-face floor under headroom carves is the walkable sill
+                                    // (carveDepth leaves plateY solid). Reserve it so wrap-façade
+                                    // recess cannot REMOVE it and open a hole between deck and interior.
+                                    int sillY = c.relativePosition().y() + flightOffset.getY();
+                                    BlockPos sillKeep = new BlockPos(worldPos.getX(), sillY, worldPos.getZ());
+                                    surfaceLedger.reserveClearance(sillKeep);
+                                    var sillExpected = openingExpectations.get(sillKeep);
+                                    if (sillExpected != null
+                                            && sillExpected.role() == GeneratedSurfaceCapture.Role.WINDOW) {
+                                        openingExpectations.remove(sillKeep);
+                                        generatedSurfaces.remove(sillKeep);
+                                    }
                                 }
                             };
                             hostMass.ifPresent(m -> addPortals.accept(
@@ -569,6 +581,21 @@ final class ComponentEmitPass {
                                 openingExpectations.remove(pos);
                                 generatedSurfaces.remove(pos);
                             }
+                        }
+                    }
+                    // Wrap/host-aligned FACADE_WINDOWS may recess over mass-intrinsic glass: outer
+                    // niche is intentional air; drop the mass WINDOW expectation so audit follows
+                    // the façade's recessed glazing capture instead (oct18_retry_5).
+                    if ("FACADE_WINDOWS".equals(normalizedType)) {
+                        for (var patch : shiftedPatches) {
+                            if (patch == null || !BlockPatch.REMOVE.equals(patch.action())) continue;
+                            var pos = new BlockPos(patch.dx(), patch.dy(), patch.dz());
+                            var expected = openingExpectations.get(pos);
+                            if (expected == null || expected.role() != GeneratedSurfaceCapture.Role.WINDOW) {
+                                continue;
+                            }
+                            openingExpectations.remove(pos);
+                            generatedSurfaces.remove(pos);
                         }
                     }
                     OpeningMaterialAudit.capture(openingExpectations, c, surfaceCells, flightOffset);

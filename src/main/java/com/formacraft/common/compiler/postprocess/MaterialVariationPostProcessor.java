@@ -58,8 +58,11 @@ public class MaterialVariationPostProcessor implements PostProcessor {
         List<BlockPatch> result = new ArrayList<>(patches.size());
         for (BlockPatch patch : patches) {
             if (patch == null) continue;
-            if (context != null && context.protectedMaterials().contains(
-                    new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz()))) {
+            var pos = new net.minecraft.util.math.BlockPos(patch.dx(), patch.dy(), patch.dz());
+            // Skip user-locked materials and circulation clearance — WriteScope denies PLACE
+            // on clearance, and weathering an existing seed there yields E_POSTPROCESS_PATCH_CONFLICT.
+            if (context != null && (context.protectedMaterials().contains(pos)
+                    || context.protectedClearance().contains(pos))) {
                 result.add(patch);
                 continue;
             }

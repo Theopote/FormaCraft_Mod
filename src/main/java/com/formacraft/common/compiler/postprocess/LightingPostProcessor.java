@@ -35,6 +35,13 @@ public class LightingPostProcessor implements PostProcessor {
         if (hints.lightingStyle() == AestheticPassHints.LightingStyle.NONE) {
             return patches;
         }
+        // Terrain-preserve / underground halls: do not emit exterior wall torches outside
+        // the authored excavation envelope.
+        if (context.plan() != null && context.plan().globalConstraints() != null
+                && context.plan().globalConstraints().terrainStrategy()
+                == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.PRESERVE) {
+            return patches;
+        }
 
         Map<Long, String> solid = new HashMap<>();
         Set<Long> air = new HashSet<>();
@@ -162,6 +169,7 @@ public class LightingPostProcessor implements PostProcessor {
      */
     private static void placeSupportedLight(List<BlockPatch> out, Map<Long, String> solid, Set<BlockPos> clearance,
                                             int x, int y, int z, String hanging, String standing, Direction outDir) {
+        if (looksLikeOpenYardColumn(solid, x, y, z)) return;
         if (solid.containsKey(pack(x, y - 1, z))) {
             placeIfAir(out, solid, clearance, x, y, z, standing);
             return;
@@ -180,10 +188,31 @@ public class LightingPostProcessor implements PostProcessor {
         if (block == null || block.isBlank() || out.size() >= MAX_LIGHTS) return;
         BlockPos pos = new BlockPos(x, y, z);
         if (clearance.contains(pos)) return;
+        if (looksLikeOpenYardColumn(solid, x, y, z)) return;
         long key = pack(x, y, z);
         if (solid.containsKey(key)) return;
         out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));
         solid.put(key, block);
+    }
+
+    /**
+     * Skywell / courtyard: authored paving under an open air column. Wing-facing eaves must
+     * not hang wall torches into that void (ConstraintParity huizhou open-sky assertion).
+     */
+    private static boolean looksLikeOpenYardColumn(Map<Long, String> solid, int x, int y, int z) {
+        int padY = Integer.MIN_VALUE;
+        for (int gy = Math.min(y, 4); gy >= -8; gy--) {
+            if (solid.containsKey(pack(x, gy, z))) {
+                padY = gy;
+                break;
+            }
+        }
+        if (padY == Integer.MIN_VALUE) return false;
+        int openTo = Math.max(y + 6, padY + 8);
+        for (int iy = padY + 1; iy <= openTo; iy++) {
+            if (solid.containsKey(pack(x, iy, z))) return false;
+        }
+        return true;
     }
 
     private static Direction guessDoorOutward(DoorHint door, Map<Long, String> solid) {

@@ -618,7 +618,7 @@ public final class WindowEditScopeResolver {
                 remaining.add(p);
             }
         });
-        List<Set<BlockPos>> accepted = new ArrayList<>();
+        List<Set<BlockPos>> blobs = new ArrayList<>();
         while (!remaining.isEmpty()) {
             BlockPos start = remaining.iterator().next();
             remaining.remove(start);
@@ -635,6 +635,12 @@ public final class WindowEditScopeResolver {
                     }
                 }
             }
+            blobs.addAll(WindowSealCompiler.planarFaces(group));
+        }
+        List<Set<BlockPos>> accepted = new ArrayList<>();
+        Set<BlockPos> claimed = new HashSet<>();
+        for (Set<BlockPos> group : blobs) {
+            if (group.isEmpty()) continue;
             int x0 = group.stream().mapToInt(BlockPos::getX).min().orElseThrow();
             int x1 = group.stream().mapToInt(BlockPos::getX).max().orElseThrow();
             int y0 = group.stream().mapToInt(BlockPos::getY).min().orElseThrow();
@@ -689,7 +695,11 @@ public final class WindowEditScopeResolver {
                     .toList();
             if (sorted.getFirst().getValue() < 4) continue;
             if (sorted.size() > 1 && sorted.get(1).getValue().equals(sorted.getFirst().getValue())) continue;
-            accepted.add(Set.copyOf(group));
+            Set<BlockPos> unique = new HashSet<>();
+            for (BlockPos p : group) {
+                if (claimed.add(p)) unique.add(p);
+            }
+            if (!unique.isEmpty()) accepted.add(Set.copyOf(unique));
         }
         return accepted;
     }

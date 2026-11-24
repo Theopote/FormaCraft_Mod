@@ -65,7 +65,8 @@ class ExplicitWindowSizeFeedbackTest {
         var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
         var patches=new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,aligned,"Hui_Style"));
         var cells=glass(patches); assertRectangles(cells);
-        assertTrue(cells.stream().allMatch(p->p.getX()==14));
+        // wall_thickness≥2 recesses glazing one cell inward from the west face (x=14 → x=13).
+        assertTrue(cells.stream().allMatch(p->p.getX()==13));
         assertTrue(cells.stream().anyMatch(p->p.getZ()<5));
         assertTrue(cells.stream().anyMatch(p->p.getZ()>7));
         assertEquals(Set.of(1,2,6,7),cells.stream().map(BlockPos::getY).collect(java.util.stream.Collectors.toSet()));
@@ -74,10 +75,11 @@ class ExplicitWindowSizeFeedbackTest {
         var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
         var patches=new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,facade("left_right"),"Hui_Style"));
         var cells=glass(patches); assertRectangles(cells);
-        assertEquals(Set.of(0,12),cells.stream().map(BlockPos::getZ).collect(java.util.stream.Collectors.toSet()));
+        // RecessedGlazing: niche at outer z∈{0,12}, glass one cell inward at z∈{1,11}.
+        assertEquals(Set.of(1,11),cells.stream().map(BlockPos::getZ).collect(java.util.stream.Collectors.toSet()));
         for(var p:cells) {
-            int inside=p.getZ()==0?1:11;
-            assertTrue(patches.stream().anyMatch(q->BlockPatch.REMOVE.equals(q.action()) && q.dx()==p.getX() && q.dy()==p.getY() && q.dz()==inside));
+            int outer=p.getZ()==1?0:12;
+            assertTrue(patches.stream().anyMatch(q->BlockPatch.REMOVE.equals(q.action()) && q.dx()==p.getX() && q.dy()==p.getY() && q.dz()==outer));
         }
     }
     @Test void dimensionsRemainExactOnBothEntranceAxes() {
@@ -103,7 +105,7 @@ class ExplicitWindowSizeFeedbackTest {
         var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
         var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
         assertRectangles(cells);
-        for(int z:List.of(0,12)) for(int floor:List.of(1,6))
+        for(int z:List.of(1,11)) for(int floor:List.of(1,6))
             assertEquals(6,cells.stream().filter(p->p.getZ()==z && p.getY()==floor).count());
     }
     @Test void entranceSideCountsProduceTwoWindowsOnEachSideWhenSpaceAllows() {
@@ -154,7 +156,7 @@ class ExplicitWindowSizeFeedbackTest {
         var slot=new Slot("house",new Vec3i(0,0,0),GlobalConstraints.Facing.WEST,null,null,null);
         var cells=glass(new FacadeWindowsGenerator().generate(new SemanticComponent("FACADE_WINDOWS",slot,c,"Hui_Style")));
         assertRectangles(cells);
-        for(int z:List.of(0,12)) {
+        for(int z:List.of(1,11)) {
             assertEquals(6,cells.stream().filter(p->p.getZ()==z && p.getY()==1).count());
             assertEquals(2,cells.stream().filter(p->p.getZ()==z && p.getY()==6).count());
         }

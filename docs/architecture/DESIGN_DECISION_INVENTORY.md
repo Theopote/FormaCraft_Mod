@@ -136,6 +136,16 @@ Stained window styles use registered stained glazing from the plan palette when 
 
 Wood lattice window execution resolves a selected plank material to its registered fence family (GEOMETRY). Explicit fence IDs keep precedence and existing descriptive wood/default handling remains available.
 
+Wood-lattice / fence / iron-bars façades stay coplanar (`thickness=1`, recess off) so seal and frame votes see host-wall neighbors (GEOMETRY). Forced depth-2 recessed glazing applies only to solid pane styles clearing an inner floor or second shell.
+
+`WindowSealCompiler` / `WindowEditScopeResolver` seal against planar face groups, not only AABB hull faces (GEOMETRY). Recessed niches therefore still find a sealable inward lattice face.
+
+`SurfaceOwnershipLedger` treats every captured ROOF cell as window-protected (GEOMETRY). Flat and pitched roofs both refuse façade punches that would open coverage holes.
+
+Wrap/host-aligned `FACADE_WINDOWS` REMOVE niches clear stale mass WINDOW expectations at those cells so `OpeningMaterialAudit` follows the recessed façade capture (GEOMETRY). Portal headroom carves also `reserveClearance` the wall-face walkable sill at plate Y so wrap-façade recess cannot open a deck-to-interior bridge hole (GEOMETRY).
+
+`MaterialVariationPostProcessor` skips `protectedClearance` cells (GEOMETRY). Authored light fixtures (`PRIMITIVE` / `DECOR` / `LIGHTING` glow blocks) may occupy a façade opening cell without `allow_patch_overwrite` (GEOMETRY). Authored `CHIMNEY` shafts may overwrite colliding opening writers on the same cell the way they already pierce mass/roof/foundation (GEOMETRY).
+
 User-locked glazing takes precedence over the lattice material at the window surface (HARD_CONSTRAINT). Generation and the opening material audit share the same lattice resolution rule.
 
 Explicit wood-lattice fence states are preserved at emission (FORMAT_REPAIR). The opening material audit compares block identity independently of connection and waterlogged state.

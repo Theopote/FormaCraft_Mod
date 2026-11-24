@@ -35,11 +35,11 @@ final class SurfaceOwnershipLedger {
         Surface surface = surfaces.get(position);
         if (surface == null) return false;
         String host = buildingOwner(writer);
-        // Flat roofs attach at host maxY-1; same-host facade windows may carve that edge.
-        // Pitched roofs stay protected so slope audits are not punctured.
-        return surface.role() == GeneratedSurfaceCapture.Role.ROOF
-                && !(host.equals(surface.owner()) && surface.openingCarvable())
-                || surface.role() == GeneratedSurfaceCapture.Role.WALL && !host.equals(surface.owner())
+        // Flat roof cores must remain occupied for FlatRoofCoverageValidator. Same-host
+        // façade windows previously carved openingCarvable roof edges and punched the deck
+        // (cyberpunk/adobe E_FLAT_ROOF_COVERAGE). Pitched roofs stay protected as before.
+        if (surface.role() == GeneratedSurfaceCapture.Role.ROOF) return true;
+        return surface.role() == GeneratedSurfaceCapture.Role.WALL && !host.equals(surface.owner())
                 || surface.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING
                 // Foreign-host glazing (mass-intrinsic or facade) must be clipped, not hard-failed.
                 || surface.role() == GeneratedSurfaceCapture.Role.WINDOW
@@ -217,8 +217,8 @@ final class SurfaceOwnershipLedger {
                 yield null;
             }
             case CARVE_OPENING -> {
-                if (role == GeneratedSurfaceCapture.Role.ROOF
-                        && !(sameHost && surface.openingCarvable()))
+                // Roof plane is never carvable by openings — deck coverage is a hard geometry gate.
+                if (role == GeneratedSurfaceCapture.Role.ROOF)
                     yield "opening cannot carve roof";
                 if (host != null && !sameHost && role == GeneratedSurfaceCapture.Role.WALL)
                     yield "opening host_id does not own surface";
@@ -227,7 +227,7 @@ final class SurfaceOwnershipLedger {
                         && !(sameHost && role == GeneratedSurfaceCapture.Role.WINDOW
                         && (host.equals(surface.source()) || "ENTRANCE".equalsIgnoreCase(type))))
                     yield "opening cannot overwrite another's " + role;
-                // WALL / same-host WINDOW / flat-roof edge carve by ENTRANCE / FACADE_WINDOWS / FACADE
+                // WALL / same-host WINDOW carve by ENTRANCE / FACADE_WINDOWS / FACADE
                 yield null;
             }
         };

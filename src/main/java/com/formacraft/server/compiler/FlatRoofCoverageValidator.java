@@ -174,11 +174,28 @@ final class FlatRoofCoverageValidator {
         }
         for (var roof : roofs) {
             int count = 0; BlockPos first = null;
+            BlockPatch firstPatch = null;
             for (var pos : roof.core()) if (!stairClearance.contains(pos)
                     && !GeneratedSurfaceCapture.occupied(finalPatches.get(pos))) {
-                count++; if (first == null) first = pos;
+                count++;
+                if (first == null) {
+                    first = pos;
+                    firstPatch = finalPatches.get(pos);
+                }
             }
-            if (count > 0) return Optional.of(new Missing(roof.source(), first, count, List.of(roof.source())));
+            if (count > 0) {
+                var missingPos = new ArrayList<BlockPos>();
+                for (var pos : roof.core()) {
+                    if (!stairClearance.contains(pos)
+                            && !GeneratedSurfaceCapture.occupied(finalPatches.get(pos))) {
+                        missingPos.add(pos);
+                    }
+                }
+                FormacraftMod.LOGGER.warn(
+                        "[FlatRoofCoverage] source={} missing={} first={} presentPatch={} cells={}",
+                        roof.source(), count, first, firstPatch, missingPos);
+                return Optional.of(new Missing(roof.source(), first, count, List.of(roof.source())));
+            }
         }
         return Optional.empty();
     }
