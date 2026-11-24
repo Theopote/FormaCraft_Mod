@@ -271,6 +271,48 @@ public final class MetaAssemblyEngine {
         }
     };
 
+    private static final AssemblyArchitecturalOps.Adapter ARCHITECTURAL_OPS_ADAPTER = new AssemblyArchitecturalOps.Adapter() {
+        @Override
+        public void put(List<PlannedBlock> out, Context ctx, BlockPos origin, int x, int y, int z, BlockState state) {
+            MetaAssemblyEngine.put(out, ctx, origin, x, y, z, state);
+        }
+
+        @Override
+        public BlockState pick(Context ctx, Map<?, ?> op, String overrideKey, String semanticKey, long salt, BlockState fallback) {
+            return MetaAssemblyEngine.pick(ctx, op, overrideKey, semanticKey, salt, fallback);
+        }
+
+        @Override
+        public int i(Object v, int def) {
+            return MetaAssemblyEngine.i(v, def);
+        }
+
+        @Override
+        public double d(Object v, double def) {
+            return MetaAssemblyEngine.d(v, def);
+        }
+
+        @Override
+        public boolean bool(Object v, boolean def) {
+            return MetaAssemblyEngine.bool(v, def);
+        }
+
+        @Override
+        public String str(Object v, String def) {
+            return MetaAssemblyEngine.str(v, def);
+        }
+
+        @Override
+        public int clamp(int v, int min, int max) {
+            return MetaAssemblyEngine.clamp(v, min, max);
+        }
+
+        @Override
+        public double clamp(double v, double min, double max) {
+            return Math.max(min, Math.min(v, max));
+        }
+    };
+
     private static final AssemblyStructuralOps.Adapter STRUCTURAL_OPS_ADAPTER = new AssemblyStructuralOps.Adapter() {
         @Override
         public void placePrism(List<PlannedBlock> out, Context ctx, BlockPos origin, int cx, int cy, int cz, int thickness, int h, BlockState state) {
@@ -316,7 +358,8 @@ public final class MetaAssemblyEngine {
         var supported = java.util.Set.of("PUSH_ORIGIN", "POP_ORIGIN", "CYLINDER", "STAIR_SYSTEM", "CLEAR_BOX",
                 "SHELL_BOX", "ROOF_COVER", "SURFACE_PATTERN", "OPENINGS", "ARCH_RIB", "BUTTRESS", "TRUSS_2D",
                 "FRAME_GRID_3D", "LOFT_SURFACE", "REVOLVE_SURFACE", "BEZIER_SURFACE",
-                "SPLINE_SWEEP", "TENSION_CABLE");
+                "SPLINE_SWEEP", "TENSION_CABLE",
+                "ARCADE_SERIES", "BUTTRESS_ARRAY", "DRUM_DOME", "LOUVER_SKIN", "CANTILEVER_TIER");
         for (var op : spec.ops) if (!supported.contains(str(op.get("op"), "").toUpperCase(java.util.Locale.ROOT)))
             throw new IllegalArgumentException("World-dependent or unsupported geometry operation: " + op.get("op"));
         return executeOperations(spec, ctx);
@@ -681,6 +724,16 @@ public final class MetaAssemblyEngine {
             case "BUTTRESS" -> AssemblyStructuralOps.applyButtress(out, ctx, curOrigin, op, STRUCTURAL_OPS_ADAPTER);
             case "TENSION_CABLE" -> AssemblyStructuralOps.applyTensionCable(out, ctx, curOrigin, op, STRUCTURAL_OPS_ADAPTER);
             case "FRAME_GRID_3D" -> AssemblyStructuralOps.applyFrameGrid3D(out, ctx, curOrigin, op, STRUCTURAL_OPS_ADAPTER);
+            case "ARCADE_SERIES", "COLONNADE", "ARCH_ROW" ->
+                    AssemblyArchitecturalOps.applyArcadeSeries(out, ctx, curOrigin, op, ARCHITECTURAL_OPS_ADAPTER);
+            case "BUTTRESS_ARRAY", "FLYING_BUTTRESS_ARRAY", "WALL_BUTTRESSES" ->
+                    AssemblyArchitecturalOps.applyButtressArray(out, ctx, curOrigin, op, ARCHITECTURAL_OPS_ADAPTER);
+            case "DRUM_DOME", "RIBBED_DOME", "CUPOLA_DOME" ->
+                    AssemblyArchitecturalOps.applyDrumDome(out, ctx, curOrigin, op, ARCHITECTURAL_OPS_ADAPTER);
+            case "LOUVER_SKIN", "PARAMETRIC_SCREEN", "BRISE_SOLEIL", "DIAGRID_SKIN" ->
+                    AssemblyArchitecturalOps.applyLouverSkin(out, ctx, curOrigin, op, ARCHITECTURAL_OPS_ADAPTER);
+            case "CANTILEVER_TIER", "CANTILEVER_SLAB", "OVERHANG_DECK" ->
+                    AssemblyArchitecturalOps.applyCantileverTier(out, ctx, curOrigin, op, ARCHITECTURAL_OPS_ADAPTER);
             case "STAIR_SYSTEM" -> AssemblyCirculationOps.applyStairSystem(out, ctx, curOrigin, op, CIRCULATION_OPS_ADAPTER);
             case "BEZIER_SURFACE" -> AssemblySurfaceOps.applyBezierSurface(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);
             case "BEZIER_SURFACE_SET" -> AssemblySurfaceOps.applyBezierSurfaceSet(out, ctx, curOrigin, op, SURFACE_OPS_ADAPTER);

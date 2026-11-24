@@ -41,6 +41,25 @@ class PatchOccupancyRound20Test {
     }
 
     @Test
+    void approachPathKeepsCellsAgainstSameMaterialGardenPlate() {
+        PatchOccupancyIndex idx = new PatchOccupancyIndex();
+        Component path = component("PATH");
+        Component garden = component("COURTYARD_SPACE");
+        idx.commit(path, List.of(new BlockPatch(BlockPatch.PLACE, 18, 0, -1, "minecraft:cobblestone")));
+        var conflict = idx.validate(garden, List.of(
+                new BlockPatch(BlockPatch.PLACE, 18, 0, -1, "minecraft:cobblestone")));
+        assertTrue(conflict.isPresent());
+        assertEquals("approach_path_keeps_site_plate", conflict.get().reason());
+        assertEquals("PATH", idx.placeAt(new BlockPos(18, 0, -1)).writerType());
+        var removable = new java.util.ArrayList<>(List.of(
+                new BlockPatch(BlockPatch.PLACE, 18, 0, -1, "minecraft:cobblestone"),
+                new BlockPatch(BlockPatch.PLACE, 19, 0, -1, "minecraft:cobblestone")));
+        assertEquals(1, idx.trimIncompatibleAttachment(garden, removable, java.util.Set.of()));
+        assertEquals(1, removable.size());
+        assertEquals(19, removable.getFirst().dx());
+    }
+
+    @Test
     void unauthorizedRemoveFailsAuthorizedDoorSucceeds() {
         PatchOccupancyIndex idx = new PatchOccupancyIndex();
         Component mass = component("MASS_MAIN");

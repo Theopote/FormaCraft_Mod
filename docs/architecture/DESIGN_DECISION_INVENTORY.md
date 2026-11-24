@@ -26,6 +26,8 @@ Building research, classification, vision and search HTTP calls inherit the encl
 
 When vision identifies `building_name`, research refreshes and truncates queries to `_building_research_max_queries()` and may set `should_search=True` if `research_mode() != "off"` (NONBINDING_HINT). This does not invent a typology or style; it only enables open-world lookup for the vision-reported name (including `named_only` / image+minimal text paths that previously skipped search).
 
+`PatchOccupancyIndex` keeps authored PATH/ROAD ground cells against later COURTYARD/COURTYARD_SPACE/PLAZA/PAVING writers even when gravity remap makes materials identical (GEOMETRY). Same-material ownership steal must not let a garden plate last-write-wins over an approach path.
+
 Facade aesthetic post-pass knobs (`facade_relief`, `window_trim`, `weathering`, `lighting_style`, `lighting_density`) are optional StyleAttributes / params (TECHNICAL_DEFAULT when absent from `style_profile`; USER_EXPLICIT `none`/`flat`/`no_complex_decor` wins). Composition lines in `llm_plan_system_prompt` (silhouette, base–shaft–cornice, 60-30-10) are NONBINDING_HINT only. Java owns deterministic sub-voxel trim, +1 relief pad, and PLACE_ONLY lighting — never substitutes building typology.
 
 Build requests pass a bounded planning budget to the Python executor (HARD_CONSTRAINT). Inference waits and LlmPlan provider attempts respect the remaining budget, and disconnected or cancelled callers stop new inference attempts. Design choices are unaffected.
@@ -237,6 +239,8 @@ Closed twisted SHELL_BOX floors and roof decks sample destination cells against 
 Twisted closed SHELL_BOX wall edges fill face-adjacency gaps introduced by rounding (GEOMETRY). The join stays near the original edge and uses the adjacent wall material. No new design defaults or presets.
 
 `PRIMITIVE trapezoid` adds a geometry operator, not a building category (GEOMETRY). The model supplies the envelope and required `end_width`. Java interpolates the centered horizontal profile and emits `E_PRIMITIVE_GEOMETRY_INVALID` for missing or out-of-range input. No preset or design default is added.
+
+Mid-level ASSEMBLY architectural ops `ARCADE_SERIES` / `BUTTRESS_ARRAY` / `DRUM_DOME` / `LOUVER_SKIN` / `CANTILEVER_TIER` are composable GEOMETRY operators (not typology/presets). The model supplies high-level architectural parameters; Java performs deterministic voxelization under shared write budgets. Prompt lines are NONBINDING_HINT selection guidance only — no keyword→building-class router. Illegal parameter combinations throw; unsupported shapes remain `capability_gap`, not template substitution.
 
 CSG child detail aliases for wall thickness, polygon sides, triangle mode, Voronoi and Möbius parameters take precedence over inherited values (FORMAT_REPAIR). This adds no geometry defaults.
 

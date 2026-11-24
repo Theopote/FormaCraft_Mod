@@ -29,4 +29,14 @@ class AssemblySchemaExporterTest {
         assertTrue(json.contains("\"SHELL_BOX\""));
         assertTrue(json.contains("spiral_watchtower"));
     }
+
+    @Test
+    void snapshotIncludesMidLevelArchitecturalOps() {
+        AssemblySchemaExporter.SchemaSnapshot snap = AssemblySchemaExporter.snapshot();
+        for (String type : java.util.List.of(
+                "ARCADE_SERIES", "BUTTRESS_ARRAY", "DRUM_DOME", "LOUVER_SKIN", "CANTILEVER_TIER")) {
+            assertTrue(snap.components().stream().anyMatch(c -> type.equals(c.type())), type);
+            assertTrue(snap.ops().contains(type), type);
+        }
+    }
 }

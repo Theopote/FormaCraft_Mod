@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -85,7 +86,11 @@ public final class AssemblySchemaExporter {
             byType.putIfAbsent(c.type(), c);
         }
         List<ExportedPreset> presets = loaded.presets().isEmpty() ? runtime.presets() : loaded.presets();
-        List<String> ops = loaded.ops().isEmpty() ? runtime.ops() : loaded.ops();
+        // Union ops so newly registered runtime operators appear even if the asset JSON lags.
+        LinkedHashSet<String> opSet = new LinkedHashSet<>();
+        if (!loaded.ops().isEmpty()) opSet.addAll(loaded.ops());
+        opSet.addAll(runtime.ops());
+        List<String> ops = List.copyOf(opSet);
         List<String> rules = loaded.compatibilityRules().isEmpty()
                 ? runtime.compatibilityRules()
                 : loaded.compatibilityRules();

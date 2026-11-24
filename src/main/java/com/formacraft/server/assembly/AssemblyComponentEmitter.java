@@ -283,6 +283,50 @@ final class AssemblyComponentEmitter {
                 AssemblyCompilerUtils.copy(comp, o, "joint");
                 ops.add(o);
             }
+            case "ARCADE_SERIES", "COLONNADE", "ARCH_ROW" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "ARCADE_SERIES");
+                copyArchitecturalParams(comp, o,
+                        "length", "pierHeight", "baySpan", "axis", "archRise", "archProfile", "depth", "pierWidth",
+                        "fillSpandrel", "cornice", "capitalStyle", "material", "trimMaterial", "archMaterial");
+                ops.add(o);
+            }
+            case "BUTTRESS_ARRAY", "FLYING_BUTTRESS_ARRAY", "WALL_BUTTRESSES" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "BUTTRESS_ARRAY");
+                copyArchitecturalParams(comp, o,
+                        "length", "height", "outward", "reach", "axis", "spacing", "count", "style", "tierCount",
+                        "width", "pinnacleHeight", "flyerTiers", "material", "trimMaterial");
+                ops.add(o);
+            }
+            case "DRUM_DOME", "RIBBED_DOME", "CUPOLA_DOME" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "DRUM_DOME");
+                copyArchitecturalParams(comp, o,
+                        "radius", "domeHeight", "drumHeight", "profile", "ribCount", "thickness",
+                        "drumWindows", "lanternRadius", "lanternHeight", "finialHeight",
+                        "shellMaterial", "ribMaterial", "drumMaterial", "windowMaterial");
+                ops.add(o);
+            }
+            case "LOUVER_SKIN", "PARAMETRIC_SCREEN", "BRISE_SOLEIL", "DIAGRID_SKIN" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "LOUVER_SKIN");
+                copyArchitecturalParams(comp, o,
+                        "w", "h", "facing", "orientation", "spacing", "finDepth", "finThickness",
+                        "waveAmplitude", "waveFrequency", "wavePhase",
+                        "material", "frameMaterial", "backingMaterial");
+                ops.add(o);
+            }
+            case "CANTILEVER_TIER", "CANTILEVER_SLAB", "OVERHANG_DECK" -> {
+                Map<String, Object> o = new HashMap<>();
+                o.put("op", "CANTILEVER_TIER");
+                copyArchitecturalParams(comp, o,
+                        "w", "d", "slabThickness",
+                        "overhangNorth", "overhangSouth", "overhangEast", "overhangWest",
+                        "parapetHeight", "supportStyle", "supportHeight", "coreScale",
+                        "slabMaterial", "soffitMaterial", "railingMaterial", "supportMaterial");
+                ops.add(o);
+            }
             case "ARCH_RIB", "ARCH", "RIB_ARCH" -> {
                 Map<String, Object> o = new HashMap<>();
                 o.put("op", "ARCH_RIB");
@@ -751,6 +795,12 @@ final class AssemblyComponentEmitter {
         return List.of(f);
     }
 
+    private static void copyArchitecturalParams(Map<String, Object> comp, Map<String, Object> o, String... keys) {
+        for (String key : keys) {
+            AssemblyCompilerUtils.copy(comp, o, key);
+        }
+    }
+
     static int componentHeight(Map<String, Object> comp) {
         if (comp == null) return 0;
         String type = AssemblyCompilerUtils.str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
@@ -758,7 +808,32 @@ final class AssemblyComponentEmitter {
         if (type.equals("SHELL_BOX") || type.equals("BOX_SHELL")) {
             return shellHeight(comp);
         }
-        if (type.contains("ROOF")) {
+        if (type.equals("ARCADE_SERIES") || type.equals("COLONNADE") || type.equals("ARCH_ROW")) {
+            int pier = AssemblyCompilerUtils.i(comp.get("pierHeight"), 6);
+            int rise = AssemblyCompilerUtils.i(comp.get("archRise"), Math.max(1, AssemblyCompilerUtils.i(comp.get("baySpan"), 4) / 2));
+            return pier + rise + 1;
+        }
+        if (type.equals("BUTTRESS_ARRAY") || type.equals("FLYING_BUTTRESS_ARRAY") || type.equals("WALL_BUTTRESSES")) {
+            return AssemblyCompilerUtils.i(comp.get("height"), 0)
+                    + AssemblyCompilerUtils.i(comp.get("pinnacleHeight"), 0);
+        }
+        if (type.equals("DRUM_DOME") || type.equals("RIBBED_DOME") || type.equals("CUPOLA_DOME")) {
+            int drum = AssemblyCompilerUtils.i(comp.get("drumHeight"), Math.max(2, AssemblyCompilerUtils.i(comp.get("radius"), 6) / 3));
+            int dome = AssemblyCompilerUtils.i(comp.get("domeHeight"), 0);
+            int lantern = AssemblyCompilerUtils.i(comp.get("lanternHeight"), 0);
+            int finial = AssemblyCompilerUtils.i(comp.get("finialHeight"), 0);
+            return drum + dome + lantern + finial;
+        }
+        if (type.equals("LOUVER_SKIN") || type.equals("PARAMETRIC_SCREEN") || type.equals("BRISE_SOLEIL") || type.equals("DIAGRID_SKIN")) {
+            return AssemblyCompilerUtils.i(comp.get("h"), AssemblyCompilerUtils.i(comp.get("height"), 0));
+        }
+        if (type.equals("CANTILEVER_TIER") || type.equals("CANTILEVER_SLAB") || type.equals("OVERHANG_DECK")) {
+            int support = AssemblyCompilerUtils.i(comp.get("supportHeight"), 4);
+            int slab = AssemblyCompilerUtils.i(comp.get("slabThickness"), 2);
+            int parapet = AssemblyCompilerUtils.i(comp.get("parapetHeight"), 1);
+            return support + slab + parapet;
+        }
+        if (type.contains("ROOF") && !type.contains("DRUM")) {
             // ROOF_COVER: treat rise as its vertical extent for port inference
             int rise = AssemblyCompilerUtils.i(comp.get("rise"), AssemblyCompilerUtils.i(comp.get("height"), 0));
             int baseY = AssemblyCompilerUtils.i(comp.get("y"), 0);
@@ -777,12 +852,51 @@ final class AssemblyComponentEmitter {
 
     static int componentWidth(Map<String, Object> comp) {
         if (comp == null) return 0;
-        return AssemblyCompilerUtils.i(comp.get("w"), AssemblyCompilerUtils.i(comp.get("width"), 0));
+        String type = AssemblyCompilerUtils.str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.isBlank()) type = AssemblyCompilerUtils.str(comp.get("op"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.equals("ARCADE_SERIES") || type.equals("COLONNADE") || type.equals("ARCH_ROW")
+                || type.equals("BUTTRESS_ARRAY") || type.equals("FLYING_BUTTRESS_ARRAY") || type.equals("WALL_BUTTRESSES")) {
+            String axis = AssemblyCompilerUtils.str(comp.get("axis"), "X").trim().toUpperCase(Locale.ROOT);
+            int length = AssemblyCompilerUtils.i(comp.get("length"), 0);
+            int depth = AssemblyCompilerUtils.i(comp.get("depth"), AssemblyCompilerUtils.i(comp.get("reach"), 2));
+            return "Z".equals(axis) ? depth : length;
+        }
+        if (type.equals("DRUM_DOME") || type.equals("RIBBED_DOME") || type.equals("CUPOLA_DOME")) {
+            return AssemblyCompilerUtils.i(comp.get("radius"), 0) * 2;
+        }
+        int w = AssemblyCompilerUtils.i(comp.get("w"), AssemblyCompilerUtils.i(comp.get("width"), 0));
+        if (type.equals("CANTILEVER_TIER") || type.equals("CANTILEVER_SLAB") || type.equals("OVERHANG_DECK")) {
+            int oe = AssemblyCompilerUtils.i(comp.get("overhangEast"), 0);
+            int ow = AssemblyCompilerUtils.i(comp.get("overhangWest"), 0);
+            return Math.max(w, 0) + oe + ow;
+        }
+        return w;
     }
 
     static int componentDepth(Map<String, Object> comp) {
         if (comp == null) return 0;
-        return AssemblyCompilerUtils.i(comp.get("d"), AssemblyCompilerUtils.i(comp.get("depth"), 0));
+        String type = AssemblyCompilerUtils.str(comp.get("type"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.isBlank()) type = AssemblyCompilerUtils.str(comp.get("op"), "").trim().toUpperCase(Locale.ROOT);
+        if (type.equals("ARCADE_SERIES") || type.equals("COLONNADE") || type.equals("ARCH_ROW")
+                || type.equals("BUTTRESS_ARRAY") || type.equals("FLYING_BUTTRESS_ARRAY") || type.equals("WALL_BUTTRESSES")) {
+            String axis = AssemblyCompilerUtils.str(comp.get("axis"), "X").trim().toUpperCase(Locale.ROOT);
+            int length = AssemblyCompilerUtils.i(comp.get("length"), 0);
+            int depth = AssemblyCompilerUtils.i(comp.get("depth"), AssemblyCompilerUtils.i(comp.get("reach"), 2));
+            return "Z".equals(axis) ? length : depth;
+        }
+        if (type.equals("DRUM_DOME") || type.equals("RIBBED_DOME") || type.equals("CUPOLA_DOME")) {
+            return AssemblyCompilerUtils.i(comp.get("radius"), 0) * 2;
+        }
+        if (type.equals("LOUVER_SKIN") || type.equals("PARAMETRIC_SCREEN") || type.equals("BRISE_SOLEIL") || type.equals("DIAGRID_SKIN")) {
+            return AssemblyCompilerUtils.i(comp.get("finDepth"), 2);
+        }
+        int d = AssemblyCompilerUtils.i(comp.get("d"), AssemblyCompilerUtils.i(comp.get("depth"), 0));
+        if (type.equals("CANTILEVER_TIER") || type.equals("CANTILEVER_SLAB") || type.equals("OVERHANG_DECK")) {
+            int on = AssemblyCompilerUtils.i(comp.get("overhangNorth"), 0);
+            int os = AssemblyCompilerUtils.i(comp.get("overhangSouth"), 0);
+            return Math.max(d, 0) + on + os;
+        }
+        return d;
     }
 
     static int componentRadius(Map<String, Object> comp) {
@@ -951,6 +1065,58 @@ final class AssemblyComponentEmitter {
                 ports.put("corner_back_left", ports.get("back_left"));
                 ports.put("corner_back_right", ports.get("back_right"));
             }
+        }
+
+        // Mid-level architectural semantic ports
+        if (type.equals("ARCADE_SERIES") || type.equals("COLONNADE") || type.equals("ARCH_ROW")) {
+            int len = AssemblyCompilerUtils.i(comp.get("length"), componentWidth(comp));
+            int half = len / 2;
+            String axis = AssemblyCompilerUtils.str(comp.get("axis"), "X").trim().toUpperCase(Locale.ROOT);
+            int deckY = componentHeight(comp);
+            ports.put("deck_top", new int[]{0, deckY, 0});
+            ports.put("top_center", new int[]{0, deckY, 0});
+            if ("Z".equals(axis)) {
+                ports.put("start", new int[]{0, 0, -half});
+                ports.put("end", new int[]{0, 0, half});
+            } else {
+                ports.put("start", new int[]{-half, 0, 0});
+                ports.put("end", new int[]{half, 0, 0});
+            }
+        }
+        if (type.equals("BUTTRESS_ARRAY") || type.equals("FLYING_BUTTRESS_ARRAY") || type.equals("WALL_BUTTRESSES")) {
+            int reach = AssemblyCompilerUtils.i(comp.get("reach"), 5);
+            String outward = AssemblyCompilerUtils.str(comp.get("outward"), "SOUTH").trim().toUpperCase(Locale.ROOT);
+            ports.put("wall_attach", new int[]{0, 0, 0});
+            int[] outer = switch (outward) {
+                case "NORTH" -> new int[]{0, 0, -reach};
+                case "EAST" -> new int[]{reach, 0, 0};
+                case "WEST" -> new int[]{-reach, 0, 0};
+                default -> new int[]{0, 0, reach};
+            };
+            ports.put("outer_base", outer);
+        }
+        if (type.equals("DRUM_DOME") || type.equals("RIBBED_DOME") || type.equals("CUPOLA_DOME")) {
+            int drumH = AssemblyCompilerUtils.i(comp.get("drumHeight"), Math.max(2, AssemblyCompilerUtils.i(comp.get("radius"), 6) / 3));
+            int domeH = AssemblyCompilerUtils.i(comp.get("domeHeight"), 0);
+            int lanternH = AssemblyCompilerUtils.i(comp.get("lanternHeight"), 0);
+            int finialH = AssemblyCompilerUtils.i(comp.get("finialHeight"), 0);
+            ports.put("drum_top", new int[]{0, drumH, 0});
+            ports.put("apex", new int[]{0, drumH + domeH, 0});
+            ports.put("lantern_top", new int[]{0, drumH + domeH + lanternH + finialH, 0});
+            int r = componentRadius(comp);
+            if (r > 0) {
+                ports.put("north", new int[]{0, 0, -r});
+                ports.put("south", new int[]{0, 0, r});
+                ports.put("east", new int[]{r, 0, 0});
+                ports.put("west", new int[]{-r, 0, 0});
+            }
+        }
+        if (type.equals("CANTILEVER_TIER") || type.equals("CANTILEVER_SLAB") || type.equals("OVERHANG_DECK")) {
+            int support = AssemblyCompilerUtils.i(comp.get("supportHeight"), 4);
+            int slab = AssemblyCompilerUtils.i(comp.get("slabThickness"), 2);
+            ports.put("deck_top", new int[]{0, support + slab, 0});
+            ports.put("core_bottom", new int[]{0, 0, 0});
+            ports.put("top_center", new int[]{0, support + slab, 0});
         }
 
         // ROOF_COVER(GABLE): add ridge ports so topology can connect to the roof spine.

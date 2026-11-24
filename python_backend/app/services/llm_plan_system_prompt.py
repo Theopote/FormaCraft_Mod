@@ -91,6 +91,12 @@ Core rules:
 - Optional style_attributes aesthetic knobs (no coordinates): facade_relief=flat|subtle|deep,
   window_trim=none|classic|arch|modern|east_asian, weathering=none|subtle|medium|heavy,
   lighting_style=none|warm_lantern|modern_sleek|soul_gothic, lighting_density=low|normal|high.
+- Mid-level ASSEMBLY architectural ops (compose freely; not building presets):
+  ARCADE_SERIES for colonnades/arcades (length,pierHeight,baySpan + archProfile);
+  BUTTRESS_ARRAY for wall/flying buttress rows (length,height,outward,reach + style);
+  DRUM_DOME for drum+ribbed dome+lantern (radius,domeHeight + profile/ribCount);
+  LOUVER_SKIN for parametric screens/brise-soleil (w,h,facing + wave* scalars);
+  CANTILEVER_TIER for overhang decks (w,d,slabThickness + overhang*/supportStyle).
 - Respect outline, protected zones, path corridors, and selection bounds from the request context.
 - Respond with pure JSON only (no markdown fences, no commentary).
 """

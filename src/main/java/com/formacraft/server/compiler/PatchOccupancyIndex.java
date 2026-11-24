@@ -406,6 +406,13 @@ public final class PatchOccupancyIndex {
             if (prev != null) {
                 String prevCanon = canonical(prev.targetBlock());
                 if (prevCanon != null && prevCanon.equals(canon)) {
+                    // Approach PATH/ROAD must keep cells against later courtyard/plaza plates even when
+                    // gravity remaps (gravel→cobblestone) make materials identical — otherwise the plate
+                    // soft-steals ownership and last-write-wins in the patch list covers the path.
+                    if (approachPathKeepsAgainstSitePlate(prev.writerType(), type)) {
+                        return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
+                                type, p.targetBlock(), "approach_path_keeps_site_plate"));
+                    }
                     // Same material: replace ownership with current writer only (no privilege inherit).
                     placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer));
                     removeSet.remove(pos);
@@ -452,15 +459,19 @@ public final class PatchOccupancyIndex {
                 // MASS_SECONDARY may REMOVE (carve) host cells via isHostedMassSecondaryCarve,
                 // but PLACE overwrite still requires a seam/plate/tier join — otherwise interior
                 // tiers and unrelated secondary masses punch through the host body.
-                if (!overwriteOk && !chimneyFooting && !gateOnPath && !sameSlotRoofJoin
+                if (approachPathKeepsAgainstSitePlate(prev.writerType(), type)
+                        || (!overwriteOk && !chimneyFooting && !gateOnPath && !sameSlotRoofJoin
                         && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)
                         && !isHostedDormerRoofJoin(writer, prev, pos, offset)
                         && !isSameSlotCrownPeerJoin(writer, prev, pos)
-                        && !isSoftFoliageOverRail(writer, prev, p.targetBlock())) {
+                        && !isSoftFoliageOverRail(writer, prev, p.targetBlock()))) {
                     return Optional.of(new Conflict(pos, prev.writerType(), prev.targetBlock(),
-                            type, p.targetBlock(), "unauthorized_place_overwrite"));
+                            type, p.targetBlock(),
+                            approachPathKeepsAgainstSitePlate(prev.writerType(), type)
+                                    ? "approach_path_keeps_site_plate"
+                                    : "unauthorized_place_overwrite"));
                 }
             }
             placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer));
@@ -471,6 +482,13 @@ public final class PatchOccupancyIndex {
 
     static String canonical(String target) {
         return com.formacraft.common.palette.dynamic.ExplicitMaterialPolicy.canonical(target);
+    }
+
+    /** Authored approach routes keep ground cells against later garden/plaza plates. */
+    static boolean approachPathKeepsAgainstSitePlate(String previousWriter, String writerType) {
+        if (previousWriter == null || writerType == null) return false;
+        if (!Set.of("PATH", "ROAD").contains(previousWriter)) return false;
+        return Set.of("COURTYARD", "COURTYARD_SPACE", "PLAZA", "PAVING").contains(writerType);
     }
 
     /**

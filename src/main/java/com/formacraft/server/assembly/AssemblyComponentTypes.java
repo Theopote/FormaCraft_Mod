@@ -20,6 +20,11 @@ public final class AssemblyComponentTypes {
             "ARCH_RIB", "ARCH", "TRUSS_2D", "TRUSS",
             "STAIR_SYSTEM", "STAIRCASE",
             "BUTTRESS", "FLYING_BUTTRESS",
+            "ARCADE_SERIES", "COLONNADE", "ARCH_ROW",
+            "BUTTRESS_ARRAY", "FLYING_BUTTRESS_ARRAY", "WALL_BUTTRESSES",
+            "DRUM_DOME", "RIBBED_DOME", "CUPOLA_DOME",
+            "LOUVER_SKIN", "PARAMETRIC_SCREEN", "BRISE_SOLEIL", "DIAGRID_SKIN",
+            "CANTILEVER_TIER", "CANTILEVER_SLAB", "OVERHANG_DECK",
             "ANCHOR_FOOTPRINT", "ANCHORAGE", "CONNECTOR_LINE", "CONNECTOR",
             "BSP_FLOOR_PLAN", "CLEAR_BOX"
     );

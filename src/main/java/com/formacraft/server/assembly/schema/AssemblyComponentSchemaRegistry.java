@@ -79,6 +79,31 @@ public final class AssemblyComponentSchemaRegistry {
             def("BUTTRESS", "structure", List.of("FLYING_BUTTRESS"),
                     List.of("from", "to"),
                     List.of("width", "thickness", "material")),
+            def("ARCADE_SERIES", "architectural", List.of("COLONNADE", "ARCH_ROW"),
+                    List.of("length", "pierHeight", "baySpan"),
+                    List.of("axis", "archRise", "archProfile", "depth", "pierWidth",
+                            "fillSpandrel", "cornice", "capitalStyle",
+                            "material", "trimMaterial", "archMaterial")),
+            def("BUTTRESS_ARRAY", "architectural", List.of("FLYING_BUTTRESS_ARRAY", "WALL_BUTTRESSES"),
+                    List.of("length", "height", "outward", "reach"),
+                    List.of("axis", "spacing", "count", "style", "tierCount",
+                            "width", "pinnacleHeight", "flyerTiers",
+                            "material", "trimMaterial")),
+            def("DRUM_DOME", "roof", List.of("RIBBED_DOME", "CUPOLA_DOME"),
+                    List.of("radius", "domeHeight"),
+                    List.of("drumHeight", "profile", "ribCount", "thickness",
+                            "drumWindows", "lanternRadius", "lanternHeight", "finialHeight",
+                            "shellMaterial", "ribMaterial", "drumMaterial", "windowMaterial")),
+            def("LOUVER_SKIN", "facade", List.of("PARAMETRIC_SCREEN", "BRISE_SOLEIL", "DIAGRID_SKIN"),
+                    List.of("w", "h", "facing"),
+                    List.of("orientation", "spacing", "finDepth", "finThickness",
+                            "waveAmplitude", "waveFrequency", "wavePhase",
+                            "material", "frameMaterial", "backingMaterial")),
+            def("CANTILEVER_TIER", "shell", List.of("CANTILEVER_SLAB", "OVERHANG_DECK"),
+                    List.of("w", "d", "slabThickness"),
+                    List.of("overhangNorth", "overhangSouth", "overhangEast", "overhangWest",
+                            "parapetHeight", "supportStyle", "supportHeight", "coreScale",
+                            "slabMaterial", "soffitMaterial", "railingMaterial", "supportMaterial")),
             def("CONNECTOR_LINE", "route", List.of("CONNECTOR"),
                     List.of("from", "to"),
                     List.of("width", "thickness", "material", "routing")),
@@ -195,6 +220,45 @@ public final class AssemblyComponentSchemaRegistry {
             c.put("z0", -5);
             c.put("z1", 5);
         }
+        if ("ARCADE_SERIES".equals(def.type())) {
+            c.put("length", 25);
+            c.put("pierHeight", 6);
+            c.put("baySpan", 4);
+            c.put("depth", 2);
+            c.put("axis", "X");
+        }
+        if ("BUTTRESS_ARRAY".equals(def.type())) {
+            c.put("length", 25);
+            c.put("height", 14);
+            c.put("outward", "SOUTH");
+            c.put("reach", 5);
+            c.put("axis", "X");
+            c.put("spacing", 5);
+        }
+        if ("DRUM_DOME".equals(def.type())) {
+            c.put("radius", 9);
+            c.put("domeHeight", 10);
+            c.put("drumHeight", 5);
+            c.put("lanternHeight", 3);
+            c.put("lanternRadius", 2);
+        }
+        if ("LOUVER_SKIN".equals(def.type())) {
+            c.put("w", 16);
+            c.put("h", 12);
+            c.put("facing", "SOUTH");
+            c.put("finDepth", 2);
+        }
+        if ("CANTILEVER_TIER".equals(def.type())) {
+            c.put("w", 12);
+            c.put("d", 10);
+            c.put("slabThickness", 2);
+            c.put("supportHeight", 6);
+            c.put("parapetHeight", 1);
+            c.put("overhangNorth", 2);
+            c.put("overhangSouth", 2);
+            c.put("overhangEast", 2);
+            c.put("overhangWest", 2);
+        }
         return c;
     }
 
@@ -204,6 +268,7 @@ public final class AssemblyComponentSchemaRegistry {
                 "ANCHOR_FOOTPRINT", "ANCHORAGE",
                 "SHELL_BOX", "CYLINDER", "CONNECTOR_LINE",
                 "TRUSS_2D", "ARCH_RIB", "BUTTRESS", "TENSION_CABLE",
+                "ARCADE_SERIES", "BUTTRESS_ARRAY", "DRUM_DOME", "LOUVER_SKIN", "CANTILEVER_TIER",
                 "FRAME_GRID_3D", "STAIR_SYSTEM",
                 "BEZIER_SURFACE", "BEZIER_SURFACE_SET", "SURFACE_OFFSET",
                 "IMPLICIT_FIELD", "MARCHING_CUBES", "REVOLVE_SURFACE", "LOFT_SURFACE",
