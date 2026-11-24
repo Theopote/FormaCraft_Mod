@@ -109,4 +109,26 @@ class BspFloorPlanGeneratorTest {
         // Room walls should appear as solid cells; no requirement on exact topology beyond generation
         assertTrue(out.stream().anyMatch(b -> b.getTargetState().isOf(Blocks.OAK_PLANKS)));
     }
+
+    @Test
+    void adjacentRoomsGetSharedWallDoor() {
+        // Dense plan produces multiple rooms; shared-wall air carves should appear beyond core doors alone
+        List<PlannedBlock> out = new ArrayList<>();
+        FloorPlanConfig dense = FloorPlanConfig.fromExtra(Map.of(
+                "partition_style", "DENSE_GRID",
+                "room_min_size", 4,
+                "corridor_width", 2,
+                "core_w", 6,
+                "core_d", 6));
+        BspFloorPlanGenerator.apply(out, BlockPos.ORIGIN, null, 35, 23, 12, dense,
+                BspFloorPlanGenerator.Materials.of(
+                        Blocks.STONE_BRICKS.getDefaultState(),
+                        Blocks.OAK_PLANKS.getDefaultState(),
+                        Blocks.STONE_BRICK_STAIRS.getDefaultState()));
+        long roomDoorAir = out.stream()
+                .filter(b -> b.getPos().getY() == 1 && b.getTargetState().isAir())
+                .filter(b -> Math.abs(b.getPos().getX()) > 5 || Math.abs(b.getPos().getZ()) > 5)
+                .count();
+        assertTrue(roomDoorAir >= 2, "expected inter-room / ring door air outside the core, got " + roomDoorAir);
+    }
 }

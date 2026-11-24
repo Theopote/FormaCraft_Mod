@@ -96,13 +96,13 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
             // Belt courses at each floor junction
             for (int y = minY + floorH; y < maxY; y += floorH) {
                 placed += emitBelt(enhancements, solid, clearance, decoRestrict,
-                        minX, maxX, y, minZ, maxZ, minY, maxY, SubVoxelBlockStates.slab(slab, true),
+                        minX, maxX, y, minZ, maxZ, SubVoxelBlockStates.slab(slab, true),
                         MAX_OUTWARD_PER_VOLUME - placed);
             }
 
             // Cornice brackets under top edge (per-volume budget only — never break the volume loop)
             placed += emitCornice(enhancements, solid, clearance, decoRestrict,
-                    minX, maxX, maxY, minZ, maxZ, minY, stairs, MAX_OUTWARD_PER_VOLUME - placed);
+                    minX, maxX, maxY, minZ, maxZ, stairs, MAX_OUTWARD_PER_VOLUME - placed);
         }
 
         if (enhancements.isEmpty()) return patches;
@@ -131,18 +131,14 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
         if (budget <= 0 || block == null) return 0;
         int n = 0;
         for (int x = minX; x <= maxX; x++) {
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, minY, minZ - 1, block, budget - n, minY, maxYOf(minY));
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, minY, maxZ + 1, block, budget - n, minY, maxYOf(minY));
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, minY, minZ - 1, block, budget - n);
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, x, minY, maxZ + 1, block, budget - n);
         }
         for (int z = minZ; z <= maxZ; z++) {
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, minX - 1, minY, z, block, budget - n, minY, maxYOf(minY));
-            n += tryPlaceOutward(out, solid, clearance, decoRestrict, maxX + 1, minY, z, block, budget - n, minY, maxYOf(minY));
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, minX - 1, minY, z, block, budget - n);
+            n += tryPlaceOutward(out, solid, clearance, decoRestrict, maxX + 1, minY, z, block, budget - n);
         }
         return n;
-    }
-
-    private static int maxYOf(int minY) {
-        return minY + 32;
     }
 
     private static int emitCornerPilasters(List<BlockPatch> out, Map<Long, BlockPatch> solid,
