@@ -26,6 +26,21 @@
 2. 若结构检查通过且观感可接受，把测试输出的 `previewDigest` 写入对应 `sample.json` 的 `goldenPreviewDigest`
 3. 此后 digest 漂移即失败（不仅是方块总数）
 
+## Phase 00 digest audit (2026-11-25 / `5fc17303`)
+
+Structural / focus checks stayed green; only `goldenPreviewDigest` drifted. Digests were refreshed **after** functional suites (ComplexBuild / Live / ConstraintParity / landing / exterior) were green — not as a batch mask for failing geometry.
+
+| id | old → new | Intentional cause (GEOMETRY / HARD_CONSTRAINT only) |
+|----|-----------|------------------------------------------------------|
+| `small_house` | `ce39d21b88c69110` → `28bedafe58bff6b5` | Solid punch windows recess (depth≥2); roof cells window-protected; post-process skips `protectedClearance` |
+| `modern_villa` | `b69a8fdf1bbd74ab` → `d1069d8c7e7c485f` | Wide glass recess + flat-roof ownership (no façade punch through roof plate) |
+| `medieval_tower` | `aea78d9c93af2f74` → `7f8b675f130e1b8b` | Tall punch openings recess; roof/clearance isolation in post-process |
+| `east_asian_pavilion` | `1f8ef8ab0e36f4db` → `71fbb7c71a22fafb` | Multi-eave ROOF surfaces refuse window punches; planar seal face groups |
+| `cathedral` | `4d72ebfb906e16a9` → `7e13eafa3ff7f78f` | Dense façade openings + roof protection / clearance-aware material variation |
+| `apartment` | `bf97a8a50dec4581` → `4b3353f492b5f1da` | Regular fenestration recess + lighting/material variation write-scope |
+
+No DESIGN_OVERRIDE and no BuildingSpec / preset substitution. Refresh command used only after the table above was filled from observed digests.
+
 ## Phase 3 质量门（屋顶 / 立面）
 
 `Phase3RoofFacadeQualityTest` 在同一套样本上额外检查：

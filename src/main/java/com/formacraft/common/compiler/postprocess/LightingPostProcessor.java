@@ -17,7 +17,7 @@ import java.util.Set;
 
 /**
  * PLACE_ONLY architectural lighting: entrances, eaves, and interior ceiling fixtures.
- * Not gated by {@code noComplexDecor}; disabled only when {@code lighting_style=none}.
+ * Disabled when {@code lighting_style=none} or plan/component {@code no_complex_decor}.
  */
 public class LightingPostProcessor implements PostProcessor {
     private static final int MAX_LIGHTS = 400;
@@ -35,6 +35,9 @@ public class LightingPostProcessor implements PostProcessor {
         if (hints.lightingStyle() == AestheticPassHints.LightingStyle.NONE) {
             return patches;
         }
+        if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), null)) {
+            return patches;
+        }
         // Terrain-preserve / underground halls: do not emit exterior wall torches outside
         // the authored excavation envelope.
         if (context.plan() != null && context.plan().globalConstraints() != null
@@ -42,6 +45,7 @@ public class LightingPostProcessor implements PostProcessor {
                 == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.PRESERVE) {
             return patches;
         }
+        Set<Long> decorOptOutVolumes = decorOptOutCells(context);
 
         Map<Long, String> solid = new HashMap<>();
         Set<Long> air = new HashSet<>();
@@ -133,6 +137,11 @@ public class LightingPostProcessor implements PostProcessor {
 
         if (lights.isEmpty()) return patches;
 
+        if (!decorOptOutVolumes.isEmpty()) {
+            lights.removeIf(p -> p != null && decorOptOutVolumes.contains(pack(p.dx(), p.dy(), p.dz())));
+            if (lights.isEmpty()) return patches;
+        }
+
         Set<BlockPos> seeds = new HashSet<>();
         for (BlockPatch p : patches) {
             if (p == null || BlockPatch.REMOVE.equals(p.action())) continue;
@@ -167,6 +176,31 @@ public class LightingPostProcessor implements PostProcessor {
      * block above for hanging, else wall torch on the façade behind; otherwise skip
      * (bare hanging lanterns drop as items on block updates).
      */
+    private static Set<Long> decorOptOutCells(PostProcessContext context) {
+        Set<Long> out = new HashSet<>();
+        if (context == null || context.plan() == null || context.plan().components() == null) return out;
+        for (var c : context.plan().components()) {
+            if (c == null || c.params() == null || c.relativePosition() == null || c.dimensions() == null) continue;
+            if (!com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), c.params())) {
+                continue;
+            }
+            int minX = c.relativePosition().x() - 1;
+            int maxX = c.relativePosition().x() + Math.max(1, c.dimensions().width());
+            int minY = c.relativePosition().y();
+            int maxY = c.relativePosition().y() + Math.max(1, c.dimensions().height());
+            int minZ = c.relativePosition().z() - 1;
+            int maxZ = c.relativePosition().z() + Math.max(1, c.dimensions().depth());
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        out.add(pack(x, y, z));
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
     private static void placeSupportedLight(List<BlockPatch> out, Map<Long, String> solid, Set<BlockPos> clearance,
                                             int x, int y, int z, String hanging, String standing, Direction outDir) {
         if (looksLikeOpenYardColumn(solid, x, y, z)) return;

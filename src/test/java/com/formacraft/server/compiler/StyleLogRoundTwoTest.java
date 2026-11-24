@@ -21,9 +21,11 @@ class StyleLogRoundTwoTest {
             assertFalse(blocks.isEmpty(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
             if (id == 2) {
                 assertEquals("minecraft:smooth_stone", blocks.get(new Vec3i(-3,4,-2)), "second storey floor");
-                // The logged mass starts at y=1, with three-block storeys.
+                // The logged mass starts at y=1, with three-block storeys. Recessed glazing
+                // sits one cell inward of the south wall (z=-6 → z=-5).
                 for (int y : new int[]{3,6}) assertTrue(blocks.entrySet().stream().anyMatch(e -> e.getKey().y()==y
-                        && e.getKey().z()==-6 && e.getKey().x() < -2 && e.getValue().contains("glass")), "window row " + y);
+                        && (e.getKey().z()==-6 || e.getKey().z()==-5) && e.getKey().x() < -2
+                        && e.getValue().contains("glass")), "window row " + y);
             }
             if (id == 3) assertFalse(blocks.entrySet().stream().anyMatch(e -> e.getKey().z()==6
                     && Math.abs(e.getKey().x())<=1 && e.getValue().contains("glass")), "door bay remains independent");

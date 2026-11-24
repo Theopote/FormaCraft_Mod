@@ -401,7 +401,8 @@ class StackedTowerFullCompileEnvelopeTest {
         List<BlockPatch> compileFinal = ConfirmedPlanIdentity.toFinalPatches(compiled);
 
         var conversion = PlanPatchConverter.convert(compileFinal, origin);
-        assertFalse(conversion.hasCriticalFailure());
+        assertFalse(conversion.hasCriticalFailure(),
+                () -> "PlanPatchConverter critical failure: " + conversion);
         // world=null → BuildAutoRepair only dedupes; still exercises converter→clip→collapse.
         var repaired = BuildAutoRepair.apply(null, Optional.empty(), conversion.blocks());
         var clipped = BuildConstraintClipper.clipPlannedBlocks(repaired.blocks(), null);

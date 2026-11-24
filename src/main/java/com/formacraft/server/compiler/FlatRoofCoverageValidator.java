@@ -175,21 +175,26 @@ final class FlatRoofCoverageValidator {
         for (var roof : roofs) {
             int count = 0; BlockPos first = null;
             BlockPatch firstPatch = null;
-            for (var pos : roof.core()) if (!stairClearance.contains(pos)
-                    && !GeneratedSurfaceCapture.occupied(finalPatches.get(pos))) {
+            for (var pos : roof.core()) {
+                if (stairClearance.contains(pos)) continue;
+                BlockPatch present = finalPatches.get(pos);
+                if (GeneratedSurfaceCapture.occupied(present)) continue;
+                // Eave fenestration may REMOVE/glaze perimeter core cells; interior holes still fail.
+                if (present != null && isPerimeter(pos, roof.core()) && isOpeningLike(present)) continue;
                 count++;
                 if (first == null) {
                     first = pos;
-                    firstPatch = finalPatches.get(pos);
+                    firstPatch = present;
                 }
             }
             if (count > 0) {
                 var missingPos = new ArrayList<BlockPos>();
                 for (var pos : roof.core()) {
-                    if (!stairClearance.contains(pos)
-                            && !GeneratedSurfaceCapture.occupied(finalPatches.get(pos))) {
-                        missingPos.add(pos);
-                    }
+                    if (stairClearance.contains(pos)) continue;
+                    BlockPatch present = finalPatches.get(pos);
+                    if (GeneratedSurfaceCapture.occupied(present)) continue;
+                    if (present != null && isPerimeter(pos, roof.core()) && isOpeningLike(present)) continue;
+                    missingPos.add(pos);
                 }
                 FormacraftMod.LOGGER.warn(
                         "[FlatRoofCoverage] source={} missing={} first={} presentPatch={} cells={}",
@@ -198,5 +203,19 @@ final class FlatRoofCoverageValidator {
             }
         }
         return Optional.empty();
+    }
+
+    private static boolean isPerimeter(BlockPos pos, Set<BlockPos> core) {
+        return !core.contains(pos.add(1, 0, 0)) || !core.contains(pos.add(-1, 0, 0))
+                || !core.contains(pos.add(0, 0, 1)) || !core.contains(pos.add(0, 0, -1));
+    }
+
+    private static boolean isOpeningLike(BlockPatch patch) {
+        if (BlockPatch.REMOVE.equals(patch.action())) return true;
+        String target = patch.targetBlock();
+        if (target == null || target.isBlank()) return true;
+        String n = target.toLowerCase(Locale.ROOT);
+        return n.contains("air") || n.contains("glass") || n.contains("pane")
+                || n.contains("bars") || n.contains("fence");
     }
 }

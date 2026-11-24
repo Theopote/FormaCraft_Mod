@@ -69,15 +69,16 @@ class ComponentPlanCompilerFoundationFacadeTest {
         List<BlockPatch> patches = ComponentPlanCompiler.compile(plan, null, null, null, false);
         assertFalse(patches.isEmpty());
 
+        // Recessed glazing places glass one cell inward of the outer wall face (z=19 → z=18).
         boolean backWallWindow = patches.stream().anyMatch(p ->
-                p.dz() == 19 && p.targetBlock() != null
+                (p.dz() == 19 || p.dz() == 18) && p.targetBlock() != null
                         && (p.targetBlock().contains("glass") || p.targetBlock().contains("bars")));
         boolean interiorSliceWindow = patches.stream().anyMatch(p ->
                 p.dz() == 15 && p.dx() > 0 && p.dx() < 15
                         && p.targetBlock() != null
                         && (p.targetBlock().contains("glass") || p.targetBlock().contains("bars")));
 
-        assertTrue(backWallWindow, "wrap facade should reach mass back wall z=19");
+        assertTrue(backWallWindow, "wrap facade should reach mass back wall z=19 (glass may recess to z=18)");
         assertFalse(interiorSliceWindow, "should not place windows on interior z=15 slice");
         var finalBlocks = PatchTestSnapshot.blocks(patches);
         assertEquals(20 * 22, finalBlocks.keySet().stream().filter(p -> p.y() == -1).count());

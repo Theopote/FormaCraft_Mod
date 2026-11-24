@@ -69,7 +69,10 @@ class FinalGeometryAcceptanceTest {
         assertFalse(blocks.isEmpty(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
         int maxY = blocks.keySet().stream().mapToInt(Vec3i::y).max().orElse(-1);
         assertTrue(maxY < 6, "roof_type=none must stay inside the mass envelope, maxY=" + maxY);
-        assertTrue(blocks.values().stream().noneMatch(b -> b != null && b.contains("stairs")),
+        // Façade relief may use stair-shaped trim on the exterior; roof opt-out forbids
+        // stair blocks at or above the mass envelope (y >= height).
+        assertTrue(blocks.entrySet().stream().noneMatch(e ->
+                        e.getKey().y() >= 6 && e.getValue() != null && e.getValue().contains("stairs")),
                 "no roof stair blocks when roof is opted out");
     }
 

@@ -35,9 +35,9 @@ final class SurfaceOwnershipLedger {
         Surface surface = surfaces.get(position);
         if (surface == null) return false;
         String host = buildingOwner(writer);
-        // Flat roof cores must remain occupied for FlatRoofCoverageValidator. Same-host
-        // façade windows previously carved openingCarvable roof edges and punched the deck
-        // (cyberpunk/adobe E_FLAT_ROOF_COVERAGE). Pitched roofs stay protected as before.
+        // Flat and pitched roof cells refuse façade punches. Eave fenestration must sit on
+        // WALL courses below the roof plate (FacadeWindowsGenerator clamps max Y); covering
+        // holes are a FlatRoofCoverageValidator hard gate (cyberpunk/adobe).
         if (surface.role() == GeneratedSurfaceCapture.Role.ROOF) return true;
         return surface.role() == GeneratedSurfaceCapture.Role.WALL && !host.equals(surface.owner())
                 || surface.role() == GeneratedSurfaceCapture.Role.DOOR_OPENING

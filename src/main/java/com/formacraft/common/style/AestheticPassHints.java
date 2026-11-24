@@ -73,7 +73,9 @@ public final class AestheticPassHints {
                 attr(attrs, a -> a.lightingStyle()),
                 custom(attrs, "lighting_style")));
         if (lighting == null) {
-            if (profile.contains("gothic") || profile.contains("dark") || profile.contains("nether"))
+            // USER_EXPLICIT no_complex_decor wins over style-derived lantern defaults.
+            if (ExplicitDesignPolicy.noComplexDecor(plan, params)) lighting = LightingStyle.NONE;
+            else if (profile.contains("gothic") || profile.contains("dark") || profile.contains("nether"))
                 lighting = LightingStyle.SOUL_GOTHIC;
             else if (isModern(profile)) lighting = LightingStyle.MODERN_SLEEK;
             else lighting = LightingStyle.WARM_LANTERN;
