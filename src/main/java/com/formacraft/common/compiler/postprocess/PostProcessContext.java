@@ -19,12 +19,29 @@ public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i rela
                                  Set<BlockPos> generatedSurfaces, Set<BlockPos> protectedMaterials,
                                  Set<BlockPos> decorationRestrictions,
                                  PostProcessWriteScope authorizedWriteScope) {
-    public record BuildingVolume(String slotId, ComponentFootprintUtil.Bounds bounds, int floorHeight) {
+    /**
+     * Compile-frame building volume with optional mass identity and lighting authority
+     * (Phase 01 closeout P1-02). Prefer {@link #lightingAllowed()} over AABB guessing.
+     */
+    public record BuildingVolume(
+            String slotId,
+            ComponentFootprintUtil.Bounds bounds,
+            int floorHeight,
+            String componentId,
+            String buildingId,
+            boolean lightingAllowed
+    ) {
         public BuildingVolume {
             Objects.requireNonNull(bounds);
             if (bounds.width() <= 0 || bounds.depth() <= 0 || bounds.height() <= 0 || floorHeight <= 0)
                 throw new IllegalArgumentException("Invalid building volume");
         }
+
+        /** Compatibility: identity unknown, lighting allowed. */
+        public BuildingVolume(String slotId, ComponentFootprintUtil.Bounds bounds, int floorHeight) {
+            this(slotId, bounds, floorHeight, null, null, true);
+        }
+
         public boolean contains(int x, int y, int z) {
             return x >= bounds.minX() && x < bounds.maxX() && y >= bounds.minY() && y < bounds.maxY()
                 && z >= bounds.minZ() && z < bounds.maxZ();

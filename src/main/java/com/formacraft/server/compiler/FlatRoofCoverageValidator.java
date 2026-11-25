@@ -109,13 +109,26 @@ final class FlatRoofCoverageValidator {
     /** Bound roof coverage must cover exposed host top cells, not just its own smaller rectangle. */
     static Optional<Missing> checkHost(SemanticComponent body, List<Roof> roofs, BlockPos offset,
                                        List<BlockPatch> patches, Set<BlockPos> clearance) {
+        return checkHost(body, roofs, offset, patches, clearance, null);
+    }
+
+    /**
+     * Host-scoped host-coverage check (Phase 01 final closeout): same authority mechanism as
+     * {@link #check} — shared circulation clearance + openings for this host only.
+     * Never uses a global union of other buildings' openings.
+     */
+    static Optional<Missing> checkHost(SemanticComponent body, List<Roof> roofs, BlockPos offset,
+                                       List<BlockPatch> patches, Set<BlockPos> sharedClearance,
+                                       Map<String, Set<BlockPos>> openingsByOwner) {
         var c = body.source();
         if (c == null || !com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(c)
                 || c.params() == null
                 || c.params().get("component_id") == null || "plate".equals(c.params().get("extrude_mode"))) return Optional.empty();
         String host = c.params().get("component_id").toString();
+        String buildingId = c.params().get("building_id") == null ? null : c.params().get("building_id").toString();
         var bound = roofs.stream().filter(r -> host.equals(r.host())).toList();
         if (bound.isEmpty()) return Optional.empty(); // Pitched and legacy unbound roofs aren't claimed as checked.
+        Set<BlockPos> authority = authorityForHost(host, buildingId, sharedClearance, openingsByOwner);
         var parts = ResolvedMassPart.resolve(c);
         var masks = new ArrayList<ComponentFootprintMask>();
         var layers = new ArrayList<com.formacraft.common.generation.component.util.ProportionalFacadeCalculator.LayerConfig[]>();
@@ -152,13 +165,10 @@ final class FlatRoofCoverageValidator {
                                     px-other.origin().x(),pz-other.origin().z())) { coveredByBody = true; break; }
                 }
                 var pos = new BlockPos(px, roofPlaneY, pz).add(offset);
-                if (coveredByBody || clearance.contains(pos)) continue;
+                if (coveredByBody || authority.contains(pos)) continue;
                 BlockPatch present = finalPatches.get(pos);
                 if (roofCells.contains(pos) && GeneratedSurfaceCapture.occupied(present)) continue;
-                // Explicit opening provenance (circulation / surface ledger) may leave the
-                // host top open. Bare perimeter isOpeningLike is not authority (P1-01).
-                Set<BlockPos> authority = clearance == null ? Set.of() : clearance;
-                if (authority.contains(pos)) continue;
+                // Explicit opening provenance only — bare perimeter isOpeningLike is not authority.
                 if (!roofCells.contains(pos) || !GeneratedSurfaceCapture.occupied(present)) {
                     count++; if (first == null) first = pos;
                 }
@@ -234,19 +244,29 @@ final class FlatRoofCoverageValidator {
 
     private static Set<BlockPos> authorityForRoof(Roof roof, Set<BlockPos> sharedClearance,
                                                   Map<String, Set<BlockPos>> openingsByOwner) {
-        if (openingsByOwner == null) {
-            return sharedClearance == null ? Set.of() : sharedClearance;
-        }
+        // Unhosted roofs get circulation clearance only — never every building's openings.
+        return authorityForHost(roof == null ? null : roof.host(), null, sharedClearance, openingsByOwner);
+    }
+
+    /**
+     * Shared host-scoped authority for {@link #check} and {@link #checkHost}.
+     * Keys openings by mass {@code component_id} (roof {@code host_id}) and optional {@code building_id}.
+     * Classification: HARD_CONSTRAINT — no cross-building privilege expansion.
+     */
+    static Set<BlockPos> authorityForHost(String hostId, String buildingId,
+                                          Set<BlockPos> sharedClearance,
+                                          Map<String, Set<BlockPos>> openingsByOwner) {
         Set<BlockPos> authority = new HashSet<>();
         if (sharedClearance != null) authority.addAll(sharedClearance);
-        if (roof.host() != null && !roof.host().isBlank()) {
-            Set<BlockPos> hostOpenings = openingsByOwner.get(roof.host());
-            if (hostOpenings != null) authority.addAll(hostOpenings);
-        } else {
-            for (var cells : openingsByOwner.values()) {
-                if (cells != null) authority.addAll(cells);
-            }
-        }
+        if (openingsByOwner == null) return authority;
+        addOwnerOpenings(authority, openingsByOwner, hostId);
+        addOwnerOpenings(authority, openingsByOwner, buildingId);
         return authority;
+    }
+
+    private static void addOwnerOpenings(Set<BlockPos> into, Map<String, Set<BlockPos>> byOwner, String key) {
+        if (into == null || byOwner == null || key == null || key.isBlank()) return;
+        Set<BlockPos> cells = byOwner.get(key);
+        if (cells != null) into.addAll(cells);
     }
 }

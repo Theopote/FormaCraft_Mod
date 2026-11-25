@@ -147,9 +147,9 @@ Production preview for `kind=llmplan` / `mode=build` with `components[]`:
 | `CapabilityGap.details` | Structured keys + `attribution` multi-line text (logs / quality — not player chat) |
 | `WriteAttribution.trace` | Probe a cell without asserting a violation |
 
-### Phase 01.9 hardening status
+### Phase 01.9 / Final Closeout status
 
-P0 roof authority + Oct20 repaired success; P1 aesthetic ABSENT/DISABLED, lighting AABB opt-out, edit-scope Δ⊆Ω, path `BlockPatchTargetResolver` parse, soft-recover authority; P2 postprocess attribution. See [PHASE_01_9_DELIVERY_REPORT.md](PHASE_01_9_DELIVERY_REPORT.md). In-game soak remains manual/CI.
+P0–P2 of 01.9 plus closeout: `check`/`checkHost` share host-scoped openings; `BuildingVolume.lightingAllowed` identity; incremental Ω frozen via `PostProcessWriteScope.exactCells`. See [PHASE_01_9_DELIVERY_REPORT.md](PHASE_01_9_DELIVERY_REPORT.md). **Phase 01 architecture governance stopped.** In-game soak remains manual/CI.
 
 ## Related docs
 

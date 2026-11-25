@@ -305,9 +305,7 @@ public final class ComponentPlanCompiler {
 
         Set<BlockPos> roofClearance = new HashSet<>();
         for (var flight : circulation) roofClearance.addAll(flight.clearance());
-        // Host-coverage still uses the union (clearance + openings); core check is host-scoped.
-        Set<BlockPos> roofOpeningAuthority = new HashSet<>(roofClearance);
-        roofOpeningAuthority.addAll(authorizedRoofOpenings);
+        // Core + host coverage both use host-scoped openings (Phase 01 closeout P1-01).
         var roofMissing = FlatRoofCoverageValidator.check(
                 flatRoofs, result, roofClearance, authorizedRoofOpeningsByOwner);
         if (roofMissing.isPresent()) {
@@ -318,7 +316,8 @@ public final class ComponentPlanCompiler {
                     List.of("Restore the roof core or remove the conflicting operation; keep courtyard and stair openings explicit.")));
             return List.of();
         }
-        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result, roofOpeningAuthority)) {
+        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result,
+                roofClearance, authorizedRoofOpeningsByOwner)) {
             return List.of();
         }
 
@@ -557,7 +556,8 @@ public final class ComponentPlanCompiler {
                     List.of("Restore the roof core or remove the conflicting operation; keep courtyard and stair openings explicit.")));
             return List.of();
         }
-        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result, roofOpeningAuthority)) {
+        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result,
+                roofClearance, authorizedRoofOpeningsByOwner)) {
             return List.of();
         }
         for (var body : components) {
@@ -591,7 +591,8 @@ public final class ComponentPlanCompiler {
             LlmPlan plan,
             List<FlatRoofCoverageValidator.Roof> flatRoofs,
             List<BlockPatch> patches,
-            Set<BlockPos> roofClearance
+            Set<BlockPos> roofClearance,
+            Map<String, Set<BlockPos>> openingsByOwner
     ) {
         for (var body : components) {
             if (!com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(body)) continue;
@@ -603,7 +604,7 @@ public final class ComponentPlanCompiler {
             var uncovered = FlatRoofCoverageValidator.checkHost(hostSemantic, flatRoofs,
                     hostAnchor == null ? BlockPos.ORIGIN
                             : new BlockPos(hostAnchor.x(), hostAnchor.y(), hostAnchor.z()),
-                    patches, roofClearance);
+                    patches, roofClearance, openingsByOwner);
             if (uncovered.isPresent()) {
                 AssemblyCompileDiagnostics.set(FlatRoofCoverageValidator.hostCoverageGap(
                         getParamString(body.params(), "component_id"), uncovered.get()));

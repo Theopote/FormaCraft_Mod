@@ -73,4 +73,22 @@ No other Phase2 goldens rewritten. No success→expected-failure flips.
 
 ## Phase 01.9 verdict
 
-**ACCEPT Phase 01.9.** All required automated gates green (with documented clean-lock workaround). **Stop — do not start Phase 02.**
+**ACCEPT Phase 01.9.** All required automated gates green (with documented clean-lock workaround).
+
+---
+
+## Phase 01 Final Closeout (post-202f192)
+
+Addresses acceptance residuals P1-01 / P1-02 / P1-03 only — no new architecture layer.
+
+| Residual | Fix |
+|----------|-----|
+| P1-01 `check` vs `checkHost` authority | Shared `authorityForHost`; host-scoped openings on both paths; unhosted roofs get clearance only; emit indexes real host/building/component ids (no `#` truncation) |
+| P1-02 lighting AABB mismatch | `BuildingVolume` gains `componentId`, `buildingId`, `lightingAllowed` at `ComponentEmitPass`; lighting reads the flag |
+| P1-03 edit Ω not enforced | `patch.blocks` keep Ω even with MASS context; `PostProcessWriteScope.exactCells(Ω)` freeze; `deltaCells` for Δ⊆Ω |
+
+Closeout tests: `FlatRoofHostAuthorityCompileTest`, `FlatRoofCoverageValidatorTest` host-scope cases, `LightingPostProcessorTest.lightingOptOutUsesCompileTimeIdentityNotAabbGuess`, `IncrementalEditScopeTest.patchModeLocalWallRecolorWithMassContextStillSuppressesAndBoundsOmega`.
+
+**In-game soak:** not executed (no Minecraft client in this session).
+
+**Phase 01 architecture governance: STOP.** Ready to apply for Phase 02 (building geometry) — do not expand further contract layers here.

@@ -665,7 +665,18 @@ final class ComponentEmitPass {
                                 bounds.minZ() + offset.z(), bounds.maxX() + offset.x(), bounds.maxY() + offset.y(), bounds.maxZ() + offset.z());
                             int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
                                 .resolveFloorHeight(plan, c, shifted.height());
-                            buildingVolumes.add(new PostProcessContext.BuildingVolume(slotKey, shifted, floorHeight));
+                            String componentId = ComponentPlanTypes.getParamString(c.params(), "component_id");
+                            String buildingId = ComponentPlanTypes.getParamString(c.params(), "building_id");
+                            if (buildingId == null || buildingId.isBlank()) {
+                                buildingId = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
+                            }
+                            boolean lightingAllowed = !com.formacraft.common.style.ExplicitDesignPolicy
+                                    .noComplexDecor(plan, c.params())
+                                    && com.formacraft.common.style.AestheticPassHints
+                                    .resolve(plan, c.params()).lightingStyle()
+                                    != com.formacraft.common.style.AestheticPassHints.LightingStyle.NONE;
+                            buildingVolumes.add(new PostProcessContext.BuildingVolume(
+                                    slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed));
                         }
                     }
                     for (var patch : shiftedPatches) {
@@ -735,10 +746,17 @@ final class ComponentEmitPass {
             }
         }
         if (authorizedRoofOpeningsByOwner != null) {
+            // Index under building_id AND mass component_id / host_id — never '#' truncation.
             for (var e : surfaceLedger.authorizedOpeningCellsByOwner().entrySet()) {
-                authorizedRoofOpeningsByOwner
-                        .computeIfAbsent(e.getKey(), k -> new HashSet<>())
-                        .addAll(e.getValue());
+                indexRoofOpeningOwner(authorizedRoofOpeningsByOwner, e.getKey(), e.getValue());
+                for (Component mass : components) {
+                    if (mass == null || mass.params() == null) continue;
+                    String building = ComponentPlanTypes.getParamString(mass.params(), "building_id");
+                    String componentId = ComponentPlanTypes.getParamString(mass.params(), "component_id");
+                    if (e.getKey() != null && e.getKey().equals(building) && componentId != null) {
+                        indexRoofOpeningOwner(authorizedRoofOpeningsByOwner, componentId, e.getValue());
+                    }
+                }
             }
             for (var entry : openingExpectations.entrySet()) {
                 if (entry.getKey() == null || entry.getValue() == null) continue;
@@ -748,16 +766,38 @@ final class ComponentEmitPass {
                         && role != GeneratedSurfaceCapture.Role.FACADE_OPENING) {
                     continue;
                 }
-                String owner = entry.getValue().componentId();
-                if (owner == null || owner.isBlank()) owner = "";
-                int hash = owner.indexOf('#');
-                if (hash > 0) owner = owner.substring(0, hash);
-                authorizedRoofOpeningsByOwner
-                        .computeIfAbsent(owner, k -> new HashSet<>())
-                        .add(entry.getKey());
+                Component writer = findComponentByIdentity(components, entry.getValue().componentId());
+                String hostId = writer == null ? null
+                        : ComponentPlanTypes.getParamString(writer.params(), "host_id", "hostId");
+                String buildingId = writer == null ? null
+                        : ComponentPlanTypes.getParamString(writer.params(), "building_id");
+                String componentId = writer == null ? entry.getValue().componentId()
+                        : ComponentPlanTypes.getParamString(writer.params(), "component_id");
+                // Prefer host mass id (matches Roof.host); also index building + writer identity.
+                indexRoofOpeningOwner(authorizedRoofOpeningsByOwner, hostId, Set.of(entry.getKey()));
+                indexRoofOpeningOwner(authorizedRoofOpeningsByOwner, buildingId, Set.of(entry.getKey()));
+                indexRoofOpeningOwner(authorizedRoofOpeningsByOwner, componentId, Set.of(entry.getKey()));
             }
         }
         return patchOccupancy;
+    }
+
+    private static void indexRoofOpeningOwner(
+            Map<String, Set<BlockPos>> byOwner, String key, Set<BlockPos> cells) {
+        if (byOwner == null || key == null || key.isBlank() || cells == null || cells.isEmpty()) return;
+        byOwner.computeIfAbsent(key, k -> new HashSet<>()).addAll(cells);
+    }
+
+    private static Component findComponentByIdentity(List<Component> components, String identity) {
+        if (components == null || identity == null || identity.isBlank()) return null;
+        for (Component c : components) {
+            if (c == null) continue;
+            String id = ComponentPlanTypes.paramIdentity(c);
+            if (identity.equals(id)) return c;
+            String cid = ComponentPlanTypes.getParamString(c.params(), "component_id");
+            if (identity.equals(cid)) return c;
+        }
+        return null;
     }
 
     static boolean isSoftGenerationFailure(Component c) {

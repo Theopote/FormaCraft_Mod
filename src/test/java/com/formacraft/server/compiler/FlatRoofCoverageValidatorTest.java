@@ -326,4 +326,74 @@ class FlatRoofCoverageValidatorTest {
         assertTrue(ledger.authorizedOpeningCellsForOwner("building_b").isEmpty()
                 || !ledger.authorizedOpeningCellsForOwner("building_b").contains(shared));
     }
+
+    @Test
+    void checkHostIgnoresForeignBuildingOpeningsSameAsCheck() {
+        // Phase 01 closeout P1-01: checkHost must use host-scoped openings, not a global union.
+        var roofA = roof(Map.of("roof_type", "flat", "host_id", "hall_a", "building_id", "building_a",
+                "component_id", "roof_a"));
+        var resolved = FlatRoofCoverageValidator.resolve(
+                new SemanticComponent("ROOF", null, roofA), BlockPos.ORIGIN).orElseThrow();
+        BlockPos hole = resolved.core().iterator().next();
+        List<BlockPatch> patches = new ArrayList<>();
+        for (BlockPos p : resolved.core()) {
+            if (p.equals(hole)) {
+                patches.add(new BlockPatch(BlockPatch.REMOVE, p.getX(), p.getY(), p.getZ(), "minecraft:air"));
+            } else {
+                patches.add(new BlockPatch(BlockPatch.PLACE, p.getX(), p.getY(), p.getZ(), "minecraft:stone_bricks"));
+            }
+        }
+        Map<String, Set<BlockPos>> byOwner = Map.of(
+                "hall_b", Set.of(hole),
+                "building_b", Set.of(hole));
+        // Core check: foreign openings do not exempt.
+        assertTrue(FlatRoofCoverageValidator.check(List.of(resolved), patches, Set.of(), byOwner).isPresent());
+        // Host coverage: same authority — foreign openings must not exempt hall_a's top.
+        var hostA = body(Map.of("component_id", "hall_a", "building_id", "building_a"));
+        // 9x9 roof matching body() dims so host coverage applies.
+        var fullRoof = new Component("ROOF", "roof", new Vec3i(0, 7, 0), new Dimensions(9, 9, 1), List.of(),
+                Map.of("roof_type", "flat", "host_id", "hall_a", "building_id", "building_a",
+                        "component_id", "roof_a"));
+        var fullResolved = FlatRoofCoverageValidator.resolve(
+                new SemanticComponent("ROOF", null, fullRoof), BlockPos.ORIGIN).orElseThrow();
+        List<BlockPatch> hostPatches = new ArrayList<>(patches(fullResolved, 0));
+        // Punch one host-top cell that foreign openings claim.
+        BlockPos hostHole = new BlockPos(1, 7, 1);
+        hostPatches.removeIf(p -> p.dx() == hostHole.getX() && p.dy() == hostHole.getY() && p.dz() == hostHole.getZ());
+        hostPatches.add(new BlockPatch(BlockPatch.REMOVE, hostHole.getX(), hostHole.getY(), hostHole.getZ(), "minecraft:air"));
+        Map<String, Set<BlockPos>> foreignOnly = Map.of("hall_b", Set.of(hostHole), "building_b", Set.of(hostHole));
+        assertTrue(FlatRoofCoverageValidator.checkHost(hostA, List.of(fullResolved),
+                        BlockPos.ORIGIN, hostPatches, Set.of(), foreignOnly).isPresent(),
+                "checkHost must not treat building_b openings as authority for hall_a");
+        Map<String, Set<BlockPos>> own = Map.of("hall_a", Set.of(hostHole), "building_a", Set.of(hostHole));
+        // Own-host opening may exempt that cell — remaining coverage still from patches.
+        // If only one cell is open and authorized, checkHost should pass when rest is sealed.
+        assertTrue(FlatRoofCoverageValidator.checkHost(hostA, List.of(fullResolved),
+                        BlockPos.ORIGIN, hostPatches, Set.of(), own).isEmpty(),
+                "same-host opening authority must exempt the punched cell");
+    }
+
+    @Test
+    void unhostedRoofDoesNotInheritAllBuildingOpenings() {
+        var roof = roof(Map.of("roof_type", "flat", "component_id", "orphan_deck"));
+        // no host_id
+        var resolved = FlatRoofCoverageValidator.resolve(
+                new SemanticComponent("ROOF", null, roof), BlockPos.ORIGIN).orElseThrow();
+        BlockPos hole = resolved.core().iterator().next();
+        List<BlockPatch> patches = new ArrayList<>();
+        for (BlockPos p : resolved.core()) {
+            if (p.equals(hole)) {
+                patches.add(new BlockPatch(BlockPatch.REMOVE, p.getX(), p.getY(), p.getZ(), "minecraft:air"));
+            } else {
+                patches.add(new BlockPatch(BlockPatch.PLACE, p.getX(), p.getY(), p.getZ(), "minecraft:stone_bricks"));
+            }
+        }
+        Map<String, Set<BlockPos>> everyone = Map.of(
+                "hall_a", Set.of(hole),
+                "hall_b", Set.of(hole));
+        assertTrue(FlatRoofCoverageValidator.check(List.of(resolved), patches, Set.of(), everyone).isPresent(),
+                "unhosted roof must not inherit every building's openings");
+        Set<BlockPos> auth = FlatRoofCoverageValidator.authorityForHost(null, null, Set.of(), everyone);
+        assertTrue(auth.isEmpty());
+    }
 }

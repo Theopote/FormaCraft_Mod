@@ -58,6 +58,46 @@ class IncrementalEditScopeTest {
     }
 
     @Test
+    void patchModeLocalWallRecolorWithMassContextStillSuppressesAndBoundsOmega() {
+        // Phase 01 closeout P1-03: MASS context + patch.blocks must not clear Ω / re-enable aesthetic.
+        Component mass = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0),
+                new Dimensions(11, 11, 8), List.of(), Map.of("component_id", "hall"));
+        var section = new PatchBlockSection(new Vec3i(0, 0, 0), List.of(
+                new PatchBlock("place", 2, 1, 0, "minecraft:red_concrete"),
+                new PatchBlock("place", 3, 1, 0, "minecraft:red_concrete")));
+        LlmPlan patch = plan(LlmPlan.Mode.patch, List.of(mass), section);
+        assertTrue(IncrementalEditScope.suppressesAestheticExpansion(patch));
+        Set<BlockPos> omega = IncrementalEditScope.authorizedWriteCells(patch);
+        assertEquals(Set.of(new BlockPos(2, 1, 0), new BlockPos(3, 1, 0)), omega,
+                "Ω must stay patch.blocks only — not cleared by MASS and not full AABB");
+
+        List<BlockPatch> baseline = new ArrayList<>();
+        for (int x = 0; x < 6; x++) {
+            for (int y = 0; y < 4; y++) {
+                baseline.add(new BlockPatch(BlockPatch.PLACE, x, y, 0, "minecraft:stone_bricks"));
+            }
+        }
+        List<BlockPatch> input = new ArrayList<>(baseline);
+        input.add(new BlockPatch(BlockPatch.PLACE, 2, 1, 0, "minecraft:red_concrete"));
+        input.add(new BlockPatch(BlockPatch.PLACE, 3, 1, 0, "minecraft:red_concrete"));
+        var volume = new PostProcessContext.BuildingVolume("s",
+                new ComponentFootprintUtil.Bounds(0, 0, 0, 6, 4, 2), 3);
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "deep", "classic", "subtle", "warm_lantern", "high");
+        LlmPlan styled = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .mode(LlmPlan.Mode.patch)
+                .styleProfile("GOTHIC")
+                .styleAttributes(attrs)
+                .components(List.of(mass))
+                .patch(section)
+                .build();
+        PostProcessContext ctx = PostProcessContext.create(styled, BlockPos.ORIGIN, List.of(volume));
+        List<BlockPatch> out = PostProcessPipeline.createDefault(ctx).process(input, ctx);
+        Set<BlockPos> delta = IncrementalEditScope.deltaCells(baseline, out);
+        assertTrue(omega.containsAll(delta), "Δ must be ⊆ Ω; delta=" + delta + " omega=" + omega);
+    }
+
+    @Test
     void patchModeBoundedGlassBlocksSuppressAesthetic() {
         var section = new PatchBlockSection(new Vec3i(0, 0, 0), List.of(
                 new PatchBlock("place", 1, 2, 0, "minecraft:glass"),

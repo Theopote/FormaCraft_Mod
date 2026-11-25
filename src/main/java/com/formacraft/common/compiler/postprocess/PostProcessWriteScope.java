@@ -86,6 +86,15 @@ public class PostProcessWriteScope {
         return new PostProcessWriteScope(cells, cells, false);
     }
 
+    /**
+     * Exact-cell scope for incremental edits (Phase 01 closeout P1-03): PLACE/CARVE only
+     * on the authorized Ω — no volume pad expansion.
+     */
+    public static PostProcessWriteScope exactCells(Set<BlockPos> authorized) {
+        Set<BlockPos> cells = authorized == null ? Set.of() : Set.copyOf(authorized);
+        return new PostProcessWriteScope(cells, cells, true);
+    }
+
     /** Policy-only tests: every coordinate is spatially allowed. */
     public static PostProcessWriteScope unbounded() {
         return new PostProcessWriteScope(Set.of(), Set.of(), false) {

@@ -236,20 +236,24 @@ class LightingPostProcessorTest {
     }
 
     @Test
-    void lightingOptOutUsesVolumeAabbNotRawComponentExpand() {
-        // Phase 01.9: two volumes — only the opted-out slot suppresses lights (AABB contains).
-        var quiet = new PostProcessContext.BuildingVolume("quiet",
-                new ComponentFootprintUtil.Bounds(0, 0, 0, 8, 6, 8), 4);
-        var lively = new PostProcessContext.BuildingVolume("lively",
-                new ComponentFootprintUtil.Bounds(20, 0, 0, 28, 6, 8), 4);
+    void lightingOptOutUsesCompileTimeIdentityNotAabbGuess() {
+        // Phase 01 closeout: lightingAllowed on BuildingVolume — slot-shifted bounds must not
+        // be matched against local Component AABB (non-zero slot would miss).
+        var quiet = new PostProcessContext.BuildingVolume("site",
+                new ComponentFootprintUtil.Bounds(100, 64, 100, 108, 70, 108), 4,
+                "quiet_hall", "quiet", false);
+        var lively = new PostProcessContext.BuildingVolume("site",
+                new ComponentFootprintUtil.Bounds(120, 64, 100, 128, 70, 108), 4,
+                "lively_hall", "lively", true);
+        // Local component coords deliberately do NOT overlap slot-shifted volumes.
         var quietMass = new com.formacraft.common.llm.dto.Component(
-                "MASS_MAIN", "quiet", new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
+                "MASS_MAIN", "site", new com.formacraft.common.llm.dto.Vec3i(0, 0, 0),
                 new com.formacraft.common.llm.dto.Dimensions(8, 8, 6), List.of(),
-                java.util.Map.of("lighting_style", "none", "component_id", "quiet_hall"));
+                java.util.Map.of("lighting_style", "none", "component_id", "quiet_hall", "building_id", "quiet"));
         var livelyMass = new com.formacraft.common.llm.dto.Component(
-                "MASS_MAIN", "lively", new com.formacraft.common.llm.dto.Vec3i(20, 0, 0),
+                "MASS_MAIN", "site", new com.formacraft.common.llm.dto.Vec3i(20, 0, 0),
                 new com.formacraft.common.llm.dto.Dimensions(8, 8, 6), List.of(),
-                java.util.Map.of("lighting_style", "warm_lantern", "component_id", "lively_hall"));
+                java.util.Map.of("lighting_style", "warm_lantern", "component_id", "lively_hall", "building_id", "lively"));
         var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
                 null, null, null, null, null, "subtle", "classic", "none", "warm_lantern", "high");
         var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
@@ -258,21 +262,20 @@ class LightingPostProcessorTest {
                 .build();
         PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN, List.of(quiet, lively));
         List<BlockPatch> input = new ArrayList<>();
-        // floorH=4 → ceilY=3 for the first storey; ceiling solid must sit on that plane.
-        for (int x = 1; x < 7; x++) for (int z = 1; z < 7; z++) {
-            input.add(new BlockPatch(BlockPatch.PLACE, x, 0, z, "minecraft:oak_planks"));
-            input.add(new BlockPatch(BlockPatch.PLACE, x, 3, z, "minecraft:oak_planks"));
+        for (int x = 101; x < 107; x++) for (int z = 101; z < 107; z++) {
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 64, z, "minecraft:oak_planks"));
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 67, z, "minecraft:oak_planks"));
         }
-        for (int x = 21; x < 27; x++) for (int z = 1; z < 7; z++) {
-            input.add(new BlockPatch(BlockPatch.PLACE, x, 0, z, "minecraft:oak_planks"));
-            input.add(new BlockPatch(BlockPatch.PLACE, x, 3, z, "minecraft:oak_planks"));
+        for (int x = 121; x < 127; x++) for (int z = 101; z < 107; z++) {
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 64, z, "minecraft:oak_planks"));
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 67, z, "minecraft:oak_planks"));
         }
         List<BlockPatch> out = new LightingPostProcessor().process(input, ctx);
         List<BlockPatch> added = out.stream().filter(p -> !input.contains(p)).toList();
-        assertTrue(added.stream().noneMatch(p -> p.dx() >= 0 && p.dx() < 8),
-                "quiet volume must suppress auto lights, added=" + added);
-        assertTrue(added.stream().anyMatch(p -> p.dx() >= 20 && p.dx() < 28),
-                "lively volume must still receive lights, added=" + added);
+        assertTrue(added.stream().noneMatch(p -> p.dx() >= 100 && p.dx() < 108),
+                "quiet volume lightingAllowed=false must suppress lights, added=" + added);
+        assertTrue(added.stream().anyMatch(p -> p.dx() >= 120 && p.dx() < 128),
+                "lively volume lightingAllowed=true must receive lights, added=" + added);
     }
 
     /** Tiny helper mirrored from LightingPostProcessor storey rules for unit clarity. */

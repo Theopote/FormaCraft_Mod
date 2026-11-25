@@ -7,9 +7,11 @@ import com.formacraft.common.network.IncrementalPrimitivePolicy;
 import com.formacraft.common.network.IncrementalWindowQuery;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -46,8 +48,11 @@ public final class IncrementalEditScope {
         if (plan == null || plan.mode() != LlmPlan.Mode.patch) {
             return false;
         }
-        // Phase 01.9: any defined authorized write set suppresses aesthetic growth —
-        // not only WINDOW/FACADE keywords.
+        // Authored patch.blocks[] always isolate — including local WALL/ROOF/MASS recolors.
+        if (plan.patch() != null && plan.patch().blocks() != null && !plan.patch().blocks().isEmpty()) {
+            return true;
+        }
+        // Satellite-only / bounded opening edits (Ω non-empty without whole-building rewrite).
         return !authorizedWriteCells(plan).isEmpty();
     }
 
@@ -117,8 +122,9 @@ public final class IncrementalEditScope {
     }
 
     /**
-     * Authorized write cells Ω for {@code mode=patch} (plan-local). Empty when the
-     * plan is not a bounded incremental edit.
+     * Authorized write cells Ω for {@code mode=patch} (plan-local).
+     * Prefer {@code patch.blocks[]} as the exact Ω — do not expand whole component AABBs
+     * when patch cells already define the edit. Empty when the plan is an unbounded rewrite.
      */
     public static Set<BlockPos> authorizedWriteCells(LlmPlan plan) {
         Set<BlockPos> out = new HashSet<>();
@@ -131,35 +137,92 @@ public final class IncrementalEditScope {
                 out.add(new BlockPos(b.dx(), b.dy(), b.dz()));
             }
         }
+        boolean hasPatchOmega = !out.isEmpty();
         if (plan.components() != null) {
             for (Component c : plan.components()) {
                 if (c == null || c.relativePosition() == null || c.dimensions() == null) continue;
                 String t = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
                 if (isWholeBuildingRewriteType(t)) {
-                    // Whole-building rewrite is not a bounded Ω — clear and abort.
+                    // Local patch.blocks on a mass/roof/wall keep Ω; pure mass rewrite clears it.
+                    if (hasPatchOmega) continue;
                     return Set.of();
                 }
                 if (!(isOpeningOrFacadeType(t)
                         || IncrementalPrimitivePolicy.allows(IncrementalWindowQuery.normalize(c))
                         || isSatelliteAddType(t))) {
+                    if (hasPatchOmega) continue;
                     return Set.of();
                 }
-                int ox = c.relativePosition().x();
-                int oy = c.relativePosition().y();
-                int oz = c.relativePosition().z();
-                int w = Math.max(1, c.dimensions().width());
-                int h = Math.max(1, c.dimensions().height());
-                int d = Math.max(1, c.dimensions().depth());
-                for (int x = 0; x < w; x++) {
-                    for (int y = 0; y < h; y++) {
-                        for (int z = 0; z < d; z++) {
-                            out.add(new BlockPos(ox + x, oy + y, oz + z));
+                // Component-only satellite edits: authorize the component origin cell only
+                // for intent gating; full AABB expand is avoided (Phase 01 closeout P1-03).
+                // Downstream Δ⊆Ω tests use patch.blocks when present.
+                if (!hasPatchOmega) {
+                    out.add(new BlockPos(
+                            c.relativePosition().x(),
+                            c.relativePosition().y(),
+                            c.relativePosition().z()));
+                    // Opening satellites still need their footprint for write-scope freeze.
+                    if (isOpeningOrFacadeType(t)
+                            || IncrementalPrimitivePolicy.allows(IncrementalWindowQuery.normalize(c))) {
+                        int ox = c.relativePosition().x();
+                        int oy = c.relativePosition().y();
+                        int oz = c.relativePosition().z();
+                        int w = Math.max(1, c.dimensions().width());
+                        int h = Math.max(1, c.dimensions().height());
+                        int d = Math.max(1, c.dimensions().depth());
+                        for (int x = 0; x < w; x++) {
+                            for (int y = 0; y < h; y++) {
+                                for (int z = 0; z < d; z++) {
+                                    out.add(new BlockPos(ox + x, oy + y, oz + z));
+                                }
+                            }
                         }
                     }
                 }
             }
         }
         return Set.copyOf(out);
+    }
+
+    /**
+     * Cells changed between {@code before} and {@code after} (coord + block id).
+     * Used for Δ ⊆ Ω validation in tests and optional pipeline audits.
+     */
+    public static Set<BlockPos> deltaCells(List<com.formacraft.common.patch.BlockPatch> before,
+                                          List<com.formacraft.common.patch.BlockPatch> after) {
+        Map<String, String> a = foldCells(before);
+        Map<String, String> b = foldCells(after);
+        Set<BlockPos> delta = new HashSet<>();
+        for (var e : b.entrySet()) {
+            if (!java.util.Objects.equals(a.get(e.getKey()), e.getValue())) {
+                delta.add(parseKey(e.getKey()));
+            }
+        }
+        for (String key : a.keySet()) {
+            if (!b.containsKey(key)) delta.add(parseKey(key));
+        }
+        return Set.copyOf(delta);
+    }
+
+    private static Map<String, String> foldCells(List<com.formacraft.common.patch.BlockPatch> patches) {
+        Map<String, String> map = new HashMap<>();
+        if (patches == null) return map;
+        for (var p : patches) {
+            if (p == null) continue;
+            String key = p.dx() + "," + p.dy() + "," + p.dz();
+            String action = p.action() == null ? "" : p.action().toLowerCase(Locale.ROOT);
+            if (com.formacraft.common.patch.BlockPatch.REMOVE.equals(action)) {
+                map.remove(key);
+            } else {
+                map.put(key, p.targetBlock());
+            }
+        }
+        return map;
+    }
+
+    private static BlockPos parseKey(String key) {
+        String[] p = key.split(",");
+        return new BlockPos(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]));
     }
 
     /**

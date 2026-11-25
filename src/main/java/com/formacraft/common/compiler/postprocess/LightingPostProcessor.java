@@ -1,7 +1,6 @@
 package com.formacraft.common.compiler.postprocess;
 
 import com.formacraft.FormacraftMod;
-import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.component.util.SubVoxelBlockStates;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.AestheticPassHints;
@@ -204,49 +203,50 @@ public class LightingPostProcessor implements PostProcessor {
      * (bare hanging lanterns drop as items on block updates).
      */
     /**
-     * Compile-frame AABBs that must not receive auto lights (Phase 01.9 Task D).
-     * Prefers {@link PostProcessContext#buildingVolumes()} (slot-shifted); falls back to
-     * component min-corner bounds. Multi-building: only volumes whose mass opted out.
+     * Volumes that must not receive auto lights (Phase 01 closeout P1-02).
+     * Prefer compile-time {@link PostProcessContext.BuildingVolume#lightingAllowed()} —
+     * never guess ownership by overlapping local Component AABB vs slot-shifted volume.
      */
     private static List<PostProcessContext.BuildingVolume> lightingOptOutVolumes(PostProcessContext context) {
         List<PostProcessContext.BuildingVolume> out = new ArrayList<>();
-        if (context == null || context.plan() == null || context.plan().components() == null) return out;
-        List<com.formacraft.common.llm.dto.Component> optOutComponents = new ArrayList<>();
+        if (context == null || context.buildingVolumes() == null) return out;
+        boolean anyIdentity = false;
+        for (var volume : context.buildingVolumes()) {
+            if (volume == null) continue;
+            if (volume.componentId() != null || volume.buildingId() != null || !volume.lightingAllowed()) {
+                anyIdentity = true;
+            }
+            if (!volume.lightingAllowed()) {
+                out.add(volume);
+            }
+        }
+        if (anyIdentity) {
+            return out;
+        }
+        // Legacy volumes without identity: fall back to plan-param opt-out matched by
+        // componentId/buildingId when present on the plan, else skip (do not AABB-guess).
+        if (context.plan() == null || context.plan().components() == null) return out;
+        Set<String> optOutIds = new HashSet<>();
         for (var c : context.plan().components()) {
-            if (c == null || c.params() == null || c.relativePosition() == null || c.dimensions() == null) continue;
+            if (c == null || c.params() == null) continue;
             boolean decorOff = com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(
                     context.plan(), c.params());
             AestheticPassHints.Resolved local = AestheticPassHints.resolve(context.plan(), c.params());
-            // Explicit NONE only — INVALID null must not suppress lights for the whole mass.
             boolean lightsOff = local.lightingStyle() == AestheticPassHints.LightingStyle.NONE;
             if (!decorOff && !lightsOff) continue;
-            optOutComponents.add(c);
+            String cid = c.params().get("component_id") == null ? null
+                    : String.valueOf(c.params().get("component_id"));
+            String bid = c.params().get("building_id") == null ? null
+                    : String.valueOf(c.params().get("building_id"));
+            if (cid != null && !cid.isBlank()) optOutIds.add(cid);
+            if (bid != null && !bid.isBlank()) optOutIds.add(bid);
+            if (c.slotId() != null && !c.slotId().isBlank()) optOutIds.add(c.slotId().trim());
         }
-        if (optOutComponents.isEmpty()) return out;
-        // Match by mass AABB — never by slot alone (multi-building same-slot sites).
-        Set<PostProcessContext.BuildingVolume> matched = new HashSet<>();
-        for (var c : optOutComponents) {
-            var cb = ComponentFootprintUtil.bounds(c);
-            if (cb == null || cb.width() <= 0 || cb.depth() <= 0 || cb.height() <= 0) continue;
-            boolean found = false;
-            if (context.buildingVolumes() != null) {
-                for (var volume : context.buildingVolumes()) {
-                    if (volume == null || volume.bounds() == null) continue;
-                    if (aabbOverlaps(volume.bounds(), cb) && matched.add(volume)) {
-                        out.add(volume);
-                        found = true;
-                    }
-                }
-            }
-            if (!found) {
-                String slot = c.slotId() == null || c.slotId().isBlank() ? "__default__" : c.slotId().trim();
-                var padded = cb.expandHorizontal(1);
-                try {
-                    out.add(new PostProcessContext.BuildingVolume(slot, padded, Math.max(1, padded.height())));
-                } catch (IllegalArgumentException ignored) {
-                    // Invalid degenerate bounds — skip.
-                }
-            }
+        if (optOutIds.isEmpty()) return out;
+        for (var volume : context.buildingVolumes()) {
+            if (volume == null) continue;
+            String slot = volume.slotId() == null ? "" : volume.slotId().trim();
+            if (optOutIds.contains(slot)) out.add(volume);
         }
         return out;
     }
@@ -254,24 +254,15 @@ public class LightingPostProcessor implements PostProcessor {
     private static boolean isOptedOutBuildingVolume(
             List<PostProcessContext.BuildingVolume> optOut, PostProcessContext.BuildingVolume volume) {
         if (optOut == null || volume == null || optOut.isEmpty()) return false;
+        if (!volume.lightingAllowed()) return true;
         for (var o : optOut) {
             if (o == null) continue;
             if (o.equals(volume)) return true;
-            if (o.bounds() != null && volume.bounds() != null && aabbOverlaps(o.bounds(), volume.bounds())
-                    && java.util.Objects.equals(o.slotId(), volume.slotId())
-                    && o.bounds().minX() == volume.bounds().minX()
-                    && o.bounds().minZ() == volume.bounds().minZ()) {
-                return true;
-            }
+            if (volume.componentId() != null && volume.componentId().equals(o.componentId())) return true;
+            if (volume.buildingId() != null && volume.buildingId().equals(o.buildingId())
+                    && java.util.Objects.equals(volume.bounds(), o.bounds())) return true;
         }
         return false;
-    }
-
-    private static boolean aabbOverlaps(ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
-        if (a == null || b == null) return false;
-        return a.minX() < b.maxX() && a.maxX() > b.minX()
-                && a.minY() < b.maxY() && a.maxY() > b.minY()
-                && a.minZ() < b.maxZ() && a.maxZ() > b.minZ();
     }
 
     private static boolean inOptOutVolume(List<PostProcessContext.BuildingVolume> volumes, int x, int y, int z) {

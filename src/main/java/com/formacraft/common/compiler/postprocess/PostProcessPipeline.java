@@ -99,15 +99,20 @@ public class PostProcessPipeline {
         // décor PLACE cells produced by earlier processors (no stage-by-stage expansion).
         PostProcessContext authContext = context;
         PostProcessWriteScope frozenScope = context != null ? context.authorizedWriteScope() : null;
-        if (frozenScope == null && context != null) {
-            Set<BlockPos> entrySeeds = new HashSet<>(PostProcessPatchDelta.foldPlaces(patches).keySet());
-            frozenScope = PostProcessWriteScope.fromContext(context, entrySeeds);
-            authContext = context.withAuthorizedWriteScope(frozenScope);
-        }
-
-        // mode=patch edit-scope contract (P1-03): standalone build-mode décor is not an edit.
+        // mode=patch edit-scope contract (P1-03 / Phase 01 closeout): freeze to Ω when isolated.
         boolean openingOnlyPatch = IncrementalEditScope.suppressesAestheticExpansion(
                 authContext == null ? null : authContext.plan());
+        if (frozenScope == null && context != null) {
+            Set<BlockPos> omega = IncrementalEditScope.authorizedWriteCells(
+                    authContext == null ? null : authContext.plan());
+            if (openingOnlyPatch && !omega.isEmpty()) {
+                frozenScope = PostProcessWriteScope.exactCells(omega);
+            } else {
+                Set<BlockPos> entrySeeds = new HashSet<>(PostProcessPatchDelta.foldPlaces(patches).keySet());
+                frozenScope = PostProcessWriteScope.fromContext(context, entrySeeds);
+            }
+            authContext = context.withAuthorizedWriteScope(frozenScope);
+        }
         for (PostProcessor processor : processors) {
             if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(
                     authContext == null ? null : authContext.plan(), null)
