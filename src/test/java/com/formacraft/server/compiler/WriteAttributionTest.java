@@ -108,6 +108,42 @@ class WriteAttributionTest {
     }
 
     @Test
+    void postProcessOutOfScopeUsesDistinctViolationAndDetailsShape() {
+        var conflict = new PatchOccupancyIndex.Conflict(
+                new BlockPos(5, 3, 1),
+                "MASS_MAIN",
+                "minecraft:stone_bricks",
+                "POSTPROCESS:lighting",
+                "minecraft:lantern",
+                "out_of_scope_place");
+        var occupancy = new PatchOccupancyIndex();
+        occupancy.accept(mass("main", "hall"),
+                List.of(new BlockPatch(BlockPatch.PLACE, 5, 3, 1, "minecraft:stone_bricks")));
+
+        var attribution = WriteAttribution.fromPostProcessConflict("lighting", conflict, occupancy);
+        assertEquals(WriteAttribution.OUT_OF_SCOPE_WRITE, attribution.violation());
+        assertEquals("MASS_MAIN", attribution.currentOccupancyWriter());
+        assertEquals(WriteAttribution.RESOLUTION_REJECTED, attribution.resolution());
+        Map<String, Object> details = attribution.toDetails();
+        assertEquals(WriteAttribution.OUT_OF_SCOPE_WRITE, details.get("violation"));
+        assertEquals("rejected", details.get("resolution"));
+        assertNotNull(details.get("attribution"));
+        assertTrue(String.valueOf(details.get("attribution")).contains("POSTPROCESS"));
+    }
+
+    @Test
+    void postProcessClearanceAndUnauthorizedClassifyDistinctly() {
+        assertEquals(WriteAttribution.CLEARANCE_VIOLATION,
+                WriteAttribution.classifyPostProcessViolation("clearance_cell_carve"));
+        assertEquals(WriteAttribution.UNAUTHORIZED_PLACE_OVERWRITE,
+                WriteAttribution.classifyPostProcessViolation("unauthorized_place_overwrite"));
+        assertEquals(WriteAttribution.OUT_OF_SCOPE_WRITE,
+                WriteAttribution.classifyPostProcessViolation("out_of_scope_remove"));
+        assertEquals(WriteAttribution.SURFACE_OVERWRITE_FORBIDDEN,
+                WriteAttribution.classifyPostProcessViolation("surface_role_forbidden"));
+    }
+
+    @Test
     void traceReportsSurfaceRoleWithoutViolation() {
         Component mass = mass("main", "hall");
         var ledger = new SurfaceOwnershipLedger();

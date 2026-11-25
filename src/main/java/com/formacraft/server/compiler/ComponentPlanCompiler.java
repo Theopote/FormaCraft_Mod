@@ -248,6 +248,7 @@ public final class ComponentPlanCompiler {
         Set<BlockPos> generatedSurfaces = new HashSet<>();
         var openingExpectations = new java.util.LinkedHashMap<BlockPos, OpeningMaterialAudit.Expectation>();
         Set<BlockPos> authorizedRoofOpenings = new HashSet<>();
+        Map<String, Set<BlockPos>> authorizedRoofOpeningsByOwner = new HashMap<>();
         Set<BlockPos> protectedMaterials = new HashSet<>();
         Set<BlockPos> decorationRestrictions = new HashSet<>();
         var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
@@ -282,7 +283,7 @@ public final class ComponentPlanCompiler {
                 }
                 patchOccupancy = ComponentEmitPass.compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
                         slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions,
-                        openingExpectations, authorizedRoofOpenings);
+                        openingExpectations, authorizedRoofOpenings, authorizedRoofOpeningsByOwner);
             }
         } finally {
             GenerationCompileContext.install(previousCompileContext);
@@ -302,10 +303,13 @@ public final class ComponentPlanCompiler {
             com.formacraft.common.generation.component.util.CirculationAnalysisContext.end();
         }
 
-        Set<BlockPos> roofOpeningAuthority = new HashSet<>();
-        for (var flight : circulation) roofOpeningAuthority.addAll(flight.clearance());
+        Set<BlockPos> roofClearance = new HashSet<>();
+        for (var flight : circulation) roofClearance.addAll(flight.clearance());
+        // Host-coverage still uses the union (clearance + openings); core check is host-scoped.
+        Set<BlockPos> roofOpeningAuthority = new HashSet<>(roofClearance);
         roofOpeningAuthority.addAll(authorizedRoofOpenings);
-        var roofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofOpeningAuthority);
+        var roofMissing = FlatRoofCoverageValidator.check(
+                flatRoofs, result, roofClearance, authorizedRoofOpeningsByOwner);
         if (roofMissing.isPresent()) {
             var missing = roofMissing.get();
             AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_COVERAGE",
@@ -363,6 +367,10 @@ public final class ComponentPlanCompiler {
                             step.processorId(), step.policy(), step.delta(), step.scope());
                     if (conflict.isPresent()) {
                         var c = conflict.get();
+                        var attribution = WriteAttribution.fromPostProcessConflict(
+                                step.processorId(), c, patchOccupancy);
+                        FormacraftMod.LOGGER.info("WriteAttribution postprocess rejected:\n{}",
+                                attribution.formatDeveloper());
                         AssemblyCompileDiagnostics.set(new CapabilityGap(
                                 "E_POSTPROCESS_PATCH_CONFLICT",
                                 "后处理占用冲突：processor=" + step.processorId()
@@ -370,12 +378,14 @@ public final class ComponentPlanCompiler {
                                         + "; reason=" + c.reason()
                                         + "; pos=" + c.position()
                                         + "; previous=" + c.previousWriter() + "/" + c.previousBlock()
-                                        + "; writer=" + c.writer() + "/" + c.newBlock(),
+                                        + "; writer=" + c.writer() + "/" + c.newBlock()
+                                        + " [" + attribution.violation() + "]",
                                 "components[]",
                                 List.of("检查后处理器 WritePolicy / WriteScope",
                                         "避免 PLACE_ONLY 覆盖/清洞已有格",
                                         "避免越权修改 volume/seed 外方块",
-                                        "修复冲突后重试")
+                                        "修复冲突后重试"),
+                                attribution.toDetails()
                         ));
                         return List.of();
                     }
@@ -536,7 +546,8 @@ public final class ComponentPlanCompiler {
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
         // Re-validate flat roofs on the final post-process patch list (core + host coverage).
-        var finalRoofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofOpeningAuthority);
+        var finalRoofMissing = FlatRoofCoverageValidator.check(
+                flatRoofs, result, roofClearance, authorizedRoofOpeningsByOwner);
         if (finalRoofMissing.isPresent()) {
             var missing = finalRoofMissing.get();
             AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_COVERAGE",

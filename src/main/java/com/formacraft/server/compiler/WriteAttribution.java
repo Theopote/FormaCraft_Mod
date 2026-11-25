@@ -18,6 +18,10 @@ public final class WriteAttribution {
     public static final String PROTECTED_OPENING_OVERWRITE = "PROTECTED_OPENING_OVERWRITE";
     public static final String UNAUTHORIZED_PLACE_OVERWRITE = "UNAUTHORIZED_PLACE_OVERWRITE";
     public static final String SURFACE_OVERWRITE_FORBIDDEN = "SURFACE_OVERWRITE_FORBIDDEN";
+    /** Post-process write outside {@code PostProcessWriteScope} AABB / seed set. */
+    public static final String OUT_OF_SCOPE_WRITE = "OUT_OF_SCOPE_WRITE";
+    /** Circulation / roof-clearance cell touched without carve authority. */
+    public static final String CLEARANCE_VIOLATION = "CLEARANCE_VIOLATION";
     public static final String RESOLUTION_REJECTED = "rejected";
 
     private WriteAttribution() {}
@@ -28,7 +32,9 @@ public final class WriteAttribution {
      * @param componentId         attempting component identity
      * @param hostId              building / host id when known
      * @param position            plan-local cell
-     * @param originalWriter      occupancy / mass writer that first placed the cell
+     * @param originalWriter      <em>current</em> occupancy writer holding the cell when the
+     *                            conflict was detected (not a full lineage history — see
+     *                            {@link #currentOccupancyWriter()})
      * @param openingWriter       surface source when the cell is an opening role
      * @param postProcessWriter   POSTPROCESS_* occupancy writer when present
      * @param violation           machine code (e.g. {@link #PROTECTED_OPENING_OVERWRITE})
@@ -46,6 +52,14 @@ public final class WriteAttribution {
             String resolution,
             String reason
     ) {
+        /**
+         * Occupancy writer currently holding the cell at conflict time.
+         * Alias of {@link #originalWriter()} — the index stores one current holder, not history.
+         */
+        public String currentOccupancyWriter() {
+            return originalWriter;
+        }
+
         /** Multi-line developer diagnostic matching the Phase 01.7 contract example. */
         public String formatDeveloper() {
             StringBuilder sb = new StringBuilder();
@@ -127,6 +141,41 @@ public final class WriteAttribution {
     }
 
     /**
+     * Attribution for {@code E_POSTPROCESS_PATCH_CONFLICT} — same {@link Report#toDetails()}
+     * shape as emit-time surface/occupancy rejects (Phase 01.9 Task G).
+     */
+    public static Report fromPostProcessConflict(
+            String processorId,
+            PatchOccupancyIndex.Conflict conflict,
+            PatchOccupancyIndex occupancy
+    ) {
+        BlockPos pos = conflict == null ? null : conflict.position();
+        PatchOccupancyIndex.PlaceRecord place = occupancy == null || pos == null ? null : occupancy.placeAt(pos);
+        String attempting = processorId == null || processorId.isBlank()
+                ? "POSTPROCESS"
+                : "POSTPROCESS:" + processorId.trim();
+        String current = conflict == null ? null : conflict.previousWriter();
+        if ((current == null || current.isBlank()) && place != null) {
+            current = place.writerType();
+        }
+        String violation = classifyPostProcessViolation(conflict == null ? null : conflict.reason());
+        String postWriter = conflict != null && conflict.writer() != null && conflict.writer().startsWith("POSTPROCESS")
+                ? conflict.writer()
+                : attempting;
+        return new Report(
+                attempting,
+                "-",
+                pos,
+                current,
+                null,
+                postWriter,
+                violation,
+                RESOLUTION_REJECTED,
+                conflict == null ? null : conflict.reason()
+        );
+    }
+
+    /**
      * Snapshot a cell's known writers without asserting a violation
      * (developer probe / quality tooling).
      */
@@ -184,6 +233,30 @@ public final class WriteAttribution {
         }
         if (reason != null && reason.toLowerCase(Locale.ROOT).contains("unauthorized")) {
             return UNAUTHORIZED_PLACE_OVERWRITE;
+        }
+        return UNAUTHORIZED_PLACE_OVERWRITE;
+    }
+
+    /**
+     * Distinct post-process violation codes: out-of-scope vs unauthorized overwrite vs
+     * clearance vs surface / opening protection.
+     */
+    static String classifyPostProcessViolation(String reason) {
+        if (reason == null || reason.isBlank()) {
+            return UNAUTHORIZED_PLACE_OVERWRITE;
+        }
+        String r = reason.toLowerCase(Locale.ROOT);
+        if (r.contains("out_of_scope")) {
+            return OUT_OF_SCOPE_WRITE;
+        }
+        if (r.contains("clearance") || r.contains("circulation")) {
+            return CLEARANCE_VIOLATION;
+        }
+        if (r.contains("opening") && (r.contains("overwrite") || r.contains("carve") || r.contains("replace"))) {
+            return PROTECTED_OPENING_OVERWRITE;
+        }
+        if (r.contains("surface")) {
+            return SURFACE_OVERWRITE_FORBIDDEN;
         }
         return UNAUTHORIZED_PLACE_OVERWRITE;
     }

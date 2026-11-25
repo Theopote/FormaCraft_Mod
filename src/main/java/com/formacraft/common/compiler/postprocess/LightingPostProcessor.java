@@ -1,6 +1,7 @@
 package com.formacraft.common.compiler.postprocess;
 
 import com.formacraft.FormacraftMod;
+import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.component.util.SubVoxelBlockStates;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.style.AestheticPassHints;
@@ -32,7 +33,9 @@ public class LightingPostProcessor implements PostProcessor {
         if (patches == null || patches.isEmpty() || context == null) return patches;
 
         AestheticPassHints.Resolved hints = AestheticPassHints.resolve(context.plan(), null);
-        if (hints.lightingStyle() == AestheticPassHints.LightingStyle.NONE) {
+        // null = INVALID/unresolved aesthetic token — treat as opt-out (no NPE, no invented style).
+        if (hints.lightingStyle() == null
+                || hints.lightingStyle() == AestheticPassHints.LightingStyle.NONE) {
             return patches;
         }
         if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), null)) {
@@ -47,8 +50,8 @@ public class LightingPostProcessor implements PostProcessor {
         }
         // Per-mass lighting_style=none / no_complex_decor must win even when plan-level
         // AestheticPassHints still resolve to a style default (DesignDecisionPriority.USER_EXPLICIT).
-        Set<Long> decorOptOutVolumes = decorOptOutCells(context);
-        decorOptOutVolumes.addAll(lightingOptOutCells(context));
+        // Phase 01.9: AABB contains against compile-frame volumes — no HashSet cell expand.
+        List<PostProcessContext.BuildingVolume> decorOptOutVolumes = lightingOptOutVolumes(context);
 
         Map<Long, String> solid = new HashMap<>();
         Set<Long> air = new HashSet<>();
@@ -70,7 +73,9 @@ public class LightingPostProcessor implements PostProcessor {
 
         String hanging = lightBlock(hints.lightingStyle(), true);
         String standing = lightBlock(hints.lightingStyle(), false);
-        int cadence = switch (hints.lightingDensity()) {
+        AestheticPassHints.LightingDensity density = hints.lightingDensity() == null
+                ? AestheticPassHints.LightingDensity.NORMAL : hints.lightingDensity();
+        int cadence = switch (density) {
             case LOW -> 10;
             case HIGH -> 5;
             default -> 7;
@@ -82,6 +87,7 @@ public class LightingPostProcessor implements PostProcessor {
 
         // Entrance flanking lights (outside the door plane, lower half only)
         for (DoorHint door : doors) {
+            if (inOptOutVolume(decorOptOutVolumes, door.x, door.y, door.z)) continue;
             Direction out = guessDoorOutward(door, solid);
             int lx = door.x + out.getOffsetX();
             int lz = door.z + out.getOffsetZ();
@@ -93,9 +99,11 @@ public class LightingPostProcessor implements PostProcessor {
             if (lightBudget(singles, hangPairs) >= MAX_LIGHTS) break;
         }
 
-        // Eaves / volume perimeter lights
+        // Eaves / volume perimeter lights — skip only opted-out mass AABBs (same-slot siblings stay lit).
         if (context.buildingVolumes() != null) {
             for (var volume : context.buildingVolumes()) {
+                if (volume == null) continue;
+                if (isOptedOutBuildingVolume(decorOptOutVolumes, volume)) continue;
                 var b = volume.bounds();
                 int minX = b.minX(), maxX = b.maxX() - 1;
                 int minY = b.minY(), maxY = b.maxY() - 1;
@@ -140,14 +148,6 @@ public class LightingPostProcessor implements PostProcessor {
         }
 
         if (singles.isEmpty() && hangPairs.isEmpty()) return patches;
-
-        if (!decorOptOutVolumes.isEmpty()) {
-            singles.removeIf(p -> p != null && decorOptOutVolumes.contains(pack(p.dx(), p.dy(), p.dz())));
-            hangPairs.removeIf(pair -> pair == null
-                    || decorOptOutVolumes.contains(pack(pair.link().dx(), pair.link().dy(), pair.link().dz()))
-                    || decorOptOutVolumes.contains(pack(pair.fixture().dx(), pair.fixture().dy(), pair.fixture().dz())));
-            if (singles.isEmpty() && hangPairs.isEmpty()) return patches;
-        }
 
         Set<BlockPos> seeds = new HashSet<>();
         for (BlockPatch p : patches) {
@@ -203,46 +203,89 @@ public class LightingPostProcessor implements PostProcessor {
      * block above for hanging, else wall torch on the façade behind; otherwise skip
      * (bare hanging lanterns drop as items on block updates).
      */
-    private static Set<Long> decorOptOutCells(PostProcessContext context) {
-        Set<Long> out = new HashSet<>();
+    /**
+     * Compile-frame AABBs that must not receive auto lights (Phase 01.9 Task D).
+     * Prefers {@link PostProcessContext#buildingVolumes()} (slot-shifted); falls back to
+     * component min-corner bounds. Multi-building: only volumes whose mass opted out.
+     */
+    private static List<PostProcessContext.BuildingVolume> lightingOptOutVolumes(PostProcessContext context) {
+        List<PostProcessContext.BuildingVolume> out = new ArrayList<>();
         if (context == null || context.plan() == null || context.plan().components() == null) return out;
+        List<com.formacraft.common.llm.dto.Component> optOutComponents = new ArrayList<>();
         for (var c : context.plan().components()) {
             if (c == null || c.params() == null || c.relativePosition() == null || c.dimensions() == null) continue;
-            if (!com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), c.params())) {
-                continue;
-            }
-            addVolumeCells(out, c);
-        }
-        return out;
-    }
-
-    /** Masses with explicit lighting_style=none (component scope) suppress PLACE lights in their AABB. */
-    private static Set<Long> lightingOptOutCells(PostProcessContext context) {
-        Set<Long> out = new HashSet<>();
-        if (context == null || context.plan() == null || context.plan().components() == null) return out;
-        for (var c : context.plan().components()) {
-            if (c == null || c.params() == null || c.relativePosition() == null || c.dimensions() == null) continue;
+            boolean decorOff = com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(
+                    context.plan(), c.params());
             AestheticPassHints.Resolved local = AestheticPassHints.resolve(context.plan(), c.params());
-            if (local.lightingStyle() != AestheticPassHints.LightingStyle.NONE) continue;
-            addVolumeCells(out, c);
+            // Explicit NONE only — INVALID null must not suppress lights for the whole mass.
+            boolean lightsOff = local.lightingStyle() == AestheticPassHints.LightingStyle.NONE;
+            if (!decorOff && !lightsOff) continue;
+            optOutComponents.add(c);
         }
-        return out;
-    }
-
-    private static void addVolumeCells(Set<Long> out, com.formacraft.common.llm.dto.Component c) {
-        int minX = c.relativePosition().x() - 1;
-        int maxX = c.relativePosition().x() + Math.max(1, c.dimensions().width());
-        int minY = c.relativePosition().y();
-        int maxY = c.relativePosition().y() + Math.max(1, c.dimensions().height());
-        int minZ = c.relativePosition().z() - 1;
-        int maxZ = c.relativePosition().z() + Math.max(1, c.dimensions().depth());
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    out.add(pack(x, y, z));
+        if (optOutComponents.isEmpty()) return out;
+        // Match by mass AABB — never by slot alone (multi-building same-slot sites).
+        Set<PostProcessContext.BuildingVolume> matched = new HashSet<>();
+        for (var c : optOutComponents) {
+            var cb = ComponentFootprintUtil.bounds(c);
+            if (cb == null || cb.width() <= 0 || cb.depth() <= 0 || cb.height() <= 0) continue;
+            boolean found = false;
+            if (context.buildingVolumes() != null) {
+                for (var volume : context.buildingVolumes()) {
+                    if (volume == null || volume.bounds() == null) continue;
+                    if (aabbOverlaps(volume.bounds(), cb) && matched.add(volume)) {
+                        out.add(volume);
+                        found = true;
+                    }
+                }
+            }
+            if (!found) {
+                String slot = c.slotId() == null || c.slotId().isBlank() ? "__default__" : c.slotId().trim();
+                var padded = cb.expandHorizontal(1);
+                try {
+                    out.add(new PostProcessContext.BuildingVolume(slot, padded, Math.max(1, padded.height())));
+                } catch (IllegalArgumentException ignored) {
+                    // Invalid degenerate bounds — skip.
                 }
             }
         }
+        return out;
+    }
+
+    private static boolean isOptedOutBuildingVolume(
+            List<PostProcessContext.BuildingVolume> optOut, PostProcessContext.BuildingVolume volume) {
+        if (optOut == null || volume == null || optOut.isEmpty()) return false;
+        for (var o : optOut) {
+            if (o == null) continue;
+            if (o.equals(volume)) return true;
+            if (o.bounds() != null && volume.bounds() != null && aabbOverlaps(o.bounds(), volume.bounds())
+                    && java.util.Objects.equals(o.slotId(), volume.slotId())
+                    && o.bounds().minX() == volume.bounds().minX()
+                    && o.bounds().minZ() == volume.bounds().minZ()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean aabbOverlaps(ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
+        if (a == null || b == null) return false;
+        return a.minX() < b.maxX() && a.maxX() > b.minX()
+                && a.minY() < b.maxY() && a.maxY() > b.minY()
+                && a.minZ() < b.maxZ() && a.maxZ() > b.minZ();
+    }
+
+    private static boolean inOptOutVolume(List<PostProcessContext.BuildingVolume> volumes, int x, int y, int z) {
+        if (volumes == null || volumes.isEmpty()) return false;
+        for (var v : volumes) {
+            if (v == null) continue;
+            // Include a 1-block horizontal pad for door/eave adjacency without cell enumeration.
+            var b = v.bounds().expandHorizontal(1);
+            if (x >= b.minX() && x < b.maxX() && y >= b.minY() && y < b.maxY()
+                    && z >= b.minZ() && z < b.maxZ()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void placeSupportedLight(List<BlockPatch> out, Map<Long, String> solid, Set<BlockPos> clearance,

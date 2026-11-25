@@ -117,7 +117,26 @@ public final class PlanPatchConverter {
         String action = patch.action() == null ? "" : patch.action().trim().toLowerCase(Locale.ROOT);
         if (BlockPatch.REMOVE.equals(action)) return false;
         String target = patch.targetBlock() == null ? "" : patch.targetBlock().toLowerCase(Locale.ROOT);
-        return looksDecorative(target);
+        if (!looksDecorative(target)) return false;
+        // Phase 01.9: USER_EXPLICIT / sealed / library-captured décor must not soft-substitute
+        // into a different lantern — fail critical (or skip without inventing a block).
+        return !isAuthorityLockedDecor(patch);
+    }
+
+    /**
+     * True when patch provenance indicates the player/model/library owns this material.
+     * Soft-recover must not invent a different lantern for these writes.
+     */
+    static boolean isAuthorityLockedDecor(BlockPatch patch) {
+        if (patch == null || patch.source() == null) return false;
+        String producer = patch.source().producer();
+        if (producer == null || producer.isBlank()) return false;
+        String p = producer.toUpperCase(Locale.ROOT);
+        return p.contains("USER_EXPLICIT")
+                || p.contains("AI_PLANNED")
+                || p.contains("LIBRARY")
+                || p.contains("SEALED")
+                || p.contains("EXPLICIT_MATERIAL");
     }
 
     /**
@@ -135,7 +154,8 @@ public final class PlanPatchConverter {
         }
         if (t.contains("lantern")) {
             boolean soul = t.contains("soul");
-            boolean hanging = t.contains("hanging=true") || t.contains("hanging");
+            // Phase 01.9: only hanging=true is hanging — hanging=false must stay standing.
+            boolean hanging = t.contains("hanging=true");
             BlockState base = soul
                     ? Blocks.SOUL_LANTERN.getDefaultState()
                     : Blocks.LANTERN.getDefaultState();

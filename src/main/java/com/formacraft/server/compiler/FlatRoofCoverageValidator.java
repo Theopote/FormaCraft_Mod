@@ -13,10 +13,21 @@ import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.generation.component.util.OpenFramePolicy;
 import com.formacraft.common.generation.component.util.ResolvedFacadeLayers;
 import net.minecraft.util.math.BlockPos;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 /** Independent core coverage expectation for explicitly resolved flat roofs, in plan coordinates. */
 final class FlatRoofCoverageValidator {
+    private static final int MAX_MISSING_LOG_SAMPLES = 8;
+
     record Roof(String source, Set<BlockPos> core, Set<BlockPos> coverage, String host, String part) {
         Roof {
             core = Collections.unmodifiableSet(new LinkedHashSet<>(core));
@@ -156,11 +167,12 @@ final class FlatRoofCoverageValidator {
                 int topY = first == null ? roofPlaneY : first.getY();
                 BlockPos roofSample = bound.isEmpty() || bound.getFirst().coverage().isEmpty()
                         ? null : bound.getFirst().coverage().iterator().next();
+                // Cap sample cells in the warn line (Phase 01.9) — first cell only + count.
                 FormacraftMod.LOGGER.warn(
-                        "[FlatRoofHostCoverage] host={} part={} open={} topY={} roofSample={} roofSources={} firstMissing={} uncovered={}",
+                        "[FlatRoofHostCoverage] host={} part={} open={} topY={} roofSample={} roofSources={} firstMissing={} uncovered={} (sampleCap={})",
                         host, part.partId(), open, topY, roofSample,
                         bound.stream().map(Roof::source).toList(),
-                        first, count);
+                        first, count, MAX_MISSING_LOG_SAMPLES);
                 return Optional.of(new Missing(part.partId(), first, count,
                         assigned.stream().map(Roof::source).distinct().sorted().toList()));
             }
@@ -169,13 +181,22 @@ final class FlatRoofCoverageValidator {
     }
 
     /**
-     * @param authorizedOpenings cells with explicit opening provenance (circulation clearance,
-     *                           SurfaceOwnershipLedger opening roles, or openingCarvable roof edge).
-     *                           Perimeter {@code isOpeningLike} alone is insufficient (P1-01).
+     * @param authorizedOpenings cells with explicit opening provenance only
+     *                           (circulation clearance, WINDOW / DOOR / FACADE_OPENING).
+     *                           {@code openingCarvable} alone is insufficient (Phase 01.9 / P0-01).
      */
     static Optional<Missing> check(List<Roof> roofs, List<BlockPatch> patches, Set<BlockPos> authorizedOpenings) {
+        return check(roofs, patches, authorizedOpenings, null);
+    }
+
+    /**
+     * Host-scoped variant: when {@code openingsByOwner} is non-null, each roof only receives
+     * openings whose owner matches {@link Roof#host()} (plus shared clearance in
+     * {@code sharedClearance}). Prevents building A openings from exempting building B.
+     */
+    static Optional<Missing> check(List<Roof> roofs, List<BlockPatch> patches, Set<BlockPos> sharedClearance,
+                                   Map<String, Set<BlockPos>> openingsByOwner) {
         if (roofs.isEmpty()) return Optional.empty();
-        Set<BlockPos> authority = authorizedOpenings == null ? Set.of() : authorizedOpenings;
         Set<BlockPos> expected = new HashSet<>();
         for (var roof : roofs) expected.addAll(roof.core());
         Map<BlockPos, BlockPatch> finalPatches = new HashMap<>();
@@ -185,63 +206,47 @@ final class FlatRoofCoverageValidator {
             if (expected.contains(pos)) finalPatches.put(pos, patch);
         }
         for (var roof : roofs) {
+            Set<BlockPos> authority = authorityForRoof(roof, sharedClearance, openingsByOwner);
             int count = 0; BlockPos first = null;
             BlockPatch firstPatch = null;
+            var missingPos = new ArrayList<BlockPos>();
             for (var pos : roof.core()) {
-                if (authority.contains(pos)) continue;
                 BlockPatch present = finalPatches.get(pos);
                 if (GeneratedSurfaceCapture.occupied(present)) continue;
-                // Authorized eave fenestration only — perimeter + opening-like is not enough.
-                if (isAuthorizedPerimeterOpening(pos, roof.core(), present, authority)) continue;
+                // Unoccupied cell: exempt only with true opening authority (never bare perimeter).
+                if (authority.contains(pos)) continue;
                 count++;
                 if (first == null) {
                     first = pos;
                     firstPatch = present;
                 }
+                if (missingPos.size() < MAX_MISSING_LOG_SAMPLES) missingPos.add(pos);
             }
             if (count > 0) {
-                var missingPos = new ArrayList<BlockPos>();
-                for (var pos : roof.core()) {
-                    if (authority.contains(pos)) continue;
-                    BlockPatch present = finalPatches.get(pos);
-                    if (GeneratedSurfaceCapture.occupied(present)) continue;
-                    if (isAuthorizedPerimeterOpening(pos, roof.core(), present, authority)) continue;
-                    missingPos.add(pos);
-                }
                 FormacraftMod.LOGGER.warn(
-                        "[FlatRoofCoverage] source={} missing={} first={} presentPatch={} cells={}",
-                        roof.source(), count, first, firstPatch, missingPos);
+                        "[FlatRoofCoverage] source={} missing={} first={} presentPatch={} sampleCells={} (capped={})",
+                        roof.source(), count, first, firstPatch, missingPos, MAX_MISSING_LOG_SAMPLES);
                 return Optional.of(new Missing(roof.source(), first, count, List.of(roof.source())));
             }
         }
         return Optional.empty();
     }
 
-    private static boolean isPerimeter(BlockPos pos, Set<BlockPos> core) {
-        return !core.contains(pos.add(1, 0, 0)) || !core.contains(pos.add(-1, 0, 0))
-                || !core.contains(pos.add(0, 0, 1)) || !core.contains(pos.add(0, 0, -1));
-    }
-
-    private static boolean isOpeningLike(BlockPatch patch) {
-        if (patch == null) return false;
-        if (BlockPatch.REMOVE.equals(patch.action())) return true;
-        String target = patch.targetBlock();
-        if (target == null || target.isBlank()) return true;
-        String n = target.toLowerCase(Locale.ROOT);
-        return n.contains("air") || n.contains("glass") || n.contains("pane")
-                || n.contains("bars") || n.contains("fence");
-    }
-
-    /**
-     * Eave fenestration exemption: perimeter geometry AND opening-like patch AND
-     * explicit opening authority at the cell (SurfaceOwnership / circulation / seal).
-     */
-    private static boolean isAuthorizedPerimeterOpening(
-            BlockPos pos, Set<BlockPos> core, BlockPatch present, Set<BlockPos> authorizedOpenings
-    ) {
-        return present != null
-                && isPerimeter(pos, core)
-                && isOpeningLike(present)
-                && authorizedOpenings.contains(pos);
+    private static Set<BlockPos> authorityForRoof(Roof roof, Set<BlockPos> sharedClearance,
+                                                  Map<String, Set<BlockPos>> openingsByOwner) {
+        if (openingsByOwner == null) {
+            return sharedClearance == null ? Set.of() : sharedClearance;
+        }
+        Set<BlockPos> authority = new HashSet<>();
+        if (sharedClearance != null) authority.addAll(sharedClearance);
+        if (roof.host() != null && !roof.host().isBlank()) {
+            Set<BlockPos> hostOpenings = openingsByOwner.get(roof.host());
+            if (hostOpenings != null) authority.addAll(hostOpenings);
+        } else {
+            for (var cells : openingsByOwner.values()) {
+                if (cells != null) authority.addAll(cells);
+            }
+        }
+        return authority;
     }
 }

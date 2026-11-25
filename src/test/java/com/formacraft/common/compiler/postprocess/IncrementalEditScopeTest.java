@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -69,14 +70,94 @@ class IncrementalEditScopeTest {
     }
 
     @Test
-    void patchModeMaterialRecolorBlocksDoNotUseOpeningPredicate() {
+    void patchModeMaterialRecolorIsOwnEditClassAndSuppressesAesthetic() {
         var section = new PatchBlockSection(new Vec3i(0, 0, 0), List.of(
                 new PatchBlock("place", 0, 1, 0, "minecraft:red_concrete"),
                 new PatchBlock("place", 1, 1, 0, "minecraft:red_concrete")));
         LlmPlan patch = plan(LlmPlan.Mode.patch, List.of(), section);
         assertFalse(IncrementalEditScope.isBoundedOpeningPatchBlocksEdit(patch),
                 "wall recolor is a separate edit class — not opening-only");
-        assertFalse(IncrementalEditScope.suppressesAestheticExpansion(patch));
+        assertTrue(IncrementalEditScope.isMaterialRecolorPatchBlocksEdit(patch));
+        assertEquals(IncrementalEditScope.EditClass.MATERIAL_RECOLOR, IncrementalEditScope.classify(patch));
+        // Phase 01.9: any defined Ω suppresses aesthetic growth under mode=patch.
+        assertTrue(IncrementalEditScope.suppressesAestheticExpansion(patch));
+        Set<BlockPos> omega = IncrementalEditScope.authorizedWriteCells(patch);
+        assertEquals(Set.of(new BlockPos(0, 1, 0), new BlockPos(1, 1, 0)), omega);
+    }
+
+    @Test
+    void patchModeLocalRemoveAndMixedEditClasses() {
+        var removeOnly = new PatchBlockSection(new Vec3i(0, 0, 0), List.of(
+                new PatchBlock("remove", 2, 2, 0, "minecraft:air"),
+                new PatchBlock("remove", 3, 2, 0, "minecraft:air")));
+        LlmPlan removePlan = plan(LlmPlan.Mode.patch, List.of(), removeOnly);
+        assertTrue(IncrementalEditScope.isLocalRemovePatchBlocksEdit(removePlan));
+        assertEquals(IncrementalEditScope.EditClass.LOCAL_REMOVE, IncrementalEditScope.classify(removePlan));
+        assertTrue(IncrementalEditScope.suppressesAestheticExpansion(removePlan));
+
+        var mixed = new PatchBlockSection(new Vec3i(0, 0, 0), List.of(
+                new PatchBlock("place", 0, 1, 0, "minecraft:red_concrete"),
+                new PatchBlock("remove", 1, 1, 0, "minecraft:air"),
+                new PatchBlock("place", 2, 1, 0, "minecraft:glass")));
+        LlmPlan mixedPlan = plan(LlmPlan.Mode.patch, List.of(), mixed);
+        assertEquals(IncrementalEditScope.EditClass.MIXED, IncrementalEditScope.classify(mixedPlan));
+        assertTrue(IncrementalEditScope.suppressesAestheticExpansion(mixedPlan));
+    }
+
+    @Test
+    void patchModeRecolorDeltaIsSubsetOfAuthorizedOmega() {
+        // Baseline wall, then recolor two cells; aesthetic must not write outside Ω.
+        List<BlockPatch> baseline = new ArrayList<>();
+        for (int x = 0; x < 6; x++) {
+            for (int y = 0; y < 4; y++) {
+                baseline.add(new BlockPatch(BlockPatch.PLACE, x, y, 0, "minecraft:stone_bricks"));
+            }
+        }
+        var section = new PatchBlockSection(new Vec3i(0, 0, 0), List.of(
+                new PatchBlock("place", 2, 1, 0, "minecraft:red_concrete"),
+                new PatchBlock("place", 3, 1, 0, "minecraft:red_concrete")));
+        LlmPlan patch = plan(LlmPlan.Mode.patch, List.of(), section);
+        Set<BlockPos> omega = IncrementalEditScope.authorizedWriteCells(patch);
+        assertFalse(omega.isEmpty());
+
+        List<BlockPatch> input = new ArrayList<>(baseline);
+        input.add(new BlockPatch(BlockPatch.PLACE, 2, 1, 0, "minecraft:red_concrete"));
+        input.add(new BlockPatch(BlockPatch.PLACE, 3, 1, 0, "minecraft:red_concrete"));
+
+        var volume = new PostProcessContext.BuildingVolume("s",
+                new ComponentFootprintUtil.Bounds(0, 0, 0, 6, 4, 2), 3);
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "deep", "classic", "subtle", "warm_lantern", "high");
+        LlmPlan styled = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .mode(LlmPlan.Mode.patch)
+                .styleProfile("GOTHIC")
+                .styleAttributes(attrs)
+                .patch(section)
+                .build();
+        PostProcessContext ctx = PostProcessContext.create(styled, BlockPos.ORIGIN, List.of(volume));
+        List<BlockPatch> out = PostProcessPipeline.createDefault(ctx).process(input, ctx);
+
+        Map<String, String> before = cellMap(baseline);
+        Map<String, String> after = cellMap(out);
+        Set<BlockPos> delta = new java.util.HashSet<>();
+        for (var e : after.entrySet()) {
+            String prev = before.get(e.getKey());
+            if (!java.util.Objects.equals(prev, e.getValue())) {
+                String[] p = e.getKey().split(",");
+                delta.add(new BlockPos(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])));
+            }
+        }
+        for (String key : before.keySet()) {
+            if (!after.containsKey(key)) {
+                String[] p = key.split(",");
+                delta.add(new BlockPos(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])));
+            }
+        }
+        assertTrue(omega.containsAll(delta),
+                "Δ must be ⊆ Ω_authorized; delta=" + delta + " omega=" + omega);
+        assertTrue(after.values().stream().noneMatch(v -> v != null && (
+                        v.contains("lantern") || v.contains("torch") || v.contains("end_rod"))),
+                "recolor patch must not grow lanterns outside Ω");
     }
 
     @Test

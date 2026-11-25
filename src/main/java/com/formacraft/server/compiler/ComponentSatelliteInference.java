@@ -1176,6 +1176,12 @@ final class ComponentSatelliteInference {
                         .normalizeStairRoofRise(roofHeight, width, depth, kind.get(), params, alongDepth);
             }
         }
+        // Flat decks are a single seal course unless the plan authored an explicit rise.
+        // span/3 technical default must not inflate inferred flat ROOF Dimensions.height.
+        if ("flat".equalsIgnoreCase(roofType)
+                && !com.formacraft.common.generation.component.util.RoofPitchGeometry.hasExplicitRiseIntent(params)) {
+            roofHeight = 1;
+        }
 
         List<String> features = new ArrayList<>();
         if (base.features() != null) {

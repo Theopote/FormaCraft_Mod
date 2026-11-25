@@ -46,30 +46,57 @@ public enum DesignDecisionPriority {
     }
 
     /**
-     * Aesthetic / style defaults may fill only when the existing value is absent.
-     * Explicit {@code none}/{@code off}/{@code false}/empty-string disable markers win.
+     * Aesthetic param classification for relief / trim / weathering / lighting / density.
+     * Classification: HARD_CONSTRAINT process rule — does not invent style values.
      */
-    public static boolean styleDefaultMayFill(Object existingValue) {
-        switch (existingValue) {
-            case null -> {
-                return true;
+    public enum AestheticParamClass {
+        /** Key missing / null — {@link #styleDefaultMayFill} may apply STYLE_DEFAULT. */
+        ABSENT,
+        /** Non-empty value that parses to a concrete enum. */
+        VALID,
+        /** Explicit disable ({@code false}/{@code 0}/{@code none}/{@code off}) — map to NONE/FLAT. */
+        DISABLED,
+        /** Non-empty value that does not parse; never silent STYLE_DEFAULT. */
+        INVALID
+    }
+
+    /**
+     * Classify a raw aesthetic param before parse / style-default fill (Phase 01.9 Task C).
+     */
+    public static AestheticParamClass classifyAestheticParam(Object existingValue) {
+        if (existingValue == null) {
+            return AestheticParamClass.ABSENT;
+        }
+        if (existingValue instanceof Boolean b) {
+            return b ? AestheticParamClass.VALID : AestheticParamClass.DISABLED;
+        }
+        if (existingValue instanceof Number n) {
+            if (n.doubleValue() == 0.0) {
+                return AestheticParamClass.DISABLED;
             }
-            case Boolean b -> {
-                return b; // false is an explicit opt-out
-            }
-            case Number n -> {
-                return n.doubleValue() > 0; // 0 / negative ratios are explicit disables
-            }
-            default -> {
-            }
+            // Positive numbers alone are not aesthetic enum tokens.
+            return AestheticParamClass.INVALID;
         }
         String s = String.valueOf(existingValue).trim();
         if (s.isEmpty()) {
-            return false;
+            // Empty string is an explicit clear / disable marker, not ABSENT.
+            return AestheticParamClass.DISABLED;
         }
         String lower = s.toLowerCase(java.util.Locale.ROOT);
-        return !"none".equals(lower) && !"off".equals(lower) && !"false".equals(lower)
-                && !"0".equals(lower);
+        if ("none".equals(lower) || "off".equals(lower) || "false".equals(lower) || "0".equals(lower)) {
+            return AestheticParamClass.DISABLED;
+        }
+        // VALID vs INVALID is decided by the field parser; non-disable tokens are parse candidates.
+        return AestheticParamClass.VALID;
+    }
+
+    /**
+     * Aesthetic / style defaults may fill only when the value is {@link AestheticParamClass#ABSENT}.
+     * Explicit disable markers ({@code none}/{@code off}/{@code false}/{@code 0}/empty) and
+     * invalid non-empty tokens must not be overwritten by STYLE_DEFAULT.
+     */
+    public static boolean styleDefaultMayFill(Object existingValue) {
+        return classifyAestheticParam(existingValue) == AestheticParamClass.ABSENT;
     }
 
     /**

@@ -108,4 +108,26 @@ class PlanPatchConverterTest {
         assertEquals(0, result.criticalInvalid());
         assertEquals(1, result.blocks().size());
     }
+
+    @Test
+    void hangingFalseDoesNotBecomeHangingLantern() {
+        // Phase 01.9: softSubstitute must not treat hanging=false as hanging=true.
+        var state = PlanPatchConverter.softSubstitute("minecraft:lantern[hanging=false]");
+        assertNotNull(state);
+        assertTrue(state.contains(net.minecraft.block.LanternBlock.HANGING));
+        assertFalse(state.get(net.minecraft.block.LanternBlock.HANGING));
+        var hanging = PlanPatchConverter.softSubstitute("minecraft:lantern[hanging=true]");
+        assertTrue(hanging.get(net.minecraft.block.LanternBlock.HANGING));
+    }
+
+    @Test
+    void authorityLockedLanternDoesNotSoftSubstitute() {
+        var locked = new BlockPatch(BlockPatch.PLACE, 0, 2, 0, "minecraft:fake_lantern_xyz",
+                new com.formacraft.common.build.GeometrySource(
+                        null, null, null, null, null, "USER_EXPLICIT_MATERIAL"));
+        assertFalse(PlanPatchConverter.canSoftRecover(locked));
+        var result = PlanPatchConverter.convert(List.of(locked), BlockPos.ORIGIN);
+        assertTrue(result.hasCriticalFailure());
+        assertEquals(0, result.blocks().size());
+    }
 }

@@ -1,16 +1,19 @@
 package com.formacraft.common.style;
 
 import com.formacraft.common.generation.design.DesignDecisionPriority;
+import com.formacraft.common.generation.design.DesignDecisionPriority.AestheticParamClass;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.StyleAttributes;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Optional aesthetic post-pass knobs. Missing → style-derived {@link DesignDecisionPriority#STYLE_DEFAULT}.
- * Explicit none/flat/off always wins ({@link DesignDecisionPriority#USER_EXPLICIT}).
- * Style defaults never overwrite disable markers — see {@link DesignDecisionPriority#styleDefaultMayFill}.
+ * Explicit none/flat/off/false/0 always wins ({@link DesignDecisionPriority#USER_EXPLICIT}).
+ * Style defaults never overwrite disable or invalid markers — see
+ * {@link DesignDecisionPriority#styleDefaultMayFill} / {@link DesignDecisionPriority#classifyAestheticParam}.
  */
 public final class AestheticPassHints {
     private AestheticPassHints() {}
@@ -34,71 +37,100 @@ public final class AestheticPassHints {
                 ? plan.styleProfile().toLowerCase(Locale.ROOT) : "";
         StyleAttributes attrs = plan != null ? plan.styleAttributes() : null;
 
-        // Explicit param / attribute wins; STYLE_DEFAULT fills only when absent
-        // (DesignDecisionPriority: USER_EXPLICIT > AI_PLANNED > STYLE_DEFAULT).
-        FacadeRelief relief = parseRelief(first(
-                param(params, "facade_relief", "facadeRelief"),
+        FacadeRelief relief = resolveField(
+                raw(params, "facade_relief", "facadeRelief"),
                 attr(attrs, StyleAttributes::facadeRelief),
-                custom(attrs, "facade_relief")));
-        if (relief == null && DesignDecisionPriority.styleDefaultMayFill(
-                param(params, "facade_relief", "facadeRelief"))) {
-            if (ExplicitDesignPolicy.noComplexDecor(plan, params)) relief = FacadeRelief.FLAT;
-            else if (isModern(profile)) relief = FacadeRelief.SUBTLE;
-            else if (isClassical(profile)) relief = FacadeRelief.DEEP;
-            else relief = FacadeRelief.SUBTLE;
-        }
+                custom(attrs, "facade_relief"),
+                AestheticPassHints::parseRelief,
+                FacadeRelief.FLAT,
+                () -> {
+                    if (ExplicitDesignPolicy.noComplexDecor(plan, params)) return FacadeRelief.FLAT;
+                    if (isModern(profile)) return FacadeRelief.SUBTLE;
+                    if (isClassical(profile)) return FacadeRelief.DEEP;
+                    return FacadeRelief.SUBTLE;
+                });
 
-        WindowTrim trim = parseTrim(first(
-                param(params, "window_trim", "windowTrim"),
+        WindowTrim trim = resolveField(
+                raw(params, "window_trim", "windowTrim"),
                 attr(attrs, StyleAttributes::windowTrim),
-                custom(attrs, "window_trim")));
-        if (trim == null && DesignDecisionPriority.styleDefaultMayFill(
-                param(params, "window_trim", "windowTrim"))) {
-            if (ExplicitDesignPolicy.noComplexDecor(plan, params)) trim = WindowTrim.NONE;
-            else if (profile.contains("gothic") || profile.contains("islamic") || profile.contains("roman"))
-                trim = WindowTrim.ARCH;
-            else if (isModern(profile)) trim = WindowTrim.MODERN;
-            else if (isEastAsian(profile)) trim = WindowTrim.EAST_ASIAN;
-            else trim = WindowTrim.CLASSIC;
-        }
+                custom(attrs, "window_trim"),
+                AestheticPassHints::parseTrim,
+                WindowTrim.NONE,
+                () -> {
+                    if (ExplicitDesignPolicy.noComplexDecor(plan, params)) return WindowTrim.NONE;
+                    if (profile.contains("gothic") || profile.contains("islamic") || profile.contains("roman"))
+                        return WindowTrim.ARCH;
+                    if (isModern(profile)) return WindowTrim.MODERN;
+                    if (isEastAsian(profile)) return WindowTrim.EAST_ASIAN;
+                    return WindowTrim.CLASSIC;
+                });
 
-        Weathering weathering = parseWeathering(first(
-                param(params, "weathering"),
+        Weathering weathering = resolveField(
+                raw(params, "weathering"),
                 attr(attrs, StyleAttributes::weathering),
-                custom(attrs, "weathering")));
-        if (weathering == null && DesignDecisionPriority.styleDefaultMayFill(
-                param(params, "weathering"))) {
-            if (isModern(profile) || profile.contains("concrete") || profile.contains("cyber"))
-                weathering = Weathering.NONE;
-            else if (profile.contains("ruin") || profile.contains("castle") || profile.contains("aged"))
-                weathering = Weathering.HEAVY;
-            else weathering = Weathering.SUBTLE;
-        }
+                custom(attrs, "weathering"),
+                AestheticPassHints::parseWeathering,
+                Weathering.NONE,
+                () -> {
+                    if (isModern(profile) || profile.contains("concrete") || profile.contains("cyber"))
+                        return Weathering.NONE;
+                    if (profile.contains("ruin") || profile.contains("castle") || profile.contains("aged"))
+                        return Weathering.HEAVY;
+                    return Weathering.SUBTLE;
+                });
 
-        LightingStyle lighting = parseLighting(first(
-                param(params, "lighting_style", "lightingStyle"),
+        LightingStyle lighting = resolveField(
+                raw(params, "lighting_style", "lightingStyle"),
                 attr(attrs, StyleAttributes::lightingStyle),
-                custom(attrs, "lighting_style")));
-        if (lighting == null && DesignDecisionPriority.styleDefaultMayFill(
-                param(params, "lighting_style", "lightingStyle"))) {
-            // USER_EXPLICIT no_complex_decor wins over style-derived lantern defaults.
-            if (ExplicitDesignPolicy.noComplexDecor(plan, params)) lighting = LightingStyle.NONE;
-            else if (profile.contains("gothic") || profile.contains("dark") || profile.contains("nether"))
-                lighting = LightingStyle.SOUL_GOTHIC;
-            else if (isModern(profile)) lighting = LightingStyle.MODERN_SLEEK;
-            else lighting = LightingStyle.WARM_LANTERN;
-        }
+                custom(attrs, "lighting_style"),
+                AestheticPassHints::parseLighting,
+                LightingStyle.NONE,
+                () -> {
+                    if (ExplicitDesignPolicy.noComplexDecor(plan, params)) return LightingStyle.NONE;
+                    if (profile.contains("gothic") || profile.contains("dark") || profile.contains("nether"))
+                        return LightingStyle.SOUL_GOTHIC;
+                    if (isModern(profile)) return LightingStyle.MODERN_SLEEK;
+                    return LightingStyle.WARM_LANTERN;
+                });
 
-        LightingDensity density = parseDensity(first(
-                param(params, "lighting_density", "lightingDensity"),
+        LightingDensity density = resolveField(
+                raw(params, "lighting_density", "lightingDensity"),
                 attr(attrs, StyleAttributes::lightingDensity),
-                custom(attrs, "lighting_density")));
-        if (density == null && DesignDecisionPriority.styleDefaultMayFill(
-                param(params, "lighting_density", "lightingDensity"))) {
-            density = LightingDensity.NORMAL;
-        }
+                custom(attrs, "lighting_density"),
+                AestheticPassHints::parseDensity,
+                LightingDensity.LOW,
+                () -> LightingDensity.NORMAL);
 
         return new Resolved(relief, trim, weathering, lighting, density);
+    }
+
+    /**
+     * Shared ABSENT / VALID / DISABLED / INVALID resolution for one aesthetic field.
+     * DISABLED → {@code disabledValue}; INVALID → no STYLE_DEFAULT; ABSENT → styleDefault may fill.
+     */
+    private static <T> T resolveField(
+            Object paramRaw,
+            String attrRaw,
+            String customRaw,
+            Function<String, T> parser,
+            T disabledValue,
+            java.util.function.Supplier<T> styleDefault
+    ) {
+        Object winning = firstRaw(paramRaw, attrRaw, customRaw);
+        AestheticParamClass cls = DesignDecisionPriority.classifyAestheticParam(winning);
+        if (cls == AestheticParamClass.DISABLED) {
+            return disabledValue;
+        }
+        if (cls == AestheticParamClass.ABSENT) {
+            return styleDefault.get();
+        }
+        // VALID parse candidate (or Boolean true / non-disable token).
+        T parsed = parser.apply(stringify(winning));
+        if (parsed != null) {
+            return parsed;
+        }
+        // INVALID: keep prior absent (null) — never silent STYLE_DEFAULT.
+        return null;
     }
 
     private static boolean isModern(String p) {
@@ -117,19 +149,15 @@ public final class AestheticPassHints {
                 || p.contains("hui") || p.contains("east_asian") || p.contains("oriental");
     }
 
-    private static String param(Map<String, Object> params, String... keys) {
+    private static Object raw(Map<String, Object> params, String... keys) {
         if (params == null) return null;
         for (String k : keys) {
-            Object v = params.get(k);
-            if (v != null) {
-                String s = String.valueOf(v).trim();
-                if (!s.isEmpty()) return s;
-            }
+            if (params.containsKey(k)) return params.get(k);
         }
         return null;
     }
 
-    private static String attr(StyleAttributes attrs, java.util.function.Function<StyleAttributes, String> f) {
+    private static String attr(StyleAttributes attrs, Function<StyleAttributes, String> f) {
         if (attrs == null) return null;
         String v = f.apply(attrs);
         return v == null || v.isBlank() ? null : v.trim();
@@ -141,16 +169,26 @@ public final class AestheticPassHints {
         return v == null || v.isBlank() ? null : v.trim();
     }
 
-    private static String first(String... values) {
-        for (String v : values) if (v != null && !v.isBlank()) return v;
+    private static Object firstRaw(Object... values) {
+        for (Object v : values) {
+            if (v == null) continue;
+            if (v instanceof String s && s.isBlank()) continue;
+            return v;
+        }
         return null;
+    }
+
+    private static String stringify(Object raw) {
+        if (raw == null) return null;
+        if (raw instanceof Boolean b) return b ? "true" : "false";
+        return String.valueOf(raw).trim();
     }
 
     private static FacadeRelief parseRelief(String raw) {
         if (raw == null) return null;
         return switch (raw.trim().toLowerCase(Locale.ROOT)) {
-            case "flat", "none", "off", "0" -> FacadeRelief.FLAT;
-            case "subtle", "low", "shallow" -> FacadeRelief.SUBTLE;
+            case "flat", "none", "off", "0", "false" -> FacadeRelief.FLAT;
+            case "subtle", "low", "shallow", "true" -> FacadeRelief.SUBTLE;
             case "deep", "full", "high" -> FacadeRelief.DEEP;
             default -> null;
         };
@@ -159,7 +197,7 @@ public final class AestheticPassHints {
     private static WindowTrim parseTrim(String raw) {
         if (raw == null) return null;
         return switch (raw.trim().toLowerCase(Locale.ROOT)) {
-            case "none", "off", "false" -> WindowTrim.NONE;
+            case "none", "off", "false", "0" -> WindowTrim.NONE;
             case "classic", "classical", "medieval" -> WindowTrim.CLASSIC;
             case "arch", "gothic", "islamic", "roman" -> WindowTrim.ARCH;
             case "modern", "minimal", "brise" -> WindowTrim.MODERN;
@@ -171,7 +209,7 @@ public final class AestheticPassHints {
     private static Weathering parseWeathering(String raw) {
         if (raw == null) return null;
         return switch (raw.trim().toLowerCase(Locale.ROOT)) {
-            case "none", "off", "clean" -> Weathering.NONE;
+            case "none", "off", "clean", "false", "0" -> Weathering.NONE;
             case "subtle", "low", "light" -> Weathering.SUBTLE;
             case "medium", "normal" -> Weathering.MEDIUM;
             case "heavy", "high", "ruin" -> Weathering.HEAVY;
@@ -182,7 +220,7 @@ public final class AestheticPassHints {
     private static LightingStyle parseLighting(String raw) {
         if (raw == null) return null;
         return switch (raw.trim().toLowerCase(Locale.ROOT)) {
-            case "none", "off", "无灯", "no_lights" -> LightingStyle.NONE;
+            case "none", "off", "false", "0", "无灯", "no_lights" -> LightingStyle.NONE;
             case "warm_lantern", "lantern", "warm", "classic" -> LightingStyle.WARM_LANTERN;
             case "modern_sleek", "modern", "sleek", "end_rod" -> LightingStyle.MODERN_SLEEK;
             case "soul_gothic", "soul", "gothic", "dark" -> LightingStyle.SOUL_GOTHIC;
@@ -193,7 +231,7 @@ public final class AestheticPassHints {
     private static LightingDensity parseDensity(String raw) {
         if (raw == null) return null;
         return switch (raw.trim().toLowerCase(Locale.ROOT)) {
-            case "low", "sparse" -> LightingDensity.LOW;
+            case "low", "sparse", "none", "off", "false", "0" -> LightingDensity.LOW;
             case "high", "dense" -> LightingDensity.HIGH;
             case "normal", "medium", "default" -> LightingDensity.NORMAL;
             default -> null;

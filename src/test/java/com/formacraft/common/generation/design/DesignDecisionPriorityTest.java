@@ -16,14 +16,35 @@ class DesignDecisionPriorityTest {
     }
 
     @Test
-    void styleDefaultMayFillRespectsExplicitDisableMarkers() {
+    void styleDefaultMayFillOnlyWhenAbsent() {
+        // Phase 01.9 Task C: STYLE_DEFAULT only for ABSENT — never VALID / DISABLED / INVALID.
         assertTrue(DesignDecisionPriority.styleDefaultMayFill(null));
-        assertTrue(DesignDecisionPriority.styleDefaultMayFill("warm_lantern"));
+        assertFalse(DesignDecisionPriority.styleDefaultMayFill("warm_lantern"));
         assertFalse(DesignDecisionPriority.styleDefaultMayFill("none"));
         assertFalse(DesignDecisionPriority.styleDefaultMayFill("off"));
         assertFalse(DesignDecisionPriority.styleDefaultMayFill("false"));
         assertFalse(DesignDecisionPriority.styleDefaultMayFill(false));
         assertFalse(DesignDecisionPriority.styleDefaultMayFill(0));
+        assertFalse(DesignDecisionPriority.styleDefaultMayFill("not_a_real_style"));
+        assertFalse(DesignDecisionPriority.styleDefaultMayFill(""));
+    }
+
+    @Test
+    void classifyAestheticParamCoversAbsentValidDisabledInvalid() {
+        assertEquals(DesignDecisionPriority.AestheticParamClass.ABSENT,
+                DesignDecisionPriority.classifyAestheticParam(null));
+        assertEquals(DesignDecisionPriority.AestheticParamClass.DISABLED,
+                DesignDecisionPriority.classifyAestheticParam(false));
+        assertEquals(DesignDecisionPriority.AestheticParamClass.DISABLED,
+                DesignDecisionPriority.classifyAestheticParam(0));
+        assertEquals(DesignDecisionPriority.AestheticParamClass.DISABLED,
+                DesignDecisionPriority.classifyAestheticParam("none"));
+        assertEquals(DesignDecisionPriority.AestheticParamClass.DISABLED,
+                DesignDecisionPriority.classifyAestheticParam(""));
+        assertEquals(DesignDecisionPriority.AestheticParamClass.VALID,
+                DesignDecisionPriority.classifyAestheticParam("warm_lantern"));
+        assertEquals(DesignDecisionPriority.AestheticParamClass.VALID,
+                DesignDecisionPriority.classifyAestheticParam("not_a_real_style"));
     }
 
     @Test

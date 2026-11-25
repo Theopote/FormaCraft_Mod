@@ -91,18 +91,8 @@ class Oct20AccessReplayTest {
             var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(
                     LlmPlanParser.parse(Files.readString(Path.of(path))));
             var patches=ComponentPlanCompiler.compile(plan);
-            if (i == 2) {
-                // Phase 01.4 / P1-01: the height-repaired fixture still has one unauthorized
-                // perimeter hole on link_corridor#roof (previously hidden by isOpeningLike).
-                // Geometry seal of that cell is a fixture follow-up; contract here is the gap.
-                assertTrue(AssemblyCompileDiagnostics.hasGap(),
-                        () -> "oct20 plan2 repaired must surface flat-roof gap under opening provenance: "
-                                + AssemblyCompileDiagnostics.get());
-                String code = AssemblyCompileDiagnostics.get().code();
-                assertTrue(code != null && code.contains("FLAT_ROOF"),
-                        "expected FLAT_ROOF family, got " + code);
-                return;
-            }
+            // Phase 01.9 Task B: repaired plan2 must compile clean (core seal restored).
+            // Unrepaired historical capture stays a gap fixture (see dedicated test below).
             assertFalse(patches.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
             assertFalse(AssemblyCompileDiagnostics.hasGap(),String.valueOf(AssemblyCompileDiagnostics.get()));
             if (i == 6) {
@@ -125,20 +115,28 @@ class Oct20AccessReplayTest {
     }
 
     @Test
-    void historicalOct20Plan2WithoutRepairSurfacesUnauthorizedPerimeterFlatRoofGap() throws Exception {
+    void historicalOct20Plan2WithoutRepairRemainsImmutableHeightCapture() throws Exception {
         var plan = com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(
                 LlmPlanParser.parse(Files.readString(Path.of(
                         "python_backend/tests/fixtures/complex_build_retest/oct20_access_2.normalized.json"))));
+        // Phase 01.9 Task B: unrepaired JSON stays the immutable height=8 capture (not rewritten).
+        // Coplanar hall_roof at y=7 can seal the corridor join; repaired height=12 is the
+        // success contract in loggedPlans. Do not flip this fixture into an expected-failure
+        // solely to keep CI green.
+        var hall = plan.components().stream()
+                .filter(c -> c.params() != null && "exhibition_hall".equals(c.params().get("component_id")))
+                .findFirst().orElseThrow();
+        assertEquals(8, hall.dimensions().height(), "unrepaired exhibition_hall height must stay 8");
         AssemblyCompileDiagnostics.clear();
-        ComponentPlanCompiler.compile(plan);
-        // Phase 01.4 / P1-01: perimeter REMOVE/air without SurfaceOwnership opening provenance
-        // is a coverage hole again. Deterministic contract — repaired fixture (loggedPlans)
-        // still compiles clean; unrepaired capture must gap E_FLAT_ROOF_COVERAGE.
-        assertTrue(AssemblyCompileDiagnostics.hasGap(),
-                "unrepaired oct20 plan2 must surface a flat-roof coverage gap");
-        String code = AssemblyCompileDiagnostics.get().code();
-        assertTrue(code != null && code.contains("FLAT_ROOF"),
-                "historical capture gap must stay flat-roof family, got " + code);
+        var patches = ComponentPlanCompiler.compile(plan);
+        // Join-reseal may compile clean; if a gap remains it must stay FLAT_ROOF family (not silent redesign).
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            String code = AssemblyCompileDiagnostics.get().code();
+            assertTrue(code != null && code.contains("FLAT_ROOF"),
+                    "historical capture gap must stay flat-roof family, got " + code);
+        } else {
+            assertFalse(patches.isEmpty());
+        }
     }
 
     @Test void descendingDescriptionKeepsLandingAtRaisedEnd() throws Exception {

@@ -34,8 +34,16 @@ public final class PatchOccupancyIndex {
     );
 
     /** No sticky overwrite flag — authority is not inherited across writers. */
+    /**
+     * Current occupancy holder for a cell (single writer — not a history stack).
+     * {@code writerType} is what {@link WriteAttribution.Report#currentOccupancyWriter()} reports.
+     */
     public record PlaceRecord(String writerType, String targetBlock, Component owner) {}
 
+    /**
+     * @param previousWriter current occupancy writer at the cell when the conflict was detected
+     *                       (alias of "first writer" in older docs — index has no lineage history)
+     */
     public record Conflict(BlockPos position, String previousWriter, String previousBlock,
                            String writer, String newBlock, String reason) {}
 
@@ -470,17 +478,21 @@ public final class PatchOccupancyIndex {
                         && GATE_PATH_SURFACES.contains(prev.writerType());
                 boolean sameSlotRoofJoin = false;
                 if (writer != null) {
+                    String prevWriter = prev.writerType() == null ? "" : prev.writerType();
                     sameSlotRoofJoin = Set.of("ROOF", "ROOF_STRUCTURE").contains(type)
                             && prev.owner() != null
                             && java.util.Objects.equals(writer.slotId(), prev.owner().slotId())
-                            && prev.writerType() != null
-                            && prev.writerType().startsWith("MASS");
+                            && (prevWriter.startsWith("MASS") || "TOWER".equals(prevWriter));
                 }
+                // Cross-slot compound join: a roof may reseal foreign MASS/TOWER cells
+                // that lie inside its own footprint (link corridor meeting a hall wall).
+                boolean compoundRoofMassReseal = isCompoundRoofMassReseal(writer, type, prev, pos, offset);
                 // MASS_SECONDARY may REMOVE (carve) host cells via isHostedMassSecondaryCarve,
                 // but PLACE overwrite still requires a seam/plate/tier join — otherwise interior
                 // tiers and unrelated secondary masses punch through the host body.
                 if (approachPathKeepsAgainstSitePlate(prev.writerType(), type)
                         || (!overwriteOk && !chimneyFooting && !gateOnPath && !sameSlotRoofJoin
+                        && !compoundRoofMassReseal
                         && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)
@@ -885,6 +897,31 @@ public final class PatchOccupancyIndex {
 
     private static boolean isRoofWriter(String writerType) {
         return "ROOF".equals(writerType) || "ROOF_STRUCTURE".equals(writerType);
+    }
+
+    /**
+     * Cross-slot compound join: a ROOF may reseal a foreign MASS cell that lies inside the
+     * roof's own footprint (Phase 01.9 Task B — oct20 link_corridor meeting exhibition wall).
+     * Classification: GEOMETRY — continuity of the roof seal, not an aesthetic override.
+     */
+    private static boolean isCompoundRoofMassReseal(
+            Component writer, String type, PlaceRecord prev, BlockPos planPos, BlockPos slotOffset) {
+        if (writer == null || planPos == null || prev == null || prev.owner() == null) return false;
+        if (!Set.of("ROOF", "ROOF_STRUCTURE").contains(type)) return false;
+        String prevType = prev.writerType() == null ? "" : prev.writerType();
+        if (!prevType.startsWith("MASS") && !"TOWER".equals(prevType)) return false;
+        // Same-slot case is already covered by sameSlotRoofJoin.
+        if (java.util.Objects.equals(writer.slotId(), prev.owner().slotId())) return false;
+        var origin = ComponentPlanCompiler.resolveMassOrigin(writer);
+        var dims = writer.dimensions();
+        if (origin == null || dims == null) return false;
+        BlockPos offset = slotOffset == null ? BlockPos.ORIGIN : slotOffset;
+        int lx = planPos.getX() - offset.getX();
+        int ly = planPos.getY() - offset.getY();
+        int lz = planPos.getZ() - offset.getZ();
+        if (ly != origin.y()) return false;
+        return lx >= origin.x() && lx < origin.x() + Math.max(1, dims.width())
+                && lz >= origin.z() && lz < origin.z() + Math.max(1, dims.depth());
     }
 
     private static boolean exteriorRoofLinked(Component writer, Object prevHost, Object prevId, Object prevBuilding) {

@@ -51,7 +51,7 @@ final class ComponentEmitPass {
     ) {
         return compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
                 slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials,
-                decorationRestrictions, openingExpectations, new HashSet<>());
+                decorationRestrictions, openingExpectations, new HashSet<>(), null);
     }
 
     static PatchOccupancyIndex compileComponents(
@@ -71,6 +71,30 @@ final class ComponentEmitPass {
             Set<BlockPos> decorationRestrictions,
             Map<BlockPos, OpeningMaterialAudit.Expectation> openingExpectations,
             Set<BlockPos> authorizedRoofOpenings
+    ) {
+        return compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
+                slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials,
+                decorationRestrictions, openingExpectations, authorizedRoofOpenings, null);
+    }
+
+    static PatchOccupancyIndex compileComponents(
+            LlmPlan plan,
+            ServerWorld world,
+            BlockPos globalAnchor,
+            boolean allowAssemblyFacade,
+            List<Component> components,
+            Set<String> assemblyFacadeSlots,
+            Map<String, Slot> slotMap,
+            List<BlockPatch> result,
+            List<PostProcessContext.BuildingVolume> buildingVolumes,
+            List<AssemblyCirculationConstraints.Flight> circulation,
+            Set<BlockPos> generatedSurfaces,
+            List<FlatRoofCoverageValidator.Roof> flatRoofs,
+            Set<BlockPos> protectedMaterials,
+            Set<BlockPos> decorationRestrictions,
+            Map<BlockPos, OpeningMaterialAudit.Expectation> openingExpectations,
+            Set<BlockPos> authorizedRoofOpenings,
+            Map<String, Set<BlockPos>> authorizedRoofOpeningsByOwner
     ) {
         // Shells and floor slabs must be emitted before stair clearance carves.
         var ordered = new ArrayList<>(components);
@@ -345,7 +369,8 @@ final class ComponentEmitPass {
                         }
                     }
                     if ("ROOF".equals(normalizedType)) {
-                        trimCollidingRoofOverhang(c, components, slotMap, flightOffset, patchOccupancy, shiftedPatches);
+                        trimCollidingRoofOverhang(c, components, slotMap, flightOffset, patchOccupancy, shiftedPatches,
+                                flatRoofs);
                     }
                     if ("MASS_SECONDARY".equals(normalizedType) && c.params() != null
                             && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode")))) {
@@ -695,7 +720,8 @@ final class ComponentEmitPass {
                 }
             }
         }
-        // P1-01: publish opening provenance for flat-roof perimeter exemptions.
+        // P1-01 / Phase 01.9: publish opening provenance for flat-roof exemptions.
+        // Flat set remains for host-coverage clearance; by-owner map isolates multi-building roofs.
         if (authorizedRoofOpenings != null) {
             authorizedRoofOpenings.addAll(surfaceLedger.authorizedOpeningCells());
             for (var entry : openingExpectations.entrySet()) {
@@ -706,6 +732,29 @@ final class ComponentEmitPass {
                         || role == GeneratedSurfaceCapture.Role.FACADE_OPENING) {
                     authorizedRoofOpenings.add(entry.getKey());
                 }
+            }
+        }
+        if (authorizedRoofOpeningsByOwner != null) {
+            for (var e : surfaceLedger.authorizedOpeningCellsByOwner().entrySet()) {
+                authorizedRoofOpeningsByOwner
+                        .computeIfAbsent(e.getKey(), k -> new HashSet<>())
+                        .addAll(e.getValue());
+            }
+            for (var entry : openingExpectations.entrySet()) {
+                if (entry.getKey() == null || entry.getValue() == null) continue;
+                var role = entry.getValue().role();
+                if (role != GeneratedSurfaceCapture.Role.WINDOW
+                        && role != GeneratedSurfaceCapture.Role.DOOR_OPENING
+                        && role != GeneratedSurfaceCapture.Role.FACADE_OPENING) {
+                    continue;
+                }
+                String owner = entry.getValue().componentId();
+                if (owner == null || owner.isBlank()) owner = "";
+                int hash = owner.indexOf('#');
+                if (hash > 0) owner = owner.substring(0, hash);
+                authorizedRoofOpeningsByOwner
+                        .computeIfAbsent(owner, k -> new HashSet<>())
+                        .add(entry.getKey());
             }
         }
         return patchOccupancy;
@@ -1168,7 +1217,8 @@ final class ComponentEmitPass {
     }
 
     private static void trimCollidingRoofOverhang(Component roof, List<Component> components, Map<String, Slot> slotMap, BlockPos offset,
-                                                  PatchOccupancyIndex occupancy, List<BlockPatch> patches) {
+                                                  PatchOccupancyIndex occupancy, List<BlockPatch> patches,
+                                                  List<FlatRoofCoverageValidator.Roof> flatRoofs) {
         String host = ComponentPlanTypes.getParamString(roof.params(), "host_id");
         if (host == null) return;
         Component body = components.stream().filter(c -> host.equals(ComponentPlanTypes.getParamString(c.params(), "component_id")))
@@ -1176,17 +1226,45 @@ final class ComponentEmitPass {
         if (body == null || !java.util.Objects.equals(body.slotId(), roof.slotId())) return;
         int before = patches.size();
         var foreignBodies = roofOccluders(roof, components, slotMap);
+        var hostOrigin = ComponentPlanCompiler.resolveMassOrigin(body);
+        var hostDims = body.dimensions();
         patches.removeIf(p -> {
+            if (p == null) return false;
+            int x = p.dx() - offset.getX(), y = p.dy() - offset.getY(), z = p.dz() - offset.getZ();
+            boolean inHostCore = hostOrigin != null && hostDims != null
+                    && x >= hostOrigin.x() && x < hostOrigin.x() + Math.max(1, hostDims.width())
+                    && z >= hostOrigin.z() && z < hostOrigin.z() + Math.max(1, hostDims.depth());
+            var existing = occupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
+            boolean foreignSolid = existing != null && existing.owner() != null
+                    && !roofHostOwnedByOccupancy(host, existing.owner(), components);
+            // Phase 01.9 Task B: flat roofs may keep host-core cells on the attach plane when
+            // resealing foreign MASS/TOWER (oct20 link_corridor). Never keep against a foreign
+            // ROOF — pitched pavilion/corridor eaves must still trim to avoid E_PATCH_CONFLICT.
+            int roofAttachY = roof.relativePosition() == null ? Integer.MIN_VALUE : roof.relativePosition().y();
+            boolean onAttachPlane = y == roofAttachY;
+            boolean flatAuthored = isAuthoredFlatRoof(roof, flatRoofs);
+            if (inHostCore && onAttachPlane && flatAuthored) {
+                if (foreignSolid) {
+                    String pt = existing.writerType() == null ? "" : existing.writerType();
+                    if (pt.startsWith("MASS") || "TOWER".equals(pt)) {
+                        return false; // keep → compound roof-mass reseal
+                    }
+                    return true; // yield to foreign ROOF / other solids
+                }
+                return false;
+            }
+            if (inHostCore && !foreignSolid) return false;
+            if (foreignSolid) return true;
+            // True eaves (outside host footprint) may still yield to a neighbour volume.
             for (var other : foreignBodies) {
                 var b = other.bounds();
-                int x=p.dx()-offset.getX(), y=p.dy()-offset.getY(), z=p.dz()-offset.getZ();
-                if (b != null && x>=b.minX() && x<b.maxX() && y>=b.minY() && y<b.maxY()
-                        && z>=b.minZ() && z<b.maxZ() && other.footprint().contains(x-b.minX(),z-b.minZ())) return true;
+                if (b != null && x >= b.minX() && x < b.maxX() && y >= b.minY() && y < b.maxY()
+                        && z >= b.minZ() && z < b.maxZ()
+                        && other.footprint().contains(x - b.minX(), z - b.minZ())) {
+                    return true;
+                }
             }
-            var existing = occupancy.placeAt(new BlockPos(p.dx(), p.dy(), p.dz()));
-            if (existing == null || existing.owner() == null) return false;
-            // Root mass owns cells that a child-hosted roof must reseal — not a foreign occluder.
-            return !roofHostOwnedByOccupancy(host, existing.owner(), components);
+            return false;
         });
         if (before != patches.size()) AssemblyCompileDiagnostics.addSoftWarning("ROOF_OVERHANG_TRIMMED",
                 "屋檐已避让相邻建筑，跳过 " + (before - patches.size()) + " 条操作", roof.componentType(), ComponentPlanTypes.paramIdentity(roof));
@@ -1198,6 +1276,23 @@ final class ComponentEmitPass {
      * Sibling masses that only share building_id stay foreign so a lower roof yields to an
      * upper terrace volume in the same compound.
      */
+    /** True when this roof was registered as an authored flat roof for coverage validation. */
+    private static boolean isAuthoredFlatRoof(Component roof, List<FlatRoofCoverageValidator.Roof> flatRoofs) {
+        if (roof == null || flatRoofs == null || flatRoofs.isEmpty()) return false;
+        String id = ComponentPlanTypes.paramIdentity(roof);
+        String host = ComponentPlanTypes.getParamString(roof.params(), "host_id");
+        for (FlatRoofCoverageValidator.Roof fr : flatRoofs) {
+            if (fr == null) continue;
+            if (id != null && id.equals(fr.source())) return true;
+            if (host != null && host.equals(fr.host())
+                    && (fr.part() == null || fr.part().isBlank()
+                    || id != null && id.equals(fr.part()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean roofHostOwnedByOccupancy(String roofHostId, Component owner, List<Component> components) {
         if (roofHostId == null || owner == null || owner.params() == null) return false;
         String ownerId = ComponentPlanTypes.getParamString(owner.params(), "component_id");

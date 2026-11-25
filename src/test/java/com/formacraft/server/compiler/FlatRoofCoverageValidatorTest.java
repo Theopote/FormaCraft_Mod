@@ -222,7 +222,8 @@ class FlatRoofCoverageValidatorTest {
     }
 
     @Test
-    void surfaceLedgerAuthorizedOpeningCellsIncludeWindowAndCarvableRoofEdge() {
+    void surfaceLedgerAuthorizedOpeningsExcludeCarvableRoofEdge() {
+        // Phase 01.9 P0-01: openingCarvable ≠ authorized opening.
         var ledger = new SurfaceOwnershipLedger();
         var roof = new Component("ROOF", "s", new Vec3i(0, 7, 0), new Dimensions(5, 5, 1), List.of(),
                 Map.of("component_id", "flat_roof", "building_id", "house", "roof_type", "flat",
@@ -243,7 +244,86 @@ class FlatRoofCoverageValidatorTest {
                 cells, BlockPos.ORIGIN);
         Set<BlockPos> auth = ledger.authorizedOpeningCells();
         assertTrue(auth.contains(new BlockPos(1, 5, 0)), "WINDOW role must authorize");
-        assertTrue(auth.contains(new BlockPos(0, 7, 0)), "openingCarvable roof edge must authorize");
+        assertFalse(auth.contains(new BlockPos(0, 7, 0)),
+                "openingCarvable roof edge must NOT authorize coverage exemption");
         assertFalse(auth.contains(new BlockPos(2, 7, 2)), "interior flat roof cell must not authorize");
+    }
+
+    @Test
+    void ledgerWindowOpeningExemptsRoofCoverageThroughRealAuthorityPath() {
+        var core = FlatRoofCoverageValidator.resolve(
+                new SemanticComponent("ROOF", null, roof(Map.of("roof_type", "flat", "host_id", "house",
+                        "building_id", "house", "component_id", "deck"))),
+                BlockPos.ORIGIN).orElseThrow();
+        BlockPos edge = core.core().stream()
+                .filter(p -> !core.core().contains(p.add(1, 0, 0))
+                        || !core.core().contains(p.add(-1, 0, 0))
+                        || !core.core().contains(p.add(0, 0, 1))
+                        || !core.core().contains(p.add(0, 0, -1)))
+                .findFirst()
+                .orElseThrow();
+        var ledger = new SurfaceOwnershipLedger();
+        var mass = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0), new Dimensions(9, 9, 8), List.of(),
+                Map.of("component_id", "house", "building_id", "house"));
+        ledger.accept(mass,
+                List.of(new BlockPatch(BlockPatch.PLACE, edge.getX(), edge.getY(), edge.getZ(), "minecraft:glass")),
+                List.of(new com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell(
+                        edge, com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.WINDOW)),
+                BlockPos.ORIGIN);
+        ledger.reserveClearance(new BlockPos(4, 7, 4)); // circulation sample (unused hole)
+        var result = new ArrayList<>(patches(core, 0));
+        result.add(new BlockPatch(BlockPatch.REMOVE, edge.getX(), edge.getY(), edge.getZ(), "minecraft:air"));
+        assertTrue(FlatRoofCoverageValidator.check(List.of(core), result, Set.of()).isPresent(),
+                "without ledger authority, edge REMOVE gaps");
+        assertTrue(FlatRoofCoverageValidator.check(List.of(core), result, ledger.authorizedOpeningCells()).isEmpty(),
+                "WINDOW from real ledger must exempt that edge cell");
+    }
+
+    @Test
+    void openingCarvableAloneDoesNotExemptCoverageViaLedger() {
+        var core = FlatRoofCoverageValidator.resolve(
+                new SemanticComponent("ROOF", null, roof(Map.of("roof_type", "flat", "building_id", "house",
+                        "component_id", "deck", "host_id", "house"))),
+                BlockPos.ORIGIN).orElseThrow();
+        BlockPos edge = core.core().stream()
+                .filter(p -> !core.core().contains(p.add(1, 0, 0))
+                        || !core.core().contains(p.add(-1, 0, 0))
+                        || !core.core().contains(p.add(0, 0, 1))
+                        || !core.core().contains(p.add(0, 0, -1)))
+                .findFirst()
+                .orElseThrow();
+        var ledger = new SurfaceOwnershipLedger();
+        var roofComp = roof(Map.of("roof_type", "flat", "building_id", "house",
+                "component_id", "deck", "host_id", "house"));
+        ledger.accept(roofComp,
+                List.of(new BlockPatch(BlockPatch.PLACE, edge.getX(), edge.getY(), edge.getZ(),
+                        "minecraft:stone_bricks")),
+                List.of(new com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell(
+                        edge, com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.ROOF)),
+                BlockPos.ORIGIN);
+        var result = new ArrayList<>(patches(core, 0));
+        result.add(new BlockPatch(BlockPatch.REMOVE, edge.getX(), edge.getY(), edge.getZ(), "minecraft:air"));
+        assertTrue(FlatRoofCoverageValidator.check(List.of(core), result, ledger.authorizedOpeningCells()).isPresent(),
+                "carvable ROOF edge alone must still gap when REMOVE lacks WINDOW/DOOR/circulation");
+    }
+
+    @Test
+    void hostScopedOpeningsDoNotAuthorizeForeignBuilding() {
+        var ledger = new SurfaceOwnershipLedger();
+        var a = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0), new Dimensions(4, 4, 4), List.of(),
+                Map.of("component_id", "hall_a", "building_id", "building_a"));
+        var b = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0), new Dimensions(4, 4, 4), List.of(),
+                Map.of("component_id", "hall_b", "building_id", "building_b"));
+        BlockPos shared = new BlockPos(1, 7, 0);
+        ledger.accept(a,
+                List.of(new BlockPatch(BlockPatch.PLACE, 1, 7, 0, "minecraft:glass")),
+                List.of(new com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell(
+                        shared, com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.WINDOW)),
+                BlockPos.ORIGIN);
+        assertTrue(ledger.authorizedOpeningCellsForOwner("building_a").contains(shared));
+        assertFalse(ledger.authorizedOpeningCellsForOwner("building_b").contains(shared),
+                "building_a WINDOW must not authorize building_b");
+        assertTrue(ledger.authorizedOpeningCellsForOwner("building_b").isEmpty()
+                || !ledger.authorizedOpeningCellsForOwner("building_b").contains(shared));
     }
 }

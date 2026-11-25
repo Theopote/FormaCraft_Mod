@@ -31,24 +31,67 @@ final class SurfaceOwnershipLedger {
     }
 
     /**
-     * Cells with explicit opening provenance for flat-roof coverage exemptions (P1-01).
-     * Includes WINDOW / DOOR_OPENING / FACADE_OPENING, flat-roof edge cells marked
-     * {@code openingCarvable}, and reserved circulation clearance.
+     * Cells with explicit opening provenance for flat-roof coverage exemptions (Phase 01.9).
+     * Includes WINDOW / DOOR_OPENING / FACADE_OPENING and reserved circulation clearance only.
+     * {@code openingCarvable} marks CARVABLE_SURFACE (may apply openings later) — never coverage
+     * exemption by itself (P0-01).
      * Classification: HARD_CONSTRAINT — geometry perimeter alone is not authority.
      */
     Set<BlockPos> authorizedOpeningCells() {
+        return authorizedOpeningCellsForOwner(null);
+    }
+
+    /**
+     * Same as {@link #authorizedOpeningCells()} but when {@code ownerFilter} is non-blank,
+     * only surfaces whose {@link Surface#owner()} matches (and all circulation clearances)
+     * are included — prevents building A openings from exempting building B roofs.
+     */
+    Set<BlockPos> authorizedOpeningCellsForOwner(String ownerFilter) {
         Set<BlockPos> out = new HashSet<>(circulationClearance);
+        String want = ownerFilter == null || ownerFilter.isBlank() ? null : ownerFilter.trim();
         for (var entry : surfaces.entrySet()) {
             if (entry.getKey() == null || entry.getValue() == null) continue;
-            GeneratedSurfaceCapture.Role role = entry.getValue().role();
-            if (role == GeneratedSurfaceCapture.Role.WINDOW
-                    || role == GeneratedSurfaceCapture.Role.DOOR_OPENING
-                    || role == GeneratedSurfaceCapture.Role.FACADE_OPENING
-                    || (role == GeneratedSurfaceCapture.Role.ROOF && entry.getValue().openingCarvable())) {
-                out.add(entry.getKey());
+            Surface surface = entry.getValue();
+            GeneratedSurfaceCapture.Role role = surface.role();
+            if (role != GeneratedSurfaceCapture.Role.WINDOW
+                    && role != GeneratedSurfaceCapture.Role.DOOR_OPENING
+                    && role != GeneratedSurfaceCapture.Role.FACADE_OPENING) {
+                continue;
             }
+            if (want != null && (surface.owner() == null || !want.equals(surface.owner()))) {
+                continue;
+            }
+            out.add(entry.getKey());
         }
         return Set.copyOf(out);
+    }
+
+    /** Circulation clearance cells only (shared across hosts). */
+    Set<BlockPos> circulationClearanceCells() {
+        return Set.copyOf(circulationClearance);
+    }
+
+    /**
+     * Opening-role cells grouped by {@link Surface#owner()} (building_id), without circulation.
+     * Used so flat-roof coverage can host-scope exemptions (Phase 01.9).
+     */
+    Map<String, Set<BlockPos>> authorizedOpeningCellsByOwner() {
+        Map<String, Set<BlockPos>> out = new HashMap<>();
+        for (var entry : surfaces.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) continue;
+            Surface surface = entry.getValue();
+            GeneratedSurfaceCapture.Role role = surface.role();
+            if (role != GeneratedSurfaceCapture.Role.WINDOW
+                    && role != GeneratedSurfaceCapture.Role.DOOR_OPENING
+                    && role != GeneratedSurfaceCapture.Role.FACADE_OPENING) {
+                continue;
+            }
+            String owner = surface.owner() == null || surface.owner().isBlank() ? "" : surface.owner();
+            out.computeIfAbsent(owner, k -> new HashSet<>()).add(entry.getKey());
+        }
+        Map<String, Set<BlockPos>> frozen = new HashMap<>();
+        for (var e : out.entrySet()) frozen.put(e.getKey(), Set.copyOf(e.getValue()));
+        return Map.copyOf(frozen);
     }
 
     boolean isProtectedFromWindows(Component writer, BlockPos position) {

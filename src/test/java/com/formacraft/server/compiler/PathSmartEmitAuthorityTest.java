@@ -15,7 +15,11 @@ import com.formacraft.server.generation.component.adaptor.ComponentPipelineStepI
 import com.formacraft.server.generation.component.adaptor.RoutedGenerationResult;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.SlabBlock;
 import net.minecraft.block.StairsBlock;
+import net.minecraft.block.enums.BlockHalf;
+import net.minecraft.block.enums.SlabType;
+import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.junit.jupiter.api.BeforeAll;
@@ -51,6 +55,61 @@ class PathSmartEmitAuthorityTest {
         assertTrue(encoded.startsWith("minecraft:oak_stairs"), encoded);
         assertTrue(encoded.contains("facing=east"), encoded);
         assertNotEquals("minecraft:oak_stairs", encoded, "must keep BlockState properties");
+    }
+
+    @Test
+    void parseStatePreservesSlabTypeTop() {
+        var fallback = Blocks.GRAVEL.getDefaultState();
+        var parsed = LlmPlanPathSmartEmit.parseState(
+                "minecraft:stone_slab[type=top]", fallback);
+        assertNotNull(parsed);
+        assertEquals(Blocks.STONE_SLAB, parsed.getBlock());
+        assertEquals(SlabType.TOP, parsed.get(SlabBlock.TYPE));
+        assertNotEquals(Blocks.STONE_SLAB.getDefaultState(), parsed,
+                "must not strip [type=top] then getDefaultState()");
+    }
+
+    @Test
+    void parseStatePreservesStairsFacingAndHalf() {
+        var fallback = Blocks.COBBLESTONE.getDefaultState();
+        var parsed = LlmPlanPathSmartEmit.parseState(
+                "minecraft:oak_stairs[facing=south,half=top]", fallback);
+        assertEquals(Blocks.OAK_STAIRS, parsed.getBlock());
+        assertEquals(Direction.SOUTH, parsed.get(StairsBlock.FACING));
+        assertEquals(BlockHalf.TOP, parsed.get(StairsBlock.HALF));
+    }
+
+    @Test
+    void parseStatePreservesLogAxis() {
+        var fallback = Blocks.GRAVEL.getDefaultState();
+        var parsed = LlmPlanPathSmartEmit.parseState(
+                "minecraft:oak_log[axis=z]", fallback);
+        assertEquals(Blocks.OAK_LOG, parsed.getBlock());
+        assertEquals(Direction.Axis.Z, parsed.get(Properties.AXIS));
+    }
+
+    @Test
+    void parseStateInvalidFallsBackWithoutInventingDefaultOfBase() {
+        var fallback = Blocks.GRAVEL.getDefaultState();
+        // Unknown property → shared resolver fails → keep caller fallback (not stone default).
+        var badProp = LlmPlanPathSmartEmit.parseState(
+                "minecraft:stone[not_a_real_prop=true]", fallback);
+        assertSame(fallback, badProp);
+        // Unknown block id → fallback.
+        var badId = LlmPlanPathSmartEmit.parseState("minecraft:not_a_real_block_xyz", fallback);
+        assertSame(fallback, badId);
+    }
+
+    @Test
+    void parseStateLockedMaterialWithPropsMustNotStripToBareDefault() {
+        // USER_EXPLICIT / locked path surfaces may carry facing — stripping would redesign paving.
+        var fallback = Blocks.GRAVEL.getDefaultState();
+        var locked = LlmPlanPathSmartEmit.parseState(
+                "minecraft:cut_copper_stairs[facing=west,half=bottom]", fallback);
+        assertEquals(Blocks.CUT_COPPER_STAIRS, locked.getBlock());
+        assertEquals(Direction.WEST, locked.get(StairsBlock.FACING));
+        assertEquals(BlockHalf.BOTTOM, locked.get(StairsBlock.HALF));
+        assertNotEquals(Blocks.CUT_COPPER_STAIRS.getDefaultState(), locked);
     }
 
     @Test

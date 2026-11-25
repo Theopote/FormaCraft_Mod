@@ -83,7 +83,7 @@ Production preview for `kind=llmplan` / `mode=build` with `components[]`:
 | **default trunk** | `LlmPlanPreviewBuilder` → `ComponentPlanCompiler` → `ComponentEmitPass` → UGR → occupancy/surface → `PostProcessPipeline` | Path A |
 | **compat** | `LegacySpecPreviewHandler` / `GenerationHub.routeStructure` / `GeneratorRouter` | Path B BuildingSpec only when explicit |
 | **compat** | `PlanProgramCompiler` | `plan_program` / skeleton when present on LlmPlan |
-| **incremental (A-patch)** | `PatchPreviewService` / `LlmPlanPreviewBuilder` patch branches | `mode=patch` + `patch.blocks[]` or opening satellites; aesthetic skip via `IncrementalEditScope` (Phase 01.2 / P1-03) |
+| **incremental (A-patch)** | `PatchPreviewService` / `LlmPlanPreviewBuilder` patch branches | `mode=patch` + `patch.blocks[]` or opening/recolor/remove/satellite-add; aesthetic skip when Ω=`authorizedWriteCells` non-empty (Phase 01.2 / 01.9 Task E) |
 
 ## Design-authority consumer inventory (Phase 01.1)
 
@@ -93,7 +93,7 @@ Production preview for `kind=llmplan` / `mode=build` with `components[]`:
 | `design_sources` USER_EXPLICIT / seals | `USER_EXPLICIT` | `DesignProvenance.putIfAllowed`, `UserConstraintContract`, `ExplicitDesignPolicy`, `StyleIntentResolver`, satellite inference | Locked; conflicting hosted satellite → `E_EXPLICIT_DESIGN_CONFLICT` |
 | `design_sources` AI_PLANNED | `AI_PLANNED` | Same provenance path; typology/style resolvers | Keep by default; hard conflict → gap |
 | Geometry realizing authorized design | `GEOMETRY_EXECUTION` | Generators, `ComponentEmitPass`, roof/opening grammar | May derive voxels; must not invent roof/windows when opted out |
-| Style / aesthetic fill | `STYLE_DEFAULT` | `AestheticPassHints`, Lighting/Detail/WindowOrder postprocessors | Fill gaps only; `none`/`off`/`false` / `no_complex_decor` win |
+| Style / aesthetic fill | `STYLE_DEFAULT` | `AestheticPassHints`, Lighting/Detail/WindowOrder postprocessors | Fill only when param class is ABSENT (Phase 01.9); DISABLED (`none`/`off`/`false`/`0`) resolves to concrete NONE/OFF — never silent STYLE_DEFAULT refill |
 | Executor choice (`GenerationAuthority`) | orthogonal to aesthetic priority | `GenerationCompileContext`, UGR typology replace policy | COMPONENTS default; typology only when authority allows |
 
 ## Aesthetic / opt-out scopes (audit)
@@ -109,7 +109,7 @@ Production preview for `kind=llmplan` / `mode=build` with `components[]`:
 
 | ID | Item | Round |
 |----|------|-------|
-| P1-01 | Flat-roof perimeter REMOVE exemption needed opening provenance | **Fixed in 01.4** — `FlatRoofCoverageValidator` requires `authorizedOpenings` (SurfaceOwnership opening roles / circulation / openingExpectations); bare `isOpeningLike` removed |
+| P1-01 | Flat-roof perimeter REMOVE exemption needed opening provenance | **Fixed in 01.4**; **hardened in 01.9** — `openingCarvable` ≠ coverage exemption; host-scoped `authorizedOpeningCellsForOwner`; authority-only unoccupied OK |
 | P1-03 | `isOpeningOnlyPatchPlan` ignored `mode=patch` | **Fixed in 01.2** — `IncrementalEditScope.suppressesAestheticExpansion` requires `mode=patch` |
 | P1-04 | Postprocess scope rebuilt from prior PLACE seeds | **Fixed in 01.3** — `PostProcessContext.authorizedWriteScope` frozen at pipeline entry; `PostProcessWriteScope.forStep` + shared delta scope |
 | P1-05 | `chain`/`end_rod` soft→stone; hang-link vs lantern atomicity | **Fixed in 01.5** — `PlanPatchConverter.softSubstitute` (hangable / skip, never stone); `LightingPostProcessor` hang pairs commit/filter atomically |
@@ -120,7 +120,7 @@ Production preview for `kind=llmplan` / `mode=build` with `components[]`:
 | Role | Typical writer | Notes |
 |------|----------------|-------|
 | `WALL` | MASS / shell | Same-host openings may carve |
-| `ROOF` | ROOF / mass deck | Not punched by façade windows; flat edge may be `openingCarvable` for ledger permissions |
+| `ROOF` | ROOF / mass deck | Not punched by façade windows; `openingCarvable` = may accept openings later (CARVABLE), never flat-roof coverage exemption (01.9) |
 | `WINDOW` / `FACADE_OPENING` | FACADE_WINDOWS / mass glazing | Authorizes flat-roof perimeter coverage exemption |
 | `DOOR_OPENING` | ENTRANCE | Authorizes coverage exemption; circulation clearance also authorizes |
 
@@ -135,19 +135,21 @@ Production preview for `kind=llmplan` / `mode=build` with `components[]`:
 | Tall-storey hang link + fixture | Atomic `HangPair` — place / opt-out / scope filter both or neither |
 | User-explicit structural unknown | Still `criticalInvalid` |
 
-### Write attribution / quality diagnostics (Phase 01.7)
+### Write attribution / quality diagnostics (Phase 01.7 / 01.9)
 
 | Artifact | Role |
 |----------|------|
-| `WriteAttribution.Report` | Developer trace: component, host, position, original / opening / post-process writers, violation, resolution |
+| `WriteAttribution.Report` | Developer trace: component, host, position, current occupancy / opening / post-process writers, violation, resolution |
+| `Report.currentOccupancyWriter()` | Alias of `originalWriter` — index stores one current holder, not lineage history |
+| `fromPostProcessConflict` | `E_POSTPROCESS_PATCH_CONFLICT` → same `toDetails()`; `OUT_OF_SCOPE_WRITE` / `CLEARANCE_VIOLATION` / opening / surface / unauthorized |
 | `PROTECTED_OPENING_OVERWRITE` | Surface conflict on WINDOW / DOOR / FACADE_OPENING |
 | `UNAUTHORIZED_PLACE_OVERWRITE` | Occupancy / final-pass unauthorized PLACE |
 | `CapabilityGap.details` | Structured keys + `attribution` multi-line text (logs / quality — not player chat) |
 | `WriteAttribution.trace` | Probe a cell without asserting a violation |
 
-### Phase 01.8 regression status
+### Phase 01.9 hardening status
 
-Focused 01.1–01.7 suites, `DesignFidelityTest` (80), `FinalGeometryAcceptanceTest`, quality-gate tests, and `check_architecture` / `check_design_authority_invariants` / `check_generation_entrypoints` are green. In-game preview/apply soak remains manual/CI. See [PHASE_01_8_DELIVERY_REPORT.md](PHASE_01_8_DELIVERY_REPORT.md).
+P0 roof authority + Oct20 repaired success; P1 aesthetic ABSENT/DISABLED, lighting AABB opt-out, edit-scope Δ⊆Ω, path `BlockPatchTargetResolver` parse, soft-recover authority; P2 postprocess attribution. See [PHASE_01_9_DELIVERY_REPORT.md](PHASE_01_9_DELIVERY_REPORT.md). In-game soak remains manual/CI.
 
 ## Related docs
 

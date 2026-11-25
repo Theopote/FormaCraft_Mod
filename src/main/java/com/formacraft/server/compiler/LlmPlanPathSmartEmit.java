@@ -8,19 +8,17 @@ import com.formacraft.common.generation.component.util.PathStripUtil;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.patch.BlockPatchTargetResolver;
 import com.formacraft.common.semantic.SemanticPart;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.server.road.RoadPlanner;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.registry.Registries;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -138,20 +136,21 @@ public final class LlmPlanPathSmartEmit {
         return block;
     }
 
-    private static BlockState parseState(String id, BlockState fallback) {
+    /**
+     * Resolve authored path/border BlockState strings via shared
+     * {@link BlockPatchTargetResolver} so properties (slab type, stairs facing/half, axis)
+     * are preserved — never strip {@code [props]} then {@code getDefaultState()}.
+     */
+    static BlockState parseState(String id, BlockState fallback) {
         if (id == null || id.isBlank()) return fallback;
-        String raw = id.trim().toLowerCase(Locale.ROOT);
-        if (!raw.contains(":")) raw = "minecraft:" + raw;
-        int bracket = raw.indexOf('[');
-        if (bracket >= 0) raw = raw.substring(0, bracket);
-        try {
-            Identifier ident = Identifier.tryParse(raw);
-            if (ident == null) return fallback;
-            var block = Registries.BLOCK.get(ident);
-            if (block == null || block == Blocks.AIR) return fallback;
-            return block.getDefaultState();
-        } catch (Exception e) {
+        String raw = id.trim();
+        if (!raw.contains(":")) {
+            raw = "minecraft:" + raw;
+        }
+        BlockState parsed = BlockPatchTargetResolver.parse(raw);
+        if (parsed == null || parsed.isAir()) {
             return fallback;
         }
+        return parsed;
     }
 }
