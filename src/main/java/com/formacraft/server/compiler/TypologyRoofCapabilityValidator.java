@@ -13,6 +13,10 @@ import java.util.Optional;
 /**
  * Compile-time gate: plan roof_type on typology STRUCTURE must be executable by the generator.
  * Param match alone is insufficient — dense_eaves_pagoda still emits eaves when roof_type=none.
+ * <p>
+ * Classification: HARD_CONSTRAINT. When the authored roof is {@code USER_EXPLICIT}/{@code AI_PLANNED}
+ * and the typology cannot execute it, emit {@code capability_gap} — never silent redesign
+ * ({@link com.formacraft.common.generation.design.DesignDecisionPriority#requiresCapabilityGap}).
  */
 final class TypologyRoofCapabilityValidator {
     private TypologyRoofCapabilityValidator() {}

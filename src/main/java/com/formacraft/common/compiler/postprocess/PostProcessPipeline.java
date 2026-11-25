@@ -95,7 +95,8 @@ public class PostProcessPipeline {
         List<ProcessorDelta> deltas = new ArrayList<>();
         var reserved = ProtectedClearanceRestorer.snapshotReserved(patches, context.protectedClearance());
 
-        boolean openingOnlyPatch = isOpeningOnlyPatchPlan(context.plan());
+        // mode=patch edit-scope contract (P1-03): standalone build-mode décor is not an edit.
+        boolean openingOnlyPatch = IncrementalEditScope.suppressesAestheticExpansion(context.plan());
         for (PostProcessor processor : processors) {
             if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), null)
                     && (processor instanceof DetailRulePostProcessor || processor instanceof WindowOrderPostProcessor
@@ -210,30 +211,10 @@ public class PostProcessPipeline {
     }
 
     /**
-     * True when the plan only carries opening/facade satellites (no host mass).
-     * Includes bounded glass {@code PRIMITIVE} boxes after {@code IncrementalWindowQuery.normalize}.
+     * @deprecated use {@link IncrementalEditScope#suppressesAestheticExpansion(com.formacraft.common.llm.dto.LlmPlan)}
+     * (requires {@code mode=patch}). Kept package-visible for focused unit tests.
      */
     static boolean isOpeningOnlyPatchPlan(com.formacraft.common.llm.dto.LlmPlan plan) {
-        if (plan == null || plan.components() == null || plan.components().isEmpty()) return false;
-        boolean anyOpening = false;
-        for (var c : plan.components()) {
-            if (c == null || c.componentType() == null) return false;
-            String t = c.componentType().trim().toUpperCase(java.util.Locale.ROOT);
-            if (t.startsWith("MASS_") || "TOWER".equals(t) || "STRUCTURE".equals(t)
-                    || "FOUNDATION".equals(t) || "ROOF".equals(t) || "ROOF_STRUCTURE".equals(t)
-                    || t.contains("ASSEMBLY") || "WALL".equals(t) || "SHELL_BOX".equals(t)
-                    || "BOX_SHELL".equals(t)) {
-                return false;
-            }
-            if (t.contains("WINDOW") || t.contains("ENTRANCE") || t.contains("DOOR")
-                    || t.contains("FACADE") || "OPENING".equals(t)
-                    || "SIGNAGE".equals(t) || t.contains("DECOR")
-                    || com.formacraft.common.network.IncrementalPrimitivePolicy.allows(c)) {
-                anyOpening = true;
-            } else {
-                return false;
-            }
-        }
-        return anyOpening;
+        return IncrementalEditScope.suppressesAestheticExpansion(plan);
     }
 }

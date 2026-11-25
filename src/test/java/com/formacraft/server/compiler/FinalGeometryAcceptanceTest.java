@@ -65,15 +65,24 @@ class FinalGeometryAcceptanceTest {
     @Test
     void roofTypeNoneDoesNotEmitRoofAboveMassEnvelope() {
         var mass = closedMass("bare", 0, 0, 6);
-        var blocks = PatchTestSnapshot.blocks(compile(List.of(mass)));
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .mode(LlmPlan.Mode.build).styleProfile("DEFAULT").anchor(new Vec3i(0, 0, 0))
+                .layout(new Layout(null, false, List.of(
+                        new Slot("site", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null),
+                        new Slot("keep", new Vec3i(0, 0, 0), GlobalConstraints.Facing.SOUTH, null, null, null))))
+                .components(List.of(mass)).build();
+        var prepared = ComponentSatelliteInference.prepareComponents(plan, Map.of(), false);
+        assertTrue(prepared.components().stream().noneMatch(c ->
+                        c.componentType() != null && c.componentType().toUpperCase().startsWith("ROOF")),
+                "roof_type=none must not infer a ROOF writer/satellite");
+        assertTrue(com.formacraft.common.style.ExplicitDesignPolicy.roofDisabled(mass));
+
+        var blocks = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
         assertFalse(blocks.isEmpty(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
         int maxY = blocks.keySet().stream().mapToInt(Vec3i::y).max().orElse(-1);
         assertTrue(maxY < 6, "roof_type=none must stay inside the mass envelope, maxY=" + maxY);
-        // Façade relief may use stair-shaped trim on the exterior; roof opt-out forbids
-        // stair blocks at or above the mass envelope (y >= height).
-        assertTrue(blocks.entrySet().stream().noneMatch(e ->
-                        e.getKey().y() >= 6 && e.getValue() != null && e.getValue().contains("stairs")),
-                "no roof stair blocks when roof is opted out");
+        // Façade stair-trim below the envelope is allowed; the opt-out contract is
+        // provenance + no ROOF writer + envelope height — not a redundant y>=6 stairs check.
     }
 
     @Test

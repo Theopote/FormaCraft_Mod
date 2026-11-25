@@ -1,6 +1,7 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.llm.dto.*;
+import com.formacraft.common.style.AestheticPassHints;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.test.PatchTestSnapshot;
 import net.minecraft.util.math.BlockPos;
@@ -70,6 +71,21 @@ class ComponentPlanCompilerDesignIntentTest {
         assertEquals(before.keySet().stream().filter(p -> p.x() >= 25).collect(java.util.stream.Collectors.toSet()),
                 after.keySet().stream().filter(p -> p.x() >= 25).collect(java.util.stream.Collectors.toSet()),
                 "An undecorated building must not acquire an implicit cornice ring");
+    }
+
+    @Test void perBuildingNoComplexDecorDoesNotDisableSiblingLightingHints() {
+        // Building A opts out of complex décor; building B keeps style-derived aesthetic knobs.
+        var a = body("a", 0, Map.of("no_complex_decor", true, "lighting_style", "none"));
+        var b = body("b", 30, Map.of());
+        var plan = plan(List.of(a, b), "GOTHIC", Map.of());
+        var hintsA = AestheticPassHints.resolve(plan, a.params());
+        var hintsB = AestheticPassHints.resolve(plan, b.params());
+        assertEquals(AestheticPassHints.LightingStyle.NONE, hintsA.lightingStyle());
+        assertEquals(AestheticPassHints.FacadeRelief.FLAT, hintsA.facadeRelief());
+        assertNotEquals(AestheticPassHints.LightingStyle.NONE, hintsB.lightingStyle(),
+                "sibling without opt-out must still receive style lighting default");
+        assertNotEquals(AestheticPassHints.FacadeRelief.FLAT, hintsB.facadeRelief(),
+                "sibling without opt-out must not inherit FLAT from neighbor no_complex_decor");
     }
     @Test void gothicDefaultsCannotRecreateDisabledRoofWindowsOrEntrance() {
         var plan = plan(List.of(body("a", 0, Map.of("roof_type", "none", "window_style", "none", "entrance_type", "none"))),

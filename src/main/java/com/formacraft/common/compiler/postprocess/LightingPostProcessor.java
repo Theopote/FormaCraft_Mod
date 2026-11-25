@@ -45,7 +45,10 @@ public class LightingPostProcessor implements PostProcessor {
                 == com.formacraft.common.llm.dto.GlobalConstraints.TerrainStrategy.PRESERVE) {
             return patches;
         }
+        // Per-mass lighting_style=none / no_complex_decor must win even when plan-level
+        // AestheticPassHints still resolve to a style default (DesignDecisionPriority.USER_EXPLICIT).
         Set<Long> decorOptOutVolumes = decorOptOutCells(context);
+        decorOptOutVolumes.addAll(lightingOptOutCells(context));
 
         Map<Long, String> solid = new HashMap<>();
         Set<Long> air = new HashSet<>();
@@ -193,21 +196,38 @@ public class LightingPostProcessor implements PostProcessor {
             if (!com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), c.params())) {
                 continue;
             }
-            int minX = c.relativePosition().x() - 1;
-            int maxX = c.relativePosition().x() + Math.max(1, c.dimensions().width());
-            int minY = c.relativePosition().y();
-            int maxY = c.relativePosition().y() + Math.max(1, c.dimensions().height());
-            int minZ = c.relativePosition().z() - 1;
-            int maxZ = c.relativePosition().z() + Math.max(1, c.dimensions().depth());
-            for (int x = minX; x <= maxX; x++) {
-                for (int y = minY; y <= maxY; y++) {
-                    for (int z = minZ; z <= maxZ; z++) {
-                        out.add(pack(x, y, z));
-                    }
+            addVolumeCells(out, c);
+        }
+        return out;
+    }
+
+    /** Masses with explicit lighting_style=none (component scope) suppress PLACE lights in their AABB. */
+    private static Set<Long> lightingOptOutCells(PostProcessContext context) {
+        Set<Long> out = new HashSet<>();
+        if (context == null || context.plan() == null || context.plan().components() == null) return out;
+        for (var c : context.plan().components()) {
+            if (c == null || c.params() == null || c.relativePosition() == null || c.dimensions() == null) continue;
+            AestheticPassHints.Resolved local = AestheticPassHints.resolve(context.plan(), c.params());
+            if (local.lightingStyle() != AestheticPassHints.LightingStyle.NONE) continue;
+            addVolumeCells(out, c);
+        }
+        return out;
+    }
+
+    private static void addVolumeCells(Set<Long> out, com.formacraft.common.llm.dto.Component c) {
+        int minX = c.relativePosition().x() - 1;
+        int maxX = c.relativePosition().x() + Math.max(1, c.dimensions().width());
+        int minY = c.relativePosition().y();
+        int maxY = c.relativePosition().y() + Math.max(1, c.dimensions().height());
+        int minZ = c.relativePosition().z() - 1;
+        int maxZ = c.relativePosition().z() + Math.max(1, c.dimensions().depth());
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    out.add(pack(x, y, z));
                 }
             }
         }
-        return out;
     }
 
     private static void placeSupportedLight(List<BlockPatch> out, Map<Long, String> solid, Set<BlockPos> clearance,

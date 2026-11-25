@@ -458,6 +458,57 @@ class StackedTowerFullCompileEnvelopeTest {
                 "confirm digest must ignore PlannedBlock list order");
     }
 
+    /**
+     * Production-path lighting proof independent of {@code no_complex_decor}: a normal
+     * MASS_MAIN compile with warm lanterns must place light blocks via PostProcessPipeline,
+     * while {@code lighting_style=none} must not. Envelope tests above may quiet lighting
+     * via décor opt-out; this test owns the lighting contract itself.
+     */
+    @Test
+    void productionPathLightingHonorsExplicitStyleWithoutDecorOptOut() {
+        Component lit = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0),
+                new Dimensions(11, 11, 8), List.of(),
+                Map.of("component_id", "lit_hall", "hollow", true, "anchor_mode", "min_corner",
+                        "plan_type", "rectangle", "roof_type", "flat", "window_style", "none",
+                        "entrance_type", "none", "lighting_style", "warm_lantern",
+                        "wall_block", "minecraft:stone_bricks",
+                        "floor_block", "minecraft:oak_planks"));
+        Component dark = new Component("MASS_MAIN", "s", new Vec3i(0, 0, 0),
+                new Dimensions(11, 11, 8), List.of(),
+                Map.of("component_id", "dark_hall", "hollow", true, "anchor_mode", "min_corner",
+                        "plan_type", "rectangle", "roof_type", "flat", "window_style", "none",
+                        "entrance_type", "none", "lighting_style", "none",
+                        "wall_block", "minecraft:stone_bricks",
+                        "floor_block", "minecraft:oak_planks"));
+        LlmPlan litPlan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .mode(LlmPlan.Mode.build).anchor(new Vec3i(0, 0, 0))
+                .components(List.of(lit)).build();
+        LlmPlan darkPlan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .mode(LlmPlan.Mode.build).anchor(new Vec3i(0, 0, 0))
+                .components(List.of(dark)).build();
+
+        AssemblyCompileDiagnostics.clear();
+        Map<Vec3i, String> litBlocks = PatchTestSnapshot.blocks(
+                ComponentPlanCompiler.compile(litPlan, BlockPos.ORIGIN, null, null, false));
+        assertFalse(litBlocks.isEmpty(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertTrue(litBlocks.values().stream().anyMatch(StackedTowerFullCompileEnvelopeTest::isLightBlock),
+                "warm_lantern production compile must place light blocks");
+
+        AssemblyCompileDiagnostics.clear();
+        Map<Vec3i, String> darkBlocks = PatchTestSnapshot.blocks(
+                ComponentPlanCompiler.compile(darkPlan, BlockPos.ORIGIN, null, null, false));
+        assertFalse(darkBlocks.isEmpty(), () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        assertTrue(darkBlocks.values().stream().noneMatch(StackedTowerFullCompileEnvelopeTest::isLightBlock),
+                "lighting_style=none must suppress lantern/torch placement without no_complex_decor");
+    }
+
+    private static boolean isLightBlock(String blockId) {
+        if (blockId == null) return false;
+        String b = blockId.toLowerCase(Locale.ROOT);
+        return b.contains("lantern") || b.contains("torch") || b.contains("end_rod")
+                || b.contains("soul_lantern") || b.contains("glowstone");
+    }
+
     private static boolean hasRoofComponent(List<Component> comps) {
         for (Component c : comps) {
             if (c == null || c.componentType() == null) continue;

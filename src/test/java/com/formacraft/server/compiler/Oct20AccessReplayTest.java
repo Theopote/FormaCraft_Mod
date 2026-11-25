@@ -113,22 +113,20 @@ class Oct20AccessReplayTest {
     }
 
     @Test
-    void historicalOct20Plan2WithoutRepairSurfacesFlatRoofCoverageGap() throws Exception {
+    void historicalOct20Plan2WithoutRepairCompilesAfterPerimeterOpeningExemption() throws Exception {
         var plan = com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(
                 LlmPlanParser.parse(Files.readString(Path.of(
                         "python_backend/tests/fixtures/complex_build_retest/oct20_access_2.normalized.json"))));
         AssemblyCompileDiagnostics.clear();
         var patches = ComponentPlanCompiler.compile(plan);
-        // Former gap was a single perimeter eave cell. Coverage now exempts perimeter
-        // opening-like cells (GEOMETRY); unrepaired may compile without a coverage gap.
-        // If a gap remains it must still be the flat-roof family — never a silent redesign.
-        if (AssemblyCompileDiagnostics.hasGap()) {
-            String code = AssemblyCompileDiagnostics.get().code();
-            assertTrue(code != null && code.contains("FLAT_ROOF"),
-                    "historical capture gap must stay flat-roof family, got " + code);
-        } else {
-            assertFalse(patches.isEmpty(), "unrepaired capture must not compile to empty without a gap");
-        }
+        // Phase 00 perimeter opening-like exemption made the historical single-cell eave
+        // hole a non-gap (GEOMETRY). Deterministic contract: unrepaired fixture compiles
+        // non-empty without capability_gap. Interior flat-roof holes still gap elsewhere
+        // (FlatRoofCoverageValidatorTest); P1-01 provenance tightening deferred to 01.4.
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> "unrepaired oct20 plan2 must compile clean after perimeter exemption: "
+                        + AssemblyCompileDiagnostics.get());
+        assertFalse(patches.isEmpty(), "unrepaired capture must emit a non-empty BlockPatch");
     }
 
     @Test void descendingDescriptionKeepsLandingAtRaisedEnd() throws Exception {

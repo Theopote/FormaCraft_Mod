@@ -1,5 +1,6 @@
 package com.formacraft.common.style;
 
+import com.formacraft.common.generation.design.DesignDecisionPriority;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.StyleAttributes;
 
@@ -7,8 +8,9 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Optional aesthetic post-pass knobs. Missing → style-derived TECHNICAL_DEFAULT.
- * Explicit none/flat/off always wins (USER_EXPLICIT).
+ * Optional aesthetic post-pass knobs. Missing → style-derived {@link DesignDecisionPriority#STYLE_DEFAULT}.
+ * Explicit none/flat/off always wins ({@link DesignDecisionPriority#USER_EXPLICIT}).
+ * Style defaults never overwrite disable markers — see {@link DesignDecisionPriority#styleDefaultMayFill}.
  */
 public final class AestheticPassHints {
     private AestheticPassHints() {}
@@ -32,11 +34,14 @@ public final class AestheticPassHints {
                 ? plan.styleProfile().toLowerCase(Locale.ROOT) : "";
         StyleAttributes attrs = plan != null ? plan.styleAttributes() : null;
 
+        // Explicit param / attribute wins; STYLE_DEFAULT fills only when absent
+        // (DesignDecisionPriority: USER_EXPLICIT > AI_PLANNED > STYLE_DEFAULT).
         FacadeRelief relief = parseRelief(first(
                 param(params, "facade_relief", "facadeRelief"),
                 attr(attrs, a -> a.facadeRelief()),
                 custom(attrs, "facade_relief")));
-        if (relief == null) {
+        if (relief == null && DesignDecisionPriority.styleDefaultMayFill(
+                param(params, "facade_relief", "facadeRelief"))) {
             if (ExplicitDesignPolicy.noComplexDecor(plan, params)) relief = FacadeRelief.FLAT;
             else if (isModern(profile)) relief = FacadeRelief.SUBTLE;
             else if (isClassical(profile)) relief = FacadeRelief.DEEP;
@@ -47,7 +52,8 @@ public final class AestheticPassHints {
                 param(params, "window_trim", "windowTrim"),
                 attr(attrs, a -> a.windowTrim()),
                 custom(attrs, "window_trim")));
-        if (trim == null) {
+        if (trim == null && DesignDecisionPriority.styleDefaultMayFill(
+                param(params, "window_trim", "windowTrim"))) {
             if (ExplicitDesignPolicy.noComplexDecor(plan, params)) trim = WindowTrim.NONE;
             else if (profile.contains("gothic") || profile.contains("islamic") || profile.contains("roman"))
                 trim = WindowTrim.ARCH;
@@ -60,7 +66,8 @@ public final class AestheticPassHints {
                 param(params, "weathering"),
                 attr(attrs, a -> a.weathering()),
                 custom(attrs, "weathering")));
-        if (weathering == null) {
+        if (weathering == null && DesignDecisionPriority.styleDefaultMayFill(
+                param(params, "weathering"))) {
             if (isModern(profile) || profile.contains("concrete") || profile.contains("cyber"))
                 weathering = Weathering.NONE;
             else if (profile.contains("ruin") || profile.contains("castle") || profile.contains("aged"))
@@ -72,7 +79,8 @@ public final class AestheticPassHints {
                 param(params, "lighting_style", "lightingStyle"),
                 attr(attrs, a -> a.lightingStyle()),
                 custom(attrs, "lighting_style")));
-        if (lighting == null) {
+        if (lighting == null && DesignDecisionPriority.styleDefaultMayFill(
+                param(params, "lighting_style", "lightingStyle"))) {
             // USER_EXPLICIT no_complex_decor wins over style-derived lantern defaults.
             if (ExplicitDesignPolicy.noComplexDecor(plan, params)) lighting = LightingStyle.NONE;
             else if (profile.contains("gothic") || profile.contains("dark") || profile.contains("nether"))
@@ -85,7 +93,10 @@ public final class AestheticPassHints {
                 param(params, "lighting_density", "lightingDensity"),
                 attr(attrs, a -> a.lightingDensity()),
                 custom(attrs, "lighting_density")));
-        if (density == null) density = LightingDensity.NORMAL;
+        if (density == null && DesignDecisionPriority.styleDefaultMayFill(
+                param(params, "lighting_density", "lightingDensity"))) {
+            density = LightingDensity.NORMAL;
+        }
 
         return new Resolved(relief, trim, weathering, lighting, density);
     }
