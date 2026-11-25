@@ -89,6 +89,17 @@ Addresses acceptance residuals P1-01 / P1-02 / P1-03 only — no new architectur
 
 Closeout tests: `FlatRoofHostAuthorityCompileTest`, `FlatRoofCoverageValidatorTest` host-scope cases, `LightingPostProcessorTest.lightingOptOutUsesCompileTimeIdentityNotAabbGuess`, `IncrementalEditScopeTest.patchModeLocalWallRecolorWithMassContextStillSuppressesAndBoundsOmega`.
 
+### Closeout gates
+
+| Gate | Result |
+|------|--------|
+| Focused closeout + Oct20 / Phase2 / CommunityGameProtocol | PASS (Community once flaked WAITING→READY; re-run green) |
+| `constraintParityTest` | PASS |
+| Python pytest | PASS — 1313 passed, 1 skipped |
+| `eval.ci_gate --quick` | PASS |
+| Architecture / design-authority / entrypoints | PASS |
+| Full `:test` suite | 3664 tests; 1 transient `CommunityGameProtocolTest` flake unrelated to closeout; targeted re-run PASS |
+
 **In-game soak:** not executed (no Minecraft client in this session).
 
 **Phase 01 architecture governance: STOP.** Ready to apply for Phase 02 (building geometry) — do not expand further contract layers here.
