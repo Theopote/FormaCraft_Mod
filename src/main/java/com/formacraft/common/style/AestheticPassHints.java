@@ -38,7 +38,7 @@ public final class AestheticPassHints {
         // (DesignDecisionPriority: USER_EXPLICIT > AI_PLANNED > STYLE_DEFAULT).
         FacadeRelief relief = parseRelief(first(
                 param(params, "facade_relief", "facadeRelief"),
-                attr(attrs, a -> a.facadeRelief()),
+                attr(attrs, StyleAttributes::facadeRelief),
                 custom(attrs, "facade_relief")));
         if (relief == null && DesignDecisionPriority.styleDefaultMayFill(
                 param(params, "facade_relief", "facadeRelief"))) {
@@ -50,7 +50,7 @@ public final class AestheticPassHints {
 
         WindowTrim trim = parseTrim(first(
                 param(params, "window_trim", "windowTrim"),
-                attr(attrs, a -> a.windowTrim()),
+                attr(attrs, StyleAttributes::windowTrim),
                 custom(attrs, "window_trim")));
         if (trim == null && DesignDecisionPriority.styleDefaultMayFill(
                 param(params, "window_trim", "windowTrim"))) {
@@ -64,7 +64,7 @@ public final class AestheticPassHints {
 
         Weathering weathering = parseWeathering(first(
                 param(params, "weathering"),
-                attr(attrs, a -> a.weathering()),
+                attr(attrs, StyleAttributes::weathering),
                 custom(attrs, "weathering")));
         if (weathering == null && DesignDecisionPriority.styleDefaultMayFill(
                 param(params, "weathering"))) {
@@ -77,7 +77,7 @@ public final class AestheticPassHints {
 
         LightingStyle lighting = parseLighting(first(
                 param(params, "lighting_style", "lightingStyle"),
-                attr(attrs, a -> a.lightingStyle()),
+                attr(attrs, StyleAttributes::lightingStyle),
                 custom(attrs, "lighting_style")));
         if (lighting == null && DesignDecisionPriority.styleDefaultMayFill(
                 param(params, "lighting_style", "lightingStyle"))) {
@@ -91,7 +91,7 @@ public final class AestheticPassHints {
 
         LightingDensity density = parseDensity(first(
                 param(params, "lighting_density", "lightingDensity"),
-                attr(attrs, a -> a.lightingDensity()),
+                attr(attrs, StyleAttributes::lightingDensity),
                 custom(attrs, "lighting_density")));
         if (density == null && DesignDecisionPriority.styleDefaultMayFill(
                 param(params, "lighting_density", "lightingDensity"))) {

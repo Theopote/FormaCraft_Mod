@@ -58,7 +58,7 @@ public final class UnifiedGeneratorRouter {
     }
 
     public static List<BlockPatch> generate(SemanticComponent semantic, ServerWorld world) {
-        RoutedGenerationResult result = generateResult(semantic, world);
+        RoutedGenerationResult result = generateResult(semantic, world, null);
         return result.commitAllowed() ? new ArrayList<>(result.patches()) : new ArrayList<>();
     }
 
@@ -78,6 +78,15 @@ public final class UnifiedGeneratorRouter {
 
     /** Structured route; authority is enforced before executor selection. */
     public static RoutedGenerationResult generateResult(SemanticComponent semantic, ServerWorld world) {
+        return generateResult(semantic, world, null);
+    }
+
+    /**
+     * Structured route with optional plan global anchor for PATH smart-emit (Phase 01.6).
+     * Authority is enforced before any world-aware path shortcut.
+     */
+    public static RoutedGenerationResult generateResult(
+            SemanticComponent semantic, ServerWorld world, BlockPos globalAnchor) {
         if (semantic == null || semantic.source() == null) {
             return RoutedGenerationResult.failure(
                     ComponentGenerationOutcome.Status.INVALID_INPUT, "null_semantic", "semantic_null");
@@ -186,6 +195,34 @@ public final class UnifiedGeneratorRouter {
                 pipelinePlan = GenerationRouteContract.capturedLibraryPlan(c);
             }
         }
+
+        // PATH smart-emit (Phase 01.6): COMPONENTS-only geometry assist inside the hub.
+        // Never overrides CAPTURED_LIBRARY / explicit library / typology / assembly / skeleton.
+        if (authority == com.formacraft.common.generation.routing.GenerationAuthority.COMPONENTS
+                && required == ComponentExecutorId.COMPONENT_PIPELINE
+                && !ComponentRouteHints.hasExplicitLibraryRequest(c)
+                && globalAnchor != null
+                && world != null
+                && com.formacraft.server.compiler.LlmPlanPathSmartEmit.isPathLike(c)) {
+            var slotAnchor = semantic.slot() == null ? null : semantic.slot().anchor();
+            var smartPath = com.formacraft.server.compiler.LlmPlanPathSmartEmit.tryEmit(
+                    semantic, world, globalAnchor, slotAnchor);
+            if (smartPath.isPresent()) {
+                String routeReason = authority + ":path_smart_emit";
+                com.formacraft.common.network.metrics.TypologyRoutingMetrics.recordExecutorHit(
+                        ComponentExecutorId.COMPONENT_PIPELINE.name(), routeReason, componentType);
+                FormacraftMod.LOGGER.debug(
+                        "UnifiedGeneratorRouter: path smart-emit for {} ({})", componentType, hint.reason());
+                return RoutedGenerationResult.success(
+                        smartPath.get(),
+                        ComponentExecutorId.COMPONENT_PIPELINE,
+                        ComponentPipelineStepId.PATH_SMART_EMIT,
+                        authority,
+                        "path_smart_emit");
+            }
+            // A* empty → soft warning already recorded; fall through to registry polyline.
+        }
+
         return ComponentGenerationPipeline.execute(
                 pipelinePlan, semantic, world, c, componentType, authority);
     }

@@ -45,7 +45,17 @@ public final class GenerationHub {
     /** Structured route — prefer when failure must abort plan compile. */
     public static com.formacraft.server.generation.component.adaptor.RoutedGenerationResult generateComponentResult(
             SemanticComponent semantic, ServerWorld world) {
-        return UnifiedGeneratorRouter.generateResult(semantic, world);
+        return generateComponentResult(semantic, world, null);
+    }
+
+    /**
+     * Structured route with plan-space global anchor for world-aware PATH/ROAD smart emit
+     * (Phase 01.6). Smart emit runs only under COMPONENTS authority inside the router —
+     * never as a pre-hub bypass in {@code ComponentEmitPass}.
+     */
+    public static com.formacraft.server.generation.component.adaptor.RoutedGenerationResult generateComponentResult(
+            SemanticComponent semantic, ServerWorld world, BlockPos globalAnchor) {
+        return UnifiedGeneratorRouter.generateResult(semantic, world, globalAnchor);
     }
 
     /** 骨架计划 → BlockPatch（PlanProgramCompiler / 内嵌 skeleton 构件）。 */

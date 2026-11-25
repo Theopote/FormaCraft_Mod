@@ -50,14 +50,18 @@ public enum DesignDecisionPriority {
      * Explicit {@code none}/{@code off}/{@code false}/empty-string disable markers win.
      */
     public static boolean styleDefaultMayFill(Object existingValue) {
-        if (existingValue == null) {
-            return true;
-        }
-        if (existingValue instanceof Boolean b) {
-            return b; // false is an explicit opt-out
-        }
-        if (existingValue instanceof Number n) {
-            return n.doubleValue() > 0; // 0 / negative ratios are explicit disables
+        switch (existingValue) {
+            case null -> {
+                return true;
+            }
+            case Boolean b -> {
+                return b; // false is an explicit opt-out
+            }
+            case Number n -> {
+                return n.doubleValue() > 0; // 0 / negative ratios are explicit disables
+            }
+            default -> {
+            }
         }
         String s = String.valueOf(existingValue).trim();
         if (s.isEmpty()) {

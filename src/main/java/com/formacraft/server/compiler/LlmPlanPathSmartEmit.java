@@ -1,6 +1,7 @@
 package com.formacraft.server.compiler;
 
 import com.formacraft.common.build.PlannedBlock;
+import com.formacraft.common.component.transform.BlockStateStringUtil;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.util.ComponentMaterialResolver;
 import com.formacraft.common.generation.component.util.PathStripUtil;
@@ -24,13 +25,17 @@ import java.util.Optional;
 
 /**
  * World-aware PATH/ROAD emit for LlmPlan (GEOMETRY).
+ * Invoked only through {@link com.formacraft.server.generation.GenerationHub} /
+ * {@link com.formacraft.server.generation.component.adaptor.UnifiedGeneratorRouter}
+ * under {@code COMPONENTS} authority — never as a pre-hub bypass (Phase 01.6).
+ * <p>
  * When world + from/to are available, prefer {@link RoadPlanner}; empty A* falls back to
  * world-free polyline via the component registry (soft warning, no redesign).
  */
-final class LlmPlanPathSmartEmit {
+public final class LlmPlanPathSmartEmit {
     private LlmPlanPathSmartEmit() {}
 
-    static boolean isPathLike(Component c) {
+    public static boolean isPathLike(Component c) {
         if (c == null || c.componentType() == null) return false;
         String t = ComponentPlanTypes.normalizeType(c.componentType());
         return "PATH".equals(t) || "ROAD".equals(t) || "CONNECTOR".equals(t)
@@ -41,7 +46,7 @@ final class LlmPlanPathSmartEmit {
      * @return patches in slot-local coords when A* succeeds; empty when skip or A* failed
      *         (caller keeps GenerationHub polyline/AABB).
      */
-    static Optional<List<BlockPatch>> tryEmit(
+    public static Optional<List<BlockPatch>> tryEmit(
             SemanticComponent semantic,
             ServerWorld world,
             BlockPos globalAnchor,
@@ -100,14 +105,18 @@ final class LlmPlanPathSmartEmit {
             int dx = pos.getX() - globalAnchor.getX() - sax;
             int dy = pos.getY() - globalAnchor.getY() - say;
             int dz = pos.getZ() - globalAnchor.getZ() - saz;
-            String blockId = Registries.BLOCK.getId(pb.getTargetState().getBlock()).toString();
-            String action = pb.getTargetState().isAir() ? BlockPatch.REMOVE : BlockPatch.PLACE;
-            if (BlockPatch.REMOVE.equals(action)) {
-                blockId = "minecraft:air";
-            }
+            BlockState state = pb.getTargetState();
+            String action = state.isAir() ? BlockPatch.REMOVE : BlockPatch.PLACE;
+            String blockId = state.isAir() ? "minecraft:air" : serializeState(state);
             out.add(new BlockPatch(action, dx, dy, dz, blockId));
         }
         return out.isEmpty() ? Optional.empty() : Optional.of(out);
+    }
+
+    /** Preserve BlockState properties (facing/half/…) — never strip to bare block id. */
+    static String serializeState(BlockState state) {
+        if (state == null || state.isAir()) return "minecraft:air";
+        return BlockStateStringUtil.fromState(state);
     }
 
     private static String resolveSurfaceBlock(SemanticComponent semantic, Component c) {

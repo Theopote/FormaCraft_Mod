@@ -113,7 +113,7 @@ Production preview for `kind=llmplan` / `mode=build` with `components[]`:
 | P1-03 | `isOpeningOnlyPatchPlan` ignored `mode=patch` | **Fixed in 01.2** — `IncrementalEditScope.suppressesAestheticExpansion` requires `mode=patch` |
 | P1-04 | Postprocess scope rebuilt from prior PLACE seeds | **Fixed in 01.3** — `PostProcessContext.authorizedWriteScope` frozen at pipeline entry; `PostProcessWriteScope.forStep` + shared delta scope |
 | P1-05 | `chain`/`end_rod` soft→stone; hang-link vs lantern atomicity | **Fixed in 01.5** — `PlanPatchConverter.softSubstitute` (hangable / skip, never stone); `LightingPostProcessor` hang pairs commit/filter atomically |
-| Path smart-emit bypass | Route into GenerationHub authority | **01.6** |
+| Path smart-emit bypass | Route into GenerationHub authority | **Fixed in 01.6** — `ComponentEmitPass` always calls `GenerationHub.generateComponentResult(…, globalAnchor)`; `UnifiedGeneratorRouter` may run `LlmPlanPathSmartEmit` only under `COMPONENTS` (never `CAPTURED_LIBRARY` / explicit library); BlockState via `BlockStateStringUtil.fromState` |
 
 ### Surface / opening write roles (Phase 01.4)
 
