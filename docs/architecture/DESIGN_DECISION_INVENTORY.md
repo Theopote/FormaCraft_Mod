@@ -140,7 +140,7 @@ Wood-lattice / fence / iron-bars façades stay coplanar (`thickness=1`, recess o
 
 `WindowSealCompiler` / `WindowEditScopeResolver` seal against planar face groups, not only AABB hull faces (GEOMETRY). Recessed niches therefore still find a sealable inward lattice face.
 
-`SurfaceOwnershipLedger` treats every captured ROOF cell as window-protected (GEOMETRY). Flat and pitched roofs both refuse façade punches that would open coverage holes.
+`SurfaceOwnershipLedger` treats every captured ROOF cell as window-protected (GEOMETRY). Flat and pitched roofs both refuse façade punches that would open coverage holes. `FlatRoofCoverageValidator` still ignores perimeter opening-like cells (REMOVE/glass) on core/host tops so eave fenestration is not a coverage hole; interior punches remain hard failures. `no_complex_decor` forces `lighting_style=NONE` and skips Lighting placements on opted-out volumes (HARD_CONSTRAINT).
 
 Wrap/host-aligned `FACADE_WINDOWS` REMOVE niches clear stale mass WINDOW expectations at those cells so `OpeningMaterialAudit` follows the recessed façade capture (GEOMETRY). Portal headroom carves also `reserveClearance` the wall-face walkable sill at plate Y so wrap-façade recess cannot open a deck-to-interior bridge hole (GEOMETRY).
 

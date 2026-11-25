@@ -142,7 +142,15 @@ final class FlatRoofCoverageValidator {
                 }
                 var pos = new BlockPos(px, roofPlaneY, pz).add(offset);
                 if (coveredByBody || clearance.contains(pos)) continue;
-                if (!roofCells.contains(pos) || !GeneratedSurfaceCapture.occupied(finalPatches.get(pos))) {
+                BlockPatch present = finalPatches.get(pos);
+                if (roofCells.contains(pos) && GeneratedSurfaceCapture.occupied(present)) continue;
+                // Perimeter opening (eave fenestration / portal) is not a host-coverage hole.
+                if (present != null && isOpeningLike(present)
+                        && isHostTopPerimeter(x, z, part.dimensions().width(), part.dimensions().depth(),
+                        masks.get(i))) {
+                    continue;
+                }
+                if (!roofCells.contains(pos) || !GeneratedSurfaceCapture.occupied(present)) {
                     count++; if (first == null) first = pos;
                 }
             }
@@ -208,6 +216,14 @@ final class FlatRoofCoverageValidator {
     private static boolean isPerimeter(BlockPos pos, Set<BlockPos> core) {
         return !core.contains(pos.add(1, 0, 0)) || !core.contains(pos.add(-1, 0, 0))
                 || !core.contains(pos.add(0, 0, 1)) || !core.contains(pos.add(0, 0, -1));
+    }
+
+    private static boolean isHostTopPerimeter(
+            int x, int z, int width, int depth, ComponentFootprintMask mask
+    ) {
+        if (x <= 0 || z <= 0 || x >= width - 1 || z >= depth - 1) return true;
+        return !mask.contains(x - 1, z) || !mask.contains(x + 1, z)
+                || !mask.contains(x, z - 1) || !mask.contains(x, z + 1);
     }
 
     private static boolean isOpeningLike(BlockPatch patch) {

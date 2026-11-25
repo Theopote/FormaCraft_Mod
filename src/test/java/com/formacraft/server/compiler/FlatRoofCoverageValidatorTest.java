@@ -71,9 +71,10 @@ class FlatRoofCoverageValidatorTest {
         var blocks = patches(r,0).stream().filter(p -> !(p.dx() >= 22 && p.dz() >= 32)).toList();
         assertEquals(12,blocks.size());
         assertTrue(FlatRoofCoverageValidator.checkHost(new SemanticComponent("MASS_MAIN",null,body),List.of(r),offset,blocks,Set.of()).isEmpty());
+        // Interior host-top hole (not perimeter eave) must still fail coverage.
         var exposed = new ArrayList<>(blocks);
-        exposed.add(new BlockPatch(BlockPatch.REMOVE,20,7,30,"minecraft:air"));
-        assertEquals(new BlockPos(20,7,30), FlatRoofCoverageValidator.checkHost(new SemanticComponent("MASS_MAIN",null,body),
+        exposed.add(new BlockPatch(BlockPatch.REMOVE,21,7,31,"minecraft:air"));
+        assertEquals(new BlockPos(21,7,31), FlatRoofCoverageValidator.checkHost(new SemanticComponent("MASS_MAIN",null,body),
                 List.of(r),offset,exposed,Set.of()).orElseThrow().position());
     }
     private Component roof(Map<String,Object> params) {
@@ -87,7 +88,12 @@ class FlatRoofCoverageValidatorTest {
                 new BlockPos(10,2,20)).orElseThrow();
         var result = new ArrayList<>(patches(core,0));
         assertTrue(FlatRoofCoverageValidator.check(List.of(core), result, Set.of()).isEmpty());
-        BlockPos first = core.core().iterator().next();
+        // Punch an interior core cell — perimeter REMOVE/glass is eave fenestration, not a hole.
+        BlockPos first = core.core().stream()
+                .filter(p -> core.core().contains(p.add(1, 0, 0)) && core.core().contains(p.add(-1, 0, 0))
+                        && core.core().contains(p.add(0, 0, 1)) && core.core().contains(p.add(0, 0, -1)))
+                .findFirst()
+                .orElseThrow();
         result.add(new BlockPatch(BlockPatch.REMOVE, first.getX(),first.getY(),first.getZ(), "minecraft:air"));
         assertEquals(1, FlatRoofCoverageValidator.check(List.of(core),result,Set.of()).orElseThrow().count());
         assertTrue(FlatRoofCoverageValidator.check(List.of(core),result,Set.of(first)).isEmpty());

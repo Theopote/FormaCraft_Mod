@@ -59,7 +59,9 @@ class ComponentPlanCompilerDesignIntentTest {
     }
     @Test void scopedDecorationOptOutProtectsOneBuildingWithoutImplicitRingsOnTheOther() {
         var plan = plan(List.of(body("a", 0, Map.of("no_complex_decor", true)), body("b", 30, Map.of())), "MODERN", Map.of());
-        var before = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan));
+        // Same globalAnchor for both paths — null vs ORIGIN changes post-process write scope
+        // and is not the terrain-adaptation question under test.
+        var before = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, true));
         var after = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
         assertFalse(before.isEmpty());
         var aBefore = before.keySet().stream().filter(p -> p.x() < 20).collect(java.util.stream.Collectors.toSet());
@@ -95,7 +97,7 @@ class ComponentPlanCompilerDesignIntentTest {
         var contract = Map.of("requirements", List.of(Map.of("property", "no_complex_decor", "value", true, "scope", "plan")));
         var plan = plan(List.of(body("a", 0, Map.of("window_ratio", 0.0))), "GOTHIC",
                 Map.of("building_contract", contract, "crown_assembly", true, "roof_specialty", "mansard_dormer"));
-        var before = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan));
+        var before = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, true));
         assertFalse(before.isEmpty());
         var after = PatchTestSnapshot.blocks(ComponentPlanCompiler.compile(plan, BlockPos.ORIGIN, null, null, false));
         assertEquals(before.keySet(), after.keySet());

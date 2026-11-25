@@ -59,7 +59,9 @@ class StackedTowerFullCompileEnvelopeTest {
         Map<String, Object> contract = Map.of("requirements", List.of(
                 Map.of("property", "roof_type", "value", "none", "scope", "plan"),
                 Map.of("property", "window_style", "value", "none", "scope", "plan"),
-                Map.of("property", "entrance_type", "value", "none", "scope", "plan")));
+                Map.of("property", "entrance_type", "value", "none", "scope", "plan"),
+                // Envelope identity must not drift from aesthetic lighting hang-links.
+                Map.of("property", "no_complex_decor", "value", true, "scope", "plan")));
         LlmPlan plan = LlmPlanTestFixtures.builder()
                 .allowCompilerSatellites(false)
                 .mode(LlmPlan.Mode.build)
@@ -382,7 +384,9 @@ class StackedTowerFullCompileEnvelopeTest {
         Map<String, Object> contract = Map.of("requirements", List.of(
                 Map.of("property", "roof_type", "value", "none", "scope", "plan"),
                 Map.of("property", "window_style", "value", "none", "scope", "plan"),
-                Map.of("property", "entrance_type", "value", "none", "scope", "plan")));
+                Map.of("property", "entrance_type", "value", "none", "scope", "plan"),
+                // Envelope identity must not drift from aesthetic lighting hang-links.
+                Map.of("property", "no_complex_decor", "value", true, "scope", "plan")));
         LlmPlan sealed = RequestIntentInjector.ensure(
                 LlmPlanTestFixtures.builder()
                         .allowCompilerSatellites(false)
@@ -402,7 +406,9 @@ class StackedTowerFullCompileEnvelopeTest {
 
         var conversion = PlanPatchConverter.convert(compileFinal, origin);
         assertFalse(conversion.hasCriticalFailure(),
-                () -> "PlanPatchConverter critical failure: " + conversion);
+                () -> "PlanPatchConverter critical failure: criticalInvalid="
+                        + conversion.criticalInvalid()
+                        + " samples=" + conversion.samples());
         // world=null → BuildAutoRepair only dedupes; still exercises converter→clip→collapse.
         var repaired = BuildAutoRepair.apply(null, Optional.empty(), conversion.blocks());
         var clipped = BuildConstraintClipper.clipPlannedBlocks(repaired.blocks(), null);

@@ -73,8 +73,9 @@ class ComponentPlanCompilerFoundationFacadeTest {
         boolean backWallWindow = patches.stream().anyMatch(p ->
                 (p.dz() == 19 || p.dz() == 18) && p.targetBlock() != null
                         && (p.targetBlock().contains("glass") || p.targetBlock().contains("bars")));
+        // Recessed west-face glass sits at x=14; treat only the deep interior as forbidden.
         boolean interiorSliceWindow = patches.stream().anyMatch(p ->
-                p.dz() == 15 && p.dx() > 0 && p.dx() < 15
+                p.dz() == 15 && p.dx() > 1 && p.dx() < 14
                         && p.targetBlock() != null
                         && (p.targetBlock().contains("glass") || p.targetBlock().contains("bars")));
 

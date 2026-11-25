@@ -116,7 +116,9 @@ public final class PlanPatchConverter {
                 || target.contains("banner")
                 || target.contains("painting")
                 || target.contains("torch")
-                || target.contains("sign");
+                || target.contains("sign")
+                || target.contains("chain")
+                || target.contains("end_rod");
     }
 
     private static void addSample(List<Diagnostic> samples, int dx, int dy, int dz,

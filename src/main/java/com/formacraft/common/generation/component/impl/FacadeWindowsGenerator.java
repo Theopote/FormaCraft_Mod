@@ -544,6 +544,12 @@ public class FacadeWindowsGenerator implements ComponentGenerator {
         return null;
     }
 
+    private static boolean isFlatRoofParam(Map<String, Object> params) {
+        if (params == null) return false;
+        Object type = params.getOrDefault("roof_type", params.get("roofType"));
+        return type != null && "flat".equalsIgnoreCase(String.valueOf(type).trim());
+    }
+
     private boolean isEntranceFacade(int x, int z, int width, int depth,
                                      com.formacraft.common.llm.dto.GlobalConstraints.Facing facing,
                                      boolean wrapFacade) {

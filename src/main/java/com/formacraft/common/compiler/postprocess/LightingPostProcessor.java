@@ -117,8 +117,9 @@ public class LightingPostProcessor implements PostProcessor {
                         for (int z = minZ + 2; z <= maxZ - 2; z += cadence) {
                             if (!solid.containsKey(pack(x, ceilY, z))) continue;
                             if (storeyH >= 5) {
-                                // chain + hanging lantern
-                                placeIfAir(lights, solid, clearance, x, ceilY - 1, z, "minecraft:chain");
+                                // Hang link + lantern. Yarn test runtime may omit minecraft:chain
+                                // (DenseEavesPagodaBuilder same fallback) — never emit an unresolvable id.
+                                placeIfAir(lights, solid, clearance, x, ceilY - 1, z, hangLinkBlock());
                                 placeIfAir(lights, solid, clearance, x, ceilY - 2, z, hanging);
                             } else if (storeyH >= 4) {
                                 placeIfAir(lights, solid, clearance, x, ceilY - 1, z, hanging);
@@ -157,6 +158,14 @@ public class LightingPostProcessor implements PostProcessor {
         merged.addAll(lights);
         FormacraftMod.LOGGER.debug("LightingPostProcessor: added {} lights", lights.size());
         return merged;
+    }
+
+    private static String hangLinkBlock() {
+        var id = net.minecraft.util.Identifier.of("minecraft:chain");
+        if (net.minecraft.registry.Registries.BLOCK.containsId(id)) {
+            return "minecraft:chain";
+        }
+        return "minecraft:iron_bars";
     }
 
     private static String lightBlock(AestheticPassHints.LightingStyle style, boolean hanging) {
