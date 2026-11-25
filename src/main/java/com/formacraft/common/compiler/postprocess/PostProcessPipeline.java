@@ -95,10 +95,22 @@ public class PostProcessPipeline {
         List<ProcessorDelta> deltas = new ArrayList<>();
         var reserved = ProtectedClearanceRestorer.snapshotReserved(patches, context.protectedClearance());
 
+        // P1-04: freeze write authority from pipeline-entry geometry — never re-seed from
+        // décor PLACE cells produced by earlier processors (no stage-by-stage expansion).
+        PostProcessContext authContext = context;
+        PostProcessWriteScope frozenScope = context != null ? context.authorizedWriteScope() : null;
+        if (frozenScope == null && context != null) {
+            Set<BlockPos> entrySeeds = new HashSet<>(PostProcessPatchDelta.foldPlaces(patches).keySet());
+            frozenScope = PostProcessWriteScope.fromContext(context, entrySeeds);
+            authContext = context.withAuthorizedWriteScope(frozenScope);
+        }
+
         // mode=patch edit-scope contract (P1-03): standalone build-mode décor is not an edit.
-        boolean openingOnlyPatch = IncrementalEditScope.suppressesAestheticExpansion(context.plan());
+        boolean openingOnlyPatch = IncrementalEditScope.suppressesAestheticExpansion(
+                authContext == null ? null : authContext.plan());
         for (PostProcessor processor : processors) {
-            if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(context.plan(), null)
+            if (com.formacraft.common.style.ExplicitDesignPolicy.noComplexDecor(
+                    authContext == null ? null : authContext.plan(), null)
                     && (processor instanceof DetailRulePostProcessor || processor instanceof WindowOrderPostProcessor
                     || processor instanceof DetailEnhancementPostProcessor)) continue;
             // Incremental opening/glass patches must stay tiny (e.g. 4 glass cells) —
@@ -111,8 +123,9 @@ public class PostProcessPipeline {
             List<BlockPatch> previous = new ArrayList<>(result);
             String name = processor.getClass().getSimpleName();
             try (var materials = com.formacraft.common.palette.component.PaletteSelectionScope.open(
-                    context.plan(), "postprocess:" + processor.getClass().getName())) {
-                result = processor.process(result, context);
+                    authContext == null ? null : authContext.plan(),
+                    "postprocess:" + processor.getClass().getName())) {
+                result = processor.process(result, authContext);
                 if (result == null) {
                     if (processor.failurePolicy() == PostProcessor.FailurePolicy.HARD) {
                         FormacraftMod.LOGGER.error("PostProcessor {} returned null (HARD)", name);
@@ -124,12 +137,14 @@ public class PostProcessPipeline {
                     continue;
                 }
                 if (!(processor instanceof TerrainAdaptationPostProcessor)) {
-                    var integrity = ExteriorIntegrityGuard.preserve(previous, result, context);
+                    var integrity = ExteriorIntegrityGuard.preserve(previous, result, authContext);
                     result = integrity.patches();
-                    result = preserveMaterials(previous, result, context.protectedMaterials());
+                    result = preserveMaterials(previous, result,
+                            authContext == null ? Set.of() : authContext.protectedMaterials());
                     if (processor instanceof DetailRulePostProcessor || processor instanceof WindowOrderPostProcessor
                             || processor instanceof DetailEnhancementPostProcessor)
-                        result = preserveDecorationRestrictions(previous, result, context.decorationRestrictions());
+                        result = preserveDecorationRestrictions(previous, result,
+                                authContext == null ? Set.of() : authContext.decorationRestrictions());
                     if (integrity.restored() > 0) {
                         FormacraftMod.LOGGER.warn("Exterior integrity: processor={} restored={} stage=plan_patches",
                                 name, integrity.restored());
@@ -137,8 +152,11 @@ public class PostProcessPipeline {
                 }
                 PostProcessPatchDelta stepDelta = PostProcessPatchDelta.diff(previous, result);
                 if (!stepDelta.isEmpty()) {
-                    Set<BlockPos> seeds = new HashSet<>(PostProcessPatchDelta.foldPlaces(previous).keySet());
-                    PostProcessWriteScope scope = PostProcessWriteScope.fromContext(context, seeds);
+                    // Always attribute the frozen entry scope — not previous-step PLACE seeds.
+                    PostProcessWriteScope scope = frozenScope != null
+                            ? frozenScope
+                            : PostProcessWriteScope.forStep(authContext,
+                                    PostProcessPatchDelta.foldPlaces(previous).keySet());
                     deltas.add(new ProcessorDelta(name, stepDelta, processor.writePolicy(), scope));
                 }
             } catch (Exception e) {

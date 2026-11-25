@@ -247,6 +247,7 @@ public final class ComponentPlanCompiler {
         List<PostProcessContext.BuildingVolume> buildingVolumes = new ArrayList<>();
         Set<BlockPos> generatedSurfaces = new HashSet<>();
         var openingExpectations = new java.util.LinkedHashMap<BlockPos, OpeningMaterialAudit.Expectation>();
+        Set<BlockPos> authorizedRoofOpenings = new HashSet<>();
         Set<BlockPos> protectedMaterials = new HashSet<>();
         Set<BlockPos> decorationRestrictions = new HashSet<>();
         var circulation = new ArrayList<AssemblyCirculationConstraints.Flight>();
@@ -280,7 +281,8 @@ public final class ComponentPlanCompiler {
                             selection.getValue().unresolved().size());
                 }
                 patchOccupancy = ComponentEmitPass.compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
-                        slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions, openingExpectations);
+                        slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials, decorationRestrictions,
+                        openingExpectations, authorizedRoofOpenings);
             }
         } finally {
             GenerationCompileContext.install(previousCompileContext);
@@ -300,9 +302,10 @@ public final class ComponentPlanCompiler {
             com.formacraft.common.generation.component.util.CirculationAnalysisContext.end();
         }
 
-        Set<BlockPos> roofClearance = new HashSet<>();
-        for (var flight : circulation) roofClearance.addAll(flight.clearance());
-        var roofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofClearance);
+        Set<BlockPos> roofOpeningAuthority = new HashSet<>();
+        for (var flight : circulation) roofOpeningAuthority.addAll(flight.clearance());
+        roofOpeningAuthority.addAll(authorizedRoofOpenings);
+        var roofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofOpeningAuthority);
         if (roofMissing.isPresent()) {
             var missing = roofMissing.get();
             AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_COVERAGE",
@@ -311,7 +314,7 @@ public final class ComponentPlanCompiler {
                     List.of("Restore the roof core or remove the conflicting operation; keep courtyard and stair openings explicit.")));
             return List.of();
         }
-        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result, roofClearance)) {
+        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result, roofOpeningAuthority)) {
             return List.of();
         }
 
@@ -533,7 +536,7 @@ public final class ComponentPlanCompiler {
         }
         if (AssemblyCompileDiagnostics.hasGap()) return List.of();
         // Re-validate flat roofs on the final post-process patch list (core + host coverage).
-        var finalRoofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofClearance);
+        var finalRoofMissing = FlatRoofCoverageValidator.check(flatRoofs, result, roofOpeningAuthority);
         if (finalRoofMissing.isPresent()) {
             var missing = finalRoofMissing.get();
             AssemblyCompileDiagnostics.set(new CapabilityGap("E_FLAT_ROOF_COVERAGE",
@@ -543,7 +546,7 @@ public final class ComponentPlanCompiler {
                     List.of("Restore the roof core or remove the conflicting operation; keep courtyard and stair openings explicit.")));
             return List.of();
         }
-        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result, roofClearance)) {
+        if (reportFlatRoofHostGaps(components, slotMap, plan, flatRoofs, result, roofOpeningAuthority)) {
             return List.of();
         }
         for (var body : components) {

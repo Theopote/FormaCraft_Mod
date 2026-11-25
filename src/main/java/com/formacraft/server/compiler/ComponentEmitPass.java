@@ -31,6 +31,7 @@ import java.util.*;
 final class ComponentEmitPass {
     private ComponentEmitPass() {}
 
+    /** Compatibility for tests that do not collect roof-opening provenance. */
     static PatchOccupancyIndex compileComponents(
             LlmPlan plan,
             ServerWorld world,
@@ -47,6 +48,29 @@ final class ComponentEmitPass {
             Set<BlockPos> protectedMaterials,
             Set<BlockPos> decorationRestrictions,
             Map<BlockPos, OpeningMaterialAudit.Expectation> openingExpectations
+    ) {
+        return compileComponents(plan, world, globalAnchor, allowAssemblyFacade, components, assemblyFacadeSlots,
+                slotMap, result, buildingVolumes, circulation, generatedSurfaces, flatRoofs, protectedMaterials,
+                decorationRestrictions, openingExpectations, new HashSet<>());
+    }
+
+    static PatchOccupancyIndex compileComponents(
+            LlmPlan plan,
+            ServerWorld world,
+            BlockPos globalAnchor,
+            boolean allowAssemblyFacade,
+            List<Component> components,
+            Set<String> assemblyFacadeSlots,
+            Map<String, Slot> slotMap,
+            List<BlockPatch> result,
+            List<PostProcessContext.BuildingVolume> buildingVolumes,
+            List<AssemblyCirculationConstraints.Flight> circulation,
+            Set<BlockPos> generatedSurfaces,
+            List<FlatRoofCoverageValidator.Roof> flatRoofs,
+            Set<BlockPos> protectedMaterials,
+            Set<BlockPos> decorationRestrictions,
+            Map<BlockPos, OpeningMaterialAudit.Expectation> openingExpectations,
+            Set<BlockPos> authorizedRoofOpenings
     ) {
         // Shells and floor slabs must be emitted before stair clearance carves.
         var ordered = new ArrayList<>(components);
@@ -663,6 +687,19 @@ final class ComponentEmitPass {
                             List.of("修复该构件参数或生成器异常", "装饰类失败可降级，主体/屋顶/门窗不可")
                     ));
                     return patchOccupancy;
+                }
+            }
+        }
+        // P1-01: publish opening provenance for flat-roof perimeter exemptions.
+        if (authorizedRoofOpenings != null) {
+            authorizedRoofOpenings.addAll(surfaceLedger.authorizedOpeningCells());
+            for (var entry : openingExpectations.entrySet()) {
+                if (entry.getKey() == null || entry.getValue() == null) continue;
+                var role = entry.getValue().role();
+                if (role == GeneratedSurfaceCapture.Role.WINDOW
+                        || role == GeneratedSurfaceCapture.Role.DOOR_OPENING
+                        || role == GeneratedSurfaceCapture.Role.FACADE_OPENING) {
+                    authorizedRoofOpenings.add(entry.getKey());
                 }
             }
         }

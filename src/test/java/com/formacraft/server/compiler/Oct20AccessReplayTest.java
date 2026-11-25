@@ -91,6 +91,18 @@ class Oct20AccessReplayTest {
             var plan=com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(
                     LlmPlanParser.parse(Files.readString(Path.of(path))));
             var patches=ComponentPlanCompiler.compile(plan);
+            if (i == 2) {
+                // Phase 01.4 / P1-01: the height-repaired fixture still has one unauthorized
+                // perimeter hole on link_corridor#roof (previously hidden by isOpeningLike).
+                // Geometry seal of that cell is a fixture follow-up; contract here is the gap.
+                assertTrue(AssemblyCompileDiagnostics.hasGap(),
+                        () -> "oct20 plan2 repaired must surface flat-roof gap under opening provenance: "
+                                + AssemblyCompileDiagnostics.get());
+                String code = AssemblyCompileDiagnostics.get().code();
+                assertTrue(code != null && code.contains("FLAT_ROOF"),
+                        "expected FLAT_ROOF family, got " + code);
+                return;
+            }
             assertFalse(patches.isEmpty(),String.valueOf(AssemblyCompileDiagnostics.get()));
             assertFalse(AssemblyCompileDiagnostics.hasGap(),String.valueOf(AssemblyCompileDiagnostics.get()));
             if (i == 6) {
@@ -113,20 +125,20 @@ class Oct20AccessReplayTest {
     }
 
     @Test
-    void historicalOct20Plan2WithoutRepairCompilesAfterPerimeterOpeningExemption() throws Exception {
+    void historicalOct20Plan2WithoutRepairSurfacesUnauthorizedPerimeterFlatRoofGap() throws Exception {
         var plan = com.formacraft.common.llm.dto.TransitionalSatellitePlans.ensureAllowIfAbsent(
                 LlmPlanParser.parse(Files.readString(Path.of(
                         "python_backend/tests/fixtures/complex_build_retest/oct20_access_2.normalized.json"))));
         AssemblyCompileDiagnostics.clear();
-        var patches = ComponentPlanCompiler.compile(plan);
-        // Phase 00 perimeter opening-like exemption made the historical single-cell eave
-        // hole a non-gap (GEOMETRY). Deterministic contract: unrepaired fixture compiles
-        // non-empty without capability_gap. Interior flat-roof holes still gap elsewhere
-        // (FlatRoofCoverageValidatorTest); P1-01 provenance tightening deferred to 01.4.
-        assertFalse(AssemblyCompileDiagnostics.hasGap(),
-                () -> "unrepaired oct20 plan2 must compile clean after perimeter exemption: "
-                        + AssemblyCompileDiagnostics.get());
-        assertFalse(patches.isEmpty(), "unrepaired capture must emit a non-empty BlockPatch");
+        ComponentPlanCompiler.compile(plan);
+        // Phase 01.4 / P1-01: perimeter REMOVE/air without SurfaceOwnership opening provenance
+        // is a coverage hole again. Deterministic contract — repaired fixture (loggedPlans)
+        // still compiles clean; unrepaired capture must gap E_FLAT_ROOF_COVERAGE.
+        assertTrue(AssemblyCompileDiagnostics.hasGap(),
+                "unrepaired oct20 plan2 must surface a flat-roof coverage gap");
+        String code = AssemblyCompileDiagnostics.get().code();
+        assertTrue(code != null && code.contains("FLAT_ROOF"),
+                "historical capture gap must stay flat-roof family, got " + code);
     }
 
     @Test void descendingDescriptionKeepsLandingAtRaisedEnd() throws Exception {

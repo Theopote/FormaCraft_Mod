@@ -109,11 +109,31 @@ Production preview for `kind=llmplan` / `mode=build` with `components[]`:
 
 | ID | Item | Round |
 |----|------|-------|
-| P1-01 | Flat-roof perimeter REMOVE exemption needs opening provenance, not `isOpeningLike` alone | **01.4** |
+| P1-01 | Flat-roof perimeter REMOVE exemption needed opening provenance | **Fixed in 01.4** — `FlatRoofCoverageValidator` requires `authorizedOpenings` (SurfaceOwnership opening roles / circulation / openingExpectations); bare `isOpeningLike` removed |
 | P1-03 | `isOpeningOnlyPatchPlan` ignored `mode=patch` | **Fixed in 01.2** — `IncrementalEditScope.suppressesAestheticExpansion` requires `mode=patch` |
-| P1-04 | Postprocess scope rebuilt from prior PLACE seeds (`PostProcessPipeline`) | **01.3** |
-| P1-05 | `chain`/`end_rod` soft→stone; hang-link vs lantern atomicity | **01.5** |
+| P1-04 | Postprocess scope rebuilt from prior PLACE seeds | **Fixed in 01.3** — `PostProcessContext.authorizedWriteScope` frozen at pipeline entry; `PostProcessWriteScope.forStep` + shared delta scope |
+| P1-05 | `chain`/`end_rod` soft→stone; hang-link vs lantern atomicity | **Fixed in 01.5** — `PlanPatchConverter.softSubstitute` (hangable / skip, never stone); `LightingPostProcessor` hang pairs commit/filter atomically |
 | Path smart-emit bypass | Route into GenerationHub authority | **01.6** |
+
+### Surface / opening write roles (Phase 01.4)
+
+| Role | Typical writer | Notes |
+|------|----------------|-------|
+| `WALL` | MASS / shell | Same-host openings may carve |
+| `ROOF` | ROOF / mass deck | Not punched by façade windows; flat edge may be `openingCarvable` for ledger permissions |
+| `WINDOW` / `FACADE_OPENING` | FACADE_WINDOWS / mass glazing | Authorizes flat-roof perimeter coverage exemption |
+| `DOOR_OPENING` | ENTRANCE | Authorizes coverage exemption; circulation clearance also authorizes |
+
+### Lighting / décor soft recovery (Phase 01.5)
+
+| Case | Behavior |
+|------|----------|
+| Resolvable lantern / chain / end_rod | Place as authored |
+| Unresolved `chain` | Soft → `iron_bars` (hangable) |
+| Unresolved `end_rod` | Soft → `sea_lantern` |
+| Unresolved optional flower/carpet/… | Skip + warn (no stone) |
+| Tall-storey hang link + fixture | Atomic `HangPair` — place / opt-out / scope filter both or neither |
+| User-explicit structural unknown | Still `criticalInvalid` |
 
 ## Related docs
 

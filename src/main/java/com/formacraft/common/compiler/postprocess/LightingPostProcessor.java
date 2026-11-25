@@ -76,7 +76,8 @@ public class LightingPostProcessor implements PostProcessor {
             default -> 7;
         };
 
-        List<BlockPatch> lights = new ArrayList<>();
+        List<BlockPatch> singles = new ArrayList<>();
+        List<HangPair> hangPairs = new ArrayList<>();
         Set<BlockPos> clearance = context.protectedClearance() != null ? context.protectedClearance() : Set.of();
 
         // Entrance flanking lights (outside the door plane, lower half only)
@@ -85,11 +86,11 @@ public class LightingPostProcessor implements PostProcessor {
             int lx = door.x + out.getOffsetX();
             int lz = door.z + out.getOffsetZ();
             int ly = door.y + 2;
-            placeSupportedLight(lights, solid, clearance, lx + perpX(out), ly, lz + perpZ(out),
+            placeSupportedLight(singles, solid, clearance, lx + perpX(out), ly, lz + perpZ(out),
                     hanging, standing, out);
-            placeSupportedLight(lights, solid, clearance, lx - perpX(out), ly, lz - perpZ(out),
+            placeSupportedLight(singles, solid, clearance, lx - perpX(out), ly, lz - perpZ(out),
                     hanging, standing, out);
-            if (lights.size() >= MAX_LIGHTS) break;
+            if (lightBudget(singles, hangPairs) >= MAX_LIGHTS) break;
         }
 
         // Eaves / volume perimeter lights
@@ -101,14 +102,14 @@ public class LightingPostProcessor implements PostProcessor {
                 int minZ = b.minZ(), maxZ = b.maxZ() - 1;
                 int y = Math.max(minY + 2, maxY - 1);
                 for (int x = minX; x <= maxX; x += cadence) {
-                    placeSupportedLight(lights, solid, clearance, x, y, minZ - 1, hanging, standing, Direction.NORTH);
-                    placeSupportedLight(lights, solid, clearance, x, y, maxZ + 1, hanging, standing, Direction.SOUTH);
-                    if (lights.size() >= MAX_LIGHTS) break;
+                    placeSupportedLight(singles, solid, clearance, x, y, minZ - 1, hanging, standing, Direction.NORTH);
+                    placeSupportedLight(singles, solid, clearance, x, y, maxZ + 1, hanging, standing, Direction.SOUTH);
+                    if (lightBudget(singles, hangPairs) >= MAX_LIGHTS) break;
                 }
                 for (int z = minZ; z <= maxZ; z += cadence) {
-                    placeSupportedLight(lights, solid, clearance, minX - 1, y, z, hanging, standing, Direction.WEST);
-                    placeSupportedLight(lights, solid, clearance, maxX + 1, y, z, hanging, standing, Direction.EAST);
-                    if (lights.size() >= MAX_LIGHTS) break;
+                    placeSupportedLight(singles, solid, clearance, minX - 1, y, z, hanging, standing, Direction.WEST);
+                    placeSupportedLight(singles, solid, clearance, maxX + 1, y, z, hanging, standing, Direction.EAST);
+                    if (lightBudget(singles, hangPairs) >= MAX_LIGHTS) break;
                 }
 
                 // Interior ceiling grid
@@ -120,30 +121,32 @@ public class LightingPostProcessor implements PostProcessor {
                         for (int z = minZ + 2; z <= maxZ - 2; z += cadence) {
                             if (!solid.containsKey(pack(x, ceilY, z))) continue;
                             if (storeyH >= 5) {
-                                // Hang link + lantern. Yarn test runtime may omit minecraft:chain
-                                // (DenseEavesPagodaBuilder same fallback) — never emit an unresolvable id.
-                                placeIfAir(lights, solid, clearance, x, ceilY - 1, z, hangLinkBlock());
-                                placeIfAir(lights, solid, clearance, x, ceilY - 2, z, hanging);
+                                // Hang link + lantern as one atomic fixture (P1-05).
+                                placeHangFixture(hangPairs, singles, solid, clearance, x, ceilY, z,
+                                        hangLinkBlock(), hanging);
                             } else if (storeyH >= 4) {
-                                placeIfAir(lights, solid, clearance, x, ceilY - 1, z, hanging);
+                                placeIfAir(singles, solid, clearance, x, ceilY - 1, z, hanging);
                             } else {
                                 // headroom: flush / glow item under ceiling
-                                placeIfAir(lights, solid, clearance, x, ceilY - 1, z,
+                                placeIfAir(singles, solid, clearance, x, ceilY - 1, z,
                                         hints.lightingStyle() == AestheticPassHints.LightingStyle.MODERN_SLEEK
                                                 ? "minecraft:sea_lantern" : hanging);
                             }
-                            if (lights.size() >= MAX_LIGHTS) break;
+                            if (lightBudget(singles, hangPairs) >= MAX_LIGHTS) break;
                         }
                     }
                 }
             }
         }
 
-        if (lights.isEmpty()) return patches;
+        if (singles.isEmpty() && hangPairs.isEmpty()) return patches;
 
         if (!decorOptOutVolumes.isEmpty()) {
-            lights.removeIf(p -> p != null && decorOptOutVolumes.contains(pack(p.dx(), p.dy(), p.dz())));
-            if (lights.isEmpty()) return patches;
+            singles.removeIf(p -> p != null && decorOptOutVolumes.contains(pack(p.dx(), p.dy(), p.dz())));
+            hangPairs.removeIf(pair -> pair == null
+                    || decorOptOutVolumes.contains(pack(pair.link().dx(), pair.link().dy(), pair.link().dz()))
+                    || decorOptOutVolumes.contains(pack(pair.fixture().dx(), pair.fixture().dy(), pair.fixture().dz())));
+            if (singles.isEmpty() && hangPairs.isEmpty()) return patches;
         }
 
         Set<BlockPos> seeds = new HashSet<>();
@@ -151,10 +154,22 @@ public class LightingPostProcessor implements PostProcessor {
             if (p == null || BlockPatch.REMOVE.equals(p.action())) continue;
             seeds.add(new BlockPos(p.dx(), p.dy(), p.dz()));
         }
-        PostProcessWriteScope scope = PostProcessWriteScope.fromContext(context, seeds);
-        lights.removeIf(p -> p == null
+        // Prefer pipeline-frozen authority (P1-04); step seeds are fallback for direct calls.
+        PostProcessWriteScope scope = PostProcessWriteScope.forStep(context, seeds);
+        singles.removeIf(p -> p == null
                 || !scope.allowsPlace(new BlockPos(p.dx(), p.dy(), p.dz())));
-        if (lights.isEmpty()) return patches;
+        // Hang pair: both cells must be in scope or the whole fixture is dropped.
+        hangPairs.removeIf(pair -> pair == null
+                || !scope.allowsPlace(new BlockPos(pair.link().dx(), pair.link().dy(), pair.link().dz()))
+                || !scope.allowsPlace(new BlockPos(pair.fixture().dx(), pair.fixture().dy(), pair.fixture().dz())));
+        if (singles.isEmpty() && hangPairs.isEmpty()) return patches;
+
+        List<BlockPatch> lights = new ArrayList<>(singles.size() + hangPairs.size() * 2);
+        lights.addAll(singles);
+        for (HangPair pair : hangPairs) {
+            lights.add(pair.link());
+            lights.add(pair.fixture());
+        }
 
         List<BlockPatch> merged = new ArrayList<>(patches.size() + lights.size());
         merged.addAll(patches);
@@ -248,7 +263,7 @@ public class LightingPostProcessor implements PostProcessor {
 
     private static void placeIfAir(List<BlockPatch> out, Map<Long, String> solid, Set<BlockPos> clearance,
                                    int x, int y, int z, String block) {
-        if (block == null || block.isBlank() || out.size() >= MAX_LIGHTS) return;
+        if (block == null || block.isBlank() || out.size() >= MAX_LIGHTS) return; // singles-only budget check at call sites
         BlockPos pos = new BlockPos(x, y, z);
         if (clearance.contains(pos)) return;
         if (looksLikeOpenYardColumn(solid, x, y, z)) return;
@@ -257,6 +272,41 @@ public class LightingPostProcessor implements PostProcessor {
         out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, block));
         solid.put(key, block);
     }
+
+    /**
+     * Ceiling hang-link + fixture must commit together. If either cell is blocked /
+     * cleared / at capacity, place neither (P1-05 atomicity).
+     */
+    private static void placeHangFixture(List<HangPair> pairs, List<BlockPatch> singles,
+                                         Map<Long, String> solid, Set<BlockPos> clearance,
+                                         int x, int ceilY, int z, String link, String fixture) {
+        if (link == null || link.isBlank() || fixture == null || fixture.isBlank()) return;
+        if (lightBudget(singles, pairs) + 2 > MAX_LIGHTS) return;
+        int linkY = ceilY - 1;
+        int fixtureY = ceilY - 2;
+        if (!canOccupyAir(solid, clearance, x, linkY, z)) return;
+        if (!canOccupyAir(solid, clearance, x, fixtureY, z)) return;
+        BlockPatch linkPatch = new BlockPatch(BlockPatch.PLACE, x, linkY, z, link);
+        BlockPatch fixturePatch = new BlockPatch(BlockPatch.PLACE, x, fixtureY, z, fixture);
+        pairs.add(new HangPair(linkPatch, fixturePatch));
+        solid.put(pack(x, linkY, z), link);
+        solid.put(pack(x, fixtureY, z), fixture);
+    }
+
+    private static boolean canOccupyAir(Map<Long, String> solid, Set<BlockPos> clearance, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        if (clearance.contains(pos)) return false;
+        if (looksLikeOpenYardColumn(solid, x, y, z)) return false;
+        return !solid.containsKey(pack(x, y, z));
+    }
+
+    private static int lightBudget(List<BlockPatch> singles, List<HangPair> pairs) {
+        int n = singles == null ? 0 : singles.size();
+        n += pairs == null ? 0 : pairs.size() * 2;
+        return n;
+    }
+
+    private record HangPair(BlockPatch link, BlockPatch fixture) {}
 
     /**
      * Skywell / courtyard: authored paving under an open air column. Wing-facing eaves must

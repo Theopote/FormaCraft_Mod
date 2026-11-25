@@ -120,7 +120,8 @@ public class DetailEnhancementPostProcessor implements PostProcessor {
             if (p == null || BlockPatch.REMOVE.equals(p.action())) continue;
             seeds.add(new BlockPos(p.dx(), p.dy(), p.dz()));
         }
-        PostProcessWriteScope scope = PostProcessWriteScope.fromContext(context, seeds);
+        // Prefer pipeline-frozen authority (P1-04); step seeds are fallback for direct calls.
+        PostProcessWriteScope scope = PostProcessWriteScope.forStep(context, seeds);
         enhancements.removeIf(p -> p == null
                 || !scope.allowsPlace(new BlockPos(p.dx(), p.dy(), p.dz())));
         if (enhancements.isEmpty()) return patches;

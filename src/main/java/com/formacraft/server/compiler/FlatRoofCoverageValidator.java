@@ -144,12 +144,10 @@ final class FlatRoofCoverageValidator {
                 if (coveredByBody || clearance.contains(pos)) continue;
                 BlockPatch present = finalPatches.get(pos);
                 if (roofCells.contains(pos) && GeneratedSurfaceCapture.occupied(present)) continue;
-                // Perimeter opening (eave fenestration / portal) is not a host-coverage hole.
-                if (present != null && isOpeningLike(present)
-                        && isHostTopPerimeter(x, z, part.dimensions().width(), part.dimensions().depth(),
-                        masks.get(i))) {
-                    continue;
-                }
+                // Explicit opening provenance (circulation / surface ledger) may leave the
+                // host top open. Bare perimeter isOpeningLike is not authority (P1-01).
+                Set<BlockPos> authority = clearance == null ? Set.of() : clearance;
+                if (authority.contains(pos)) continue;
                 if (!roofCells.contains(pos) || !GeneratedSurfaceCapture.occupied(present)) {
                     count++; if (first == null) first = pos;
                 }
@@ -170,8 +168,14 @@ final class FlatRoofCoverageValidator {
         return Optional.empty();
     }
 
-    static Optional<Missing> check(List<Roof> roofs, List<BlockPatch> patches, Set<BlockPos> stairClearance) {
+    /**
+     * @param authorizedOpenings cells with explicit opening provenance (circulation clearance,
+     *                           SurfaceOwnershipLedger opening roles, or openingCarvable roof edge).
+     *                           Perimeter {@code isOpeningLike} alone is insufficient (P1-01).
+     */
+    static Optional<Missing> check(List<Roof> roofs, List<BlockPatch> patches, Set<BlockPos> authorizedOpenings) {
         if (roofs.isEmpty()) return Optional.empty();
+        Set<BlockPos> authority = authorizedOpenings == null ? Set.of() : authorizedOpenings;
         Set<BlockPos> expected = new HashSet<>();
         for (var roof : roofs) expected.addAll(roof.core());
         Map<BlockPos, BlockPatch> finalPatches = new HashMap<>();
@@ -184,11 +188,11 @@ final class FlatRoofCoverageValidator {
             int count = 0; BlockPos first = null;
             BlockPatch firstPatch = null;
             for (var pos : roof.core()) {
-                if (stairClearance.contains(pos)) continue;
+                if (authority.contains(pos)) continue;
                 BlockPatch present = finalPatches.get(pos);
                 if (GeneratedSurfaceCapture.occupied(present)) continue;
-                // Eave fenestration may REMOVE/glaze perimeter core cells; interior holes still fail.
-                if (present != null && isPerimeter(pos, roof.core()) && isOpeningLike(present)) continue;
+                // Authorized eave fenestration only — perimeter + opening-like is not enough.
+                if (isAuthorizedPerimeterOpening(pos, roof.core(), present, authority)) continue;
                 count++;
                 if (first == null) {
                     first = pos;
@@ -198,10 +202,10 @@ final class FlatRoofCoverageValidator {
             if (count > 0) {
                 var missingPos = new ArrayList<BlockPos>();
                 for (var pos : roof.core()) {
-                    if (stairClearance.contains(pos)) continue;
+                    if (authority.contains(pos)) continue;
                     BlockPatch present = finalPatches.get(pos);
                     if (GeneratedSurfaceCapture.occupied(present)) continue;
-                    if (present != null && isPerimeter(pos, roof.core()) && isOpeningLike(present)) continue;
+                    if (isAuthorizedPerimeterOpening(pos, roof.core(), present, authority)) continue;
                     missingPos.add(pos);
                 }
                 FormacraftMod.LOGGER.warn(
@@ -218,20 +222,26 @@ final class FlatRoofCoverageValidator {
                 || !core.contains(pos.add(0, 0, 1)) || !core.contains(pos.add(0, 0, -1));
     }
 
-    private static boolean isHostTopPerimeter(
-            int x, int z, int width, int depth, ComponentFootprintMask mask
-    ) {
-        if (x <= 0 || z <= 0 || x >= width - 1 || z >= depth - 1) return true;
-        return !mask.contains(x - 1, z) || !mask.contains(x + 1, z)
-                || !mask.contains(x, z - 1) || !mask.contains(x, z + 1);
-    }
-
     private static boolean isOpeningLike(BlockPatch patch) {
+        if (patch == null) return false;
         if (BlockPatch.REMOVE.equals(patch.action())) return true;
         String target = patch.targetBlock();
         if (target == null || target.isBlank()) return true;
         String n = target.toLowerCase(Locale.ROOT);
         return n.contains("air") || n.contains("glass") || n.contains("pane")
                 || n.contains("bars") || n.contains("fence");
+    }
+
+    /**
+     * Eave fenestration exemption: perimeter geometry AND opening-like patch AND
+     * explicit opening authority at the cell (SurfaceOwnership / circulation / seal).
+     */
+    private static boolean isAuthorizedPerimeterOpening(
+            BlockPos pos, Set<BlockPos> core, BlockPatch present, Set<BlockPos> authorizedOpenings
+    ) {
+        return present != null
+                && isPerimeter(pos, core)
+                && isOpeningLike(present)
+                && authorizedOpenings.contains(pos);
     }
 }

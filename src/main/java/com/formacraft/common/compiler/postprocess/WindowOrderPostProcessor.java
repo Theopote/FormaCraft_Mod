@@ -132,7 +132,8 @@ public class WindowOrderPostProcessor implements PostProcessor {
         Set<net.minecraft.util.math.BlockPos> seeds = new HashSet<>();
         for (var p : patches) if (com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.occupied(p))
             seeds.add(new net.minecraft.util.math.BlockPos(p.dx(),p.dy(),p.dz()));
-        var scope = PostProcessWriteScope.fromContext(context,seeds);
+        // Prefer pipeline-frozen authority (P1-04); step seeds are fallback for direct calls.
+        var scope = PostProcessWriteScope.forStep(context, seeds);
         // Always clip to write scope — pediments at +2 and missing volume AABBs must not hard-fail compile.
         surrounds.removeIf(p -> p == null
                 || !scope.allowsPlace(new net.minecraft.util.math.BlockPos(p.dx(), p.dy(), p.dz())));

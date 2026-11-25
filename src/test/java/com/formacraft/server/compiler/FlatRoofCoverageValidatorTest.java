@@ -148,4 +148,102 @@ class FlatRoofCoverageValidatorTest {
         var mismatch = FlatRoofCoverageValidator.attachmentMismatch(new SemanticComponent("ROOF",wrong,roof),List.of(body),Map.of("body",slot),null).orElseThrow();
         assertEquals(14,mismatch.expectedY()); assertEquals(15,mismatch.actualY());
     }
+
+    @Test
+    void unauthorizedPerimeterRemoveIsCoverageHole() {
+        // P1-01: perimeter + REMOVE/glass alone must not exempt — needs opening provenance.
+        var core = FlatRoofCoverageValidator.resolve(
+                new SemanticComponent("ROOF", null, roof(Map.of("roof_type", "flat"))),
+                BlockPos.ORIGIN).orElseThrow();
+        var result = new ArrayList<>(patches(core, 0));
+        BlockPos edge = core.core().stream()
+                .filter(p -> !core.core().contains(p.add(1, 0, 0))
+                        || !core.core().contains(p.add(-1, 0, 0))
+                        || !core.core().contains(p.add(0, 0, 1))
+                        || !core.core().contains(p.add(0, 0, -1)))
+                .findFirst()
+                .orElseThrow();
+        result.add(new BlockPatch(BlockPatch.REMOVE, edge.getX(), edge.getY(), edge.getZ(), "minecraft:air"));
+        assertTrue(FlatRoofCoverageValidator.check(List.of(core), result, Set.of()).isPresent(),
+                "unauthorized perimeter REMOVE must gap");
+        assertTrue(FlatRoofCoverageValidator.check(List.of(core), result, Set.of(edge)).isEmpty(),
+                "same cell with opening provenance must pass");
+    }
+
+    @Test
+    void occupiedPerimeterGlassStillCoversDeckWithoutAuthority() {
+        // Occupied glass is still a covering cell (GeneratedSurfaceCapture.occupied).
+        // P1-01 targets unoccupied REMOVE/air — not solid glazing that seals the deck.
+        var core = FlatRoofCoverageValidator.resolve(
+                new SemanticComponent("ROOF", null, roof(Map.of("roof_type", "flat"))),
+                BlockPos.ORIGIN).orElseThrow();
+        var result = new ArrayList<>(patches(core, 0));
+        BlockPos edge = core.core().stream()
+                .filter(p -> !core.core().contains(p.add(1, 0, 0))
+                        || !core.core().contains(p.add(-1, 0, 0))
+                        || !core.core().contains(p.add(0, 0, 1))
+                        || !core.core().contains(p.add(0, 0, -1)))
+                .findFirst()
+                .orElseThrow();
+        result.removeIf(p -> p.dx() == edge.getX() && p.dy() == edge.getY() && p.dz() == edge.getZ());
+        result.add(new BlockPatch(BlockPatch.PLACE, edge.getX(), edge.getY(), edge.getZ(), "minecraft:glass"));
+        assertTrue(FlatRoofCoverageValidator.check(List.of(core), result, Set.of()).isEmpty(),
+                "occupied glass seals the deck even without opening provenance");
+    }
+
+    @Test
+    void lShapeInnerEdgeRemoveWithoutAuthorityStillGaps() {
+        // Inner re-entrant edges of L/U roofs are also "perimeter" geometrically — provenance required.
+        var params = new HashMap<String, Object>();
+        params.put("roof_type", "flat");
+        params.put("plan_type", "l_shape");
+        var core = FlatRoofCoverageValidator.resolve(
+                new SemanticComponent("ROOF", null, roof(params)), BlockPos.ORIGIN).orElseThrow();
+        assertFalse(core.core().isEmpty());
+        BlockPos innerEdge = core.core().stream()
+                .filter(p -> {
+                    boolean missingNeighbor = !core.core().contains(p.add(1, 0, 0))
+                            || !core.core().contains(p.add(-1, 0, 0))
+                            || !core.core().contains(p.add(0, 0, 1))
+                            || !core.core().contains(p.add(0, 0, -1));
+                    boolean hasNeighbor = core.core().contains(p.add(1, 0, 0))
+                            || core.core().contains(p.add(-1, 0, 0))
+                            || core.core().contains(p.add(0, 0, 1))
+                            || core.core().contains(p.add(0, 0, -1));
+                    return missingNeighbor && hasNeighbor;
+                })
+                .findFirst()
+                .orElseThrow();
+        var result = new ArrayList<>(patches(core, 0));
+        result.add(new BlockPatch(BlockPatch.REMOVE, innerEdge.getX(), innerEdge.getY(), innerEdge.getZ(),
+                "minecraft:air"));
+        assertTrue(FlatRoofCoverageValidator.check(List.of(core), result, Set.of()).isPresent(),
+                "L-shape inner-edge REMOVE without opening authority must gap");
+    }
+
+    @Test
+    void surfaceLedgerAuthorizedOpeningCellsIncludeWindowAndCarvableRoofEdge() {
+        var ledger = new SurfaceOwnershipLedger();
+        var roof = new Component("ROOF", "s", new Vec3i(0, 7, 0), new Dimensions(5, 5, 1), List.of(),
+                Map.of("component_id", "flat_roof", "building_id", "house", "roof_type", "flat",
+                        "host_id", "house"));
+        var cells = List.of(
+                new com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell(
+                        new BlockPos(0, 7, 0),
+                        com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.ROOF),
+                new com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell(
+                        new BlockPos(2, 7, 2),
+                        com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.ROOF),
+                new com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell(
+                        new BlockPos(1, 5, 0),
+                        com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.WINDOW));
+        ledger.accept(roof, List.of(
+                new BlockPatch(BlockPatch.PLACE, 0, 7, 0, "minecraft:stone_bricks"),
+                new BlockPatch(BlockPatch.PLACE, 2, 7, 2, "minecraft:stone_bricks")),
+                cells, BlockPos.ORIGIN);
+        Set<BlockPos> auth = ledger.authorizedOpeningCells();
+        assertTrue(auth.contains(new BlockPos(1, 5, 0)), "WINDOW role must authorize");
+        assertTrue(auth.contains(new BlockPos(0, 7, 0)), "openingCarvable roof edge must authorize");
+        assertFalse(auth.contains(new BlockPos(2, 7, 2)), "interior flat roof cell must not authorize");
+    }
 }

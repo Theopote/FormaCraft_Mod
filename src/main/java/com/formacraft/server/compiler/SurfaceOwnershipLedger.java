@@ -30,6 +30,27 @@ final class SurfaceOwnershipLedger {
         circulationClearance.add(position.toImmutable());
     }
 
+    /**
+     * Cells with explicit opening provenance for flat-roof coverage exemptions (P1-01).
+     * Includes WINDOW / DOOR_OPENING / FACADE_OPENING, flat-roof edge cells marked
+     * {@code openingCarvable}, and reserved circulation clearance.
+     * Classification: HARD_CONSTRAINT — geometry perimeter alone is not authority.
+     */
+    Set<BlockPos> authorizedOpeningCells() {
+        Set<BlockPos> out = new HashSet<>(circulationClearance);
+        for (var entry : surfaces.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) continue;
+            GeneratedSurfaceCapture.Role role = entry.getValue().role();
+            if (role == GeneratedSurfaceCapture.Role.WINDOW
+                    || role == GeneratedSurfaceCapture.Role.DOOR_OPENING
+                    || role == GeneratedSurfaceCapture.Role.FACADE_OPENING
+                    || (role == GeneratedSurfaceCapture.Role.ROOF && entry.getValue().openingCarvable())) {
+                out.add(entry.getKey());
+            }
+        }
+        return Set.copyOf(out);
+    }
+
     boolean isProtectedFromWindows(Component writer, BlockPos position) {
         if (circulationClearance.contains(position)) return true;
         Surface surface = surfaces.get(position);

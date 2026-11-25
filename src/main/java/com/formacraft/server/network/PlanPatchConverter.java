@@ -1,10 +1,12 @@
 package com.formacraft.server.network;
 
+import com.formacraft.FormacraftMod;
 import com.formacraft.common.build.PlannedBlock;
 import com.formacraft.common.patch.BlockPatch;
 import com.formacraft.common.patch.BlockPatchTargetResolver;
 import com.formacraft.common.patch.ConfirmedPlanIdentity;
 import com.formacraft.common.patch.ConnectedBlockStateResolver;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 
@@ -17,6 +19,9 @@ import java.util.Locale;
  * <p>
  * Input is normalized to the <b>final per-cell set</b> ({@link ConfirmedPlanIdentity#toFinalPatches})
  * before conversion so preview / digest / apply share one last-write-wins identity.
+ * <p>
+ * Soft recovery never places bare stone for décor / lighting. Hang-links and fixtures
+ * map to a hangable semantic substitute; other optional décor is skipped with a warning.
  */
 public final class PlanPatchConverter {
     private PlanPatchConverter() {}
@@ -40,7 +45,6 @@ public final class PlanPatchConverter {
     }
 
     private static final int MAX_SAMPLES = 8;
-    private static final String SOFT_FALLBACK = "minecraft:stone";
 
     public static Result convert(List<BlockPatch> patches, BlockPos origin) {
         List<PlannedBlock> blocks = new ArrayList<>();
@@ -73,9 +77,20 @@ public final class PlanPatchConverter {
                 addSample(samples, patch.dx(), patch.dy(), patch.dz(), patch.action(), patch.targetBlock(), false);
             } else if (canSoftRecover(patch)) {
                 softRecovered++;
-                blocks.add(new PlannedBlock(
-                        origin.add(patch.dx(), patch.dy(), patch.dz()),
-                        Blocks.STONE.getDefaultState()));
+                BlockState substitute = softSubstitute(patch.targetBlock());
+                if (substitute != null) {
+                    blocks.add(new PlannedBlock(
+                            origin.add(patch.dx(), patch.dy(), patch.dz()),
+                            substitute,
+                            patch.source()));
+                    FormacraftMod.LOGGER.warn(
+                            "PlanPatchConverter: soft-substituted unresolved décor {} -> {}",
+                            patch.targetBlock(), softSubstituteId(substitute));
+                } else {
+                    FormacraftMod.LOGGER.warn(
+                            "PlanPatchConverter: skipped unresolved optional décor {}",
+                            patch.targetBlock());
+                }
                 addSample(samples, patch.dx(), patch.dy(), patch.dz(), patch.action(), patch.targetBlock(), false);
             } else {
                 criticalInvalid++;
@@ -95,7 +110,6 @@ public final class PlanPatchConverter {
         }
         String target = patch.targetBlock() == null ? "" : patch.targetBlock().toLowerCase(Locale.ROOT);
         return !looksDecorative(target);
-        // 结构相关关键词或未知 place/replace → critical
     }
 
     static boolean canSoftRecover(BlockPatch patch) {
@@ -104,6 +118,38 @@ public final class PlanPatchConverter {
         if (BlockPatch.REMOVE.equals(action)) return false;
         String target = patch.targetBlock() == null ? "" : patch.targetBlock().toLowerCase(Locale.ROOT);
         return looksDecorative(target);
+    }
+
+    /**
+     * Semantic substitute for unresolved lighting / hang-link ids. Returns {@code null}
+     * when the décor is optional and should be omitted (never stone).
+     */
+    static BlockState softSubstitute(String targetBlock) {
+        if (targetBlock == null || targetBlock.isBlank()) return null;
+        String t = targetBlock.toLowerCase(Locale.ROOT);
+        if (t.contains("chain")) {
+            return Blocks.IRON_BARS.getDefaultState();
+        }
+        if (t.contains("end_rod")) {
+            return Blocks.SEA_LANTERN.getDefaultState();
+        }
+        if (t.contains("lantern")) {
+            boolean soul = t.contains("soul");
+            boolean hanging = t.contains("hanging=true") || t.contains("hanging");
+            BlockState base = soul
+                    ? Blocks.SOUL_LANTERN.getDefaultState()
+                    : Blocks.LANTERN.getDefaultState();
+            if (hanging && base.contains(net.minecraft.block.LanternBlock.HANGING)) {
+                return base.with(net.minecraft.block.LanternBlock.HANGING, true);
+            }
+            return base;
+        }
+        if (t.contains("torch") && !t.contains("redstone")) {
+            if (t.contains("soul")) return Blocks.SOUL_TORCH.getDefaultState();
+            return Blocks.TORCH.getDefaultState();
+        }
+        // flower / carpet / candle / pot / banner / painting / sign → skip
+        return null;
     }
 
     private static boolean looksDecorative(String target) {
@@ -121,13 +167,23 @@ public final class PlanPatchConverter {
                 || target.contains("end_rod");
     }
 
+    private static String softSubstituteId(BlockState state) {
+        if (state == null) return "null";
+        return net.minecraft.registry.Registries.BLOCK.getId(state.getBlock()).toString();
+    }
+
     private static void addSample(List<Diagnostic> samples, int dx, int dy, int dz,
                                   String action, String target, boolean critical) {
         if (samples.size() >= MAX_SAMPLES) return;
         samples.add(new Diagnostic(dx, dy, dz, action, target, critical));
     }
 
+    /**
+     * @deprecated Phase 01.5 — stone is no longer a soft décor fallback.
+     *             Kept for callers that probe the historical constant; returns empty.
+     */
+    @Deprecated
     public static String softFallbackBlockId() {
-        return SOFT_FALLBACK;
+        return "";
     }
 }

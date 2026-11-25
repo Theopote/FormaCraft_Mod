@@ -21,7 +21,20 @@ public class PostProcessWriteScope {
     }
 
     /**
-     * @param seedCells folded PLACE cells from the processor input (previous patch list)
+     * Prefer the pipeline-frozen {@link PostProcessContext#authorizedWriteScope()} when present
+     * (Phase 01.3 / P1-04). Otherwise build from {@code seedCells} — used by unit tests and
+     * callers outside {@link PostProcessPipeline}.
+     */
+    public static PostProcessWriteScope forStep(PostProcessContext ctx, Set<BlockPos> seedCells) {
+        if (ctx != null && ctx.authorizedWriteScope() != null) {
+            return ctx.authorizedWriteScope();
+        }
+        return fromContext(ctx, seedCells);
+    }
+
+    /**
+     * @param seedCells folded PLACE cells that authorize this step (must be pipeline-entry seeds
+     *                  when freezing; never later décor-expanded cells)
      */
     public static PostProcessWriteScope fromContext(PostProcessContext ctx, Set<BlockPos> seedCells) {
         Set<BlockPos> seeds = seedCells == null ? Set.of() : Set.copyOf(seedCells);

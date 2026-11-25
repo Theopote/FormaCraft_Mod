@@ -4,7 +4,9 @@ import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.llm.dto.LlmPlanTestFixtures;
 import com.formacraft.common.llm.dto.StyleAttributes;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import net.minecraft.util.math.BlockPos;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -13,6 +15,12 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LightingPostProcessorTest {
+    @BeforeAll
+    static void initRegistry() {
+        // hangLinkBlock() probes Registries.BLOCK for minecraft:chain
+        MinecraftRegistryTestBootstrap.initialize();
+    }
+
     @Test
     void placeOnlyAddsLightsAndEntranceFlankingIsSymmetric() {
         var volume = new PostProcessContext.BuildingVolume("m",
@@ -121,6 +129,110 @@ class LightingPostProcessorTest {
     void interiorLightRespectsHeadroomOnShortStorey() {
         assertTrue(SubVoxelHeadroom.shortStoreyUsesFlushFixture(3));
         assertFalse(SubVoxelHeadroom.shortStoreyUsesFlushFixture(5));
+    }
+
+    @Test
+    void tallStoreyHangLinkAndLanternCommitTogether() {
+        // floorHeight=5 → ceilY=floorY+4, storeyH=5 → hang link + lantern pair.
+        var volume = new PostProcessContext.BuildingVolume("m",
+                new ComponentFootprintUtil.Bounds(0, 0, 0, 11, 8, 11), 5);
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "subtle", "classic", "none", "warm_lantern", "high");
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleAttributes(attrs).build();
+        PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN, List.of(volume));
+        List<BlockPatch> input = new ArrayList<>();
+        // Ceiling must sit on computed ceilY (min(maxY-1, floorY+floorH-1) = 4).
+        for (int x = 1; x < 10; x++) for (int z = 1; z < 10; z++) {
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 0, z, "minecraft:oak_planks"));
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 4, z, "minecraft:oak_planks"));
+        }
+        List<BlockPatch> out = new LightingPostProcessor().process(input, ctx);
+        List<BlockPatch> added = out.stream().filter(p -> !input.contains(p)).toList();
+        List<BlockPatch> links = added.stream()
+                .filter(p -> p.targetBlock() != null
+                        && (p.targetBlock().contains("chain") || p.targetBlock().contains("iron_bars")))
+                .toList();
+        assertFalse(links.isEmpty(), "expected hang links under tall ceiling, added=" + added);
+        for (BlockPatch link : links) {
+            boolean fixture = added.stream().anyMatch(p ->
+                    p.dx() == link.dx() && p.dz() == link.dz() && p.dy() == link.dy() - 1
+                            && p.targetBlock() != null
+                            && (p.targetBlock().contains("lantern") || p.targetBlock().contains("end_rod")));
+            assertTrue(fixture, "hang link at " + link.dx() + "," + link.dy() + "," + link.dz()
+                    + " must keep its lantern/fixture cell");
+        }
+    }
+
+    @Test
+    void hangPairSkippedWhenFixtureCellIsProtectedClearance() {
+        // Blocking only the lantern cell must suppress the hang-link too (atomic place).
+        // ceilY=4 → link y=3, fixture y=2
+        var volume = new PostProcessContext.BuildingVolume("m",
+                new ComponentFootprintUtil.Bounds(0, 0, 0, 11, 8, 11), 5);
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "subtle", "classic", "none", "warm_lantern", "high");
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleAttributes(attrs).build();
+        java.util.Set<BlockPos> clearance = new java.util.HashSet<>();
+        for (int x = 2; x <= 8; x++) for (int z = 2; z <= 8; z++) {
+            clearance.add(new BlockPos(x, 2, z)); // fixture band only
+        }
+        PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN, List.of(volume), clearance);
+        List<BlockPatch> input = new ArrayList<>();
+        for (int x = 1; x < 10; x++) for (int z = 1; z < 10; z++) {
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 0, z, "minecraft:oak_planks"));
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 4, z, "minecraft:oak_planks"));
+        }
+        List<BlockPatch> out = new LightingPostProcessor().process(input, ctx);
+        List<BlockPatch> added = out.stream().filter(p -> !input.contains(p)).toList();
+        assertTrue(added.stream().noneMatch(p ->
+                        p.dx() >= 2 && p.dx() <= 8 && p.dz() >= 2 && p.dz() <= 8
+                                && p.dy() == 3
+                                && p.targetBlock() != null
+                                && (p.targetBlock().contains("chain") || p.targetBlock().contains("iron_bars"))),
+                "hang-link must not place when its fixture cell is clearance-blocked");
+        assertTrue(added.stream().noneMatch(p ->
+                        p.dx() >= 2 && p.dx() <= 8 && p.dz() >= 2 && p.dz() <= 8 && p.dy() == 2),
+                "fixture band clearance must also keep lanterns out");
+    }
+
+    @Test
+    void hangPairDroppedAtomicallyWhenScopeRejectsFixtureOnly() {
+        // ceilY=4 → link y=3, fixture y=2; frozen scope allows link but not fixture.
+        var volume = new PostProcessContext.BuildingVolume("m",
+                new ComponentFootprintUtil.Bounds(0, 0, 0, 11, 8, 11), 5);
+        var attrs = new StyleAttributes(null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "subtle", "classic", "none", "warm_lantern", "high");
+        var plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .styleAttributes(attrs).build();
+        List<BlockPatch> input = new ArrayList<>();
+        for (int x = 1; x < 10; x++) for (int z = 1; z < 10; z++) {
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 0, z, "minecraft:oak_planks"));
+            input.add(new BlockPatch(BlockPatch.PLACE, x, 4, z, "minecraft:oak_planks"));
+        }
+        java.util.Set<BlockPos> allowed = new java.util.HashSet<>();
+        for (BlockPatch p : input) allowed.add(new BlockPos(p.dx(), p.dy(), p.dz()));
+        for (int x = 0; x <= 10; x++) for (int z = 0; z <= 10; z++) {
+            allowed.add(new BlockPos(x, 3, z)); // hang-link band
+            allowed.add(new BlockPos(x, 4, z));
+            allowed.add(new BlockPos(x, 0, z));
+            allowed.add(new BlockPos(x, 1, z));
+            // deliberately omit y=2 fixture band
+        }
+        PostProcessWriteScope frozen = PostProcessWriteScope.clearanceOnly(allowed);
+        PostProcessContext ctx = PostProcessContext.create(plan, BlockPos.ORIGIN, List.of(volume))
+                .withAuthorizedWriteScope(frozen);
+        List<BlockPatch> out = new LightingPostProcessor().process(input, ctx);
+        List<BlockPatch> added = out.stream().filter(p -> !input.contains(p)).toList();
+        assertTrue(added.stream().noneMatch(p -> p.dy() == 3
+                        && p.targetBlock() != null
+                        && (p.targetBlock().contains("chain") || p.targetBlock().contains("iron_bars"))),
+                "scope-rejected fixture must drop the hang-link of the same pair");
+        assertTrue(added.stream().noneMatch(p -> p.dy() == 2
+                        && p.targetBlock() != null
+                        && (p.targetBlock().contains("lantern") || p.targetBlock().contains("end_rod"))),
+                "fixture cells outside frozen scope must not place");
     }
 
     /** Tiny helper mirrored from LightingPostProcessor storey rules for unit clarity. */

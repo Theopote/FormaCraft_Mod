@@ -8,10 +8,17 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/** Post-processing coordinates are local to the plan, including each compiled slot offset once. */
+/**
+ * Post-processing coordinates are local to the plan, including each compiled slot offset once.
+ * <p>
+ * {@link #authorizedWriteScope()} when non-null is the frozen spatial authority for the whole
+ * pipeline (Phase 01.3 / P1-04) — processors must not rebuild scope from later PLACE seeds.
+ */
 public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor,
                                  List<BuildingVolume> buildingVolumes, Set<BlockPos> protectedClearance,
-                                 Set<BlockPos> generatedSurfaces, Set<BlockPos> protectedMaterials, Set<BlockPos> decorationRestrictions) {
+                                 Set<BlockPos> generatedSurfaces, Set<BlockPos> protectedMaterials,
+                                 Set<BlockPos> decorationRestrictions,
+                                 PostProcessWriteScope authorizedWriteScope) {
     public record BuildingVolume(String slotId, ComponentFootprintUtil.Bounds bounds, int floorHeight) {
         public BuildingVolume {
             Objects.requireNonNull(bounds);
@@ -33,6 +40,14 @@ public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i rela
         generatedSurfaces = generatedSurfaces == null ? Set.of() : generatedSurfaces.stream()
             .map(BlockPos::toImmutable).collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
+
+    public PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor,
+                              List<BuildingVolume> volumes, Set<BlockPos> clearance, Set<BlockPos> surfaces,
+                              Set<BlockPos> materials, Set<BlockPos> decorationRestrictions) {
+        this(plan, globalAnchor, relativeAnchor, volumes, clearance, surfaces, materials,
+                decorationRestrictions, null);
+    }
+
     public PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor,
                               List<BuildingVolume> volumes, Set<BlockPos> clearance, Set<BlockPos> surfaces,
                               Set<BlockPos> materials) {
@@ -53,6 +68,13 @@ public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i rela
     public PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i relativeAnchor) {
         this(plan, globalAnchor, relativeAnchor, List.of());
     }
+
+    /** Freeze spatial authority for the entire post-process pipeline (P1-04). */
+    public PostProcessContext withAuthorizedWriteScope(PostProcessWriteScope scope) {
+        return new PostProcessContext(plan, globalAnchor, relativeAnchor, buildingVolumes,
+                protectedClearance, generatedSurfaces, protectedMaterials, decorationRestrictions, scope);
+    }
+
     public static PostProcessContext create(LlmPlan plan, BlockPos globalAnchor) {
         return create(plan, globalAnchor, List.of());
     }
