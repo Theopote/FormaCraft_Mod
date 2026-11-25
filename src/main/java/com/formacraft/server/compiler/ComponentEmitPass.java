@@ -514,11 +514,16 @@ final class ComponentEmitPass {
                     var surfaceConflict = surfaceLedger.check(c, shiftedPatches);
                     if (surfaceConflict.isPresent()) {
                         var conflict = surfaceConflict.get();
+                        var attribution = WriteAttribution.fromSurfaceConflict(c, conflict, patchOccupancy);
+                        FormacraftMod.LOGGER.info("WriteAttribution rejected:\n{}", attribution.formatDeveloper());
                         AssemblyCompileDiagnostics.set(new CapabilityGap("E_SURFACE_OVERWRITE_FORBIDDEN",
                                 "构件覆盖外壳冲突：writer=" + conflict.writer() + ", owner=" + conflict.surface().owner()
                                         + ", surface=" + conflict.surface().role() + ", plan=" + conflict.position().toShortString()
-                                        + "; " + conflict.reason(), "components[]",
-                                List.of("Keep decoration non-destructive; bind wall openings to their host building.")));
+                                        + "; " + conflict.reason()
+                                        + " [" + attribution.violation() + "]",
+                                "components[]",
+                                List.of("Keep decoration non-destructive; bind wall openings to their host building."),
+                                attribution.toDetails()));
                         return patchOccupancy;
                     }
                     // Avoid gravity/falling blocks (gravel, sand, concrete powder) collapsing after place.
@@ -537,16 +542,20 @@ final class ComponentEmitPass {
                     if (occupancyConflict.isPresent()) {
                         var oc = occupancyConflict.get();
                         var previous = patchOccupancy.placeAt(oc.position());
+                        var attribution = WriteAttribution.fromOccupancyConflict(c, oc, surfaceLedger);
+                        FormacraftMod.LOGGER.info("WriteAttribution rejected:\n{}", attribution.formatDeveloper());
                         AssemblyCompileDiagnostics.set(new CapabilityGap("E_PATCH_CONFLICT",
                                 "未授权 Patch 覆盖：pos=" + oc.position().toShortString()
                                         + " prev=" + oc.previousWriter() + "/" + oc.previousBlock()
                                         + " writer=" + oc.writer() + "/" + oc.newBlock()
                                         + " id=" + ComponentPlanTypes.paramIdentity(c) + " host=" + ComponentPlanTypes.getParamString(c.params(), "host_id")
                                         + " previous_id=" + (previous == null || previous.owner() == null ? "?" : ComponentPlanTypes.paramIdentity(previous.owner()))
-                                        + " (" + oc.reason() + ")",
+                                        + " (" + oc.reason() + ")"
+                                        + " [" + attribution.violation() + "]",
                                 "components[]",
                                 List.of("为开口类构件授权覆盖", "或设置 allow_patch_overwrite=true",
-                                        "禁止无关构件互相覆盖同坐标")));
+                                        "禁止无关构件互相覆盖同坐标"),
+                                attribution.toDetails()));
                         return patchOccupancy;
                     }
                     patchOccupancy.commit(c, shiftedPatches, connectorAccess, flightOffset);
@@ -922,15 +931,12 @@ final class ComponentEmitPass {
             String s = String.valueOf(src).trim();
             if ("USER_EXPLICIT".equalsIgnoreCase(s) || "USER".equalsIgnoreCase(s)
                     || "PLAYER".equalsIgnoreCase(s)) {
-                if (sources instanceof Map<?, ?> map
-                        && map.containsKey("glass_block")
-                        && !map.containsKey("opening_presence")
-                        && !map.containsKey("door_width")
-                        && (Boolean.TRUE.equals(c.params().get("window_material_explicit"))
-                            || Boolean.TRUE.equals(c.params().get("window_explicit")))) {
-                    return false;
-                }
-                return true;
+                return !(sources instanceof Map<?, ?> map)
+                        || !map.containsKey("glass_block")
+                        || map.containsKey("opening_presence")
+                        || map.containsKey("door_width")
+                        || (!Boolean.TRUE.equals(c.params().get("window_material_explicit"))
+                        && !Boolean.TRUE.equals(c.params().get("window_explicit")));
             }
         }
         return false;

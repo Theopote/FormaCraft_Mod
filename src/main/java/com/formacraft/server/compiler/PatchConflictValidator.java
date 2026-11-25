@@ -70,15 +70,27 @@ public final class PatchConflictValidator {
 
     public static Optional<CapabilityGap> toCapabilityGap(Finding f) {
         if (f == null) return Optional.empty();
+        var attribution = new WriteAttribution.Report(
+                "-",
+                "-",
+                f.position(),
+                null,
+                null,
+                null,
+                WriteAttribution.UNAUTHORIZED_PLACE_OVERWRITE,
+                WriteAttribution.RESOLUTION_REJECTED,
+                f.reason());
         return Optional.of(new CapabilityGap(
                 "E_PATCH_CONFLICT",
                 "未授权 Patch 覆盖：" + f.position().toShortString()
                         + " " + f.firstBlock() + " -> " + f.secondBlock()
-                        + (f.reason() == null ? "" : " (" + f.reason() + ")"),
+                        + (f.reason() == null ? "" : " (" + f.reason() + ")")
+                        + " [" + attribution.violation() + "]",
                 "components[]",
                 List.of("为开口类构件授权覆盖", "或设置 allow_patch_overwrite=true",
                         "后处理变更须经 PostProcessPatchDelta 入占用索引",
-                        "禁止无关构件 REMOVE/PLACE 绕过占用")
+                        "禁止无关构件 REMOVE/PLACE 绕过占用"),
+                attribution.toDetails()
         ));
     }
 }

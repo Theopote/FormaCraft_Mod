@@ -89,6 +89,11 @@ final class SurfaceOwnershipLedger {
                 && !buildingOwner(writer).equals(surface.owner());
     }
 
+    /** Plan-local surface provenance at {@code position}, or null (Phase 01.7 attribution). */
+    Surface surfaceAt(BlockPos position) {
+        return position == null ? null : surfaces.get(position);
+    }
+
     Optional<Conflict> check(Component component, List<BlockPatch> patches) {
         String type = component.componentType().toUpperCase(Locale.ROOT);
         boolean decor = type.equals("DECOR_DETAIL");

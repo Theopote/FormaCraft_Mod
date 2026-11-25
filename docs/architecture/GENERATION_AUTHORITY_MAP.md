@@ -135,6 +135,20 @@ Production preview for `kind=llmplan` / `mode=build` with `components[]`:
 | Tall-storey hang link + fixture | Atomic `HangPair` — place / opt-out / scope filter both or neither |
 | User-explicit structural unknown | Still `criticalInvalid` |
 
+### Write attribution / quality diagnostics (Phase 01.7)
+
+| Artifact | Role |
+|----------|------|
+| `WriteAttribution.Report` | Developer trace: component, host, position, original / opening / post-process writers, violation, resolution |
+| `PROTECTED_OPENING_OVERWRITE` | Surface conflict on WINDOW / DOOR / FACADE_OPENING |
+| `UNAUTHORIZED_PLACE_OVERWRITE` | Occupancy / final-pass unauthorized PLACE |
+| `CapabilityGap.details` | Structured keys + `attribution` multi-line text (logs / quality — not player chat) |
+| `WriteAttribution.trace` | Probe a cell without asserting a violation |
+
+### Phase 01.8 regression status
+
+Focused 01.1–01.7 suites, `DesignFidelityTest` (80), `FinalGeometryAcceptanceTest`, quality-gate tests, and `check_architecture` / `check_design_authority_invariants` / `check_generation_entrypoints` are green. In-game preview/apply soak remains manual/CI. See [PHASE_01_8_DELIVERY_REPORT.md](PHASE_01_8_DELIVERY_REPORT.md).
+
 ## Related docs
 
 - [GENERATION_PIPELINE.md](../GENERATION_PIPELINE.md) — operational pipeline truth
