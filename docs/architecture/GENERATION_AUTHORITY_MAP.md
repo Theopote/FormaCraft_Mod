@@ -66,6 +66,16 @@ flowchart TD
 - Missing design satellites on MASS: `E_DESIGN_INCOMPLETE` unless `plan_meta.allow_compiler_satellites=true` or explicit ROOF/FACADE/ENTRANCE components.
 - Unmatched BuildingSpec type: `NEEDS_REPLAN`. Null type / null spec: `UNSUPPORTED`. No silent house/tower fallback.
 - User/AI design vs hard spatial constraint: structured diagnostic / `capability_gap` (never silent success-after-rewrite). See `DesignDecisionPriority`.
+- Peer MASS **3D** AABB collide without `allow_mass_separation` / soft-annex / intentional interlock → `E_MASS_FOOTPRINT_CONFLICT` (Phase 02.1). XZ-only / Y-disjoint stacks are not conflicts. `BuildingMassComposition` remains parallel/experimental — not on the CPC trunk.
+
+## Mass composition authority (Phase 02.1)
+
+| Concern | Owner | Notes |
+|---------|-------|-------|
+| Authored mass position / size | USER_EXPLICIT / AI_PLANNED | Java must not silently recenter or inflate to min-3 |
+| Peer footprint separation | GEOMETRY repair (opt-in) | `MassFootprintSeparationRepair` + `MassSpatialRelation`; soft annex NONBINDING_HINT only |
+| Nested tier auto-center | EXPLICIT params (`stepped`, `stack_mode`, `replace_envelope`, tier footprints) | `ResolvedMassPart` — contiguous Y alone insufficient |
+| Boolean mass CSG (INTERSECT/…) | Experimental `BuildingMassComposition` only | Stub / inventory — never substitutes CPC |
 
 ## Default trunk call chain (Path A — code truth, Phase 01.1)
 

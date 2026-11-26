@@ -75,7 +75,7 @@ public final class ComponentFootprintUtil {
     /**
      * Plan-space half-open XZ AABB {@code [minX, maxX, minZ, maxZ]} for ownership / exclusivity.
      * Uses authored dimensions + {@code anchor_mode} + slot.anchor — does <em>not</em> apply
-     * {@link ResolvedComponentGeometry#normalizeBody} min-3 MASS clamp (identity must match Python).
+     * {@link ResolvedComponentGeometry#normalizeBody} envelope clamping (identity must match Python).
      * Missing relativePosition/dimensions → null (never invent a 1×1 box).
      */
     public static int[] planSpaceFootprintXz(Component component, Map<String, Slot> slotMap) {

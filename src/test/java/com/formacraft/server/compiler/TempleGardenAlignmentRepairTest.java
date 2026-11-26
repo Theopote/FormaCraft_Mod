@@ -708,7 +708,8 @@ class TempleGardenAlignmentRepairTest {
 
     @Test
     void nestedFootprintsWithOverlappingYStillSeparate() {
-        // XZ nested + different minY must NOT skip separation when heights still collide.
+        // Phase 02.1: 3D collide without soft-annex / allow_mass_separation → capability_gap
+        // (no silent redesign of authored nested keeps).
         Component outer = new Component(
                 "MASS_MAIN", "body", new Vec3i(0, 0, 0),
                 new Dimensions(16, 16, 20), List.of(),
@@ -719,6 +720,33 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(10, 10, 16), List.of(),
                 Map.of("component_id", "inner_volume", "building_role", "hall",
                         "anchor_mode", "min_corner"));
+        AssemblyCompileDiagnostics.clear();
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(outer, inner))
+                .build());
+        Component moved = repaired.components().stream()
+                .filter(c -> "inner_volume".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
+        assertEquals(inner.relativePosition(), moved.relativePosition(),
+                "authored nested positions must not be silently nudged without opt-in");
+        assertTrue(AssemblyCompileDiagnostics.hasGap());
+        assertEquals("E_MASS_FOOTPRINT_CONFLICT", AssemblyCompileDiagnostics.get().code());
+        AssemblyCompileDiagnostics.clear();
+    }
+
+    @Test
+    void nestedFootprintsSeparateWhenAllowMassSeparation() {
+        Component outer = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(16, 16, 20), List.of(),
+                Map.of("component_id", "keep", "building_role", "keep",
+                        "anchor_mode", "min_corner"));
+        Component inner = new Component(
+                "MASS_MAIN", "body", new Vec3i(2, 2, 2),
+                new Dimensions(10, 10, 16), List.of(),
+                Map.of("component_id", "inner_volume", "building_role", "hall",
+                        "anchor_mode", "min_corner", "allow_mass_separation", true));
+        AssemblyCompileDiagnostics.clear();
         LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(outer, inner))
                 .build());
@@ -735,7 +763,9 @@ class TempleGardenAlignmentRepairTest {
                         && moved.relativePosition().z() < stay.relativePosition().z() + stay.dimensions().depth()
                         && moved.relativePosition().z() + moved.dimensions().depth()
                         > stay.relativePosition().z(),
-                () -> "3D-overlapping nested volumes must separate, got inner="
+                () -> "opt-in separation must clear XZ overlap, got inner="
                         + moved.relativePosition());
+        assertFalse(AssemblyCompileDiagnostics.hasGap());
+        AssemblyCompileDiagnostics.clear();
     }
 }

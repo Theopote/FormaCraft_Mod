@@ -2,11 +2,14 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+import com.formacraft.common.generation.component.util.MassSpatialRelation;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
+import com.formacraft.common.llm.dto.CapabilityGap;
+import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,10 +21,10 @@ import java.util.Map;
  * Nudge secondary / pavilion masses out of overlapping primary footprints so
  * compound gardens do not trip {@code E_PATCH_CONFLICT} at shared cells.
  * <p>
- * Uses resolved min-corner bounds (centre-anchored LLM masses), prefers named
- * side hints ({@code north_side_hall} / {@code east_wing}), keeps Y flush with
- * the anchor floor, and shifts host-bound satellites with the mass so roofs
- * and foundations do not stay bitten into the main hall.
+ * Phase 02.1: only {@link MassSpatialRelation#AABB3_INTERSECT} is a conflict —
+ * XZ-only / Y-disjoint stacks are left alone. Default: do not move authored
+ * positions unless {@code allow_mass_separation} or soft-annex opt-in; otherwise
+ * emit {@code E_MASS_FOOTPRINT_CONFLICT}. Mutates relativePosition only.
  */
 final class MassFootprintSeparationRepair {
     private static final int GAP = 2;
@@ -33,6 +36,7 @@ final class MassFootprintSeparationRepair {
             return plan;
         }
         boolean interlockingIntent = asksInterlockingMasses(plan);
+        boolean separationOptIn = allowsMassSeparation(plan);
         List<Component> out = new ArrayList<>(plan.components());
         boolean changed = false;
         for (int i = 0; i < out.size(); i++) {
@@ -42,19 +46,43 @@ final class MassFootprintSeparationRepair {
                 if (i == j) continue;
                 Component b = out.get(j);
                 if (!isAnchorMass(b)) continue;
-                if (!overlaps(plan, a, b)) continue;
-                // 「互相交叠」applies only to abstract volume pairs — ordinary hall/pavilion/side
-                // annexes in the same plan must still separate.
-                if (interlockingIntent && looksInterlockVolume(a) && looksInterlockVolume(b)) continue;
-                // Stepped towers / pagoda tiers intentionally nest in XZ at different Y.
-                // Separating them flattens the stack onto the ground and causes E_PATCH_CONFLICT.
-                if (isAuthoredVerticalStack(plan, a, b)) continue;
                 // Keep/tower compounds declare ground-level passages that need a shared wall.
-                // Separating them by GAP leaves an uncut shell and breaks interior circulation.
                 if (linkedByPassage(plan, a, b)) continue;
-                // Prefer moving the pavilion / smaller body away from the hall / larger body.
-                if (priority(a) >= priority(b)) continue;
-                var before = planBounds(plan, a);
+                // Stepped towers / pagoda tiers intentionally nest in XZ at different Y.
+                if (isAuthoredVerticalStack(plan, a, b)) continue;
+
+                var ab = planBounds(plan, a);
+                var bb = planBounds(plan, b);
+                boolean intentionalPair = interlockingIntent
+                        && looksInterlockVolume(a) && looksInterlockVolume(b);
+                MassSpatialRelation rel = MassSpatialRelation.classify(ab, bb, intentionalPair);
+                if (MassSpatialRelation.forbidsNudge(rel) || rel != MassSpatialRelation.AABB3_INTERSECT) {
+                    continue;
+                }
+
+                boolean softAnnex = looksHorizontalAnnex(idOf(a).toLowerCase(Locale.ROOT))
+                        || looksSideHallRole(a)
+                        || looksHorizontalAnnex(idOf(b).toLowerCase(Locale.ROOT))
+                        || looksSideHallRole(b);
+                boolean canNudge = separationOptIn || (softAnnex && !intentionalPair);
+                if (!canNudge) {
+                    AssemblyCompileDiagnostics.set(new CapabilityGap(
+                            "E_MASS_FOOTPRINT_CONFLICT",
+                            "Peer masses intersect in 3D without allow_mass_separation / soft-annex opt-in",
+                            "components[].relative_position",
+                            List.of(
+                                    "Set plan_meta.allow_mass_separation=true",
+                                    "Separate the volumes in the plan",
+                                    "Or mark interlocking composition via intentional_interlock / mass_composition"
+                            )
+                    ));
+                    return plan;
+                }
+                // Prefer moving the pavilion / smaller body; equal score → lexicographically later id moves.
+                if (priority(a) > priority(b)) continue;
+                if (priority(a) == priority(b) && idOf(a).compareTo(idOf(b)) >= 0) continue;
+
+                var before = ab;
                 Component nudged = nudgeAway(plan, a, b);
                 if (nudged == a) continue;
                 var after = planBounds(plan, nudged);
@@ -82,6 +110,43 @@ final class MassFootprintSeparationRepair {
             }
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+    }
+
+    /** Plan-meta / component-level opt-in for peer mass separation. */
+    private static boolean allowsMassSeparation(LlmPlan plan) {
+        if (plan == null) return false;
+        if (truthyParam(plan.planMeta(), "allow_mass_separation", "allowMassSeparation")
+                || truthyParam(plan.planMeta(), "auto_layout", "autoLayout")
+                || truthyParam(plan.proportionHints(), "allow_mass_separation", "allowMassSeparation")
+                || truthyParam(plan.proportionHints(), "auto_layout", "autoLayout")) {
+            return true;
+        }
+        if (plan.components() == null) return false;
+        for (Component c : plan.components()) {
+            if (c != null && truthyParam(c.params(), "allow_mass_separation", "allowMassSeparation")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean truthyParam(Map<String, Object> params, String a, String b) {
+        if (params == null) return false;
+        Object raw = params.get(a);
+        if (raw == null) raw = params.get(b);
+        if (raw == null) return false;
+        if (raw instanceof Boolean bool) return bool;
+        String s = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
+        return "true".equals(s) || "1".equals(s) || "yes".equals(s);
+    }
+
+    private static boolean massCompositionInterlock(Map<String, Object> bag) {
+        if (bag == null) return false;
+        Object mode = bag.get("mass_composition");
+        if (mode == null) mode = bag.get("massComposition");
+        if (mode == null) return false;
+        String s = String.valueOf(mode).trim().toLowerCase(Locale.ROOT);
+        return s.contains("interlock") || s.contains("intersect") || "union".equals(s);
     }
 
     private static void shiftHostedSatellites(List<Component> parts, Component host, int dx, int dy, int dz) {
@@ -311,6 +376,23 @@ final class MassFootprintSeparationRepair {
     }
 
     private static boolean asksInterlockingMasses(LlmPlan plan) {
+        if (plan == null) return false;
+        // Explicit composition cues (preferred over free-text hint).
+        if (truthyParam(plan.planMeta(), "intentional_interlock", "intentionalInterlock")
+                || truthyParam(plan.proportionHints(), "intentional_interlock", "intentionalInterlock")) {
+            return true;
+        }
+        if (massCompositionInterlock(plan.planMeta()) || massCompositionInterlock(plan.proportionHints())) {
+            return true;
+        }
+        if (plan.components() != null) {
+            for (Component c : plan.components()) {
+                if (c != null && truthyParam(c.params(), "intentional_interlock", "intentionalInterlock")) {
+                    return true;
+                }
+            }
+        }
+        // NONBINDING_HINT: free-text may cue interlocking sculptures (never decides typology).
         StringBuilder sb = new StringBuilder();
         if (plan.planMeta() != null) {
             Object ri = plan.planMeta().get("request_intent_text");
@@ -367,13 +449,9 @@ final class MassFootprintSeparationRepair {
      * When {@code layout.slots} defines anchors, local relative positions are offset into plan
      * space; undefined slots keep relative coords as plan-space (never skip as "incomparable").
      */
+    /** True only on 3D AABB intersection (Phase 02.1 — XZ-only is not a conflict). */
     private static boolean overlaps(LlmPlan plan, Component a, Component b) {
-        var ab = planBounds(plan, a);
-        var bb = planBounds(plan, b);
-        if (ab == null || bb == null) return false;
-        // Bounds max is exclusive.
-        return ab.minX() < bb.maxX() && bb.minX() < ab.maxX()
-                && ab.minZ() < bb.maxZ() && bb.minZ() < ab.maxZ();
+        return MassSpatialRelation.aabb3Intersect(planBounds(plan, a), planBounds(plan, b));
     }
 
     /**

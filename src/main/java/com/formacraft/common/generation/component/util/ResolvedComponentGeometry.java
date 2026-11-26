@@ -11,6 +11,11 @@ public record ResolvedComponentGeometry(
         Component source, Vec3i origin, Dimensions dimensions, int floorHeight,
         List<Integer> floorYs, boolean floorLayoutFits) {
 
+    /**
+     * Phase 02.1: preserve authored positive W/D/H — never silently inflate to min-3.
+     * Zero/negative axes get a technical floor of 1 (GEOMETRY envelope), not an aesthetic 3×3×3.
+     * Storey {@code floor_height} may still raise height when taller than authored envelope.
+     */
     public static Component normalizeBody(Component component) {
         if (component == null || component.dimensions() == null) return component;
         String type = component.componentType();
@@ -18,8 +23,10 @@ public record ResolvedComponentGeometry(
         if (component.params() != null && "plate".equals(component.params().get("extrude_mode"))) return component;
         Dimensions d = component.dimensions();
         int floorHeight = explicitFloorHeight(component);
-        Dimensions normalized = new Dimensions(Math.max(3, d.width()), Math.max(3, d.depth()),
-                Math.max(Math.max(3, d.height()), floorHeight));
+        Dimensions normalized = new Dimensions(
+                Math.max(1, d.width()),
+                Math.max(1, d.depth()),
+                Math.max(Math.max(1, d.height()), floorHeight));
         if (normalized.equals(d)) return component;
         return new Component(type, component.slotId(), component.relativePosition(), normalized,
                 component.features(), component.params());

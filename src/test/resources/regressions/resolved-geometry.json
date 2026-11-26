@@ -217,13 +217,13 @@
     },
     "expected": {
       "origin": {
-        "x": -1,
+        "x": 0,
         "y": 0,
         "z": -1
       },
       "dimensions": {
-        "width": 3,
-        "depth": 3,
+        "width": 1,
+        "depth": 2,
         "height": 5
       },
       "floor_ys": [
@@ -232,12 +232,12 @@
       "roof_y": 4,
       "floor_layout_fits": true,
       "plan_origin": {
-        "x": 19,
+        "x": 20,
         "y": 3,
         "z": -11
       },
       "world_origin": {
-        "x": 119,
+        "x": 120,
         "y": 67,
         "z": 189
       }
