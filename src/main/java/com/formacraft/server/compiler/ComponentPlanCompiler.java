@@ -169,6 +169,11 @@ public final class ComponentPlanCompiler {
             return List.of();
         }
         plan = StackedMassHostBindRepair.apply(plan);
+        // Phase 02.2: fold peer mass_operation CSG into host masses[] before separation/emit.
+        plan = MassCsgPeerFoldRepair.apply(plan);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return List.of();
+        }
         // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
         plan = MassFootprintSeparationRepair.apply(plan);
         // Pavilion height clamps can reintroduce floor_count×floor_height overflow.

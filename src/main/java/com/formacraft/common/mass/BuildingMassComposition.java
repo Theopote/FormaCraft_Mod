@@ -147,6 +147,7 @@ public class BuildingMassComposition {
      */
     public boolean allowsBlockAt(int x, int y, int z) {
         boolean filled = false;
+        boolean sawAddOrSubtract = false;
         List<BuildingMass> orderedMasses = getOrderedMasses();
 
         for (BuildingMass mass : orderedMasses) {
@@ -170,14 +171,51 @@ public class BuildingMassComposition {
                 }
             }
 
-            // 根据 operation 决定
+            // 根据 operation 决定（INTERSECT deferred — see below）
             switch (mass.operation) {
-                case ADD -> filled = true;
-                case SUBTRACT -> filled = false;
-                case INTERSECT -> {
-                    // INTERSECT 需要所有 INTERSECT 体量都包含这个位置
-                    // v1 简化：暂不处理
+                case ADD -> {
+                    filled = true;
+                    sawAddOrSubtract = true;
                 }
+                case SUBTRACT -> {
+                    filled = false;
+                    sawAddOrSubtract = true;
+                }
+                case INTERSECT -> {
+                    // Collected after the loop: cell must lie in every INTERSECT mass.
+                }
+            }
+        }
+
+        List<BuildingMass> intersectors = orderedMasses.stream()
+                .filter(m -> m != null && m.operation == MassOperation.INTERSECT)
+                .toList();
+        if (!intersectors.isEmpty()) {
+            boolean allContain = true;
+            for (BuildingMass mass : intersectors) {
+                if (!mass.footprint.contains(x, z) || !mass.height.contains(y)) {
+                    allContain = false;
+                    break;
+                }
+                if (mass.role == MassRole.CANTILEVER) {
+                    CantileverSupport support = cantileverSupports.get(mass.id);
+                    if (support != null && !checkCantileverSupport(x, y, z, mass, support)) {
+                        allContain = false;
+                        break;
+                    }
+                }
+                if (mass.role == MassRole.SECONDARY) {
+                    WingAttachment attachment = wingAttachments.get(mass.id);
+                    if (attachment != null && !checkWingAttachment(x, y, z, mass, attachment)) {
+                        allContain = false;
+                        break;
+                    }
+                }
+            }
+            if (!sawAddOrSubtract) {
+                filled = allContain;
+            } else {
+                filled = filled && allContain;
             }
         }
 

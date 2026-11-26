@@ -13,7 +13,7 @@ public enum CsgOp {
         }
         String s = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
         return switch (s) {
-            case "union" -> UNION;
+            case "add", "union" -> UNION;
             case "subtract", "sub", "difference", "minus", "carve", "cut" -> SUBTRACT;
             case "intersect", "intersection", "and" -> INTERSECT;
             default -> throw new IllegalArgumentException("E_PRIMITIVE_CSG_OP_UNSUPPORTED: " + s);

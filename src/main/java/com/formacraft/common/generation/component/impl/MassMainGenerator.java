@@ -1,9 +1,13 @@
 package com.formacraft.common.generation.component.impl;
 
+import com.formacraft.common.generation.CompileCapabilityDiagnostics;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.MassBooleanComposition;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
+import com.formacraft.common.geometry.shape.ShapeLibrary;
+import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -76,6 +80,10 @@ public class MassMainGenerator implements ComponentGenerator {
         if (c == null || c.dimensions() == null || c.relativePosition() == null) {
             return out;
         }
+        // Peer CSG satellites are folded into the host emit — do not place a second solid shell.
+        if (MassBooleanComposition.isFoldedCsgSatellite(c)) {
+            return out;
+        }
 
         Dimensions d = c.dimensions();
         Vec3i rp = c.relativePosition();
@@ -93,6 +101,11 @@ public class MassMainGenerator implements ComponentGenerator {
         }
         
         Map<String, Object> params = c.params();
+
+        // Phase 02.2: authored nested boolean ops → ShapeLibrary-style composite emit (no silent CSG).
+        if (MassBooleanComposition.needsCsg(c)) {
+            return emitBooleanComposite(semantic, c, actualRp, params);
+        }
 
         if (params != null && "pyramid".equals(params.get("volume_geometry"))) {
             String block = DynamicPaletteResolver.mapMaterialToBlock(
@@ -325,6 +338,56 @@ public class MassMainGenerator implements ComponentGenerator {
         // 对于住宅、地标、市政建筑，默认应该有门和窗
         return (isResidential || isLandmark || isCivic) &&
                                                !hasDoors && !hasWindows;
+    }
+
+    /**
+     * Emit the boolean solid set only — hollow/facade follow-ons must not re-inflate subtracted atriums.
+     * GEOMETRY_EXECUTION realizing authored ADD/SUBTRACT/INTERSECT (Phase 02.2).
+     */
+    private List<BlockPatch> emitBooleanComposite(
+            SemanticComponent semantic,
+            Component c,
+            Vec3i origin,
+            Map<String, Object> params
+    ) {
+        List<BlockPatch> out = new ArrayList<>();
+        try {
+            MassBooleanComposition.CsgResult result = MassBooleanComposition.composeFromComponent(c);
+            String styleProfile = getStyleProfile(semantic);
+            Palette palette = PaletteLibrary.forStyle(styleProfile);
+            String wall = getBlockForPart(SemanticPart.WALL, semantic, palette);
+            if (wall == null || wall.isBlank()) {
+                wall = ComponentParamParsers.stringParam(params, "minecraft:stone", "wall_block", "wallBlock", "material");
+            }
+            for (ShapeLibrary.Voxel v : result.voxels()) {
+                out.add(new BlockPatch(
+                        BlockPatch.PLACE,
+                        origin.x() + v.x(),
+                        origin.y() + v.y(),
+                        origin.z() + v.z(),
+                        wall
+                ));
+            }
+            FormacraftMod.LOGGER.info(
+                    "MassMainGenerator: boolean composite voxels={} envelope={}x{}x{}",
+                    result.voxels().size(), result.envelopeWidth(), result.envelopeDepth(), result.envelopeHeight());
+            return out;
+        } catch (IllegalArgumentException ex) {
+            String msg = ex.getMessage() == null ? "mass boolean composition failed" : ex.getMessage();
+            String code = msg.startsWith("E_MASS_CSG_")
+                    ? msg.substring(0, msg.indexOf(':') > 0 ? msg.indexOf(':') : msg.length())
+                    : "E_MASS_CSG_INVALID";
+            CompileCapabilityDiagnostics.set(new CapabilityGap(
+                    code,
+                    msg,
+                    "components[].params.masses",
+                    List.of(
+                            "Reduce mass boolean volume under " + MassBooleanComposition.MAX_CSG_VOXELS + " voxels",
+                            "Use valid operation values: add|union, subtract|carve, intersect"
+                    )
+            ));
+            return List.of();
+        }
     }
 
     private void emitMass(

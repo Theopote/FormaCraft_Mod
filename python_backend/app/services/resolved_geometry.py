@@ -23,11 +23,15 @@ def explicit_floor_height(component: dict) -> int:
 
 
 def body_dimensions(component: dict) -> dict:
+    """Phase 02.1 parity with Java ResolvedComponentGeometry.normalizeBody: keep authored
+    positive W/D/H (technical floor 1), never silently inflate to min-3. floor_height may
+    still raise height when taller than the authored envelope.
+    """
     dimensions = dict(component.get('dimensions') or {})
     if component.get('component_type') in ('MASS_MAIN', 'MAIN_MASS') and (component.get('params') or {}).get('extrude_mode') != 'plate':
-        dimensions['width'] = max(3, _integer(dimensions.get('width'), 1))
-        dimensions['depth'] = max(3, _integer(dimensions.get('depth'), 1))
-        dimensions['height'] = max(3, _integer(dimensions.get('height'), 1), explicit_floor_height(component))
+        dimensions['width'] = max(1, _integer(dimensions.get('width'), 1))
+        dimensions['depth'] = max(1, _integer(dimensions.get('depth'), 1))
+        dimensions['height'] = max(1, _integer(dimensions.get('height'), 1), explicit_floor_height(component))
     return dimensions
 
 

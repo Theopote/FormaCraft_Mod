@@ -66,16 +66,18 @@ flowchart TD
 - Missing design satellites on MASS: `E_DESIGN_INCOMPLETE` unless `plan_meta.allow_compiler_satellites=true` or explicit ROOF/FACADE/ENTRANCE components.
 - Unmatched BuildingSpec type: `NEEDS_REPLAN`. Null type / null spec: `UNSUPPORTED`. No silent house/tower fallback.
 - User/AI design vs hard spatial constraint: structured diagnostic / `capability_gap` (never silent success-after-rewrite). See `DesignDecisionPriority`.
-- Peer MASS **3D** AABB collide without `allow_mass_separation` / soft-annex / intentional interlock → `E_MASS_FOOTPRINT_CONFLICT` (Phase 02.1). XZ-only / Y-disjoint stacks are not conflicts. `BuildingMassComposition` remains parallel/experimental — not on the CPC trunk.
+- Peer MASS **3D** AABB collide without `allow_mass_separation` / soft-annex / intentional interlock → `E_MASS_FOOTPRINT_CONFLICT` (Phase 02.1). XZ-only / Y-disjoint stacks are not conflicts.
+- Authored mass boolean CSG missing host → `E_MASS_CSG_HOST_MISSING`; oversized composite → `E_MASS_CSG_BUDGET` (Phase 02.2). `BuildingMassComposition` remains **explicit opt-in only** (`use_building_mass` / `-Dformacraft.useBuildingMass`).
 
-## Mass composition authority (Phase 02.1)
+## Mass composition authority (Phase 02.1 / 02.2)
 
 | Concern | Owner | Notes |
 |---------|-------|-------|
 | Authored mass position / size | USER_EXPLICIT / AI_PLANNED | Java must not silently recenter or inflate to min-3 |
 | Peer footprint separation | GEOMETRY repair (opt-in) | `MassFootprintSeparationRepair` + `MassSpatialRelation`; soft annex NONBINDING_HINT only |
 | Nested tier auto-center | EXPLICIT params (`stepped`, `stack_mode`, `replace_envelope`, tier footprints) | `ResolvedMassPart` — contiguous Y alone insufficient |
-| Boolean mass CSG (INTERSECT/…) | Experimental `BuildingMassComposition` only | Stub / inventory — never substitutes CPC |
+| Boolean mass CSG (ADD/SUBTRACT/INTERSECT) | GEOMETRY on CPC trunk | Nested `params.masses[].operation` / peer `mass_operation`+`host_id` → `MassCsgPeerFoldRepair` → `MassMainGenerator` via `MassBooleanComposition` (ShapeLibrary boxes). Absent op → additive (no silent CSG) |
+| BMC `allowsBlockAt` INTERSECT | EXPLICIT_TEMPLATE path only | Finished for opt-in `BuildingMassPipeline`; never default route |
 
 ## Default trunk call chain (Path A — code truth, Phase 01.1)
 

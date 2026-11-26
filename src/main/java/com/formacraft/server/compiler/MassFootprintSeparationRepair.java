@@ -2,6 +2,7 @@ package com.formacraft.server.compiler;
 
 import com.formacraft.FormacraftMod;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+import com.formacraft.common.generation.component.util.MassBooleanComposition;
 import com.formacraft.common.generation.component.util.MassSpatialRelation;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
@@ -50,11 +51,21 @@ final class MassFootprintSeparationRepair {
                 if (linkedByPassage(plan, a, b)) continue;
                 // Stepped towers / pagoda tiers intentionally nest in XZ at different Y.
                 if (isAuthoredVerticalStack(plan, a, b)) continue;
+                // Phase 02.2: authored subtract/intersect/interlock peers must not be nudged apart.
+                if (MassBooleanComposition.peersAreBooleanComposition(a, b)
+                        || MassBooleanComposition.isFoldedCsgSatellite(a)
+                        || MassBooleanComposition.isFoldedCsgSatellite(b)) {
+                    continue;
+                }
 
                 var ab = planBounds(plan, a);
                 var bb = planBounds(plan, b);
                 boolean intentionalPair = interlockingIntent
                         && looksInterlockVolume(a) && looksInterlockVolume(b);
+                // Peer mass_operation / intentional_interlock also forbids nudge via classifier.
+                if (!intentionalPair && MassBooleanComposition.peersAreBooleanComposition(a, b)) {
+                    intentionalPair = true;
+                }
                 MassSpatialRelation rel = MassSpatialRelation.classify(ab, bb, intentionalPair);
                 if (MassSpatialRelation.forbidsNudge(rel) || rel != MassSpatialRelation.AABB3_INTERSECT) {
                     continue;
