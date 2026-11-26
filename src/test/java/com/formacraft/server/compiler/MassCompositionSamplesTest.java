@@ -108,6 +108,31 @@ class MassCompositionSamplesTest {
         assertEquals(a.relativePosition(), pos(repaired, "volume_a"));
         assertEquals(b.relativePosition(), pos(repaired, "volume_b"));
         assertFalse(AssemblyCompileDiagnostics.hasGap());
+        assertEquals(Boolean.TRUE, repaired.components().stream()
+                .filter(c -> "volume_a".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow().params().get("allow_patch_overwrite"));
+    }
+
+    /** S4b: clock-tower penetration cue keeps tower through hall without gap. */
+    @Test
+    void s04b_clockTowerPenetrationPreservesPositions() {
+        Component hall = mass("main_hall", 0, 0, 0, 19, 15, 12);
+        Component tower = massWith("clock_tower", 6, 0, 8, 7, 7, 18,
+                Map.of("building_role", "tower"));
+        Component door = new Component(
+                "ENTRANCE", "main", new Vec3i(8, 0, 10),
+                new Dimensions(2, 1, 3), List.of("penetrates_hall_roof"),
+                Map.of("component_id", "tower_door", "host_id", "clock_tower",
+                        "anchor_mode", "min_corner"));
+        // Distinguishing feature 穿入 is plan-level; use component feature + tower id here.
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                        .distinguishingFeatures(List.of("主楼屋顶在钟楼穿入处收口开洞"))
+                        .components(List.of(hall, tower, door))
+                        .build());
+        assertEquals(hall.relativePosition(), pos(repaired, "main_hall"));
+        assertEquals(tower.relativePosition(), pos(repaired, "clock_tower"));
+        assertFalse(AssemblyCompileDiagnostics.hasGap());
     }
 
     /** S5: two primary halls 3D-collide without opt-in → E_MASS_FOOTPRINT_CONFLICT. */

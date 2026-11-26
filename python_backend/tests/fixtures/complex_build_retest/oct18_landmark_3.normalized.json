@@ -516,6 +516,7 @@
       },
       "params": {
         "component_id": "estate_tower",
+        "host_id": "estate_main",
         "floor_count": 5,
         "floor_height": 4,
         "hollow": true,
@@ -523,7 +524,8 @@
         "window_style": "arched",
         "wall_block": "minecraft:smooth_sandstone",
         "floor_block": "minecraft:quartz_block",
-        "building_id": "estate_tower"
+        "building_id": "estate_tower",
+        "allow_patch_overwrite": true
       },
       "features": []
     },

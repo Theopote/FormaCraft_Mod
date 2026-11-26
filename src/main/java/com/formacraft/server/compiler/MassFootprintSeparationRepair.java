@@ -58,8 +58,7 @@ final class MassFootprintSeparationRepair {
 
                 var ab = planBounds(plan, a);
                 var bb = planBounds(plan, b);
-                boolean intentionalPair = interlockingIntent
-                        && looksInterlockVolume(a) && looksInterlockVolume(b);
+                boolean intentionalPair = interlockingIntent && intentionalInterlockPair(a, b);
                 // Peer mass_operation / intentional_interlock also forbids nudge via classifier.
                 if (!intentionalPair && MassBooleanComposition.peersAreBooleanComposition(a, b)) {
                     intentionalPair = true;
@@ -68,6 +67,13 @@ final class MassFootprintSeparationRepair {
                 // Passage-linked keep/tower pairs keep adjacency, but CONNECTION_SEAM still
                 // collapses shallow volumetric overlap first (avoids E_PATCH_CONFLICT).
                 if (rel != MassSpatialRelation.CONNECTION_SEAM && linkedByPassage(plan, a, b)) {
+                    continue;
+                }
+                // Authored interlocking / penetrating volumes keep positions; authorize shared cells.
+                if (rel == MassSpatialRelation.INTENTIONAL_INTERLOCK) {
+                    if (stampPatchOverwrite(out, i) | stampPatchOverwrite(out, j)) {
+                        changed = true;
+                    }
                     continue;
                 }
                 // CONNECTION_SEAM: GEOMETRY collapse of shallow shared-wall overlap → contacting
@@ -151,6 +157,24 @@ final class MassFootprintSeparationRepair {
             }
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+    }
+
+    /** Stamp allow_patch_overwrite so intentional interlock peers may share shell cells. */
+    private static boolean stampPatchOverwrite(List<Component> parts, int index) {
+        if (parts == null || index < 0 || index >= parts.size()) return false;
+        Component c = parts.get(index);
+        if (c == null) return false;
+        if (c.params() != null && Boolean.TRUE.equals(c.params().get("allow_patch_overwrite"))) {
+            return false;
+        }
+        Map<String, Object> params = new HashMap<>();
+        if (c.params() != null) params.putAll(c.params());
+        params.put("allow_patch_overwrite", true);
+        params.put("intentional_interlock_shared_cells", true);
+        parts.set(index, new Component(
+                c.componentType(), c.slotId(), c.relativePosition(),
+                c.dimensions(), c.features(), params));
+        return true;
     }
 
     /** Plan-meta / component-level opt-in for peer mass separation. */
@@ -428,8 +452,21 @@ final class MassFootprintSeparationRepair {
         }
         if (plan.components() != null) {
             for (Component c : plan.components()) {
-                if (c != null && truthyParam(c.params(), "intentional_interlock", "intentionalInterlock")) {
+                if (c == null) continue;
+                if (truthyParam(c.params(), "intentional_interlock", "intentionalInterlock")) {
                     return true;
+                }
+                // Component feature tags (e.g. penetrates_hall_roof) are authored composition cues.
+                if (c.features() != null) {
+                    for (String f : c.features()) {
+                        if (f != null) {
+                            String lower = f.toLowerCase(Locale.ROOT);
+                            if (lower.contains("penetrat") || lower.contains("interlock")
+                                    || f.contains("穿入") || f.contains("穿插") || f.contains("交叠")) {
+                                return true;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -451,9 +488,35 @@ final class MassFootprintSeparationRepair {
         }
         String blob = sb.toString().toLowerCase(Locale.ROOT);
         return blob.contains("交叠") || blob.contains("交错") || blob.contains("互相穿插")
+                || blob.contains("穿入") || blob.contains("穿楼")
                 || blob.contains("interlock") || blob.contains("interlocking")
                 || blob.contains("overlapping mass") || blob.contains("overlapping volumes")
-                || blob.contains("interpenetrat");
+                || blob.contains("penetrat"); // penetrate / penetrates / interpenetrate
+    }
+
+    /**
+     * Under an interlocking plan cue: two sculpture volumes, or a tower/keep penetrating a
+     * primary shell (clock tower through hall roof). Soft annex wings stay on the nudge path.
+     */
+    private static boolean intentionalInterlockPair(Component a, Component b) {
+        if (a == null || b == null) return false;
+        if (looksSideHallRole(a) || looksSideHallRole(b)
+                || looksHorizontalAnnex(idOf(a).toLowerCase(Locale.ROOT))
+                || looksHorizontalAnnex(idOf(b).toLowerCase(Locale.ROOT))) {
+            return false;
+        }
+        boolean aVol = looksInterlockVolume(a);
+        boolean bVol = looksInterlockVolume(b);
+        if (aVol && bVol) return true;
+        // Tower/keep penetrating a primary hall shell (authored 穿入 / penetrates_hall_roof).
+        return (aVol && isPrimaryShell(b)) || (bVol && isPrimaryShell(a));
+    }
+
+    private static boolean isPrimaryShell(Component c) {
+        if (c == null || c.componentType() == null) return false;
+        String t = c.componentType().trim().toUpperCase(Locale.ROOT);
+        return "MASS_MAIN".equals(t) || "MAIN_MASS".equals(t) || "TOWER".equals(t)
+                || "MASS_SECONDARY".equals(t);
     }
 
     /**
@@ -464,6 +527,9 @@ final class MassFootprintSeparationRepair {
         if (c == null) return false;
         if (looksSideHallRole(c) || looksHorizontalAnnex(idOf(c).toLowerCase(Locale.ROOT))) {
             return false;
+        }
+        if (looksFortressLink(idOf(c))) {
+            return true;
         }
         String blob = idOf(c).toLowerCase(Locale.ROOT);
         if (c.params() != null) {
@@ -480,8 +546,10 @@ final class MassFootprintSeparationRepair {
         String lower = blob.toLowerCase(Locale.ROOT);
         return lower.contains("volume") || lower.contains("prism") || lower.contains("block_")
                 || lower.contains("geometric") || lower.contains("sculpture") || lower.contains("museum")
-                || lower.contains("interlock") || blob.contains("体块") || blob.contains("体量")
-                || blob.contains("交叠") || blob.contains("穿插");
+                || lower.contains("interlock") || lower.contains("sphere") || lower.contains("shaft")
+                || lower.contains("leg_") || lower.contains("_leg") || lower.endsWith("leg")
+                || lower.contains("podium") || blob.contains("体块") || blob.contains("体量")
+                || blob.contains("交叠") || blob.contains("穿插") || blob.contains("穿入");
     }
 
     /**
