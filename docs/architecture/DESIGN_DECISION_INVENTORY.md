@@ -1,5 +1,7 @@
 # Design decision inventory
 
+The Java fallback for plans containing only a model intent declaration now preserves confident specific classes on strong keyword disagreement, matching Python. A conflicting hint cannot enable scaffolding.
+
 Python preserves a confident, specific model classification when a strong keyword suggests a different class. It records the disagreement using the same diagnostic fields as Java and the conflicting hint cannot authorize scaffolding (NONBINDING_HINT).
 
 For matching versioned intent, Java records strong keyword disagreement as diagnostic metadata without modifying the resolved class or enabling a template (NONBINDING_HINT).

@@ -343,7 +343,11 @@ final class RequestIntentKeywordExtractor {
         }
         double kwOverride = RequestIntentVocab.conf("keyword_override_min", 0.8);
         double llmMin = RequestIntentVocab.conf("llm_preferred_min", 0.55);
-        if (kwConf >= kwOverride && !"generic".equals(kwClass)) {
+        boolean strongKeyword = kwConf >= kwOverride && !"generic".equals(kwClass);
+        boolean confidentModel = llmConf >= llmMin && isValidClass(llmClass);
+        boolean disagreement = strongKeyword && confidentModel
+                && !"generic".equals(llmClass) && !llmClass.equals(kwClass);
+        if (strongKeyword && !disagreement) {
             out.put("source", "keyword_override");
             out.put("building_class_source",
                     "generic".equals(llmClass) ? "keyword_fill" : "keyword_user_marker");
@@ -352,13 +356,16 @@ final class RequestIntentKeywordExtractor {
                 out.put("intent_structure_mismatch", Boolean.TRUE);
                 out.put("stale_building_class", llmClass);
             }
-        } else if (llmConf >= llmMin && isValidClass(llmClass)) {
+        } else if (confidentModel) {
             out.put("building_class", llmClass);
             out.put("confidence", Math.max(llmConf, kwConf * 0.5));
             out.put("source", "llm_declared");
             out.put("building_class_source", "llm_retained");
             out.put("keyword_hint_class", kwClass);
             out.put("keyword_hint_confidence", kwConf);
+            if (disagreement) {
+                recordKeywordClassDisagreement(out, keyword);
+            }
             double scaffoldMin = RequestIntentVocab.conf("scaffold_min", 0.75);
             double finalConf = ((Number) out.get("confidence")).doubleValue();
             out.put("refuse_residential_autofill",
