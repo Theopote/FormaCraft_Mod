@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Matching legacy request intent with a valid specific class and confident resolution also keeps its class. Keyword disagreement disables scaffold eligibility. Stale echoes and incomplete legacy records still use the compatibility merge.
+
 The Java fallback for plans containing only a model intent declaration now preserves confident specific classes on strong keyword disagreement, matching Python. A conflicting hint cannot enable scaffolding.
 
 Python preserves a confident, specific model classification when a strong keyword suggests a different class. It records the disagreement using the same diagnostic fields as Java and the conflicting hint cannot authorize scaffolding (NONBINDING_HINT).

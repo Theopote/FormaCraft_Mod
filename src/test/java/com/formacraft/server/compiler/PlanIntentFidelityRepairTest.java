@@ -300,9 +300,8 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
-    void matchingEchoUserMarkersRepairWrongLlmClassWithProvenance() {
-        // Same server text / echo: strong user markers (道观) repair a wrong LLM garden class.
-        String text = "生成一座传统道观";
+    void matchingLegacyEchoPreservesConfidentModelClassAndRecordsDisagreement() {
+        String text = "建一座宝塔旁的空中园林";
         LlmPlan plan = LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
                 .components(List.of(new Component(
                         "MASS_MAIN", null, new Vec3i(0, 0, 0),
@@ -311,18 +310,20 @@ class PlanIntentFidelityRepairTest {
                         "request_intent", Map.of(
                                 "original_text", text,
                                 "building_class", "garden",
-                                "confidence", 0.9),
+                                "confidence", 0.9,
+                                "scaffold_eligible", true),
                         "building_class", "garden"))
                 .build();
         LlmPlan ensured = RequestIntentInjector.ensure(plan, text);
         @SuppressWarnings("unchecked")
         Map<String, Object> ri = (Map<String, Object>) ensured.planMeta().get("request_intent");
         assertNull(ri.get("intent_echo_mismatch"));
-        assertEquals("temple", ri.get("building_class"));
-        assertEquals("keyword_user_marker", ri.get("building_class_source"));
-        assertEquals("garden", ri.get("stale_building_class"));
-        assertEquals(Boolean.TRUE, ri.get("intent_structure_mismatch"));
-        assertEquals("temple", ensured.planMeta().get("building_class"));
+        assertEquals("garden", ri.get("building_class"));
+        var disagreement = (Map<?, ?>) ri.get("keyword_class_disagreement");
+        assertEquals("garden", disagreement.get("resolved_class"));
+        assertEquals("tower_like", disagreement.get("keyword_class"));
+        assertEquals(false, ri.get("scaffold_eligible"));
+        assertEquals("garden", ensured.planMeta().get("building_class"));
     }
 
     @Test

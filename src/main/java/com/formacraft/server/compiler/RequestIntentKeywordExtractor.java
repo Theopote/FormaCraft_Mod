@@ -279,6 +279,17 @@ final class RequestIntentKeywordExtractor {
         reconcileLegacyClass(intent, String.valueOf(intent.getOrDefault("original_text", "")), keyword);
     }
 
+    static boolean hasResolvedClass(Map<String, Object> intent, Map<String, Object> keyword) {
+        if (!(intent.get("building_class") instanceof String buildingClass)
+                || !isValidClass(buildingClass)
+                || !(intent.get("confidence") instanceof Number confidence)) {
+            return false;
+        }
+        return keyword.get("schema").equals(intent.get("schema"))
+                || (intent.get("schema") == null && !"generic".equals(buildingClass)
+                    && confidence.doubleValue() >= RequestIntentVocab.conf("llm_preferred_min", 0.55));
+    }
+
     static void recordKeywordClassDisagreement(Map<String, Object> intent, Map<String, Object> keyword) {
         String resolvedClass = (String) intent.get("building_class");
         String keywordClass = (String) keyword.get("building_class");
@@ -289,6 +300,7 @@ final class RequestIntentKeywordExtractor {
                     "resolved_class", resolvedClass,
                     "keyword_class", keywordClass,
                     "keyword_confidence", confidence));
+            intent.put("scaffold_eligible", false);
         }
     }
 
