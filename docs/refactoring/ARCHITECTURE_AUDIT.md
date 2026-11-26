@@ -46,7 +46,7 @@ flowchart LR
 |---|---|---|
 | 包边界 + common 服务端类型冻结 | `python scripts/check_architecture.py` | exit 0；新增引用必须先消债再改基线 |
 | StructureGenerator 冻结 | `python scripts/check_structure_generator_freeze.py` | register 调用数 = baseline |
-| Panel 行数（软） | `python scripts/check_panel_line_budget.py` | 仅打印超标 |
+| Panel 行数 | `python scripts/check_panel_line_budget.py` | 有面板超过 400 行时，列出超标文件并使 CI 检查失败 |
 | 生成入口（含符号/方法） | `python scripts/check_generation_entrypoints.py` | exit 0 |
 | Tier-0 活文档禁已删符号 | `python scripts/check_active_docs.py` | exit 0 |
 | 禁止复活已删入口 | `python scripts/check_banned_resurrect.py` | exit 0 |

@@ -71,7 +71,6 @@ jobs:
           python scripts/test_check_architecture.py
           python scripts/check_architecture.py
           python scripts/check_structure_generator_freeze.py
-          python scripts/check_panel_line_budget.py
           python scripts/test_check_generation_entrypoints.py
           python scripts/check_generation_entrypoints.py
           python scripts/test_check_active_docs.py
@@ -88,6 +87,8 @@ jobs:
           python scripts/check_unreachable_types.py
           python scripts/test_check_design_authority_invariants.py
           python scripts/check_design_authority_invariants.py
+      - name: Client panel line budget
+        run: python scripts/check_panel_line_budget.py
 
   python:
     name: python

@@ -237,18 +237,10 @@ final class RequestIntentKeywordExtractor {
      * confident LLM class. Scaffold templates still require keyword agreement separately.
      */
     static void applyKeywordAuthority(Map<String, Object> intent, Map<String, Object> keyword) {
-        applyKeywordAuthority(intent, keyword, true);
-    }
-
-    static void applyKeywordAuthority(
-            Map<String, Object> intent, Map<String, Object> keyword, boolean clearStaleHardConstraints
-    ) {
         if (intent == null || keyword == null) return;
-        if (clearStaleHardConstraints) {
-            // Drop LLM-guessed hard sizes when the player did not specify them.
-            if (!keyword.containsKey("footprint") || keyword.get("footprint") == null) {
-                intent.remove("footprint");
-            }
+        // Drop LLM-guessed hard sizes when the player did not specify them.
+        if (keyword.get("footprint") == null) {
+            intent.remove("footprint");
         }
         String kwClass = String.valueOf(keyword.getOrDefault("building_class", "generic"));
         String haveClass = String.valueOf(intent.getOrDefault("building_class", "generic"));

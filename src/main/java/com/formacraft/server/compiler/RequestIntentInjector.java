@@ -540,15 +540,6 @@ public final class RequestIntentInjector {
         return RequestIntentKeywordExtractor.extractKeyword(text);
     }
 
-    static void applyKeywordAuthority(Map<String, Object> intent, Map<String, Object> keyword) {
-        RequestIntentKeywordExtractor.applyKeywordAuthority(intent, keyword);
-    }
-
-    static void applyKeywordAuthority(
-            Map<String, Object> intent, Map<String, Object> keyword, boolean authorizeSeals) {
-        RequestIntentKeywordExtractor.applyKeywordAuthority(intent, keyword, authorizeSeals);
-    }
-
     static void reconcileRoofFromText(Map<String, Object> intent, String text) {
         RequestIntentKeywordExtractor.reconcileRoofFromText(intent, text);
     }

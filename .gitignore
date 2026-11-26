@@ -30,7 +30,6 @@ Thumbs.db
 /mods/
 logs/
 *.log
-!scripts/sample_llmplan_metrics.log
 
 # Java
 *.class
