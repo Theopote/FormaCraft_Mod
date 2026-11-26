@@ -71,12 +71,12 @@ public final class RequestIntentInjector {
                 reconciled.put("original_text", text);
                 echo = text;
             }
-            // Keyword class reconciliation may use echo for continuity, but seals need server text.
-            String intentText = authorizeFromText ? text : echo;
-            if (!intentText.isBlank()) {
-                RequestIntentKeywordExtractor.applyKeywordAuthority(reconciled, RequestIntentKeywordExtractor.extractKeyword(intentText), authorizeFromText);
+            if (authorizeFromText) {
+                RequestIntentKeywordExtractor.applyKeywordAuthority(
+                        reconciled, RequestIntentKeywordExtractor.extractKeyword(text));
             } else {
-                RequestIntentKeywordExtractor.reconcileRoofFromText(reconciled, intentText);
+                // Compiler reentry has no original request to resolve again.
+                RequestIntentKeywordExtractor.reconcileRoofFromText(reconciled, echo);
             }
             int explicitH = authorizeFromText
                     ? com.formacraft.common.typology.UserConstraintContract

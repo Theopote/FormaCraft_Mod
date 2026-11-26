@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Compiler reentry without original request text no longer reruns keyword class merging on the plan echo (removed DESIGN_OVERRIDE). Explicit roof reconciliation and server seal verification remain active.
+
 The precise phrase 藏式白塔 provides a weak tower hint (NONBINDING_HINT). It cannot qualify a request for scaffolding or override a confident model declaration. Bare 塔 remains open-ended.
 
 Weak building-class suppressors apply within the same punctuation-delimited clause (NONBINDING_HINT). A pavilion mentioned in a separate clause no longer suppresses a courtyard hint.

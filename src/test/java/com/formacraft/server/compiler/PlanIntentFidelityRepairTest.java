@@ -249,6 +249,27 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
+    void compilerReentryPreservesResolvedBuildingClass() {
+        String text = "建一座宝塔旁的螺旋观景台";
+        var resolved = Map.of(
+                "original_text", text,
+                "building_class", "generic",
+                "building_class_source", "llm_retained",
+                "confidence", 0.9,
+                "scaffold_eligible", false);
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .planMeta(Map.of("request_intent", resolved))
+                .build();
+
+        LlmPlan ensured = RequestIntentInjector.ensure(plan, (String) null);
+
+        assertEquals("generic", ensured.planMeta().get("building_class"));
+        var intent = (Map<?, ?>) ensured.planMeta().get("request_intent");
+        assertEquals("llm_retained", intent.get("building_class_source"));
+        assertEquals(false, intent.get("scaffold_eligible"));
+    }
+
+    @Test
     void matchingEchoUserMarkersRepairWrongLlmClassWithProvenance() {
         // Same server text / echo: strong user markers (道观) repair a wrong LLM garden class.
         String text = "生成一座传统道观";
