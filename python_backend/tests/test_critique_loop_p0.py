@@ -40,6 +40,32 @@ class CritiqueLoopTests(unittest.TestCase):
         )
         self.call.assert_not_called()
 
+    def test_disagreement_only_accompanies_existing_semantic_repair(self):
+        plan = deepcopy(self.valid)
+        plan.setdefault("plan_meta", {})["request_intent"] = {
+            "keyword_class_disagreement": {
+                "resolved_class": "garden",
+                "keyword_class": "tower_like",
+                "keyword_confidence": 0.9,
+            },
+        }
+        for errors, expects_review in (
+            ([], False),
+            (["anchor: missing"], False),
+            (["semantics: garden layout incomplete"], True),
+        ):
+            with self.subTest(errors=errors):
+                self.call.reset_mock()
+                self.call.return_value = self.response(self.valid)
+                with patch.object(repair, "_try_validate", side_effect=[errors, []]):
+                    repair.repair_llm_plan_validation(plan, self.player_req, **self.options)
+                if not errors:
+                    self.call.assert_not_called()
+                    continue
+                self.call.assert_called_once()
+                prompt = self.call.call_args.kwargs["messages"][-1]["content"]
+                self.assertEqual(expects_review, "keyword_class_disagreement" in prompt)
+
     def test_net_height_critique_revalidates_once_and_preserves_failed_plan(self):
         from app.services.building_contract import apply_building_contract
 

@@ -532,11 +532,26 @@ def repair_llm_plan_validation(
                         "and wall_block/roof_block matching the requested style. "
                         "Do NOT emit a residential MASS_MAIN+gable house kit for 佛塔/古塔/宝塔.\n"
                     )
+                meta = normalized.get("plan_meta")
+                intent = meta.get("request_intent") if isinstance(meta, dict) else None
+                disagreement = intent.get("keyword_class_disagreement") if isinstance(intent, dict) else None
+                class_review = ""
+                if isinstance(disagreement, dict) and any(
+                    str(error).startswith("semantics:") for error in errors
+                ):
+                    class_review = (
+                        "Review plan_meta.request_intent.keyword_class_disagreement against the original "
+                        "user request before changing geometry. Check whether the keyword names the "
+                        "main building, an accessory, or a neighboring building. Treat the keyword as "
+                        "a hint. Correct declared_intent only if the original request supports the "
+                        "correction, and preserve unrelated geometry and explicit user constraints.\n"
+                    )
                 repair_user = (
                     "Your previous LlmPlan JSON failed validation. Fix the reported issues.\n"
                     "Errors:\n- "
                     + "\n- ".join(errors[:8])
                     + "\n\n"
+                    + class_review
                     + morph_hint
                     + ("Revise only the affected body's height or storey layout. Preserve its footprint, "
                        "materials, placement, other components and hard user requirements. "

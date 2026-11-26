@@ -1,5 +1,7 @@
 # Design decision inventory
 
+An existing semantic validation repair includes class disagreement as optional model feedback (NONBINDING_HINT). Disagreement alone cannot reject a valid plan, trigger inference, or select a geometry template.
+
 Matching legacy request intent with a valid specific class and confident resolution also keeps its class. Keyword disagreement disables scaffold eligibility. Stale echoes and incomplete legacy records still use the compatibility merge.
 
 The Java fallback for plans containing only a model intent declaration now preserves confident specific classes on strong keyword disagreement, matching Python. A conflicting hint cannot enable scaffolding.
