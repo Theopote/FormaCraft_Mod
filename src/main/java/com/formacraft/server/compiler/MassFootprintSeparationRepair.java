@@ -47,8 +47,6 @@ final class MassFootprintSeparationRepair {
                 if (i == j) continue;
                 Component b = out.get(j);
                 if (!isAnchorMass(b)) continue;
-                // Keep/tower compounds declare ground-level passages that need a shared wall.
-                if (linkedByPassage(plan, a, b)) continue;
                 // Stepped towers / pagoda tiers intentionally nest in XZ at different Y.
                 if (isAuthoredVerticalStack(plan, a, b)) continue;
                 // Phase 02.2: authored subtract/intersect/interlock peers must not be nudged apart.
@@ -67,6 +65,38 @@ final class MassFootprintSeparationRepair {
                     intentionalPair = true;
                 }
                 MassSpatialRelation rel = MassSpatialRelation.classify(ab, bb, intentionalPair);
+                // Passage-linked keep/tower pairs keep adjacency, but CONNECTION_SEAM still
+                // collapses shallow volumetric overlap first (avoids E_PATCH_CONFLICT).
+                if (rel != MassSpatialRelation.CONNECTION_SEAM && linkedByPassage(plan, a, b)) {
+                    continue;
+                }
+                // CONNECTION_SEAM: GEOMETRY collapse of shallow shared-wall overlap → contacting
+                // (no capability_gap; preserves compound join without E_PATCH_CONFLICT).
+                if (rel == MassSpatialRelation.CONNECTION_SEAM) {
+                    if (priority(a) > priority(b)) continue;
+                    if (priority(a) == priority(b) && idOf(a).compareTo(idOf(b)) >= 0) continue;
+                    var beforeSeam = ab;
+                    Component seamNudged = nudgeSeamToContact(plan, a, b);
+                    if (seamNudged == a) continue;
+                    var afterSeam = planBounds(plan, seamNudged);
+                    int sdx = (beforeSeam != null && afterSeam != null)
+                            ? afterSeam.minX() - beforeSeam.minX()
+                            : seamNudged.relativePosition().x() - a.relativePosition().x();
+                    int sdy = (beforeSeam != null && afterSeam != null)
+                            ? afterSeam.minY() - beforeSeam.minY()
+                            : seamNudged.relativePosition().y() - a.relativePosition().y();
+                    int sdz = (beforeSeam != null && afterSeam != null)
+                            ? afterSeam.minZ() - beforeSeam.minZ()
+                            : seamNudged.relativePosition().z() - a.relativePosition().z();
+                    FormacraftMod.LOGGER.info(
+                            "MassFootprintSeparationRepair: seam-resolve {} vs {} → {} (Δ={},{},{})",
+                            idOf(a), idOf(b), seamNudged.relativePosition(), sdx, sdy, sdz);
+                    out.set(i, seamNudged);
+                    shiftHostedSatellites(out, a, sdx, sdy, sdz);
+                    a = seamNudged;
+                    changed = true;
+                    continue;
+                }
                 if (MassSpatialRelation.forbidsNudge(rel) || rel != MassSpatialRelation.AABB3_INTERSECT) {
                     continue;
                 }
@@ -592,12 +622,7 @@ final class MassFootprintSeparationRepair {
             if (c == null || c.params() == null) continue;
             String type = c.componentType() == null ? "" : c.componentType().trim().toUpperCase(Locale.ROOT);
             if (!"ENTRANCE".equals(type)) continue;
-            boolean passage = Boolean.TRUE.equals(c.params().get("clear_passage"))
-                    || Boolean.TRUE.equals(c.params().get("compiler_internal_portal"))
-                    || (Boolean.TRUE.equals(c.params().get("carve"))
-                    && c.features() != null && c.features().stream()
-                    .anyMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("passage")));
-            if (!passage) continue;
+            if (!isPassageOrInternalConnection(c)) continue;
             String host = explicitHostId(c);
             String target = null;
             Object rawTarget = c.params().get("target_host_id");
@@ -613,17 +638,44 @@ final class MassFootprintSeparationRepair {
                 }
                 continue;
             }
-            // No target_host_id: only keep a shared wall when the passage actually sits on the
-            // contact seam between these two fortress bodies — never skip on name tokens alone.
+            // No target_host_id: keep a shared wall when the door sits on the seam between a
+            // keep/tower body and its peer primary shell (hall need not be named "fortress").
             if (!(host.equals(aId) || host.equals(bId))) continue;
             Component hostMass = host.equals(aId) ? a : b;
             Component neighbor = host.equals(aId) ? b : a;
-            if (!looksFortressLink(idOf(hostMass)) || !looksFortressLink(idOf(neighbor))) continue;
             if (looksHorizontalAnnex(idOf(neighbor).toLowerCase(Locale.ROOT))
                     || looksHorizontalAnnex(idOf(hostMass).toLowerCase(Locale.ROOT))) {
                 continue;
             }
+            boolean fortressPair = looksFortressLink(idOf(hostMass)) || looksFortressLink(idOf(neighbor));
+            if (!fortressPair) continue;
             if (passageTouchesNeighbor(plan, c, hostMass, neighbor)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** clear_passage / portal / carve+passage, or authored door:internal_connection. */
+    private static boolean isPassageOrInternalConnection(Component entrance) {
+        if (entrance == null || entrance.params() == null) return false;
+        if (Boolean.TRUE.equals(entrance.params().get("clear_passage"))
+                || Boolean.TRUE.equals(entrance.params().get("compiler_internal_portal"))) {
+            return true;
+        }
+        if (Boolean.TRUE.equals(entrance.params().get("carve"))
+                && entrance.features() != null
+                && entrance.features().stream()
+                .anyMatch(f -> f != null && f.toLowerCase(Locale.ROOT).contains("passage"))) {
+            return true;
+        }
+        if (entrance.features() == null) return false;
+        for (String f : entrance.features()) {
+            if (f == null) continue;
+            String lower = f.toLowerCase(Locale.ROOT);
+            if (lower.contains("internal_connection") || lower.contains("internal-connection")
+                    || lower.contains("shared_passage") || lower.equals("passage")
+                    || lower.startsWith("passage:") || lower.contains(":passage")) {
                 return true;
             }
         }
@@ -692,6 +744,49 @@ final class MassFootprintSeparationRepair {
         }
         // Authored slot label without a layout anchor — relative coords stay plan-space.
         return new Vec3i(0, 0, 0);
+    }
+
+    /**
+     * Collapse a {@link MassSpatialRelation#CONNECTION_SEAM} to face-contacting: move only by the
+     * shallow overlap extent (no courtyard {@link #GAP}). Classification: GEOMETRY.
+     */
+    private static Component nudgeSeamToContact(LlmPlan plan, Component mover, Component anchor) {
+        var mb = planBounds(plan, mover);
+        var ab = planBounds(plan, anchor);
+        Vec3i mo = mover.relativePosition();
+        if (mb == null || ab == null || mo == null || mover.dimensions() == null) {
+            return mover;
+        }
+        Dimensions md = mover.dimensions();
+        int overlapX = Math.min(mb.maxX(), ab.maxX()) - Math.max(mb.minX(), ab.minX());
+        int overlapZ = Math.min(mb.maxZ(), ab.maxZ()) - Math.max(mb.minZ(), ab.minZ());
+        if (overlapX <= 0 || overlapZ <= 0) return mover;
+
+        int dx = 0;
+        int dz = 0;
+        int centerMx = (mb.minX() + mb.maxX() - 1) / 2;
+        int centerAx = (ab.minX() + ab.maxX() - 1) / 2;
+        int centerMz = (mb.minZ() + mb.maxZ() - 1) / 2;
+        int centerAz = (ab.minZ() + ab.maxZ() - 1) / 2;
+        if (overlapX <= overlapZ) {
+            dx = centerMx >= centerAx ? overlapX : -overlapX;
+        } else {
+            dz = centerMz >= centerAz ? overlapZ : -overlapZ;
+        }
+        if (dx == 0 && dz == 0) return mover;
+
+        Map<String, Object> params = new HashMap<>();
+        if (mover.params() != null) params.putAll(mover.params());
+        params.put("anchor_mode", "min_corner");
+        params.put("footprint_seam_resolved", true);
+        Vec3i slotOx = slotOrigin(plan, mover.slotId());
+        return new Component(
+                mover.componentType(),
+                mover.slotId(),
+                new Vec3i(mb.minX() + dx - slotOx.x(), mo.y(), mb.minZ() + dz - slotOx.z()),
+                md,
+                mover.features(),
+                params);
     }
 
     private static Component nudgeAway(LlmPlan plan, Component mover, Component anchor) {

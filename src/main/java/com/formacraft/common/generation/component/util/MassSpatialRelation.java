@@ -15,10 +15,18 @@ public enum MassSpatialRelation {
     XZ_OVERLAP_Y_DISJOINT,
     /** Volumetric AABB intersection (XZ and Y). */
     AABB3_INTERSECT,
+    /**
+     * Shallow 3D seam (shared-wall / staggered compound join): AABB intersects but the smaller
+     * horizontal overlap extent is ≤ {@link #CONNECTION_SEAM_CELLS}. Not a courtyard collision.
+     */
+    CONNECTION_SEAM,
     /** Nested/near-nested XZ with non-overlapping or stacked Y (podium/tower). */
     VERTICAL_STACK,
     /** Caller-marked intentional interlock (composition cue); not inferred from names alone. */
     INTENTIONAL_INTERLOCK;
+
+    /** Max smaller-axis XZ overlap (cells) still treated as a connection seam, not a conflict. */
+    public static final int CONNECTION_SEAM_CELLS = 2;
 
     /** True when XZ half-open intervals overlap. */
     public static boolean xzOverlap(ComponentFootprintUtil.Bounds a, ComponentFootprintUtil.Bounds b) {
@@ -74,6 +82,12 @@ public enum MassSpatialRelation {
         boolean xz = xzOverlap(a, b);
         boolean y = yOverlap(a, b);
         if (xz && y) {
+            int overlapX = Math.min(a.maxX(), b.maxX()) - Math.max(a.minX(), b.minX());
+            int overlapZ = Math.min(a.maxZ(), b.maxZ()) - Math.max(a.minZ(), b.minZ());
+            // Shared-wall / staggered join: one horizontal axis only penetrates a few cells.
+            if (Math.min(overlapX, overlapZ) <= CONNECTION_SEAM_CELLS) {
+                return CONNECTION_SEAM;
+            }
             return AABB3_INTERSECT;
         }
         if (xz && !y) {
@@ -92,6 +106,7 @@ public enum MassSpatialRelation {
     public static boolean forbidsNudge(MassSpatialRelation rel) {
         return rel == SEPARATED
                 || rel == CONTACTING
+                || rel == CONNECTION_SEAM
                 || rel == XZ_OVERLAP_Y_DISJOINT
                 || rel == VERTICAL_STACK
                 || rel == INTENTIONAL_INTERLOCK;

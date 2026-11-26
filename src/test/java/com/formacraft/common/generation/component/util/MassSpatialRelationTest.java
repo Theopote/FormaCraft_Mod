@@ -49,6 +49,16 @@ class MassSpatialRelationTest {
     }
 
     @Test
+    void shallowSharedWallIsConnectionSeamNotConflict() {
+        // 1-cell X penetration, deep Z overlap — keep/tower shared wall / staggered join.
+        var hall = box(-6, 0, -5, 13, 9, 11);
+        var tower = box(6, 0, -4, 8, 16, 8);
+        assertTrue(MassSpatialRelation.aabb3Intersect(hall, tower));
+        assertEquals(MassSpatialRelation.CONNECTION_SEAM, MassSpatialRelation.classify(hall, tower, false));
+        assertTrue(MassSpatialRelation.forbidsNudge(MassSpatialRelation.CONNECTION_SEAM));
+    }
+
+    @Test
     void intentionalInterlockCueWins() {
         var a = box(0, 0, 0, 8, 6, 8);
         var b = box(4, 2, 4, 8, 6, 8);

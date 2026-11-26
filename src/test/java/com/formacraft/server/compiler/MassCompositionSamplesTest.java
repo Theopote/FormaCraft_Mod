@@ -225,6 +225,26 @@ class MassCompositionSamplesTest {
         assertEquals(1, mid.offset().z());
     }
 
+    /** S10b: shallow shared-wall overlap collapses to contacting — no gap, no deep courtyard nudge. */
+    @Test
+    void s10b_connectionSeamCollapsesToContact() {
+        Component hall = mass("main_hall_mass", -6, 0, -5, 13, 11, 9);
+        Component tower = mass("right_tower_mass", 6, 0, -4, 8, 8, 16);
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(plan(hall, tower));
+        assertEquals(hall.relativePosition(), pos(repaired, "main_hall_mass"));
+        Vec3i towerPos = pos(repaired, "right_tower_mass");
+        assertNotEquals(tower.relativePosition(), towerPos, "seam resolve must move the overlapping peer");
+        assertEquals(7, towerPos.x(), "1-cell X overlap collapses to contacting at x=7");
+        assertEquals(tower.relativePosition().z(), towerPos.z());
+        assertFalse(AssemblyCompileDiagnostics.hasGap());
+        var hallB = new com.formacraft.common.generation.component.util.ComponentFootprintUtil.Bounds(
+                -6, 0, -5, 7, 9, 6);
+        var towerB = new com.formacraft.common.generation.component.util.ComponentFootprintUtil.Bounds(
+                towerPos.x(), towerPos.y(), towerPos.z(),
+                towerPos.x() + 8, towerPos.y() + 16, towerPos.z() + 8);
+        assertFalse(com.formacraft.common.generation.component.util.MassSpatialRelation.aabb3Intersect(hallB, towerB));
+    }
+
     /** S10: authored vertical stack (nested XZ, disjoint Y) never nudged. */
     @Test
     void s10_verticalStackTiersNeverNudged() {

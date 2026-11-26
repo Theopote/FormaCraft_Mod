@@ -416,6 +416,7 @@
         "slot_id": "egg_main",
         "anchor_mode": "center",
         "shape": "circle",
+        "stack_mode": "centered",
         "hollow": true,
         "void_ratio": 0.32,
         "floor_height": 4,

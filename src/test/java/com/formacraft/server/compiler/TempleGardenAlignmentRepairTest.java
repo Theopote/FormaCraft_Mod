@@ -675,8 +675,41 @@ class TempleGardenAlignmentRepairTest {
         Component stayed = repaired.components().stream()
                 .filter(c -> "guard_tower_0".equals(String.valueOf(c.params().get("component_id"))))
                 .findFirst().orElseThrow();
+        // Shallow 2-cell seam may collapse to contacting; must not courtyard-gap away.
+        assertEquals(tower.relativePosition().z(), stayed.relativePosition().z());
+        assertTrue(stayed.relativePosition().x() >= tower.relativePosition().x()
+                        && stayed.relativePosition().x() <= tower.relativePosition().x() + 2,
+                "shared-wall portal keeps tower against the keep (seam collapse ≤2)");
+        assertFalse(AssemblyCompileDiagnostics.hasGap());
+    }
+
+    @Test
+    void towerHallInternalConnectionPreservesSharedWallWithoutClearPassage() {
+        // Deeper than CONNECTION_SEAM: hall is not fortress-named; door:internal_connection
+        // must still keep the tower (Live0023-style keep/tower compound).
+        Component hall = new Component(
+                "MASS_MAIN", "body", new Vec3i(0, 0, 0),
+                new Dimensions(12, 10, 8), List.of(),
+                Map.of("component_id", "main_hall_mass", "anchor_mode", "min_corner"));
+        Component tower = new Component(
+                "MASS_MAIN", "body", new Vec3i(8, 0, 1),
+                new Dimensions(8, 8, 16), List.of(),
+                Map.of("component_id", "right_tower_mass", "anchor_mode", "min_corner"));
+        Component door = new Component(
+                "ENTRANCE", "body", new Vec3i(9, 0, 3),
+                new Dimensions(2, 2, 3), List.of("door:internal_connection"),
+                Map.of("component_id", "right_tower_hall_door", "host_id", "right_tower_mass",
+                        "anchor_mode", "min_corner"));
+        AssemblyCompileDiagnostics.clear();
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                .components(List.of(hall, tower, door))
+                .build());
+        Component stayed = repaired.components().stream()
+                .filter(c -> "right_tower_mass".equals(String.valueOf(c.params().get("component_id"))))
+                .findFirst().orElseThrow();
         assertEquals(tower.relativePosition(), stayed.relativePosition(),
-                "shared-wall portal must keep tower against the keep");
+                "internal_connection seam must keep tower against the hall");
+        assertFalse(AssemblyCompileDiagnostics.hasGap());
     }
 
     @Test
