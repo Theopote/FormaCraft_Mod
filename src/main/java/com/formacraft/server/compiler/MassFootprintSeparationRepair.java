@@ -76,9 +76,15 @@ final class MassFootprintSeparationRepair {
                     }
                     continue;
                 }
-                // CONNECTION_SEAM: GEOMETRY collapse of shallow shared-wall overlap → contacting
-                // (no capability_gap; preserves compound join without E_PATCH_CONFLICT).
-                if (rel == MassSpatialRelation.CONNECTION_SEAM) {
+
+                boolean softAnnex = looksHorizontalAnnex(idOf(a).toLowerCase(Locale.ROOT))
+                        || looksSideHallRole(a)
+                        || looksHorizontalAnnex(idOf(b).toLowerCase(Locale.ROOT))
+                        || looksSideHallRole(b);
+                // CONNECTION_SEAM: shallow shared-wall collapse for non-annex peers only.
+                // Soft annex (wing/pavilion/side hall) still needs courtyard GAP separation —
+                // seam-only contact would leave wings glued to the hall (WingSeparationDiag).
+                if (rel == MassSpatialRelation.CONNECTION_SEAM && !softAnnex) {
                     if (priority(a) > priority(b)) continue;
                     if (priority(a) == priority(b) && idOf(a).compareTo(idOf(b)) >= 0) continue;
                     var beforeSeam = ab;
@@ -103,14 +109,15 @@ final class MassFootprintSeparationRepair {
                     changed = true;
                     continue;
                 }
-                if (MassSpatialRelation.forbidsNudge(rel) || rel != MassSpatialRelation.AABB3_INTERSECT) {
+                // Soft-annex CONNECTION_SEAM falls through as a nudgeable intersect.
+                if (rel != MassSpatialRelation.CONNECTION_SEAM
+                        && (MassSpatialRelation.forbidsNudge(rel) || rel != MassSpatialRelation.AABB3_INTERSECT)) {
+                    continue;
+                }
+                if (rel != MassSpatialRelation.CONNECTION_SEAM && rel != MassSpatialRelation.AABB3_INTERSECT) {
                     continue;
                 }
 
-                boolean softAnnex = looksHorizontalAnnex(idOf(a).toLowerCase(Locale.ROOT))
-                        || looksSideHallRole(a)
-                        || looksHorizontalAnnex(idOf(b).toLowerCase(Locale.ROOT))
-                        || looksSideHallRole(b);
                 boolean canNudge = separationOptIn || (softAnnex && !intentionalPair);
                 if (!canNudge) {
                     AssemblyCompileDiagnostics.set(new CapabilityGap(
