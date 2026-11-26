@@ -270,6 +270,33 @@ class PlanIntentFidelityRepairTest {
     }
 
     @Test
+    void matchingVersionedIntentKeepsDesignAndAppliesUserConstraints() {
+        String text = "建一座宝塔旁的螺旋观景台，不要窗";
+        var resolved = Map.of(
+                "schema", "formacraft.request_intent.v1",
+                "original_text", text,
+                "building_class", "generic",
+                "building_class_source", "llm_retained",
+                "composition", "compound",
+                "confidence", 0.9,
+                "scaffold_eligible", false,
+                "footprint", Map.of("width", 12, "depth", 12));
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .planMeta(Map.of("request_intent", resolved))
+                .build();
+
+        LlmPlan ensured = RequestIntentInjector.ensure(plan, text);
+
+        var intent = (Map<?, ?>) ensured.planMeta().get("request_intent");
+        assertEquals("generic", ensured.planMeta().get("building_class"));
+        assertEquals("llm_retained", intent.get("building_class_source"));
+        assertEquals("compound", intent.get("composition"));
+        assertEquals(false, intent.get("scaffold_eligible"));
+        assertEquals(List.of("windows"), intent.get("forbids"));
+        assertNull(intent.get("footprint"));
+    }
+
+    @Test
     void matchingEchoUserMarkersRepairWrongLlmClassWithProvenance() {
         // Same server text / echo: strong user markers (道观) repair a wrong LLM garden class.
         String text = "生成一座传统道观";

@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Java retains the design classification and provenance of a recognized versioned request intent whose echo matches the original request. Server-side literal constraint reconciliation still runs. Missing or mismatched metadata uses the legacy request-text merge.
+
 The Python and Java semantic gates use recognized structured intent as the final class input. A generic or low-confidence resolution cannot be promoted by another keyword pass or by plan feature labels. Legacy plans lacking a recognized class can still use compatibility lookup.
 
 Python semantic classification uses resolved request intent without a second raw substring fallback. Java does not promote an authored finial feature (塔刹) to a whole-building tower classification. Both gates use the top-level class only for legacy plans without a structured class, so the mirror cannot bypass the confidence check. These removals prevent optional hints from reinstating specialized morphology checks.

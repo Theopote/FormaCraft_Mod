@@ -238,10 +238,7 @@ final class RequestIntentKeywordExtractor {
      */
     static void applyKeywordAuthority(Map<String, Object> intent, Map<String, Object> keyword) {
         if (intent == null || keyword == null) return;
-        // Drop LLM-guessed hard sizes when the player did not specify them.
-        if (keyword.get("footprint") == null) {
-            intent.remove("footprint");
-        }
+        applyExplicitConstraints(intent, keyword);
         String kwClass = String.valueOf(keyword.getOrDefault("building_class", "generic"));
         String haveClass = String.valueOf(intent.getOrDefault("building_class", "generic"));
         double kwConf = 0.0;
@@ -259,11 +256,7 @@ final class RequestIntentKeywordExtractor {
             intent.put("stale_building_class", haveClass);
         }
         for (String key : List.of(
-                "composition", "markers", "materials",
-                "footprint", "roof_type", "roof_forbids", "forbids",
-                "roof_explicit", "door_width_explicit", "window_material_explicit",
-                "door_presence_explicit", "upper_entrance_explicit",
-                "upper_entrance_requires_access", "openings",
+                "composition", "markers",
                 "refuse_residential_autofill", "scaffold_eligible", "source")) {
             if (!keyword.containsKey(key)) continue;
             Object v = keyword.get(key);
@@ -283,7 +276,23 @@ final class RequestIntentKeywordExtractor {
         } else if ("generic".equals(kwClass) && !"generic".equalsIgnoreCase(haveClass)) {
             intent.put("building_class_source", "llm_retained");
         }
-        reconcileRoofFromText(intent, String.valueOf(intent.getOrDefault("original_text", "")));
+        reconcileLegacyClass(intent, String.valueOf(intent.getOrDefault("original_text", "")), keyword);
+    }
+
+    static void applyExplicitConstraints(Map<String, Object> intent, Map<String, Object> keyword) {
+        // Drop LLM-guessed hard sizes when the player did not specify them.
+        if (keyword.get("footprint") == null) {
+            intent.remove("footprint");
+        }
+        for (String key : List.of(
+                "materials", "footprint", "roof_type", "roof_forbids", "forbids",
+                "roof_explicit", "door_width_explicit", "window_material_explicit",
+                "door_presence_explicit", "upper_entrance_explicit",
+                "upper_entrance_requires_access", "openings")) {
+            Object value = keyword.get(key);
+            if (value != null) intent.put(key, value);
+        }
+        reconcileRoof(intent, keyword);
     }
 
     @SuppressWarnings("unchecked")
@@ -580,6 +589,11 @@ final class RequestIntentKeywordExtractor {
     static void reconcileRoofFromText(Map<String, Object> intent, String text) {
         if (intent == null || text == null || text.isBlank()) return;
         Map<String, Object> keyword = extractKeyword(text);
+        reconcileRoof(intent, keyword);
+        reconcileLegacyClass(intent, text, keyword);
+    }
+
+    private static void reconcileRoof(Map<String, Object> intent, Map<String, Object> keyword) {
         Object kwType = keyword.get("roof_type");
         Object kwForbids = keyword.get("roof_forbids");
         if (kwForbids instanceof List<?> forbids && !forbids.isEmpty()) {
@@ -602,6 +616,10 @@ final class RequestIntentKeywordExtractor {
             intent.put("roof_type", null);
             intent.put("roof_explicit", false);
         }
+    }
+
+    private static void reconcileLegacyClass(
+            Map<String, Object> intent, String text, Map<String, Object> keyword) {
         // Demote temple only when hall/temple tokens are locally negated (不要做成…大殿).
         // Do not demote when keywords simply miss an uncommon type (清真寺) that LLM classified.
         Object cls = intent.get("building_class");

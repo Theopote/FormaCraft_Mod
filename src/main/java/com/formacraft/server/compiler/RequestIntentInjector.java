@@ -72,8 +72,15 @@ public final class RequestIntentInjector {
                 echo = text;
             }
             if (authorizeFromText) {
-                RequestIntentKeywordExtractor.applyKeywordAuthority(
-                        reconciled, RequestIntentKeywordExtractor.extractKeyword(text));
+                var keyword = RequestIntentKeywordExtractor.extractKeyword(text);
+                if (!mismatch && keyword.get("schema").equals(reconciled.get("schema"))
+                        && reconciled.get("building_class") instanceof String buildingClass
+                        && RequestIntentKeywordExtractor.isValidClass(buildingClass)
+                        && reconciled.get("confidence") instanceof Number) {
+                    RequestIntentKeywordExtractor.applyExplicitConstraints(reconciled, keyword);
+                } else {
+                    RequestIntentKeywordExtractor.applyKeywordAuthority(reconciled, keyword);
+                }
             } else {
                 // Compiler reentry has no original request to resolve again.
                 RequestIntentKeywordExtractor.reconcileRoofFromText(reconciled, echo);
