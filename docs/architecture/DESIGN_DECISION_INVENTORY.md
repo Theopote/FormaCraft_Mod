@@ -1,5 +1,7 @@
 # Design decision inventory
 
+For matching versioned intent, Java records strong keyword disagreement as diagnostic metadata without modifying the resolved class or enabling a template (NONBINDING_HINT).
+
 Java retains the design classification and provenance of a recognized versioned request intent whose echo matches the original request. Server-side literal constraint reconciliation still runs. Missing or mismatched metadata uses the legacy request-text merge.
 
 The Python and Java semantic gates use recognized structured intent as the final class input. A generic or low-confidence resolution cannot be promoted by another keyword pass or by plan feature labels. Legacy plans lacking a recognized class can still use compatibility lookup.

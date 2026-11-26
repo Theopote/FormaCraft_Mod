@@ -72,12 +72,14 @@ public final class RequestIntentInjector {
                 echo = text;
             }
             if (authorizeFromText) {
+                reconciled.remove("keyword_class_disagreement");
                 var keyword = RequestIntentKeywordExtractor.extractKeyword(text);
                 if (!mismatch && keyword.get("schema").equals(reconciled.get("schema"))
                         && reconciled.get("building_class") instanceof String buildingClass
                         && RequestIntentKeywordExtractor.isValidClass(buildingClass)
                         && reconciled.get("confidence") instanceof Number) {
                     RequestIntentKeywordExtractor.applyExplicitConstraints(reconciled, keyword);
+                    RequestIntentKeywordExtractor.recordKeywordClassDisagreement(reconciled, keyword);
                 } else {
                     RequestIntentKeywordExtractor.applyKeywordAuthority(reconciled, keyword);
                 }

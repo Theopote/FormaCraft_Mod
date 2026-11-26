@@ -292,6 +292,9 @@ class PlanIntentFidelityRepairTest {
         assertEquals("llm_retained", intent.get("building_class_source"));
         assertEquals("compound", intent.get("composition"));
         assertEquals(false, intent.get("scaffold_eligible"));
+        var disagreement = (Map<?, ?>) intent.get("keyword_class_disagreement");
+        assertEquals("generic", disagreement.get("resolved_class"));
+        assertEquals("tower_like", disagreement.get("keyword_class"));
         assertEquals(List.of("windows"), intent.get("forbids"));
         assertNull(intent.get("footprint"));
     }

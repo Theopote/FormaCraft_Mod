@@ -279,6 +279,19 @@ final class RequestIntentKeywordExtractor {
         reconcileLegacyClass(intent, String.valueOf(intent.getOrDefault("original_text", "")), keyword);
     }
 
+    static void recordKeywordClassDisagreement(Map<String, Object> intent, Map<String, Object> keyword) {
+        String resolvedClass = (String) intent.get("building_class");
+        String keywordClass = (String) keyword.get("building_class");
+        double confidence = ((Number) keyword.get("confidence")).doubleValue();
+        if (!"generic".equals(keywordClass) && !resolvedClass.equals(keywordClass)
+                && confidence >= RequestIntentVocab.conf("keyword_override_min", 0.8)) {
+            intent.put("keyword_class_disagreement", Map.of(
+                    "resolved_class", resolvedClass,
+                    "keyword_class", keywordClass,
+                    "keyword_confidence", confidence));
+        }
+    }
+
     static void applyExplicitConstraints(Map<String, Object> intent, Map<String, Object> keyword) {
         // Drop LLM-guessed hard sizes when the player did not specify them.
         if (keyword.get("footprint") == null) {
