@@ -21,35 +21,39 @@ public final class TransitionalSatellitePlans {
             return null;
         }
         Map<String, Object> meta = plan.planMeta();
-        if (meta != null && meta.containsKey(PlanMetaAccess.ALLOW_COMPILER_SATELLITES)) {
-            return plan;
+        LlmPlan withMeta = plan;
+        if (meta == null || !meta.containsKey(PlanMetaAccess.ALLOW_COMPILER_SATELLITES)) {
+            Map<String, Object> next = meta == null ? new HashMap<>() : new HashMap<>(meta);
+            next.put(PlanMetaAccess.ALLOW_COMPILER_SATELLITES, Boolean.TRUE);
+            next.putIfAbsent("compiler_satellites_policy", POLICY);
+            withMeta = new LlmPlan(
+                    plan.mode(),
+                    plan.styleProfile(),
+                    plan.anchor(),
+                    plan.globalConstraints(),
+                    plan.layout(),
+                    plan.components(),
+                    plan.genome(),
+                    plan.styleAttributes(),
+                    plan.proportionHints(),
+                    plan.alignmentAndSymmetry(),
+                    plan.targetSlotId(),
+                    plan.allowedArea(),
+                    plan.patch(),
+                    plan.planProgram(),
+                    plan.planSkeleton(),
+                    plan.planStatus(),
+                    plan.error(),
+                    plan.capabilityGap(),
+                    plan.playerFidelityNoticeZh(),
+                    plan.distinguishingFeatures(),
+                    plan.enrichmentGuard(),
+                    next,
+                    plan.designSources());
         }
-        Map<String, Object> next = meta == null ? new HashMap<>() : new HashMap<>(meta);
-        next.put(PlanMetaAccess.ALLOW_COMPILER_SATELLITES, Boolean.TRUE);
-        next.putIfAbsent("compiler_satellites_policy", POLICY);
-        return new LlmPlan(
-                plan.mode(),
-                plan.styleProfile(),
-                plan.anchor(),
-                plan.globalConstraints(),
-                plan.layout(),
-                plan.components(),
-                plan.genome(),
-                plan.styleAttributes(),
-                plan.proportionHints(),
-                plan.alignmentAndSymmetry(),
-                plan.targetSlotId(),
-                plan.allowedArea(),
-                plan.patch(),
-                plan.planProgram(),
-                plan.planSkeleton(),
-                plan.planStatus(),
-                plan.error(),
-                plan.capabilityGap(),
-                plan.playerFidelityNoticeZh(),
-                plan.distinguishingFeatures(),
-                plan.enrichmentGuard(),
-                next,
-                plan.designSources());
+        // Mirror CPC SteppedMassCueRepair so unit tests that only call ResolvedMassPart still
+        // see plan-level stepped/terrace cues without mutating on-disk normalize goldens.
+        return com.formacraft.server.compiler.SteppedMassCueRepair.apply(withMeta);
     }
 }
+

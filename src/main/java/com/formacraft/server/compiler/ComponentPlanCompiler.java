@@ -169,6 +169,8 @@ public final class ComponentPlanCompiler {
             return List.of();
         }
         plan = StackedMassHostBindRepair.apply(plan);
+        // Promote plan-level stepped/terrace cues onto nested-mass bodies (Phase 02.1 stack cue).
+        plan = SteppedMassCueRepair.apply(plan);
         // Phase 02.2: fold peer mass_operation CSG into host masses[] before separation/emit.
         plan = MassCsgPeerFoldRepair.apply(plan);
         if (AssemblyCompileDiagnostics.hasGap()) {

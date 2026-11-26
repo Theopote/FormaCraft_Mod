@@ -434,7 +434,6 @@
         "anchor_mode": "center",
         "shape": "rectangle",
         "plan_type": "none",
-        "stepped": true,
         "floor_count": 5,
         "floor_height": 7,
         "void_ratio": 0.28,

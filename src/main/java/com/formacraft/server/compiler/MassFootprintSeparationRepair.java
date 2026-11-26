@@ -491,7 +491,11 @@ final class MassFootprintSeparationRepair {
                 || blob.contains("穿入") || blob.contains("穿楼")
                 || blob.contains("interlock") || blob.contains("interlocking")
                 || blob.contains("overlapping mass") || blob.contains("overlapping volumes")
-                || blob.contains("penetrat"); // penetrate / penetrates / interpenetrate
+                || blob.contains("penetrat") // penetrate / penetrates / interpenetrate
+                || blob.contains("rising above the main roof")
+                || blob.contains("rising above the main")
+                || blob.contains("sphere pod") || blob.contains("splayed")
+                || blob.contains("support legs") || blob.contains("东方明珠");
     }
 
     /**
