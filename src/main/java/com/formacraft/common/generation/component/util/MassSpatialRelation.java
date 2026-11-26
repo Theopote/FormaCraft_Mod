@@ -82,6 +82,11 @@ public enum MassSpatialRelation {
         boolean xz = xzOverlap(a, b);
         boolean y = yOverlap(a, b);
         if (xz && y) {
+            // Near-containment / nested volumes are full AABB3 conflicts — not shallow seams
+            // (a thin shaft inside a hall has min(overlap)=shaft size ≤2 but is not a join).
+            if (xzNearNested(a, b) || xzNearNested(b, a)) {
+                return AABB3_INTERSECT;
+            }
             int overlapX = Math.min(a.maxX(), b.maxX()) - Math.max(a.minX(), b.minX());
             int overlapZ = Math.min(a.maxZ(), b.maxZ()) - Math.max(a.minZ(), b.minZ());
             // Shared-wall / staggered join: one horizontal axis only penetrates a few cells.

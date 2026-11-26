@@ -658,25 +658,11 @@ final class ComponentEmitPass {
                     circulation.addAll(shiftedFlights);
                     if (ComponentPlanTypes.isMassType(normalizedType) && !(c.params() != null
                             && "plate".equalsIgnoreCase(String.valueOf(c.params().get("extrude_mode"))))) {
-                        for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c)) {
-                        var bounds = part.bounds();
-                            Vec3i offset = slotAnchor == null ? new Vec3i(0, 0, 0) : slotAnchor;
-                            var shifted = new ComponentFootprintUtil.Bounds(bounds.minX() + offset.x(), bounds.minY() + offset.y(),
-                                bounds.minZ() + offset.z(), bounds.maxX() + offset.x(), bounds.maxY() + offset.y(), bounds.maxZ() + offset.z());
-                            int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
-                                .resolveFloorHeight(plan, c, shifted.height());
-                            String componentId = ComponentPlanTypes.getParamString(c.params(), "component_id");
-                            String buildingId = ComponentPlanTypes.getParamString(c.params(), "building_id");
-                            if (buildingId == null || buildingId.isBlank()) {
-                                buildingId = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
-                            }
-                            boolean lightingAllowed = !com.formacraft.common.style.ExplicitDesignPolicy
-                                    .noComplexDecor(plan, c.params())
-                                    && com.formacraft.common.style.AestheticPassHints
-                                    .resolve(plan, c.params()).lightingStyle()
-                                    != com.formacraft.common.style.AestheticPassHints.LightingStyle.NONE;
-                            buildingVolumes.add(new PostProcessContext.BuildingVolume(
-                                    slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed));
+                        // Folded CSG satellites contribute volume via the host only (P0-03).
+                        if (!com.formacraft.common.generation.component.util.MassBooleanComposition
+                                .isFoldedCsgSatellite(c)) {
+                            registerMassBuildingVolumes(
+                                    plan, c, slotKey, slotAnchor, buildingVolumes);
                         }
                     }
                     for (var patch : shiftedPatches) {
@@ -1316,6 +1302,79 @@ final class ComponentEmitPass {
      * Sibling masses that only share building_id stay foreign so a lower roof yields to an
      * upper terrace volume in the same compound.
      */
+    /**
+     * Register building volumes for a mass body. CSG hosts use post-boolean voxel bounds
+     * (Phase 02.2.1 Task C / P0-03) — subtract children are never solid volumes.
+     */
+    private static void registerMassBuildingVolumes(
+            LlmPlan plan,
+            Component c,
+            String slotKey,
+            Vec3i slotAnchor,
+            List<PostProcessContext.BuildingVolume> buildingVolumes
+    ) {
+        if (c == null || buildingVolumes == null) return;
+        Vec3i offset = slotAnchor == null ? new Vec3i(0, 0, 0) : slotAnchor;
+        String componentId = ComponentPlanTypes.getParamString(c.params(), "component_id");
+        String buildingId = ComponentPlanTypes.getParamString(c.params(), "building_id");
+        if (buildingId == null || buildingId.isBlank()) {
+            buildingId = ComponentPlanTypes.getParamString(c.params(), "host_id", "hostId");
+        }
+        boolean lightingAllowed = !com.formacraft.common.style.ExplicitDesignPolicy
+                .noComplexDecor(plan, c.params())
+                && com.formacraft.common.style.AestheticPassHints
+                .resolve(plan, c.params()).lightingStyle()
+                != com.formacraft.common.style.AestheticPassHints.LightingStyle.NONE;
+
+        if (com.formacraft.common.generation.component.util.MassBooleanComposition.needsCsg(c)) {
+            try {
+                var csg = com.formacraft.common.generation.component.util.MassBooleanComposition
+                        .composeFromComponent(c);
+                if (csg.isEmpty()) {
+                    // Legal empty solid — no volume for floor/atrium fill (P0-03).
+                    return;
+                }
+                var b = csg.bounds();
+                // Envelope-local CSG bounds + host min-corner origin + slot.
+                Vec3i origin = com.formacraft.common.generation.component.util
+                        .ComponentFootprintUtil.resolveMinCornerOrigin(c);
+                if (origin == null) origin = c.relativePosition() == null
+                        ? new Vec3i(0, 0, 0) : c.relativePosition();
+                var shifted = new ComponentFootprintUtil.Bounds(
+                        b.minX() + origin.x() + offset.x(),
+                        b.minY() + origin.y() + offset.y(),
+                        b.minZ() + origin.z() + offset.z(),
+                        b.maxX() + origin.x() + offset.x(),
+                        b.maxY() + origin.y() + offset.y(),
+                        b.maxZ() + origin.z() + offset.z());
+                if (shifted.width() <= 0 || shifted.depth() <= 0 || shifted.height() <= 0) {
+                    return;
+                }
+                int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
+                        .resolveFloorHeight(plan, c, shifted.height());
+                buildingVolumes.add(new PostProcessContext.BuildingVolume(
+                        slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed));
+            } catch (IllegalArgumentException ex) {
+                FormacraftMod.LOGGER.debug(
+                        "ComponentEmitPass: skip CSG building volume for {}: {}",
+                        componentId, ex.getMessage());
+            }
+            return;
+        }
+
+        for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c)) {
+            var bounds = part.bounds();
+            var shifted = new ComponentFootprintUtil.Bounds(
+                    bounds.minX() + offset.x(), bounds.minY() + offset.y(),
+                    bounds.minZ() + offset.z(), bounds.maxX() + offset.x(),
+                    bounds.maxY() + offset.y(), bounds.maxZ() + offset.z());
+            int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
+                    .resolveFloorHeight(plan, c, shifted.height());
+            buildingVolumes.add(new PostProcessContext.BuildingVolume(
+                    slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed));
+        }
+    }
+
     /** True when this roof was registered as an authored flat roof for coverage validation. */
     private static boolean isAuthoredFlatRoof(Component roof, List<FlatRoofCoverageValidator.Roof> flatRoofs) {
         if (roof == null || flatRoofs == null || flatRoofs.isEmpty()) return false;

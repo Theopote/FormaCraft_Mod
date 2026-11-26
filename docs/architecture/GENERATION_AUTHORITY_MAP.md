@@ -76,7 +76,10 @@ flowchart TD
 | Authored mass position / size | USER_EXPLICIT / AI_PLANNED | Java must not silently recenter or inflate to min-3 |
 | Peer footprint separation | GEOMETRY repair (opt-in) | `MassFootprintSeparationRepair` + `MassSpatialRelation`; soft annex NONBINDING_HINT only |
 | Nested tier auto-center | EXPLICIT params (`stepped`, `stack_mode`, `replace_envelope`, tier footprints) | `ResolvedMassPart` — contiguous Y alone insufficient |
-| Boolean mass CSG (ADD/SUBTRACT/INTERSECT) | GEOMETRY on CPC trunk | Nested `params.masses[].operation` / peer `mass_operation`+`host_id` → `MassCsgPeerFoldRepair` → `MassMainGenerator` via `MassBooleanComposition` (ShapeLibrary boxes). Absent op → additive (no silent CSG) |
+| Boolean mass CSG (ADD/SUBTRACT/INTERSECT) | GEOMETRY on CPC trunk | Nested `params.masses[].operation` / peer `mass_operation`+`host_id` → `MassCsgPeerFoldRepair` → `MassMainGenerator` via `MassBooleanComposition` (ShapeLibrary boxes). Absent op → additive (no silent CSG). Phase 02.2.1: INTERSECT empty stays empty; illegal op → `E_MASS_CSG_OP_UNSUPPORTED`; fold uses `originInPlan`; legal empty host ≠ `required_component_empty` |
+| CSG BuildingVolume / postprocess domain | GEOMETRY_EXECUTION contract | `CsgResult` bounds/contains/voids; emit registers post-boolean volume only (no subtract-child AABB). Full wall/floor shell deferred to 02.3.1 |
+| Mass separation / CONNECTION_SEAM | HARD_CONSTRAINT + soft-annex NONBINDING_HINT | Seam needs opt-in, soft-annex GAP, or passage link; scoped `allow_mass_separation`; interlock via pair peer id in `PatchOccupancyIndex` (not component-wide overwrite) |
+| Stepped cue promotion | FORMAT_REPAIR | `SteppedMassCueRepair` honors local `stepped=false` / explicit `stack_mode` / eccentric XZ offsets |
 | BMC `allowsBlockAt` INTERSECT | EXPLICIT_TEMPLATE path only | Finished for opt-in `BuildingMassPipeline`; never default route |
 
 ## Default trunk call chain (Path A — code truth, Phase 01.1)

@@ -35,7 +35,8 @@ public final class SteppedMassCueRepair {
                 out.add(c);
                 continue;
             }
-            if (hasStackCue(c.params())) {
+            // Local opt-out / authored stack design wins over plan-text cue (P1-03).
+            if (refusesSteppedCue(c.params()) || hasStackCue(c.params()) || hasAuthoredEccentricOffsets(masses)) {
                 out.add(c);
                 continue;
             }
@@ -48,6 +49,54 @@ public final class SteppedMassCueRepair {
             changed = true;
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
+    }
+
+    /** Explicit local lock: never promote stepped from plan text. */
+    private static boolean refusesSteppedCue(Map<String, Object> params) {
+        if (params == null) return false;
+        if (Boolean.FALSE.equals(params.get("stepped"))
+                || Boolean.FALSE.equals(params.get("stepped_mass"))
+                || Boolean.FALSE.equals(params.get("steppedMass"))) {
+            return true;
+        }
+        Object stackMode = params.get("stack_mode");
+        if (stackMode == null) stackMode = params.get("stackMode");
+        if (stackMode != null) {
+            String mode = String.valueOf(stackMode).trim().toLowerCase(Locale.ROOT);
+            // Any explicit stack_mode (including eccentric / none) is a local design lock.
+            if (!mode.isEmpty()) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Non-zero nested offsets mean the model already authored tier placement —
+     * do not force centered {@code stepped=true} alignment (P1-03).
+     */
+    private static boolean hasAuthoredEccentricOffsets(List<?> masses) {
+        for (Object item : masses) {
+            if (!(item instanceof Map<?, ?> raw)) continue;
+            Object offset = raw.get("offset");
+            if (!(offset instanceof Map<?, ?> om)) continue;
+            int ox = intOrZero(om.get("x"));
+            int oy = intOrZero(om.get("y"));
+            int oz = intOrZero(om.get("z"));
+            // Pure vertical stack (y only) still allows stepped cue; XZ eccentricity locks.
+            if (ox != 0 || oz != 0) return true;
+            // Ignore y — vertical stacking is what stepped cue targets.
+            if (oy != 0 && (ox != 0 || oz != 0)) return true;
+        }
+        return false;
+    }
+
+    private static int intOrZero(Object raw) {
+        if (raw instanceof Number n) return n.intValue();
+        if (raw == null) return 0;
+        try {
+            return Integer.parseInt(String.valueOf(raw).trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     static boolean planAsksStepped(LlmPlan plan) {

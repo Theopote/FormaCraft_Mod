@@ -490,9 +490,11 @@ public final class PatchOccupancyIndex {
                 // MASS_SECONDARY may REMOVE (carve) host cells via isHostedMassSecondaryCarve,
                 // but PLACE overwrite still requires a seam/plate/tier join — otherwise interior
                 // tiers and unrelated secondary masses punch through the host body.
+                boolean intentionalInterlockPeer = isIntentionalInterlockPeerJoin(writer, prev);
                 if (approachPathKeepsAgainstSitePlate(prev.writerType(), type)
                         || (!overwriteOk && !chimneyFooting && !gateOnPath && !sameSlotRoofJoin
                         && !compoundRoofMassReseal
+                        && !intentionalInterlockPeer
                         && !connectorAccess.contains(pos)
                         && !isHostedStructuralJoin(writer, prev) && !isHostedStairJoin(writer, prev, pos)
                         && !isBoundUpperMassSeam(writer, prev, pos)
@@ -798,6 +800,38 @@ public final class PatchOccupancyIndex {
         // Shared floor band (pier rising from the podium deck).
         boolean sharedFloor = upper.minY() <= lower.maxY() && upper.minY() >= lower.minY() - 1;
         return xzOverlap && sharedFloor;
+    }
+
+    /**
+     * Pair-scoped intentional interlock (Phase 02.2.1 Task E / P1-02).
+     * Writer may overwrite previous only when each side names the other via
+     * {@code intentional_interlock_peer_id}. A∩B grant does not clear B∩C.
+     * Component-wide {@code allow_patch_overwrite} is not used for this path.
+     */
+    static boolean isIntentionalInterlockPeerJoin(Component writer, PlaceRecord previous) {
+        if (writer == null || previous == null || previous.owner() == null) return false;
+        if (writer.params() == null || previous.owner().params() == null) return false;
+        String writerId = componentIdOf(writer);
+        String prevId = componentIdOf(previous.owner());
+        if (writerId.isEmpty() || prevId.isEmpty()) return false;
+        String writerPeer = peerIdOf(writer);
+        String prevPeer = peerIdOf(previous.owner());
+        // Mutual pair only — A↔B does not authorize A↔C or B↔C.
+        return !writerPeer.isEmpty() && writerPeer.equals(prevId) && prevPeer.equals(writerId);
+    }
+
+    private static String componentIdOf(Component c) {
+        if (c == null || c.params() == null) return "";
+        Object id = c.params().get("component_id");
+        if (id == null) id = c.params().get("componentId");
+        return id == null ? "" : String.valueOf(id).trim();
+    }
+
+    private static String peerIdOf(Component c) {
+        if (c == null || c.params() == null) return "";
+        Object peer = c.params().get("intentional_interlock_peer_id");
+        if (peer == null) peer = c.params().get("intentionalInterlockPeerId");
+        return peer == null ? "" : String.valueOf(peer).trim();
     }
 
     /**

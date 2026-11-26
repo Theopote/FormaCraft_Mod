@@ -218,12 +218,16 @@ final class ComponentGenerationPipeline {
             }
         }
 
-        // Phase 02.2: peer CSG satellites folded into the host intentionally emit zero patches.
+        // Phase 02.2 / 02.2.1: folded satellites and legal empty CSG solids are not failures.
         boolean foldedCsgSatellite = com.formacraft.common.generation.component.util.MassBooleanComposition
                 .isFoldedCsgSatellite(c);
+        boolean legalCsgEmptyHost = !foldedCsgSatellite
+                && com.formacraft.common.generation.component.util.MassBooleanComposition.needsCsg(c)
+                && !com.formacraft.common.generation.CompileCapabilityDiagnostics.hasGap();
         if (base.isEmpty() && UnifiedGeneratorRouter.isRequiredComponentType(componentType)
                 && !UnifiedGeneratorRouter.isExplicitlyDisabled(c)
-                && !foldedCsgSatellite) {
+                && !foldedCsgSatellite
+                && !legalCsgEmptyHost) {
             FormacraftMod.LOGGER.error(
                     "ComponentGenerationPipeline: required component empty type={}", componentType);
             return RoutedGenerationResult.failure(
@@ -244,6 +248,19 @@ final class ComponentGenerationPipeline {
                             null,
                             authority,
                             "mass_csg_folded"),
+                    routeDiagnostics);
+        }
+        if (base.isEmpty() && legalCsgEmptyHost) {
+            FormacraftMod.LOGGER.debug(
+                    "ComponentGenerationPipeline: mass CSG host {} legal empty solid (fully carved)",
+                    componentType);
+            return UnifiedGeneratorRouter.withDiagnostics(
+                    RoutedGenerationResult.success(
+                            List.of(),
+                            ComponentExecutorId.COMPONENT_PIPELINE,
+                            null,
+                            authority,
+                            "mass_csg_empty"),
                     routeDiagnostics);
         }
 

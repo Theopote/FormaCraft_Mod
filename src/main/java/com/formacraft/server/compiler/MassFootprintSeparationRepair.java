@@ -37,7 +37,7 @@ final class MassFootprintSeparationRepair {
             return plan;
         }
         boolean interlockingIntent = asksInterlockingMasses(plan);
-        boolean separationOptIn = allowsMassSeparation(plan);
+        boolean planSeparationOptIn = planAllowsMassSeparation(plan);
         List<Component> out = new ArrayList<>(plan.components());
         boolean changed = false;
         for (int i = 0; i < out.size(); i++) {
@@ -59,57 +59,89 @@ final class MassFootprintSeparationRepair {
                 var ab = planBounds(plan, a);
                 var bb = planBounds(plan, b);
                 boolean intentionalPair = interlockingIntent && intentionalInterlockPair(a, b);
-                // Peer mass_operation / intentional_interlock also forbids nudge via classifier.
                 if (!intentionalPair && MassBooleanComposition.peersAreBooleanComposition(a, b)) {
                     intentionalPair = true;
                 }
                 MassSpatialRelation rel = MassSpatialRelation.classify(ab, bb, intentionalPair);
-                // Passage-linked keep/tower pairs keep adjacency, but CONNECTION_SEAM still
-                // collapses shallow volumetric overlap first (avoids E_PATCH_CONFLICT).
                 if (rel != MassSpatialRelation.CONNECTION_SEAM && linkedByPassage(plan, a, b)) {
                     continue;
                 }
-                // Authored interlocking / penetrating volumes keep positions; authorize shared cells.
+                // Authored interlocking: keep positions; pair-scope shared cells (not component-wide overwrite).
                 if (rel == MassSpatialRelation.INTENTIONAL_INTERLOCK) {
-                    if (stampPatchOverwrite(out, i) | stampPatchOverwrite(out, j)) {
+                    if (stampInterlockPeer(out, i, idOf(b)) | stampInterlockPeer(out, j, idOf(a))) {
                         changed = true;
                     }
                     continue;
                 }
 
-                boolean softAnnex = looksHorizontalAnnex(idOf(a).toLowerCase(Locale.ROOT))
+                boolean softAnnexHint = looksHorizontalAnnex(idOf(a).toLowerCase(Locale.ROOT))
                         || looksSideHallRole(a)
                         || looksHorizontalAnnex(idOf(b).toLowerCase(Locale.ROOT))
                         || looksSideHallRole(b);
-                // CONNECTION_SEAM: shallow shared-wall collapse for non-annex peers only.
-                // Soft annex (wing/pavilion/side hall) still needs courtyard GAP separation —
-                // seam-only contact would leave wings glued to the hall (WingSeparationDiag).
-                if (rel == MassSpatialRelation.CONNECTION_SEAM && !softAnnex) {
-                    if (priority(a) > priority(b)) continue;
-                    if (priority(a) == priority(b) && idOf(a).compareTo(idOf(b)) >= 0) continue;
-                    var beforeSeam = ab;
-                    Component seamNudged = nudgeSeamToContact(plan, a, b);
-                    if (seamNudged == a) continue;
-                    var afterSeam = planBounds(plan, seamNudged);
-                    int sdx = (beforeSeam != null && afterSeam != null)
-                            ? afterSeam.minX() - beforeSeam.minX()
-                            : seamNudged.relativePosition().x() - a.relativePosition().x();
-                    int sdy = (beforeSeam != null && afterSeam != null)
-                            ? afterSeam.minY() - beforeSeam.minY()
-                            : seamNudged.relativePosition().y() - a.relativePosition().y();
-                    int sdz = (beforeSeam != null && afterSeam != null)
-                            ? afterSeam.minZ() - beforeSeam.minZ()
-                            : seamNudged.relativePosition().z() - a.relativePosition().z();
-                    FormacraftMod.LOGGER.info(
-                            "MassFootprintSeparationRepair: seam-resolve {} vs {} → {} (Δ={},{},{})",
-                            idOf(a), idOf(b), seamNudged.relativePosition(), sdx, sdy, sdz);
-                    out.set(i, seamNudged);
-                    shiftHostedSatellites(out, a, sdx, sdy, sdz);
-                    a = seamNudged;
-                    changed = true;
-                    continue;
+                // Soft-annex name is NONBINDING_HINT for mover choice only when authorized.
+                boolean canNudge = componentAllowsMassSeparation(plan, a, planSeparationOptIn)
+                        || componentAllowsMassSeparation(plan, b, planSeparationOptIn);
+                // Courtyard soft-annex still may separate when plan-meta opt-in OR mover stamped —
+                // name alone never authorizes design-locked primary peers (P1-01).
+                if (!canNudge && softAnnexHint && !intentionalPair
+                        && (planSeparationOptIn
+                        || truthyParam(a.params(), "allow_mass_separation", "allowMassSeparation")
+                        || truthyParam(b.params(), "allow_mass_separation", "allowMassSeparation"))) {
+                    canNudge = true;
                 }
-                // Soft-annex CONNECTION_SEAM falls through as a nudgeable intersect.
+                // Legacy courtyard soft-annex: wing/pavilion may GAP-nudge without plan-wide flag
+                // (AABB3 or shallow seam). Soft-annex name alone never moves design-locked primaries.
+                if (!canNudge && softAnnexHint && !intentionalPair
+                        && (rel == MassSpatialRelation.AABB3_INTERSECT
+                        || rel == MassSpatialRelation.CONNECTION_SEAM)) {
+                    canNudge = true;
+                }
+
+                if (rel == MassSpatialRelation.CONNECTION_SEAM) {
+                    // Soft-annex shallow seam → courtyard GAP path (not seam-collapse) — Phase 02.1.
+                    if (softAnnexHint && !intentionalPair) {
+                        // fall through to AABB3-style GAP nudge below
+                    } else if (!canNudge && !linkedByPassage(plan, a, b)) {
+                        // Passage / internal_connection authorizes seam collapse for compound joins
+                        // (fortress keep↔tower); unlinked seams still need allow_mass_separation.
+                        AssemblyCompileDiagnostics.set(new CapabilityGap(
+                                "E_MASS_FOOTPRINT_CONFLICT",
+                                "CONNECTION_SEAM overlap without allow_mass_separation opt-in",
+                                "components[].relative_position",
+                                List.of(
+                                        "Set allow_mass_separation on the mover or plan_meta",
+                                        "Separate the volumes in the plan",
+                                        "Or mark intentional_interlock for shared shells"
+                                )
+                        ));
+                        return plan;
+                    } else {
+                        if (priority(a) > priority(b)) continue;
+                        if (priority(a) == priority(b) && idOf(a).compareTo(idOf(b)) >= 0) continue;
+                        var beforeSeam = ab;
+                        Component seamNudged = nudgeSeamToContact(plan, a, b);
+                        if (seamNudged == a) continue;
+                        var afterSeam = planBounds(plan, seamNudged);
+                        int sdx = (beforeSeam != null && afterSeam != null)
+                                ? afterSeam.minX() - beforeSeam.minX()
+                                : seamNudged.relativePosition().x() - a.relativePosition().x();
+                        int sdy = (beforeSeam != null && afterSeam != null)
+                                ? afterSeam.minY() - beforeSeam.minY()
+                                : seamNudged.relativePosition().y() - a.relativePosition().y();
+                        int sdz = (beforeSeam != null && afterSeam != null)
+                                ? afterSeam.minZ() - beforeSeam.minZ()
+                                : seamNudged.relativePosition().z() - a.relativePosition().z();
+                        FormacraftMod.LOGGER.info(
+                                "MassFootprintSeparationRepair: seam-resolve {} vs {} → {} (Δ={},{},{}) auth=opt-in",
+                                idOf(a), idOf(b), seamNudged.relativePosition(), sdx, sdy, sdz);
+                        out.set(i, seamNudged);
+                        shiftHostedSatellites(out, a, sdx, sdy, sdz);
+                        a = seamNudged;
+                        changed = true;
+                        continue;
+                    }
+                }
+                // Soft-annex CONNECTION_SEAM falls through as GAP nudge; other forbidsNudge skip.
                 if (rel != MassSpatialRelation.CONNECTION_SEAM
                         && (MassSpatialRelation.forbidsNudge(rel) || rel != MassSpatialRelation.AABB3_INTERSECT)) {
                     continue;
@@ -118,14 +150,13 @@ final class MassFootprintSeparationRepair {
                     continue;
                 }
 
-                boolean canNudge = separationOptIn || (softAnnex && !intentionalPair);
                 if (!canNudge) {
                     AssemblyCompileDiagnostics.set(new CapabilityGap(
                             "E_MASS_FOOTPRINT_CONFLICT",
                             "Peer masses intersect in 3D without allow_mass_separation / soft-annex opt-in",
                             "components[].relative_position",
                             List.of(
-                                    "Set plan_meta.allow_mass_separation=true",
+                                    "Set allow_mass_separation on the mover or plan_meta",
                                     "Separate the volumes in the plan",
                                     "Or mark interlocking composition via intentional_interlock / mass_composition"
                             )
@@ -140,7 +171,6 @@ final class MassFootprintSeparationRepair {
                 Component nudged = nudgeAway(plan, a, b);
                 if (nudged == a) continue;
                 var after = planBounds(plan, nudged);
-                // Delta from resolved footprints — not raw relativePosition (centre anchors differ).
                 int dx;
                 int dy;
                 int dz;
@@ -154,10 +184,9 @@ final class MassFootprintSeparationRepair {
                     dz = nudged.relativePosition().z() - a.relativePosition().z();
                 }
                 FormacraftMod.LOGGER.info(
-                        "MassFootprintSeparationRepair: move {} away from {} → {} (Δ={},{},{})",
+                        "MassFootprintSeparationRepair: move {} away from {} → {} (Δ={},{},{}) auth=opt-in/soft-annex",
                         idOf(a), idOf(b), nudged.relativePosition(), dx, dy, dz);
                 out.set(i, nudged);
-                // Keep roofs / foundations / entrances glued to the moved body.
                 shiftHostedSatellites(out, a, dx, dy, dz);
                 a = nudged;
                 changed = true;
@@ -166,40 +195,49 @@ final class MassFootprintSeparationRepair {
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
     }
 
-    /** Stamp allow_patch_overwrite so intentional interlock peers may share shell cells. */
-    private static boolean stampPatchOverwrite(List<Component> parts, int index) {
-        if (parts == null || index < 0 || index >= parts.size()) return false;
-        Component c = parts.get(index);
-        if (c == null) return false;
-        if (c.params() != null && Boolean.TRUE.equals(c.params().get("allow_patch_overwrite"))) {
+    /**
+     * Pair-scoped interlock metadata for {@link PatchOccupancyIndex} — not component-wide
+     * {@code allow_patch_overwrite} (Phase 02.2.1 Task E / P1-02).
+     */
+    private static boolean stampInterlockPeer(List<Component> parts, int index, String peerId) {
+        if (parts == null || index < 0 || index >= parts.size() || peerId == null || peerId.isBlank()) {
             return false;
         }
+        Component c = parts.get(index);
+        if (c == null) return false;
         Map<String, Object> params = new HashMap<>();
         if (c.params() != null) params.putAll(c.params());
-        params.put("allow_patch_overwrite", true);
+        Object existing = params.get("intentional_interlock_peer_id");
+        if (peerId.equals(String.valueOf(existing))) {
+            params.put("intentional_interlock_shared_cells", true);
+            parts.set(index, new Component(
+                    c.componentType(), c.slotId(), c.relativePosition(),
+                    c.dimensions(), c.features(), params));
+            return false;
+        }
+        params.put("intentional_interlock_peer_id", peerId);
         params.put("intentional_interlock_shared_cells", true);
+        // Do NOT stamp allow_patch_overwrite — occupancy enforces pair scope.
+        params.remove("allow_patch_overwrite");
         parts.set(index, new Component(
                 c.componentType(), c.slotId(), c.relativePosition(),
                 c.dimensions(), c.features(), params));
         return true;
     }
 
-    /** Plan-meta / component-level opt-in for peer mass separation. */
-    private static boolean allowsMassSeparation(LlmPlan plan) {
+    /** Plan-meta / proportion_hints opt-in (does not OR every component — P1-01). */
+    private static boolean planAllowsMassSeparation(LlmPlan plan) {
         if (plan == null) return false;
-        if (truthyParam(plan.planMeta(), "allow_mass_separation", "allowMassSeparation")
+        return truthyParam(plan.planMeta(), "allow_mass_separation", "allowMassSeparation")
                 || truthyParam(plan.planMeta(), "auto_layout", "autoLayout")
                 || truthyParam(plan.proportionHints(), "allow_mass_separation", "allowMassSeparation")
-                || truthyParam(plan.proportionHints(), "auto_layout", "autoLayout")) {
-            return true;
-        }
-        if (plan.components() == null) return false;
-        for (Component c : plan.components()) {
-            if (c != null && truthyParam(c.params(), "allow_mass_separation", "allowMassSeparation")) {
-                return true;
-            }
-        }
-        return false;
+                || truthyParam(plan.proportionHints(), "auto_layout", "autoLayout");
+    }
+
+    /** Component-scoped separation: plan opt-in or this component / its host family stamped. */
+    private static boolean componentAllowsMassSeparation(LlmPlan plan, Component c, boolean planOptIn) {
+        if (planOptIn) return true;
+        return truthyParam(c == null ? null : c.params(), "allow_mass_separation", "allowMassSeparation");
     }
 
     private static boolean truthyParam(Map<String, Object> params, String a, String b) {

@@ -108,9 +108,12 @@ class MassCompositionSamplesTest {
         assertEquals(a.relativePosition(), pos(repaired, "volume_a"));
         assertEquals(b.relativePosition(), pos(repaired, "volume_b"));
         assertFalse(AssemblyCompileDiagnostics.hasGap());
-        assertEquals(Boolean.TRUE, repaired.components().stream()
+        // Phase 02.2.1: pair-scoped peer id — not component-wide allow_patch_overwrite.
+        Component stampedA = repaired.components().stream()
                 .filter(c -> "volume_a".equals(String.valueOf(c.params().get("component_id"))))
-                .findFirst().orElseThrow().params().get("allow_patch_overwrite"));
+                .findFirst().orElseThrow();
+        assertEquals("volume_b", stampedA.params().get("intentional_interlock_peer_id"));
+        assertNotEquals(Boolean.TRUE, stampedA.params().get("allow_patch_overwrite"));
     }
 
     /** S4b: clock-tower penetration cue keeps tower through hall without gap. */
@@ -250,11 +253,12 @@ class MassCompositionSamplesTest {
         assertEquals(1, mid.offset().z());
     }
 
-    /** S10b: shallow shared-wall overlap collapses to contacting — no gap, no deep courtyard nudge. */
+    /** S10b: shallow shared-wall overlap collapses to contacting when separation is authorized. */
     @Test
     void s10b_connectionSeamCollapsesToContact() {
         Component hall = mass("main_hall_mass", -6, 0, -5, 13, 11, 9);
-        Component tower = mass("right_tower_mass", 6, 0, -4, 8, 8, 16);
+        Component tower = massWith("right_tower_mass", 6, 0, -4, 8, 8, 16,
+                Map.of("allow_mass_separation", true));
         LlmPlan repaired = MassFootprintSeparationRepair.apply(plan(hall, tower));
         assertEquals(hall.relativePosition(), pos(repaired, "main_hall_mass"));
         Vec3i towerPos = pos(repaired, "right_tower_mass");
