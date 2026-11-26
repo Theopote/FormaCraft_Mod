@@ -151,6 +151,31 @@ class BuildingQualityRecoveryPhase1Test {
     }
 
     @Test
+    void accessoryFinialDoesNotRequireTowerMorphology() {
+        Component mass = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 6), List.of(), Map.of());
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(mass))
+                .distinguishingFeatures(List.of("塔刹"))
+                .build();
+        assertTrue(PlanSemanticValidator.check(plan).isEmpty());
+    }
+
+    @Test
+    void mirroredBuildingClassDoesNotPromoteWeakIntent() {
+        Component mass = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 6), List.of(), Map.of());
+        LlmPlan plan = LlmPlanTestFixtures.builder()
+                .components(List.of(mass))
+                .planMeta(Map.of("building_class", "garden", "request_intent", Map.of(
+                        "building_class", "garden", "confidence", 0.45,
+                        "original_text", "建一座现代庭院")))
+                .distinguishingFeatures(List.of("江南园林"))
+                .build();
+        assertTrue(PlanSemanticValidator.check(plan).isEmpty());
+    }
+
+    @Test
     void romanTholosTempleMetaDoesNotTripChineseTempleGate() {
         Component cella = new Component(
                 "MASS_MAIN", "slot_tholos", new Vec3i(0, 3, 0),

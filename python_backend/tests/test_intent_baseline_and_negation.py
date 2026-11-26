@@ -40,6 +40,19 @@ def test_shared_vocab_requires_the_configured_asset(tmp_path, monkeypatch):
 
 
 class IntentBaselineTest(unittest.TestCase):
+    def test_semantic_gate_respects_resolved_negative_and_accessory_hints(self):
+        for prompt in ("this is not a pagoda, build a hall", "建一座要有塔刹的亭子"):
+            with self.subTest(prompt=prompt):
+                self.assertEqual("generic", detect_semantic_intent(prompt))
+        self.assertEqual("tower_like", detect_semantic_intent("建一座带塔刹的宝塔"))
+
+    def test_class_mirror_does_not_promote_weak_intent(self):
+        prompt = "建一座现代庭院"
+        plan = attach_request_intent({}, prompt)
+        self.assertEqual("garden", plan["plan_meta"]["building_class"])
+        self.assertEqual("generic", detect_semantic_intent(prompt, plan))
+        self.assertEqual("generic", detect_semantic_intent("江南园林", plan))
+
     def test_opening_omissions_respect_the_named_feature(self):
         for prompt, expected in [
             ("不要门廊的住宅", set()),

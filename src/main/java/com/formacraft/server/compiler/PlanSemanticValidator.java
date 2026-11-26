@@ -277,15 +277,16 @@ final class PlanSemanticValidator {
     private static IntentClass detectIntentRaw(LlmPlan plan, String originalRequestIntent, String corpus) {
         Map<String, Object> ri = requestIntentMap(plan);
         if (ri != null) {
-            IntentClass fromMeta = classFromToken(String.valueOf(ri.getOrDefault("building_class", "")));
+            String token = String.valueOf(ri.getOrDefault("building_class", "")).trim();
+            IntentClass fromMeta = classFromToken(token);
             Object confObj = ri.get("confidence");
             double conf = confObj instanceof Number n ? n.doubleValue() : 1.0;
             // Low-confidence keyword guesses must not force specialized semantic gates.
-            if (fromMeta != IntentClass.GENERIC && conf >= 0.5) {
-                return fromMeta;
+            if (fromMeta != IntentClass.GENERIC || "generic".equalsIgnoreCase(token)) {
+                return conf >= 0.5 ? fromMeta : IntentClass.GENERIC;
             }
         }
-        if (plan.planMeta() != null) {
+        if (plan.planMeta() != null && (ri == null || ri.get("building_class") == null)) {
             IntentClass fromMeta = classFromToken(String.valueOf(plan.planMeta().getOrDefault("building_class", "")));
             if (fromMeta != IntentClass.GENERIC) {
                 return fromMeta;
@@ -305,7 +306,7 @@ final class PlanSemanticValidator {
         // Last resort: LLM-authored fields only (strong markers; no 重檐 / bare 庭院).
         String weak = weakPlanCorpus(plan).toLowerCase(Locale.ROOT);
         if (containsAny(weak,
-                "佛塔", "古塔", "宝塔", "pagoda", "stupa", "dense_eaves_pagoda", "塔刹", "tibetan_stupa")) {
+                "佛塔", "古塔", "宝塔", "pagoda", "stupa", "dense_eaves_pagoda", "tibetan_stupa")) {
             return IntentClass.TOWER_LIKE;
         }
         if (containsAny(weak, "山门", "牌坊", "paifang", "寺庙山门")) {
