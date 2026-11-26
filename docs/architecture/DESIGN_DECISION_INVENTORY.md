@@ -1,5 +1,7 @@
 # Design decision inventory
 
+Python preserves a confident, specific model classification when a strong keyword suggests a different class. It records the disagreement using the same diagnostic fields as Java and the conflicting hint cannot authorize scaffolding (NONBINDING_HINT).
+
 For matching versioned intent, Java records strong keyword disagreement as diagnostic metadata without modifying the resolved class or enabling a template (NONBINDING_HINT).
 
 Java retains the design classification and provenance of a recognized versioned request intent whose echo matches the original request. Server-side literal constraint reconciliation still runs. Missing or mismatched metadata uses the legacy request-text merge.

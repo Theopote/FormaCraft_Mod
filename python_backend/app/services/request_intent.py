@@ -424,7 +424,7 @@ def merge_request_intent(
     keyword: Dict[str, Any],
     llm: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Merge keyword hints with LLM declared intent. LLM is primary unless keywords are strong."""
+    """Merge keyword hints with the model's declared intent."""
     conf_cfg = _vocab().get("confidence") or {}
     kw_override = float(conf_cfg.get("keyword_override_min") or 0.8)
     llm_min = float(conf_cfg.get("llm_preferred_min") or 0.55)
@@ -436,10 +436,12 @@ def merge_request_intent(
     if llm and isinstance(llm, dict):
         llm_class = str(llm.get("building_class") or "generic")
         llm_conf = float(llm.get("confidence") or 0.0)
-        # Strong keyword markers are treated as USER_EXPLICIT class cues from the
-        # player text (scaffold recovery / wrong-LLM repair). Weak hits cannot demote
-        # a confident LLM class. Scaffold templates still require keyword agreement.
-        if kw_conf >= kw_override and kw_class != "generic":
+        strong_keyword = kw_conf >= kw_override and kw_class != "generic"
+        confident_model = llm_conf >= llm_min and llm_class in _VALID_CLASSES
+        disagreement = strong_keyword and confident_model and llm_class not in {"generic", kw_class}
+        # Keep confident, specific model decisions on a conflict. Keyword matches
+        # can refer to an accessory or neighboring building.
+        if strong_keyword and not disagreement:
             out["building_class"] = kw_class
             out["confidence"] = kw_conf
             out["source"] = "keyword_override"
@@ -450,7 +452,7 @@ def merge_request_intent(
             if llm_class != "generic" and llm_class != kw_class:
                 out["intent_structure_mismatch"] = True
                 out["stale_building_class"] = llm_class
-        elif llm_conf >= llm_min and llm_class in _VALID_CLASSES:
+        elif confident_model:
             out["building_class"] = llm_class
             out["confidence"] = max(llm_conf, kw_conf * 0.5)
             out["source"] = "llm_declared"
@@ -501,6 +503,12 @@ def merge_request_intent(
             out["llm_declared"] = llm
 
     final_class = str(out.get("building_class") or "generic")
+    if out.get("source") == "llm_declared" and kw_conf >= kw_override and kw_class not in {"generic", final_class}:
+        out["keyword_class_disagreement"] = {
+            "resolved_class": final_class,
+            "keyword_class": kw_class,
+            "keyword_confidence": kw_conf,
+        }
     final_conf = float(out.get("confidence") or 0.0)
     scaffold_min = float(conf_cfg.get("scaffold_min") or 0.75)
     out["refuse_residential_autofill"] = final_class != "generic" and final_conf >= scaffold_min

@@ -206,18 +206,21 @@ class IntentBaselineTest(unittest.TestCase):
         self.assertEqual(merged_pagoda["source"], "keyword_override")
         self.assertEqual(merged_pagoda.get("building_class_source"), "keyword_fill")
 
-        # Strong user markers may also repair a wrong non-generic LLM class; provenance is stamped.
+        # A strong hint can flag a disagreement with the model's specific class.
         temple_kw = extract_keyword_intent("生成一座传统道观")
         self.assertEqual(temple_kw["building_class"], "temple")
         merged_repair = merge_request_intent(
             temple_kw,
             {"building_class": "garden", "confidence": 0.9},
         )
-        self.assertEqual(merged_repair["building_class"], "temple")
-        self.assertEqual(merged_repair["source"], "keyword_override")
-        self.assertEqual(merged_repair.get("building_class_source"), "keyword_user_marker")
-        self.assertEqual(merged_repair.get("stale_building_class"), "garden")
-        self.assertTrue(merged_repair.get("intent_structure_mismatch"))
+        self.assertEqual(merged_repair["building_class"], "garden")
+        self.assertEqual(merged_repair["building_class_source"], "llm_retained")
+        self.assertFalse(merged_repair["scaffold_eligible"])
+        self.assertEqual(merged_repair["keyword_class_disagreement"], {
+            "resolved_class": "garden",
+            "keyword_class": "temple",
+            "keyword_confidence": temple_kw["confidence"],
+        })
 
     def test_low_confidence_does_not_scaffold(self):
         intent = resolve_request_intent("建一座钟楼")
