@@ -48,7 +48,13 @@ final class MassCsgPeerFoldRepair {
         for (int i = 0; i < working.size(); i++) {
             Component sat = working.get(i);
             if (sat == null || MassBooleanComposition.isFoldedCsgSatellite(sat)) continue;
-            CsgOp op = MassBooleanComposition.peerMassOperation(sat);
+            CsgOp op;
+            try {
+                op = MassBooleanComposition.peerMassOperation(sat);
+            } catch (IllegalArgumentException ex) {
+                AssemblyCompileDiagnostics.set(gapFromException(ex));
+                return plan;
+            }
             if (op == null) continue;
             if (MassBooleanComposition.needsCsg(sat) && MassBooleanComposition.peerHostId(sat) == null) {
                 continue;
@@ -173,7 +179,7 @@ final class MassCsgPeerFoldRepair {
             // Preserve material / shape provenance from the satellite.
             if (sat.params() != null) {
                 for (String key : List.of("material", "wall_block", "wallBlock", "block", "block_id",
-                        "shape", "kind", "footprint", "component_id")) {
+                        "shape", "kind", "footprint", "volume_geometry", "volumeGeometry", "component_id")) {
                     if (sat.params().containsKey(key) && !child.containsKey(key)) {
                         child.put(key, sat.params().get(key));
                     }
@@ -234,18 +240,19 @@ final class MassCsgPeerFoldRepair {
 
     private static void assertBoxShape(Component sat) {
         if (sat.params() == null) return;
-        Object shape = sat.params().get("shape");
-        if (shape == null) shape = sat.params().get("kind");
-        if (shape == null) shape = sat.params().get("footprint");
-        if (shape == null) return;
-        String s = String.valueOf(shape).trim().toLowerCase(Locale.ROOT);
-        if (s.isEmpty() || "box".equals(s) || "rect".equals(s) || "rectangle".equals(s)
-                || "cube".equals(s) || "aabb".equals(s)) {
-            return;
+        // Preserve/check satellite volume_geometry — reject non-box (Phase 02.3.2 Task E).
+        for (String key : List.of("volume_geometry", "volumeGeometry", "shape", "kind", "footprint")) {
+            Object shape = sat.params().get(key);
+            if (shape == null) continue;
+            String s = String.valueOf(shape).trim().toLowerCase(Locale.ROOT);
+            if (s.isEmpty() || "box".equals(s) || "rect".equals(s) || "rectangle".equals(s)
+                    || "cube".equals(s) || "aabb".equals(s)) {
+                continue;
+            }
+            throw new IllegalArgumentException(
+                    "E_MASS_CSG_SHAPE_UNSUPPORTED: peer mass " + key + "=" + s
+                            + " (only box/rect supported for CSG fold)");
         }
-        throw new IllegalArgumentException(
-                "E_MASS_CSG_SHAPE_UNSUPPORTED: peer mass shape=" + s
-                        + " (only box/rect supported in Phase 02.2.1)");
     }
 
     private static boolean hasCycle(List<Component> working, List<int[]> edges) {

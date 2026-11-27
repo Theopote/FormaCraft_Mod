@@ -36,7 +36,8 @@ final class ExteriorIntegrityGuard {
     }
     private static BlockPos position(BlockPatch p) { return new BlockPos(p.dx(), p.dy(), p.dz()); }
     private static boolean contains(BlockPos p, PostProcessContext context) {
-        return context.buildingVolumes().stream().anyMatch(v -> v.contains(p.getX(), p.getY(), p.getZ()));
+        return context.buildingVolumes().stream()
+                .anyMatch(v -> v.occupancyContains(p.getX(), p.getY(), p.getZ()));
     }
     private static boolean exterior(BlockPos p, PostProcessContext context) {
         if (!contains(p, context)) return false;

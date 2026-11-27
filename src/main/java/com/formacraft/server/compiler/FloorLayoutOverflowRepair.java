@@ -83,8 +83,16 @@ final class FloorLayoutOverflowRepair {
                 || UserConstraintContract.isServerVerified(params, "floorHeight")
                 || TypologyParamResolver.isUserHardConstraint(params, "floor_height", "floorHeight")
                 || !DesignProvenance.canMutateParam(plan, params, "floor_height");
-        if (hostMass && !heightLocked && !(hardFloor && authoredFh <= 0)) {
-            // Grow envelope so the authored (or inferred) bands still fit.
+        // Phase 02.3.2: never grow a locked/verified envelope. Hard storey bands → overflow gap.
+        // Soft unlocked height may grow (FORMAT_REPAIR) so soft AI plans still compile.
+        // Soft floor_height into a sealed envelope may still clamp.
+        if (hardFloor) {
+            CapabilityGap gap = overflowGap(componentIndex, floorCount, floorHeight, need, envelope);
+            AssemblyCompileDiagnostics.set(gap);
+            return RepairResult.gap(component, gap);
+        }
+        if (hostMass && !heightLocked) {
+            // Soft unlocked envelope: grow so authored or inferred bands still fit.
             dims = new Dimensions(dims.width(), dims.depth(), (int) Math.min(Integer.MAX_VALUE, need));
             if (authoredFh <= 0) {
                 next.put("floor_height", floorHeight);
@@ -95,15 +103,13 @@ final class FloorLayoutOverflowRepair {
             return RepairResult.of(new Component(component.componentType(), component.slotId(),
                     component.relativePosition(), dims, component.features(), next));
         }
-        if (hardFloor) {
-            CapabilityGap gap = conflictGap(componentIndex, floorCount, floorHeight, need, envelope);
-            AssemblyCompileDiagnostics.set(gap);
-            return RepairResult.gap(component, gap);
-        }
         // Soft floor_height may shrink into the sealed envelope — never reduce floor_count.
         int clampedHeight = Math.max(hostMass ? minBand : 1, (int) Math.min(floorHeight, envelope / floorCount));
         if ((long) clampedHeight * floorCount > envelope) {
-            CapabilityGap gap = conflictGap(componentIndex, floorCount, clampedHeight,
+            CapabilityGap gap = (authoredFh > 0 || hardFloor)
+                    ? overflowGap(componentIndex, floorCount, clampedHeight,
+                    (long) clampedHeight * floorCount, envelope)
+                    : conflictGap(componentIndex, floorCount, clampedHeight,
                     (long) clampedHeight * floorCount, envelope);
             AssemblyCompileDiagnostics.set(gap);
             FormacraftMod.LOGGER.info(
@@ -118,6 +124,20 @@ final class FloorLayoutOverflowRepair {
                 floorCount, clampedHeight, envelope, heightLocked);
         return RepairResult.of(new Component(component.componentType(), component.slotId(),
                 component.relativePosition(), dims, component.features(), next));
+    }
+
+    private static CapabilityGap overflowGap(
+            int componentIndex, int floorCount, int floorHeight, long need, int envelope
+    ) {
+        return new CapabilityGap(
+                "E_FLOOR_LAYOUT_OVERFLOW",
+                "楼层空间不足：floor_count=" + floorCount + "，floor_height=" + floorHeight
+                        + "，需要 " + need + " 格，构件高度为 " + envelope + " 格（不静默抬高 envelope）。",
+                "components[" + componentIndex + "]",
+                List.of(
+                        "Increase whole-building / storey height",
+                        "Reduce floor_height or floor_count explicitly in the plan",
+                        "Re-plan storey layout"));
     }
 
     private static CapabilityGap conflictGap(

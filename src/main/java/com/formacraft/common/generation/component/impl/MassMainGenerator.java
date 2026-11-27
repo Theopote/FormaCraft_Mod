@@ -5,6 +5,7 @@ import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.generation.component.util.BuildingGeometryContext;
 import com.formacraft.common.generation.component.util.MassBooleanComposition;
+import com.formacraft.common.generation.component.util.ResolvedFloorLayout;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
 import com.formacraft.common.geometry.shape.ShapeLibrary;
@@ -21,9 +22,11 @@ import com.formacraft.FormacraftMod;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * MassMainGenerator（主体体块生成器）
@@ -342,8 +345,9 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     /**
-     * Emit CSG domain as wall shell (hollow) or solid fill.
-     * Domain is reused from {@link BuildingGeometryContext} when present (Phase 02.3.1).
+     * Emit CSG domain as wall shell (hollow) or solid fill, then storey floors
+     * {@code Floor(y) = DomainFootprint(y) − ProtectedVoids} (Phase 02.3.2).
+     * Domain is reused from {@link BuildingGeometryContext} when present.
      * Hollow: {@code W_t = D \\ Erode_4(D,t)} — never expands outer AABB.
      */
     private List<BlockPatch> emitBooleanComposite(
@@ -356,6 +360,10 @@ public class MassMainGenerator implements ComponentGenerator {
         try {
             MassBooleanComposition.CsgResult result =
                     BuildingGeometryContext.domainOrCompose(c);
+            // Legal empty CSG — no orphan floors.
+            if (result.isEmpty()) {
+                return List.of();
+            }
             String styleProfile = getStyleProfile(semantic);
             Palette palette = PaletteLibrary.forStyle(styleProfile);
             String wall = getBlockForPart(SemanticPart.WALL, semantic, palette);
@@ -368,11 +376,11 @@ public class MassMainGenerator implements ComponentGenerator {
             int wallThickness = resolveWallThickness(params, semantic);
 
             List<ShapeLibrary.Voxel> emitVoxels;
-            if (emitSolid || result.isEmpty()) {
+            if (emitSolid) {
                 emitVoxels = result.voxels();
             } else {
                 emitVoxels = result.shellWalls(wallThickness);
-                if (emitVoxels.isEmpty() && !result.isEmpty()) {
+                if (emitVoxels.isEmpty()) {
                     CompileCapabilityDiagnostics.set(new CapabilityGap(
                             "E_MASS_WALL_THICKNESS",
                             "wall_thickness=" + wallThickness + " collapses CSG domain; reduce thickness or enlarge mass",
@@ -386,14 +394,28 @@ public class MassMainGenerator implements ComponentGenerator {
                     return List.of();
                 }
             }
+
+            Set<Long> carveVoidKeys = new HashSet<>();
+            for (ShapeLibrary.Voxel v : result.carveVoids()) {
+                if (MassBooleanComposition.inPackRange3(v.x(), v.y(), v.z())) {
+                    carveVoidKeys.add(MassBooleanComposition.pack3(v.x(), v.y(), v.z()));
+                }
+            }
+            Set<Long> protectedVoids = MassBooleanComposition.protectedVoidKeys(c);
+
+            // Floors before walls so perimeter walls win at slab Y (same cell).
+            if (!emitSolid) {
+                emitDomainSectionFloors(out, semantic, c, origin, params, palette, result,
+                        carveVoidKeys, protectedVoids);
+            }
+
             for (ShapeLibrary.Voxel v : emitVoxels) {
-                out.add(new BlockPatch(
-                        BlockPatch.PLACE,
-                        origin.x() + v.x(),
-                        origin.y() + v.y(),
-                        origin.z() + v.z(),
-                        wall
-                ));
+                int wx = origin.x() + v.x();
+                int wy = origin.y() + v.y();
+                int wz = origin.z() + v.z();
+                GeneratedSurfaceCapture.Role role = shellSurfaceRole(carveVoidKeys, v.x(), v.y(), v.z());
+                GeneratedSurfaceCapture.record(wx, wy, wz, role);
+                out.add(new BlockPatch(BlockPatch.PLACE, wx, wy, wz, wall));
             }
             FormacraftMod.LOGGER.info(
                     "MassMainGenerator: boolean composite solid={} shellVoxels={}/{} thickness={} envelope={}x{}x{}",
@@ -417,6 +439,111 @@ public class MassMainGenerator implements ComponentGenerator {
             ));
             return List.of();
         }
+    }
+
+    /**
+     * Place storey slabs: {@code Floor(y) = DomainFootprint(y) − ProtectedVoids}.
+     * {@code floorYs} are slab bottoms in host-local Y; plan-space = origin + local.
+     * Slab thickness cannot push past envelope maxY — extra layers are skipped (no envelope grow).
+     */
+    private void emitDomainSectionFloors(
+            List<BlockPatch> out,
+            SemanticComponent semantic,
+            Component c,
+            Vec3i origin,
+            Map<String, Object> params,
+            Palette palette,
+            MassBooleanComposition.CsgResult result,
+            Set<Long> carveVoidKeys,
+            Set<Long> protectedVoids
+    ) {
+        int envelopeH = Math.max(1, result.envelopeHeight());
+        ResolvedFloorLayout layout = ResolvedFloorLayout.from(c, envelopeH);
+        if (!layout.fits() && layout.floorCount() > 0) {
+            int authoredFh = ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight");
+            int groundClear = ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight");
+            if (authoredFh > 0 || groundClear > 0) {
+                CompileCapabilityDiagnostics.set(new CapabilityGap(
+                        "E_FLOOR_LAYOUT_OVERFLOW",
+                        "floor_count=" + layout.floorCount() + " × storey bands do not fit envelope height="
+                                + envelopeH + " (never silently grow envelope)",
+                        "components[].params.floor_count",
+                        List.of(
+                                "Increase authored envelope height",
+                                "Reduce floor_count or floor_height explicitly",
+                                "Re-plan storey layout"
+                        )
+                ));
+            }
+        }
+        if (layout.floorYs().isEmpty()) {
+            // Default ground slab when floor_count absent — match non-CSG y==0 interior floor.
+            placeFloorSlice(out, semantic, origin, palette, result, carveVoidKeys, protectedVoids,
+                    0, 1, envelopeH);
+            return;
+        }
+        int slabThickness = Math.max(1, ComponentParamParsers.intParam(params, 1, "slab_thickness", "slabThickness"));
+        for (int fy : layout.floorYs()) {
+            placeFloorSlice(out, semantic, origin, palette, result, carveVoidKeys, protectedVoids,
+                    fy, slabThickness, envelopeH);
+        }
+    }
+
+    private void placeFloorSlice(
+            List<BlockPatch> out,
+            SemanticComponent semantic,
+            Vec3i origin,
+            Palette palette,
+            MassBooleanComposition.CsgResult result,
+            Set<Long> carveVoidKeys,
+            Set<Long> protectedVoids,
+            int slabBottomY,
+            int slabThickness,
+            int envelopeH
+    ) {
+        String floor = getBlockForPart(SemanticPart.FLOOR, semantic, palette);
+        if (floor == null || floor.isEmpty()) {
+            floor = getBlockForPart(SemanticPart.COURTYARD_FLOOR, semantic, palette);
+        }
+        if (floor == null || floor.isEmpty()) {
+            floor = "minecraft:oak_planks";
+        }
+        for (int dy = 0; dy < slabThickness; dy++) {
+            int y = slabBottomY + dy;
+            if (y < 0 || y >= envelopeH) break;
+            Set<Long> footprint = result.footprintAt(y);
+            for (long xz : footprint) {
+                int x = MassBooleanComposition.unpackX(xz);
+                int z = MassBooleanComposition.unpackZ(xz);
+                if (!MassBooleanComposition.inPackRange3(x, y, z)) continue;
+                long key = MassBooleanComposition.pack3(x, y, z);
+                if (carveVoidKeys.contains(key) || protectedVoids.contains(key)) continue;
+                out.add(new BlockPatch(
+                        BlockPatch.PLACE,
+                        origin.x() + x,
+                        origin.y() + y,
+                        origin.z() + z,
+                        floor
+                ));
+            }
+        }
+    }
+
+    /** Exterior WALL vs COURTYARD_INNER when face-adjacent to a carve void. */
+    private static GeneratedSurfaceCapture.Role shellSurfaceRole(
+            Set<Long> carveVoidKeys,
+            int x, int y, int z
+    ) {
+        if (carveVoidKeys.isEmpty()) return GeneratedSurfaceCapture.Role.WALL;
+        int[][] dirs = {{1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}, {0, 1, 0}, {0, -1, 0}};
+        for (int[] d : dirs) {
+            int nx = x + d[0], ny = y + d[1], nz = z + d[2];
+            if (MassBooleanComposition.inPackRange3(nx, ny, nz)
+                    && carveVoidKeys.contains(MassBooleanComposition.pack3(nx, ny, nz))) {
+                return GeneratedSurfaceCapture.Role.COURTYARD_INNER;
+            }
+        }
+        return GeneratedSurfaceCapture.Role.WALL;
     }
 
     private void emitMass(

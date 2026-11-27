@@ -4,8 +4,9 @@ package com.formacraft.common.generation.component.util;
  * Default indoor space policy when the user does not author clear-height / solidness.
  * <p>
  * {@code floor_height} / {@code ground_clear_height} in plan params are <b>storey bands</b>
- * (floor slab Y spacing). Indoor 净高 (clear air between slabs) is {@code band - 1}.
- * So a requested 净高 of 3 requires {@code floor_height ≥ 4}.
+ * including one slab thickness (floor slab Y spacing). Indoor 净高 (clear air between slabs)
+ * is {@code band − slab_thickness} (default slab_thickness=1 → {@code band - 1}).
+ * So a requested 净高 of 3 requires {@code floor_height ≥ 4} at default slab thickness.
  * <ul>
  *   <li>Clear height (净高) ≥ {@link #MIN_CLEAR_HEIGHT}</li>
  *   <li>Ground storey defaults taller than upper storeys</li>

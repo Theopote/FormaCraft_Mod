@@ -8,7 +8,8 @@ import java.util.function.Consumer;
 /** Generator decisions, captured only during compilation; not reconstructed from bounding boxes. */
 public final class GeneratedSurfaceCapture {
     private GeneratedSurfaceCapture() {}
-    public enum Role { WALL, WINDOW, ROOF, DOOR_OPENING, FACADE_OPENING }
+    /** WALL = exterior shell; COURTYARD_INNER = face adjacent to carve / courtyard void. */
+    public enum Role { WALL, COURTYARD_INNER, WINDOW, ROOF, DOOR_OPENING, FACADE_OPENING }
     public record Cell(BlockPos position, Role role) {
         public Cell { position = position.toImmutable(); Objects.requireNonNull(role); }
         public boolean requiresBlock() { return role != Role.DOOR_OPENING && role != Role.FACADE_OPENING; }

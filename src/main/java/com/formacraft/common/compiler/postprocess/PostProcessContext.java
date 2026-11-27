@@ -3,6 +3,7 @@ package com.formacraft.common.compiler.postprocess;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
+import com.formacraft.common.generation.component.util.MassBooleanComposition;
 import net.minecraft.util.math.BlockPos;
 import java.util.List;
 import java.util.Objects;
@@ -22,6 +23,10 @@ public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i rela
     /**
      * Compile-frame building volume with optional mass identity and lighting authority
      * (Phase 01 closeout P1-02). Prefer {@link #lightingAllowed()} over AABB guessing.
+     * <p>
+     * Phase 02.3.2: optional immutable CSG {@code domain} (+ plan-space {@code domainOrigin})
+     * copied at emit — AABB remains a cull filter; occupancy prefers {@link #domainContains}.
+     * ThreadLocal geometry context is <strong>not</strong> kept open into postprocess.
      */
     public record BuildingVolume(
             String slotId,
@@ -29,22 +34,81 @@ public record PostProcessContext(LlmPlan plan, BlockPos globalAnchor, Vec3i rela
             int floorHeight,
             String componentId,
             String buildingId,
-            boolean lightingAllowed
+            boolean lightingAllowed,
+            MassBooleanComposition.CsgResult domain,
+            Vec3i domainOrigin,
+            Set<Long> protectedVoids
     ) {
         public BuildingVolume {
             Objects.requireNonNull(bounds);
             if (bounds.width() <= 0 || bounds.depth() <= 0 || bounds.height() <= 0 || floorHeight <= 0)
                 throw new IllegalArgumentException("Invalid building volume");
+            protectedVoids = protectedVoids == null ? Set.of() : Set.copyOf(protectedVoids);
         }
 
         /** Compatibility: identity unknown, lighting allowed. */
         public BuildingVolume(String slotId, ComponentFootprintUtil.Bounds bounds, int floorHeight) {
-            this(slotId, bounds, floorHeight, null, null, true);
+            this(slotId, bounds, floorHeight, null, null, true, null, null, Set.of());
         }
 
-        public boolean contains(int x, int y, int z) {
+        /** Pre-02.3.2 identity constructor (no domain). */
+        public BuildingVolume(
+                String slotId,
+                ComponentFootprintUtil.Bounds bounds,
+                int floorHeight,
+                String componentId,
+                String buildingId,
+                boolean lightingAllowed
+        ) {
+            this(slotId, bounds, floorHeight, componentId, buildingId, lightingAllowed, null, null, Set.of());
+        }
+
+        /** AABB cull filter (half-open). */
+        public boolean boundsContains(int x, int y, int z) {
             return x >= bounds.minX() && x < bounds.maxX() && y >= bounds.minY() && y < bounds.maxY()
                 && z >= bounds.minZ() && z < bounds.maxZ();
+        }
+
+        /**
+         * Precise occupancy when domain was handed off at emit; otherwise AABB.
+         * Coordinates are plan-space (slot + component origin already applied).
+         */
+        public boolean domainContains(int x, int y, int z) {
+            if (domain == null) return boundsContains(x, y, z);
+            Vec3i o = domainOrigin == null ? new Vec3i(0, 0, 0) : domainOrigin;
+            return domain.contains(x - o.x(), y - o.y(), z - o.z());
+        }
+
+        /** Prefer domain occupancy for placement; falls back to AABB. */
+        public boolean occupancyContains(int x, int y, int z) {
+            return domain != null ? domainContains(x, y, z) : boundsContains(x, y, z);
+        }
+
+        /**
+         * Stair-well / carve reservation in plan space. Includes authored
+         * {@code protectedVoids} plus CSG carve-void cells.
+         */
+        public boolean isProtectedVoid(int x, int y, int z) {
+            Vec3i o = domainOrigin == null ? new Vec3i(0, 0, 0) : domainOrigin;
+            int lx = x - o.x();
+            int ly = y - o.y();
+            int lz = z - o.z();
+            if (!protectedVoids.isEmpty()
+                    && MassBooleanComposition.inPackRange3(lx, ly, lz)
+                    && protectedVoids.contains(MassBooleanComposition.pack3(lx, ly, lz))) {
+                return true;
+            }
+            if (domain == null) return false;
+            for (var v : domain.carveVoids()) {
+                if (v.x() == lx && v.y() == ly && v.z() == lz) return true;
+            }
+            return false;
+        }
+
+        /** @deprecated Prefer {@link #boundsContains} for cull and {@link #occupancyContains} for placement. */
+        @Deprecated
+        public boolean contains(int x, int y, int z) {
+            return boundsContains(x, y, z);
         }
     }
     public PostProcessContext {

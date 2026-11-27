@@ -1354,8 +1354,15 @@ final class ComponentEmitPass {
                 }
                 int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
                         .resolveFloorHeight(plan, c, shifted.height());
+                Vec3i domainOrigin = new Vec3i(
+                        origin.x() + offset.x(),
+                        origin.y() + offset.y(),
+                        origin.z() + offset.z());
+                Set<Long> protectedVoids = com.formacraft.common.generation.component.util
+                        .MassBooleanComposition.protectedVoidKeys(c);
                 buildingVolumes.add(new PostProcessContext.BuildingVolume(
-                        slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed));
+                        slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed,
+                        csg, domainOrigin, protectedVoids));
             } catch (IllegalArgumentException ex) {
                 FormacraftMod.LOGGER.debug(
                         "ComponentEmitPass: skip CSG building volume for {}: {}",
@@ -1364,16 +1371,55 @@ final class ComponentEmitPass {
             return;
         }
 
-        for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c)) {
-            var bounds = part.bounds();
+        // Non-CSG: one lightweight extruded footprint domain so L/U/courtyard share floor queries.
+        try {
+            var dims = c.dimensions();
+            int w = dims == null ? 1 : Math.max(1, dims.width());
+            int d = dims == null ? 1 : Math.max(1, dims.depth());
+            int h = dims == null ? 1 : Math.max(1, dims.height());
+            var footprint = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(c, w, d);
+            var domain = com.formacraft.common.generation.component.util.MassBooleanComposition
+                    .domainFromFootprint(footprint, h, componentId);
+            Vec3i origin = com.formacraft.common.generation.component.util
+                    .ComponentFootprintUtil.resolveMinCornerOrigin(c);
+            if (origin == null) origin = c.relativePosition() == null
+                    ? new Vec3i(0, 0, 0) : c.relativePosition();
             var shifted = new ComponentFootprintUtil.Bounds(
-                    bounds.minX() + offset.x(), bounds.minY() + offset.y(),
-                    bounds.minZ() + offset.z(), bounds.maxX() + offset.x(),
-                    bounds.maxY() + offset.y(), bounds.maxZ() + offset.z());
+                    origin.x() + offset.x(),
+                    origin.y() + offset.y(),
+                    origin.z() + offset.z(),
+                    origin.x() + offset.x() + w,
+                    origin.y() + offset.y() + h,
+                    origin.z() + offset.z() + d);
+            if (shifted.width() <= 0 || shifted.depth() <= 0 || shifted.height() <= 0) {
+                return;
+            }
             int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
                     .resolveFloorHeight(plan, c, shifted.height());
+            Vec3i domainOrigin = new Vec3i(
+                    origin.x() + offset.x(),
+                    origin.y() + offset.y(),
+                    origin.z() + offset.z());
+            Set<Long> protectedVoids = com.formacraft.common.generation.component.util
+                    .MassBooleanComposition.protectedVoidKeys(c);
             buildingVolumes.add(new PostProcessContext.BuildingVolume(
-                    slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed));
+                    slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed,
+                    domain.isEmpty() ? null : domain, domainOrigin, protectedVoids));
+        } catch (IllegalArgumentException ex) {
+            FormacraftMod.LOGGER.debug(
+                    "ComponentEmitPass: non-CSG domain fallback for {}: {}",
+                    componentId, ex.getMessage());
+            for (var part : com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c)) {
+                var bounds = part.bounds();
+                var shifted = new ComponentFootprintUtil.Bounds(
+                        bounds.minX() + offset.x(), bounds.minY() + offset.y(),
+                        bounds.minZ() + offset.z(), bounds.maxX() + offset.x(),
+                        bounds.maxY() + offset.y(), bounds.maxZ() + offset.z());
+                int floorHeight = com.formacraft.common.generation.component.util.ComponentFloorCorniceDecorator
+                        .resolveFloorHeight(plan, c, shifted.height());
+                buildingVolumes.add(new PostProcessContext.BuildingVolume(
+                        slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed));
+            }
         }
     }
 

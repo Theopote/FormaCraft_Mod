@@ -63,19 +63,40 @@ def resolve_buildings(plan: dict) -> list[dict]:
         origin = mass_origin(component)
         slot_anchor = slots.get(component.get('slot_id'), {}).get('anchor') or {}
         plan_origin = {axis: origin[axis] + int(slot_anchor.get(axis, 0)) for axis in ('x', 'y', 'z')}
+        # floor_height / ground_clear_height = storey band including one slab (Java parity).
         height = explicit_floor_height(component)
+        slab_thickness = max(1, _integer(params.get('slab_thickness') or params.get('slabThickness'), 1))
+        ground_clear = _integer(params.get('ground_clear_height') or params.get('groundClearHeight'))
         count = _integer(params.get('floor_count') or params.get('floorCount'))
         envelope_height = int(dimensions.get('height', 1))
         authored_height = _integer((component.get('dimensions') or {}).get('height'), envelope_height)
-        fitting = min(count, (max(1, envelope_height)-1)//height+1) if count > 0 and height > 0 else 0
+        band = height if height > 0 else 0
+        floor_ys_local = []
+        if count > 0 and band > 0:
+            y = origin['y']
+            for floor_i in range(count):
+                floor_ys_local.append(y)
+                step = ground_clear if floor_i == 0 and ground_clear > 0 else band
+                y += max(1, step)
+        if count > 0 and band > 0:
+            if ground_clear > 0:
+                need = ground_clear + max(0, count - 1) * band
+            else:
+                need = count * band
+            fits = need <= envelope_height
+        else:
+            need = max(0, count) * band
+            fits = True
         result.append({'component_id': params.get('component_id'), 'slot_id': component.get('slot_id'),
                        'local_origin': origin, 'plan_origin': plan_origin, 'dimensions': dict(dimensions),
-                       'floor_ys_local': [origin['y'] + n*height for n in range(fitting)],
+                       'floor_ys_local': floor_ys_local,
                        'roof_y_local': origin['y'] + envelope_height-1,
-                       'floor_layout_fits': count <= 0 or height <= 0 or count*height <= envelope_height,
+                       'floor_layout_fits': fits,
+                       'slab_thickness': slab_thickness,
+                       'clear_height': max(0, band - slab_thickness) if band > 0 else 0,
                        'floor_layout_path': f'components[{index}]',
                        'available_floor_layout_height': authored_height,
-                       'required_floor_layout_height': max(0, count) * height,
+                       'required_floor_layout_height': need,
                        'coordinate_stage': 'plan', 'geometry_status': 'parameters_only',
                        'multi_mass': multi_mass_geometry(component)})
     return result

@@ -158,7 +158,8 @@ public class PostProcessWriteScope {
 
         private boolean inVolume(BlockPos p) {
             for (var v : ctx.buildingVolumes()) {
-                if (v.contains(p.getX(), p.getY(), p.getZ())) return true;
+                // Prefer domain occupancy when Phase 02.3.2 handoff attached a CSG domain.
+                if (v.occupancyContains(p.getX(), p.getY(), p.getZ())) return true;
             }
             return false;
         }

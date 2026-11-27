@@ -132,14 +132,15 @@ public final class MassBooleanComposition {
             return voxels.isEmpty();
         }
 
-        /** Average O(1) occupancy probe. */
+        /** Average O(1) occupancy probe — out-of-pack coordinates are false (never throw). */
         public boolean contains(int x, int y, int z) {
+            if (!inPackRange3(x, y, z)) return false;
             return occupied.contains(pack3(x, y, z));
         }
 
         /**
          * 6-neighborhood surface: solid with a missing face neighbor, or empty cell
-         * face-adjacent to a solid.
+         * face-adjacent to a solid. Neighbor probes never throw on pack overflow.
          */
         public boolean isBoundary(int x, int y, int z) {
             if (contains(x, y, z)) {
@@ -240,27 +241,97 @@ public final class MassBooleanComposition {
     private MassBooleanComposition() {}
 
     /**
-     * True when nested masses declare any non-ADD/UNION operation, or the host was marked
-     * for peer boolean fold ({@code mass_boolean_composition}) including UNION interlock.
+     * True when nested {@code masses[]} need a unified shell (Phase 02.3.2 Task D):
+     * <ul>
+     *   <li>any SUBTRACT/INTERSECT → boolean compose</li>
+     *   <li>explicit ADD/UNION on size≥2 → one UNION domain + shared floors (no mid partition)</li>
+     *   <li>{@code mass_boolean_composition} with size≥2 → CSG</li>
+     *   <li>bare tier lists without {@code operation} stay on {@link ResolvedMassPart}
+     *       (stepped / replace_envelope) — not forced into CSG</li>
+     * </ul>
+     * Independent peer components remain separate (shared-wall cleanup is 02.3.3).
      */
     public static boolean needsCsg(Component component) {
         if (component == null || component.params() == null) return false;
+        Object masses = component.params().get("masses");
         if (Boolean.TRUE.equals(component.params().get("mass_boolean_composition"))
                 || Boolean.TRUE.equals(component.params().get("massBooleanComposition"))) {
-            Object masses = component.params().get("masses");
             return masses instanceof List<?> list && list.size() >= 2;
         }
-        Object masses = component.params().get("masses");
-        if (!(masses instanceof List<?> list) || list.isEmpty()) return false;
+        if (!(masses instanceof List<?> list) || list.size() < 2) return false;
+        boolean sawExplicitOp = false;
         for (Object item : list) {
             if (!(item instanceof Map<?, ?> raw)) continue;
             Object rawOp = raw.get("operation");
             if (rawOp == null) rawOp = raw.get("op");
             if (rawOp == null) continue;
+            sawExplicitOp = true;
             CsgOp op = parseOpStrict(rawOp);
             if (op != CsgOp.UNION) return true;
         }
-        return false;
+        // Explicit ADD/UNION-only annexes → unified shell; bare stepped tiers → false.
+        return sawExplicitOp;
+    }
+
+    /**
+     * Stair-well / protected void reservation keys in envelope-local pack3 space.
+     * Empty this phase unless params declare {@code protected_voids} / {@code stair_voids}
+     * as list of {x,y,z} maps — full stair systems are out of scope (02.3.2 interface only).
+     */
+    public static Set<Long> protectedVoidKeys(Component component) {
+        if (component == null || component.params() == null) return Set.of();
+        Object raw = component.params().get("protected_voids");
+        if (raw == null) raw = component.params().get("protectedVoids");
+        if (raw == null) raw = component.params().get("stair_voids");
+        if (raw == null) raw = component.params().get("stairVoids");
+        if (!(raw instanceof List<?> list) || list.isEmpty()) return Set.of();
+        Set<Long> out = new LinkedHashSet<>();
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> m)) continue;
+            int x = intFrom(m.get("x"), 0);
+            int y = intFrom(m.get("y"), 0);
+            int z = intFrom(m.get("z"), 0);
+            if (!inPackRange3(x, y, z)) continue;
+            out.add(pack3(x, y, z));
+        }
+        return Set.copyOf(out);
+    }
+
+    private static int intFrom(Object raw, int fallback) {
+        if (raw instanceof Number n) return n.intValue();
+        if (raw == null) return fallback;
+        try {
+            return Integer.parseInt(String.valueOf(raw).trim());
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
+    /**
+     * Extrude a 2D footprint occupancy into a lightweight domain (non-CSG L/U/courtyard
+     * share the same floor / postprocess query API without forcing boolean compose).
+     */
+    public static CsgResult domainFromFootprint(ResolvedFootprint footprint, int height, String sourceOwnerId) {
+        if (footprint == null) {
+            return fromVoxels(List.of(), sourceOwnerId);
+        }
+        int h = Math.max(1, height);
+        List<ShapeLibrary.Voxel> voxels = new ArrayList<>();
+        long budget = 0L;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < footprint.width(); x++) {
+                for (int z = 0; z < footprint.depth(); z++) {
+                    if (!footprint.contains(x, z)) continue;
+                    budget++;
+                    if (budget > MAX_CSG_VOXELS) {
+                        throw new IllegalArgumentException(
+                                "E_MASS_CSG_BUDGET: footprint extrude exceeds " + MAX_CSG_VOXELS + " voxels");
+                    }
+                    voxels.add(new ShapeLibrary.Voxel(x, y, z));
+                }
+            }
+        }
+        return fromVoxels(voxels, sourceOwnerId);
     }
 
     /** Peer satellite folded into a host CSG child (skip solid self-emit). */
@@ -376,7 +447,15 @@ public final class MassBooleanComposition {
         }
         long budgetProbe = 0L;
         for (CsgPart p : parts) {
-            budgetProbe += (long) Math.max(1, p.width()) * Math.max(1, p.depth()) * Math.max(1, p.height());
+            try {
+                long cell = Math.multiplyExact(
+                        Math.multiplyExact((long) Math.max(1, p.width()), Math.max(1, p.depth())),
+                        Math.max(1, p.height()));
+                budgetProbe = Math.addExact(budgetProbe, cell);
+            } catch (ArithmeticException ex) {
+                throw new IllegalArgumentException(
+                        "E_MASS_CSG_BUDGET: composite mass exceeds " + MAX_CSG_VOXELS + " voxel probe");
+            }
             if (budgetProbe > MAX_CSG_VOXELS) {
                 throw new IllegalArgumentException(
                         "E_MASS_CSG_BUDGET: composite mass exceeds " + MAX_CSG_VOXELS + " voxel probe");
@@ -658,27 +737,43 @@ public final class MassBooleanComposition {
         return "true".equals(s) || "1".equals(s) || "yes".equals(s);
     }
 
-    /** Pack x,y,z with 21-bit signed bias (supports ±1M). */
-    public static long pack3(int x, int y, int z) {
+    /** True when (x,y,z) fits the 21-bit signed pack (supports ±1M). */
+    public static boolean inPackRange3(int x, int y, int z) {
         final int b = 1 << 20;
         long X = (long) x + b;
         long Y = (long) y + b;
         long Z = (long) z + b;
-        if ((X & ~0x1FFFFFL) != 0 || (Y & ~0x1FFFFFL) != 0 || (Z & ~0x1FFFFFL) != 0) {
+        return (X & ~0x1FFFFFL) == 0 && (Y & ~0x1FFFFFL) == 0 && (Z & ~0x1FFFFFL) == 0;
+    }
+
+    public static boolean inPackRange2(int x, int z) {
+        final int b = 1 << 20;
+        long X = (long) x + b;
+        long Z = (long) z + b;
+        return (X & ~0x1FFFFFL) == 0 && (Z & ~0x1FFFFFL) == 0;
+    }
+
+    /** Pack x,y,z with 21-bit signed bias (supports ±1M). */
+    public static long pack3(int x, int y, int z) {
+        if (!inPackRange3(x, y, z)) {
             throw new IllegalArgumentException(
                     "E_MASS_CSG_BUDGET: coordinate out of pack range (" + x + "," + y + "," + z + ")");
         }
+        final int b = 1 << 20;
+        long X = (long) x + b;
+        long Y = (long) y + b;
+        long Z = (long) z + b;
         return (X << 42) | (Y << 21) | Z;
     }
 
     public static long pack2(int x, int z) {
-        final int b = 1 << 20;
-        long X = (long) x + b;
-        long Z = (long) z + b;
-        if ((X & ~0x1FFFFFL) != 0 || (Z & ~0x1FFFFFL) != 0) {
+        if (!inPackRange2(x, z)) {
             throw new IllegalArgumentException(
                     "E_MASS_CSG_BUDGET: coordinate out of pack range (" + x + ",?," + z + ")");
         }
+        final int b = 1 << 20;
+        long X = (long) x + b;
+        long Z = (long) z + b;
         return (X << 21) | Z;
     }
 
@@ -709,13 +804,18 @@ public final class MassBooleanComposition {
             int x = unpack3X(key);
             int y = unpack3Y(key);
             int z = unpack3Z(key);
-            if (domain.contains(pack3(x - 1, y, z))
-                    && domain.contains(pack3(x + 1, y, z))
-                    && domain.contains(pack3(x, y, z - 1))
-                    && domain.contains(pack3(x, y, z + 1))) {
+            if (packContains(domain, x - 1, y, z)
+                    && packContains(domain, x + 1, y, z)
+                    && packContains(domain, x, y, z - 1)
+                    && packContains(domain, x, y, z + 1)) {
                 next.add(key);
             }
         }
         return next;
+    }
+
+    private static boolean packContains(Set<Long> domain, int x, int y, int z) {
+        if (!inPackRange3(x, y, z)) return false;
+        return domain.contains(pack3(x, y, z));
     }
 }

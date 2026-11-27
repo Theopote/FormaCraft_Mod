@@ -8,10 +8,34 @@ import java.util.Map;
 
 /**
  * Shared storey spacing for mass shells, facade windows, and related openings.
+ * <p>
+ * <b>Canonical storey contract (Phase 02.3.2):</b>
+ * <ul>
+ *   <li>{@code floor_height} / {@code ground_clear_height} = storey <em>band</em> including
+ *       one slab thickness (existing Java meaning — not clear-air alone).</li>
+ *   <li>{@code slab_thickness} defaults to {@code 1}; clear-air height = band − slab_thickness
+ *       (see {@link InteriorSpaceDefaults}).</li>
+ *   <li>{@link #floorYs()} are slab <em>bottom</em> Y in <strong>host-local</strong> coordinates
+ *       (MassMain {@code y==0} / {@code interiorFloorLevels.contains(y)}). Plan-space Y =
+ *       host origin + slot + local Y.</li>
+ *   <li>When {@code floor_count × bands} exceed the authored envelope, {@link #fits()} is false —
+ *       callers must surface {@code E_FLOOR_LAYOUT_OVERFLOW} / conflict gap; never silently grow
+ *       the envelope.</li>
+ * </ul>
  * Authority: explicit floor_height, else envelope/floor_count (clamped to min clear height),
  * else {@link InteriorSpaceDefaults#defaultStoreyHeight}.
  */
-public record ResolvedFloorLayout(int floorHeight, int floorCount, List<Integer> floorYs, boolean fits) {
+public record ResolvedFloorLayout(
+        int floorHeight,
+        int floorCount,
+        List<Integer> floorYs,
+        boolean fits,
+        int slabThickness
+) {
+
+    public ResolvedFloorLayout(int floorHeight, int floorCount, List<Integer> floorYs, boolean fits) {
+        this(floorHeight, floorCount, floorYs, fits, 1);
+    }
 
     public static ResolvedFloorLayout from(Component component, int envelopeHeight) {
         Map<String, Object> params = component == null ? null : component.params();
@@ -22,6 +46,7 @@ public record ResolvedFloorLayout(int floorHeight, int floorCount, List<Integer>
         }
         int floorCount = ComponentParamParsers.intParam(params, 0, "floor_count", "floorCount");
         int groundClear = ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight");
+        int slabThickness = Math.max(1, ComponentParamParsers.intParam(params, 1, "slab_thickness", "slabThickness"));
         int height = Math.max(1, envelopeHeight);
 
         int floorHeight;
@@ -57,7 +82,12 @@ public record ResolvedFloorLayout(int floorHeight, int floorCount, List<Integer>
         } else {
             fits = (long) floorHeight * floorCount <= height;
         }
-        return new ResolvedFloorLayout(floorHeight, floorCount, List.copyOf(levels), fits);
+        return new ResolvedFloorLayout(floorHeight, floorCount, List.copyOf(levels), fits, slabThickness);
+    }
+
+    /** Clear-air height for a storey band (band − slab thickness). */
+    public int clearHeight() {
+        return Math.max(0, floorHeight - slabThickness);
     }
 
     /** Band period for window placement; never silently raised to 3. */

@@ -47,13 +47,13 @@ class FloorLayoutOverflowRepairTest {
 
         LlmPlan out = FloorLayoutOverflowRepair.apply(plan);
         assertTrue(out.hasCapabilityGap(), "must not silently drop floor_count");
-        assertEquals("E_FLOOR_LAYOUT_CONFLICT", out.capabilityGap().code());
+        assertEquals("E_FLOOR_LAYOUT_OVERFLOW", out.capabilityGap().code());
         assertEquals(5, ((Number) out.components().getFirst().params().get("floor_count")).intValue());
         assertEquals(10, out.components().getFirst().dimensions().height());
     }
 
     @Test
-    void unsealedHeightGrowsEnvelopeForFiveFloors() {
+    void unsealedHeightGrowsEnvelopeForSoftAuthoredBands() {
         Map<String, Object> params = new HashMap<>();
         params.put("component_id", "tower");
         params.put("floor_count", 5);
@@ -114,7 +114,7 @@ class FloorLayoutOverflowRepairTest {
         assertEquals(List.of(mass), out.components());
         assertEquals(conflict, out.hasCapabilityGap());
         if (conflict) {
-            assertEquals("E_FLOOR_LAYOUT_CONFLICT", out.capabilityGap().code());
+            assertEquals("E_FLOOR_LAYOUT_OVERFLOW", out.capabilityGap().code());
             assertEquals("components[0]", out.capabilityGap().path());
         }
     }

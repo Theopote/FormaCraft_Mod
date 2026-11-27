@@ -115,8 +115,24 @@ final class MassFootprintSeparationRepair {
                     } else {
                         if (priority(a) > priority(b)) continue;
                         if (priority(a) == priority(b) && idOf(a).compareTo(idOf(b)) >= 0) continue;
-                        // Seam collapse is GEOMETRY for passage/COMPOUND/opt-in — mover need not be
-                        // soft-annex; opt-in/passage/compound already gated above.
+                        // Phase 02.3.2 Task E: opt-in / soft-annex seams authorize the chosen mover.
+                        // Passage link + authored COMPOUND primary join remain GEOMETRY (no mover stamp).
+                        boolean compoundOrPassage = linkedByPassage(plan, a, b)
+                                || authoredCompoundSeamJoin(plan, a, b);
+                        if (!compoundOrPassage
+                                && !moverAuthorized(plan, a, planSeparationOptIn, aSoftAnnex, intentionalPair)) {
+                            AssemblyCompileDiagnostics.set(new CapabilityGap(
+                                    "E_MASS_FOOTPRINT_CONFLICT",
+                                    "CONNECTION_SEAM chosen mover lacks allow_mass_separation",
+                                    "components[].params.allow_mass_separation",
+                                    List.of(
+                                            "Stamp allow_mass_separation on the mass that should move",
+                                            "Or set plan_meta.allow_mass_separation=true",
+                                            "Or separate volumes in the plan"
+                                    )
+                            ));
+                            return plan;
+                        }
                         var beforeSeam = ab;
                         Component seamNudged = nudgeSeamToContact(plan, a, b);
                         if (seamNudged == a) continue;
@@ -131,7 +147,7 @@ final class MassFootprintSeparationRepair {
                                 ? afterSeam.minZ() - beforeSeam.minZ()
                                 : seamNudged.relativePosition().z() - a.relativePosition().z();
                         FormacraftMod.LOGGER.info(
-                                "MassFootprintSeparationRepair: seam-resolve {} vs {} → {} (Δ={},{},{}) auth=opt-in/compound",
+                                "MassFootprintSeparationRepair: seam-resolve {} vs {} → {} (Δ={},{},{}) auth=moverAuthorized",
                                 idOf(a), idOf(b), seamNudged.relativePosition(), sdx, sdy, sdz);
                         out.set(i, seamNudged);
                         shiftHostedSatellites(out, a, sdx, sdy, sdz);

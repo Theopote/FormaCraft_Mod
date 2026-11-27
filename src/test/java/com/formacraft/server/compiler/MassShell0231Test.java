@@ -132,6 +132,89 @@ class MassShell0231Test {
     }
 
     @Test
+    void w04_lUnionShellContinuous() {
+        Map<String, Object> extra = csgMasses(List.of(
+                Map.of("operation", "add",
+                        "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 10, "depth", 4, "height", 4)),
+                Map.of("operation", "add",
+                        "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 4, "depth", 10, "height", 4))
+        ));
+        extra.put("hollow", true);
+        var blocks = generate(boxMass("l_shell", 10, 10, 4, extra));
+        assertNotNull(blocks.get(new Vec3i(0, 1, 0)));
+        assertNull(blocks.get(new Vec3i(8, 1, 8)), "L exterior void");
+        // Interior of arm should be hollow (not solid fill)
+        assertNull(blocks.get(new Vec3i(2, 1, 1)));
+    }
+
+    @Test
+    void w05_courtyardLikeSubtractShell() {
+        Map<String, Object> extra = csgMasses(List.of(
+                Map.of("operation", "add",
+                        "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 12, "depth", 12, "height", 4)),
+                Map.of("operation", "subtract",
+                        "offset", Map.of("x", 3, "y", 0, "z", 3),
+                        "dimensions", Map.of("width", 6, "depth", 6, "height", 4))
+        ));
+        extra.put("hollow", true);
+        var blocks = generate(boxMass("court_shell", 12, 12, 4, extra));
+        assertNotNull(blocks.get(new Vec3i(0, 1, 0)));
+        assertNull(blocks.get(new Vec3i(5, 1, 5)));
+        // Rim of subtract is solid shell facing the atrium (carve starts at 3,3).
+        assertTrue(blocks.get(new Vec3i(2, 1, 5)) != null
+                || blocks.get(new Vec3i(3, 1, 2)) != null
+                || blocks.get(new Vec3i(2, 1, 2)) != null);
+    }
+
+    @Test
+    void w07_addOnlyUnifiedNoMidPartition() {
+        Map<String, Object> extra = csgMasses(List.of(
+                Map.of("operation", "add",
+                        "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 8, "depth", 8, "height", 4)),
+                Map.of("operation", "add",
+                        "offset", Map.of("x", 6, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 8, "depth", 8, "height", 4))
+        ));
+        extra.put("hollow", true);
+        Component c = boxMass("add_only", 14, 8, 4, extra);
+        assertTrue(MassBooleanComposition.needsCsg(c));
+        var blocks = generate(c);
+        // Mid-overlap interior continuous — not a dual-shell partition wall at x=7
+        assertNull(blocks.get(new Vec3i(7, 1, 4)));
+        assertNotNull(blocks.get(new Vec3i(0, 1, 0)));
+        assertNotNull(blocks.get(new Vec3i(13, 1, 0)));
+    }
+
+    @Test
+    void w10_generatedSurfaceCaptureOnCsgShell() {
+        Map<String, Object> extra = csgMasses(List.of(
+                Map.of("operation", "add",
+                        "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 8, "depth", 8, "height", 3)),
+                Map.of("operation", "subtract",
+                        "offset", Map.of("x", 2, "y", 0, "z", 2),
+                        "dimensions", Map.of("width", 4, "depth", 4, "height", 3))
+        ));
+        extra.put("hollow", true);
+        Component c = boxMass("capture", 8, 8, 3, extra);
+        List<com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Cell> cells =
+                new java.util.ArrayList<>();
+        try (var scope = com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.captureTo(cells::add)) {
+            new MassMainGenerator().generate(new SemanticComponent("MASS_MAIN", null, c));
+        }
+        assertFalse(cells.isEmpty());
+        assertTrue(cells.stream().anyMatch(cell ->
+                cell.role() == com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.WALL
+                        || cell.role() == com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.COURTYARD_INNER));
+        assertTrue(cells.stream().anyMatch(cell ->
+                cell.role() == com.formacraft.common.generation.component.util.GeneratedSurfaceCapture.Role.COURTYARD_INNER));
+    }
+
+    @Test
     void w08_subtractAtriumHollowShell() {
         Map<String, Object> extra = new HashMap<>();
         extra.put("hollow", true);
