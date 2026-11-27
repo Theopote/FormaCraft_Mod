@@ -70,11 +70,14 @@ def resolve_buildings(plan: dict) -> list[dict]:
         count = _integer(params.get('floor_count') or params.get('floorCount'))
         envelope_height = int(dimensions.get('height', 1))
         authored_height = _integer((component.get('dimensions') or {}).get('height'), envelope_height)
-        band = height if height > 0 else 0
+        # Java ResolvedFloorLayout: explicit floor_height, else max(minStoreyBand=4, envelope/count).
+        band = height if height > 0 else (max(4, envelope_height // count) if count > 0 else 0)
         floor_ys_local = []
         if count > 0 and band > 0:
             y = origin['y']
             for floor_i in range(count):
+                if floor_i > 0 and (y - origin['y']) >= envelope_height:
+                    break
                 floor_ys_local.append(y)
                 step = ground_clear if floor_i == 0 and ground_clear > 0 else band
                 y += max(1, step)

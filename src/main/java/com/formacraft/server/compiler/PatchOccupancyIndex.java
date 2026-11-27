@@ -803,9 +803,10 @@ public final class PatchOccupancyIndex {
     }
 
     /**
-     * Pair-scoped intentional interlock (Phase 02.2.1 Task E / P1-02).
+     * Pair-scoped intentional interlock (Phase 02.2.1 Task E / P1-02; 02.3.3 Task F multi-peer).
      * Writer may overwrite previous only when each side names the other via
-     * {@code intentional_interlock_peer_id}. A∩B grant does not clear B∩C.
+     * {@code intentional_interlock_peer_id} or {@code intentional_interlock_peer_ids}.
+     * A↔B and B↔C may both hold; A∩B grant does not clear A↔C.
      * Component-wide {@code allow_patch_overwrite} is not used for this path.
      */
     static boolean isIntentionalInterlockPeerJoin(Component writer, PlaceRecord previous) {
@@ -814,10 +815,8 @@ public final class PatchOccupancyIndex {
         String writerId = componentIdOf(writer);
         String prevId = componentIdOf(previous.owner());
         if (writerId.isEmpty() || prevId.isEmpty()) return false;
-        String writerPeer = peerIdOf(writer);
-        String prevPeer = peerIdOf(previous.owner());
-        // Mutual pair only — A↔B does not authorize A↔C or B↔C.
-        return !writerPeer.isEmpty() && writerPeer.equals(prevId) && prevPeer.equals(writerId);
+        // Mutual pair only — A↔B does not authorize A↔C.
+        return peerIdsOf(writer).contains(prevId) && peerIdsOf(previous.owner()).contains(writerId);
     }
 
     private static String componentIdOf(Component c) {
@@ -825,6 +824,24 @@ public final class PatchOccupancyIndex {
         Object id = c.params().get("component_id");
         if (id == null) id = c.params().get("componentId");
         return id == null ? "" : String.valueOf(id).trim();
+    }
+
+    /** Multi-peer set: single peer_id plus peer_ids list (Phase 02.3.3 Task F). */
+    private static java.util.Set<String> peerIdsOf(Component c) {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        if (c == null || c.params() == null) return out;
+        String single = peerIdOf(c);
+        if (!single.isEmpty()) out.add(single);
+        Object raw = c.params().get("intentional_interlock_peer_ids");
+        if (raw == null) raw = c.params().get("intentionalInterlockPeerIds");
+        if (raw instanceof java.util.Collection<?> col) {
+            for (Object o : col) {
+                if (o == null) continue;
+                String s = String.valueOf(o).trim();
+                if (!s.isEmpty() && !"null".equalsIgnoreCase(s)) out.add(s);
+            }
+        }
+        return out;
     }
 
     private static String peerIdOf(Component c) {

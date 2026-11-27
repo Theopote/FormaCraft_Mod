@@ -4,6 +4,7 @@ import com.formacraft.common.generation.CompileCapabilityDiagnostics;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.generation.component.util.BuildingGeometryContext;
+import com.formacraft.common.generation.component.util.InteriorSpaceDefaults;
 import com.formacraft.common.generation.component.util.MassBooleanComposition;
 import com.formacraft.common.generation.component.util.ResolvedFloorLayout;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
@@ -409,10 +410,16 @@ public class MassMainGenerator implements ComponentGenerator {
                         carveVoidKeys, protectedVoids);
             }
 
+            Set<Long> junctionOmit = junctionOmitCells(params);
             for (ShapeLibrary.Voxel v : emitVoxels) {
                 int wx = origin.x() + v.x();
                 int wy = origin.y() + v.y();
                 int wz = origin.z() + v.z();
+                if (!junctionOmit.isEmpty()
+                        && MassBooleanComposition.inPackRange3(wx, wy, wz)
+                        && junctionOmit.contains(MassBooleanComposition.pack3(wx, wy, wz))) {
+                    continue;
+                }
                 GeneratedSurfaceCapture.Role role = shellSurfaceRole(carveVoidKeys, v.x(), v.y(), v.z());
                 GeneratedSurfaceCapture.record(wx, wy, wz, role);
                 out.add(new BlockPatch(BlockPatch.PLACE, wx, wy, wz, wall));
@@ -443,8 +450,9 @@ public class MassMainGenerator implements ComponentGenerator {
 
     /**
      * Place storey slabs: {@code Floor(y) = DomainFootprint(y) − ProtectedVoids}.
-     * {@code floorYs} are slab bottoms in host-local Y; plan-space = origin + local.
-     * Slab thickness cannot push past envelope maxY — extra layers are skipped (no envelope grow).
+     * {@code floorYs} are slab bottoms in <strong>host-local</strong> Y (authored datum unchanged
+     * by carve). Placement queries absolute domain Y in {@code [minY, maxY)}; empty slices skip —
+     * never remap all floors by {@code +minY}.
      */
     private void emitDomainSectionFloors(
             List<BlockPatch> out,
@@ -457,8 +465,24 @@ public class MassMainGenerator implements ComponentGenerator {
             Set<Long> carveVoidKeys,
             Set<Long> protectedVoids
     ) {
-        int envelopeH = Math.max(1, result.envelopeHeight());
-        ResolvedFloorLayout layout = ResolvedFloorLayout.from(c, envelopeH);
+        // Fit check uses authored envelope height (dimensions), not post-carve span.
+        int authoredEnvelope = c.dimensions() != null ? Math.max(1, c.dimensions().height())
+                : Math.max(1, result.envelopeHeight());
+        ResolvedFloorLayout layout = ResolvedFloorLayout.from(c, authoredEnvelope);
+        int slabThickness = Math.max(1, layout.slabThickness());
+        if (layout.floorCount() > 0 && slabThickness >= Math.max(1, layout.floorHeight())
+                && InteriorSpaceDefaults.shouldHollowByDefault(
+                getParamBoolean(params, "solid", "solid_core", "solidCore"),
+                params != null && Boolean.FALSE.equals(params.get("hollow")),
+                Math.max(1, result.envelopeWidth()), Math.max(1, result.envelopeDepth()), authoredEnvelope)) {
+            CompileCapabilityDiagnostics.set(new CapabilityGap(
+                    "E_FLOOR_SLAB_CLEARANCE",
+                    "slab_thickness=" + slabThickness + " leaves no clear air in floor_height="
+                            + layout.floorHeight(),
+                    "components[].params.slab_thickness",
+                    List.of("Reduce slab_thickness", "Increase floor_height", "Or set solid=true")
+            ));
+        }
         if (!layout.fits() && layout.floorCount() > 0) {
             int authoredFh = ComponentParamParsers.intParam(params, 0, "floor_height", "floorHeight");
             int groundClear = ComponentParamParsers.intParam(params, 0, "ground_clear_height", "groundClearHeight");
@@ -466,7 +490,7 @@ public class MassMainGenerator implements ComponentGenerator {
                 CompileCapabilityDiagnostics.set(new CapabilityGap(
                         "E_FLOOR_LAYOUT_OVERFLOW",
                         "floor_count=" + layout.floorCount() + " × storey bands do not fit envelope height="
-                                + envelopeH + " (never silently grow envelope)",
+                                + authoredEnvelope + " (never silently grow envelope)",
                         "components[].params.floor_count",
                         List.of(
                                 "Increase authored envelope height",
@@ -476,16 +500,18 @@ public class MassMainGenerator implements ComponentGenerator {
                 ));
             }
         }
+        int domainMinY = result.minY();
+        int domainMaxY = result.maxY();
         if (layout.floorYs().isEmpty()) {
-            // Default ground slab when floor_count absent — match non-CSG y==0 interior floor.
+            // No authored floors: prefer host-local y=0 if occupied, else lowest domain Y.
+            int groundY = result.footprintAt(0).isEmpty() ? domainMinY : 0;
             placeFloorSlice(out, semantic, origin, palette, result, carveVoidKeys, protectedVoids,
-                    0, 1, envelopeH);
+                    groundY, slabThickness, domainMinY, domainMaxY);
             return;
         }
-        int slabThickness = Math.max(1, ComponentParamParsers.intParam(params, 1, "slab_thickness", "slabThickness"));
         for (int fy : layout.floorYs()) {
             placeFloorSlice(out, semantic, origin, palette, result, carveVoidKeys, protectedVoids,
-                    fy, slabThickness, envelopeH);
+                    fy, slabThickness, domainMinY, domainMaxY);
         }
     }
 
@@ -499,7 +525,8 @@ public class MassMainGenerator implements ComponentGenerator {
             Set<Long> protectedVoids,
             int slabBottomY,
             int slabThickness,
-            int envelopeH
+            int domainMinY,
+            int domainMaxY
     ) {
         String floor = getBlockForPart(SemanticPart.FLOOR, semantic, palette);
         if (floor == null || floor.isEmpty()) {
@@ -510,8 +537,9 @@ public class MassMainGenerator implements ComponentGenerator {
         }
         for (int dy = 0; dy < slabThickness; dy++) {
             int y = slabBottomY + dy;
-            if (y < 0 || y >= envelopeH) break;
+            if (y < domainMinY || y >= domainMaxY) break;
             Set<Long> footprint = result.footprintAt(y);
+            if (footprint.isEmpty()) continue; // carved / outside domain — do not invent
             for (long xz : footprint) {
                 int x = MassBooleanComposition.unpackX(xz);
                 int z = MassBooleanComposition.unpackZ(xz);
@@ -577,8 +605,33 @@ public class MassMainGenerator implements ComponentGenerator {
         String facadeFoundationId = styleActive ? getBlockForPart(SemanticPart.WALL_BASE, semantic, palette) : null;
 
         Map<String, Object> massParams = semantic.source() != null ? semantic.source().params() : null;
+        Set<Long> junctionOmit = junctionOmitCells(massParams);
         var buildingGeom = resolveMassGeometry(semantic, massParams, width, depth, height);
         var interiorFloorLevels = new java.util.HashSet<>(buildingGeom.floors().floorYs());
+        int slabThickness = Math.max(1, buildingGeom.floors().slabThickness());
+        int storeysParam = ComponentParamParsers.intParam(massParams, "floor_count", "floorCount");
+        // Hosted MASS_SECONDARY shells only own the deck at local y=0.
+        if (storeysParam > 1 && semantic.source() != null
+                && "MASS_SECONDARY".equalsIgnoreCase(semantic.source().componentType())) {
+            Object hostRef = massParams == null ? null : massParams.get("host_id");
+            if (hostRef == null && massParams != null) hostRef = massParams.get("hostId");
+            if (hostRef != null && !String.valueOf(hostRef).isBlank()
+                    && !"null".equalsIgnoreCase(String.valueOf(hostRef))) {
+                storeysParam = 1;
+            }
+        }
+        // Expand storey bottoms by slab_thickness so non-CSG matches CSG multi-cell slabs.
+        var floorSlabYs = new java.util.HashSet<Integer>();
+        if (storeysParam <= 1 || interiorFloorLevels.isEmpty()) {
+            for (int dy = 0; dy < slabThickness && dy < height; dy++) floorSlabYs.add(dy);
+        } else {
+            for (int fy : interiorFloorLevels) {
+                for (int dy = 0; dy < slabThickness; dy++) {
+                    int yy = fy + dy;
+                    if (yy >= 0 && yy < height) floorSlabYs.add(yy);
+                }
+            }
+        }
         var footprint = buildingGeom.footprint();
         var layers = buildingGeom.layers();
         com.formacraft.common.generation.component.util.ComponentFacadeRhythmPlanner.RhythmPlan widthRhythm =
@@ -667,26 +720,7 @@ public class MassMainGenerator implements ComponentGenerator {
                     if (hasInterior && x >= wallThickness && x < currentWidth-wallThickness
                             && z >= wallThickness && z < currentDepth-wallThickness
                             && isInteriorSpace(localX, localZ, width, depth, y, height, wallThickness, footprint)) {
-                        int storeys = 0;
-                        if (semantic.source() != null) {
-                            storeys = ComponentParamParsers.intParam(semantic.source().params(), "floor_count", "floorCount");
-                            // Hosted MASS_SECONDARY shells only own the deck at local y=0. Replaying
-                            // the host floor_count plants mid-air slabs (e.g. world y=7) that block
-                            // façade windows after the outer glazing is placed.
-                            if (storeys > 1
-                                    && "MASS_SECONDARY".equalsIgnoreCase(semantic.source().componentType())) {
-                                Map<String, Object> massParamsLocal = semantic.source().params();
-                                Object hostRef = massParamsLocal == null ? null : massParamsLocal.get("host_id");
-                                if (hostRef == null && massParamsLocal != null) {
-                                    hostRef = massParamsLocal.get("hostId");
-                                }
-                                if (hostRef != null && !String.valueOf(hostRef).isBlank()
-                                        && !"null".equalsIgnoreCase(String.valueOf(hostRef))) {
-                                    storeys = 1;
-                                }
-                            }
-                        }
-                        if (y == 0 || storeys > 1 && interiorFloorLevels.contains(y)) {
+                        if (floorSlabYs.contains(y)) {
                             SemanticPart part = SemanticPart.FLOOR;
                             String block = getBlockForPart(part, semantic, palette);
                             if (block.isEmpty()) {
@@ -713,6 +747,12 @@ public class MassMainGenerator implements ComponentGenerator {
                     int surfaceX = rp.x() + mass.offsetX + localX;
                     int surfaceY = rp.y() + mass.offsetY + y;
                     int surfaceZ = rp.z() + mass.offsetZ + localZ;
+                    // Phase 02.3.3: shared-wall / opening omit cells (plan-space packed).
+                    if (junctionOmit != null && !junctionOmit.isEmpty()
+                            && MassBooleanComposition.inPackRange3(surfaceX, surfaceY, surfaceZ)
+                            && junctionOmit.contains(MassBooleanComposition.pack3(surfaceX, surfaceY, surfaceZ))) {
+                        continue;
+                    }
                     if (x == 0 || z == 0 || x == currentWidth-1 || z == currentDepth-1
                             || isExteriorWallPosition(localX, localZ, footprint))
                         GeneratedSurfaceCapture.record(surfaceX, surfaceY, surfaceZ,
@@ -1964,5 +2004,24 @@ public class MassMainGenerator implements ComponentGenerator {
     private static double clamp01(double v) {
         if (v < 0.0) return 0.0;
         return Math.min(v, 1.0);
+    }
+
+    /** Plan-space packed cells omitted for shared-wall collapse / junction openings. */
+    private static Set<Long> junctionOmitCells(Map<String, Object> params) {
+        if (params == null) return Set.of();
+        Object raw = params.get("junction_omit_cells");
+        if (!(raw instanceof List<?> list) || list.isEmpty()) return Set.of();
+        Set<Long> out = new HashSet<>();
+        for (Object o : list) {
+            if (o instanceof Number n) {
+                out.add(n.longValue());
+            } else if (o != null) {
+                try {
+                    out.add(Long.parseLong(String.valueOf(o)));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return out;
     }
 }

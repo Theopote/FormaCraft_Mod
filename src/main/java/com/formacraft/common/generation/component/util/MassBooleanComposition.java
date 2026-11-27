@@ -241,36 +241,41 @@ public final class MassBooleanComposition {
     private MassBooleanComposition() {}
 
     /**
-     * True when nested {@code masses[]} need a unified shell (Phase 02.3.2 Task D):
+     * True when nested {@code masses[]} need a unified shell:
      * <ul>
-     *   <li>any SUBTRACT/INTERSECT → boolean compose</li>
-     *   <li>explicit ADD/UNION on size≥2 → one UNION domain + shared floors (no mid partition)</li>
-     *   <li>{@code mass_boolean_composition} with size≥2 → CSG</li>
-     *   <li>bare tier lists without {@code operation} stay on {@link ResolvedMassPart}
-     *       (stepped / replace_envelope) — not forced into CSG</li>
+     *   <li>size≥1 with any SUBTRACT/INTERSECT → boolean compose (host seeded in
+     *       {@code partsFromMassesParam})</li>
+     *   <li>size≥2 with explicit ADD/UNION only → one UNION domain + shared floors</li>
+     *   <li>{@code mass_boolean_composition} with any non-empty masses → CSG</li>
+     *   <li>bare tier lists without {@code operation} stay on {@link ResolvedMassPart}</li>
      * </ul>
-     * Independent peer components remain separate (shared-wall cleanup is 02.3.3).
+     * Illegal ops throw {@code E_MASS_CSG_OP_UNSUPPORTED} (never silent UNION).
      */
     public static boolean needsCsg(Component component) {
         if (component == null || component.params() == null) return false;
         Object masses = component.params().get("masses");
-        if (Boolean.TRUE.equals(component.params().get("mass_boolean_composition"))
-                || Boolean.TRUE.equals(component.params().get("massBooleanComposition"))) {
-            return masses instanceof List<?> list && list.size() >= 2;
-        }
-        if (!(masses instanceof List<?> list) || list.size() < 2) return false;
-        boolean sawExplicitOp = false;
+        if (!(masses instanceof List<?> list) || list.isEmpty()) return false;
+        boolean forceFlag = Boolean.TRUE.equals(component.params().get("mass_boolean_composition"))
+                || Boolean.TRUE.equals(component.params().get("massBooleanComposition"));
+        boolean sawExplicitUnion = false;
+        boolean sawNonUnion = false;
         for (Object item : list) {
             if (!(item instanceof Map<?, ?> raw)) continue;
             Object rawOp = raw.get("operation");
             if (rawOp == null) rawOp = raw.get("op");
             if (rawOp == null) continue;
-            sawExplicitOp = true;
             CsgOp op = parseOpStrict(rawOp);
-            if (op != CsgOp.UNION) return true;
+            if (op != CsgOp.UNION) {
+                sawNonUnion = true;
+            } else {
+                sawExplicitUnion = true;
+            }
         }
-        // Explicit ADD/UNION-only annexes → unified shell; bare stepped tiers → false.
-        return sawExplicitOp;
+        // Lone (or multi) SUBTRACT/INTERSECT — host body seeded when composing.
+        if (sawNonUnion) return true;
+        if (forceFlag) return true;
+        // Explicit ADD/UNION-only annexes need ≥2 parts for a unified shell.
+        return sawExplicitUnion && list.size() >= 2;
     }
 
     /**

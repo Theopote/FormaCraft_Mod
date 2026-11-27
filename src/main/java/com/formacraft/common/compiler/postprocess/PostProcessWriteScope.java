@@ -142,37 +142,59 @@ public class PostProcessWriteScope {
         public boolean allowsPlace(BlockPos pos) {
             if (pos == null) return false;
             BlockPos p = pos.toImmutable();
-            if (clearance.contains(p)) return false;
+            // 1) Protected voids / clearance deny (atrium, carve, stair reservation).
+            if (clearance.contains(p) || isProtectedVoid(p)) return false;
+            // 2) Explicit PLACE authority (stair/bridge writers).
             if (explicitPlace.contains(p)) return true;
-            return inVolume(p) || inExteriorPad(p);
+            // 3) Real domain occupancy.
+            if (inVolume(p)) return true;
+            // 4) Exterior pad: outside occupancy, face-adjacent to exterior solid — not AABB-in-void.
+            return inExteriorSurfacePad(p);
         }
 
         @Override
         public boolean allowsCarve(BlockPos pos) {
             if (pos == null) return false;
             BlockPos p = pos.toImmutable();
-            if (clearance.contains(p)) return false;
+            if (clearance.contains(p) || isProtectedVoid(p)) return false;
             if (explicitPlace.contains(p)) return true;
             return inVolume(p);
         }
 
+        private boolean isProtectedVoid(BlockPos p) {
+            for (var v : ctx.buildingVolumes()) {
+                if (v.isProtectedVoid(p.getX(), p.getY(), p.getZ())) return true;
+            }
+            return false;
+        }
+
         private boolean inVolume(BlockPos p) {
             for (var v : ctx.buildingVolumes()) {
-                // Prefer domain occupancy when Phase 02.3.2 handoff attached a CSG domain.
                 if (v.occupancyContains(p.getX(), p.getY(), p.getZ())) return true;
             }
             return false;
         }
 
-        /** Half-open volume AABB expanded by {@link #EXTERIOR_PLACE_PAD} on every axis. */
-        private boolean inExteriorPad(BlockPos p) {
+        /**
+         * PLACE pad only for cells outside occupancy that touch an exterior solid face.
+         * AABB expand alone must not authorize atrium / carve interiors.
+         */
+        private boolean inExteriorSurfacePad(BlockPos p) {
+            if (inVolume(p) || isProtectedVoid(p)) return false;
             int pad = EXTERIOR_PLACE_PAD;
+            int[][] dirs = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
             for (var v : ctx.buildingVolumes()) {
                 var b = v.bounds();
-                if (p.getX() >= b.minX() - pad && p.getX() < b.maxX() + pad
-                        && p.getY() >= b.minY() - pad && p.getY() < b.maxY() + pad
-                        && p.getZ() >= b.minZ() - pad && p.getZ() < b.maxZ() + pad) {
-                    return true;
+                if (p.getX() < b.minX() - pad || p.getX() >= b.maxX() + pad
+                        || p.getY() < b.minY() - pad || p.getY() >= b.maxY() + pad
+                        || p.getZ() < b.minZ() - pad || p.getZ() >= b.maxZ() + pad) {
+                    continue;
+                }
+                for (int[] d : dirs) {
+                    int nx = p.getX() + d[0], ny = p.getY() + d[1], nz = p.getZ() + d[2];
+                    if (v.occupancyContains(nx, ny, nz) && !v.isProtectedVoid(nx, ny, nz)) {
+                        return true;
+                    }
                 }
             }
             return false;

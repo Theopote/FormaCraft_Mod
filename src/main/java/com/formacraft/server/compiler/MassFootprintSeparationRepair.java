@@ -64,6 +64,10 @@ final class MassFootprintSeparationRepair {
                     intentionalPair = true;
                 }
                 MassSpatialRelation rel = MassSpatialRelation.classify(ab, bb, intentionalPair);
+                // Phase 02.3.3: explicit junction intent prefers cleanup over nudge/move.
+                if (MassJunctionRepair.junctionHandlesPair(plan, a, b)) {
+                    continue;
+                }
                 if (rel != MassSpatialRelation.CONNECTION_SEAM && linkedByPassage(plan, a, b)) {
                     continue;
                 }
@@ -236,22 +240,20 @@ final class MassFootprintSeparationRepair {
         if (c == null) return false;
         Map<String, Object> params = new HashMap<>();
         if (c.params() != null) params.putAll(c.params());
-        Object existing = params.get("intentional_interlock_peer_id");
-        if (peerId.equals(String.valueOf(existing))) {
-            params.put("intentional_interlock_shared_cells", true);
-            parts.set(index, new Component(
-                    c.componentType(), c.slotId(), c.relativePosition(),
-                    c.dimensions(), c.features(), params));
-            return false;
-        }
+        // Multi-peer merge (Phase 02.3.3 Task F): A↔B and B↔C may coexist.
+        java.util.Set<String> peers = new java.util.LinkedHashSet<>(
+                com.formacraft.common.generation.component.util.MassJunctionIntent.peersOf(c));
+        boolean already = peers.contains(peerId);
+        peers.add(peerId);
         params.put("intentional_interlock_peer_id", peerId);
+        params.put("intentional_interlock_peer_ids", new java.util.ArrayList<>(peers));
         params.put("intentional_interlock_shared_cells", true);
         // Do NOT stamp allow_patch_overwrite — occupancy enforces pair scope.
         params.remove("allow_patch_overwrite");
         parts.set(index, new Component(
                 c.componentType(), c.slotId(), c.relativePosition(),
                 c.dimensions(), c.features(), params));
-        return true;
+        return !already;
     }
 
     /** Plan-meta / proportion_hints opt-in (does not OR every component — P1-01). */

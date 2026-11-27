@@ -15,6 +15,7 @@ import com.formacraft.common.llm.dto.Layout;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
 import com.formacraft.common.patch.BlockPatch;
+import com.formacraft.common.typology.UserConstraintContract;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 import com.formacraft.test.MinecraftRegistryTestBootstrap;
 import com.formacraft.test.PatchTestSnapshot;
@@ -516,5 +517,222 @@ class FloorGeometry0232Test {
         // Authorized earlier-id mover moves; peer stays at authored position.
         assertEquals(new Vec3i(4, 0, 4), bPos);
         assertNotEquals(new Vec3i(0, 0, 0), aPos);
+    }
+
+    // ---- Phase 02.3.3 Task A closeout regressions R01–R11 ----
+
+    @Test
+    void r01_singleSubtractEntersCsg() {
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("solid", true);
+        extra.put("floor_block", "minecraft:oak_planks");
+        extra.put("wall_block", "minecraft:stone_bricks");
+        extra.put("masses", List.of(
+                Map.of("operation", "subtract", "offset", Map.of("x", 4, "y", 0, "z", 4),
+                        "dimensions", Map.of("width", 4, "depth", 4, "height", 6))
+        ));
+        Component c = boxMass("r01", 12, 12, 6, extra);
+        assertTrue(MassBooleanComposition.needsCsg(c));
+        var blocks = generate(c);
+        assertNotNull(blocks.get(new Vec3i(0, 0, 0)));
+        assertNull(blocks.get(new Vec3i(5, 0, 5)), "atrium carve");
+    }
+
+    @Test
+    void r02_singleIntersectEntersCsg() {
+        Map<String, Object> extra = new HashMap<>();
+        extra.put("solid", true);
+        extra.put("masses", List.of(
+                Map.of("operation", "intersect", "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 4, "depth", 4, "height", 4))
+        ));
+        Component c = boxMass("r02", 8, 8, 4, extra);
+        assertTrue(MassBooleanComposition.needsCsg(c));
+        var blocks = generate(c);
+        assertNotNull(blocks.get(new Vec3i(1, 1, 1)));
+        assertNull(blocks.get(new Vec3i(6, 1, 6)));
+    }
+
+    @Test
+    void r03_carvedMinYGreaterThanZeroKeepsAuthoredFloorYs() {
+        Map<String, Object> extra = hollowFloors(2, 4);
+        extra.put("masses", List.of(
+                Map.of("operation", "add", "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 10, "depth", 10, "height", 12)),
+                Map.of("operation", "subtract", "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 10, "depth", 10, "height", 4))
+        ));
+        Component c = boxMass("r03", 10, 10, 12, extra);
+        var result = MassBooleanComposition.composeFromComponent(c);
+        assertTrue(result.minY() >= 4);
+        var blocks = generate(c);
+        // Authored floors at 0,4 — y=0 carved away; y=4 kept (not remapped by +minY).
+        long oak0 = blocks.entrySet().stream()
+                .filter(e -> e.getKey().y() == 0 && e.getValue() != null && e.getValue().contains("oak"))
+                .count();
+        long oak4 = blocks.entrySet().stream()
+                .filter(e -> e.getKey().y() == 4 && e.getValue() != null && e.getValue().contains("oak"))
+                .count();
+        assertEquals(0, oak0, "carved y=0 must not place remapped floors");
+        assertTrue(oak4 > 0, "authored floor at y=4 must place in remaining domain");
+    }
+
+    @Test
+    void r04_basementNegativeMinYFloors() {
+        Map<String, Object> extra = hollowFloors(2, 4);
+        extra.put("masses", List.of(
+                Map.of("operation", "add", "offset", Map.of("x", 0, "y", -4, "z", 0),
+                        "dimensions", Map.of("width", 8, "depth", 8, "height", 12)),
+                Map.of("operation", "add", "offset", Map.of("x", 0, "y", -4, "z", 0),
+                        "dimensions", Map.of("width", 8, "depth", 8, "height", 12))
+        ));
+        Component c = boxMass("r04", 8, 8, 12, extra);
+        var result = MassBooleanComposition.composeFromComponent(c);
+        assertTrue(result.minY() < 0);
+        var blocks = generate(c);
+        assertTrue(blocks.keySet().stream().anyMatch(p -> p.y() < 0));
+    }
+
+    @Test
+    void r05_nonCsgSteppedPostprocessDomainNotConstantSection() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "r05");
+        params.put("anchor_mode", "min_corner");
+        params.put("masses", List.of(
+                Map.of("offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 12, "depth", 12, "height", 4)),
+                Map.of("offset", Map.of("x", 2, "y", 4, "z", 2),
+                        "dimensions", Map.of("width", 8, "depth", 8, "height", 4))
+        ));
+        Component c = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(12, 12, 8), List.of(), params);
+        assertFalse(MassBooleanComposition.needsCsg(c));
+        List<PostProcessContext.BuildingVolume> volumes = new ArrayList<>();
+        try (var scope = BuildingGeometryContext.open()) {
+            BuildingGeometryContext.putMass(c);
+            // Mimic emit registration: skip synthetic host envelope (parts[0]).
+            var parts = com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c);
+            var nested = parts.subList(1, parts.size());
+            var domain = MassBooleanComposition.compose(
+                    MassBooleanComposition.partsFromResolved(nested), "r05");
+            volumes.add(new PostProcessContext.BuildingVolume(
+                    "main",
+                    new com.formacraft.common.generation.component.util.ComponentFootprintUtil.Bounds(
+                            0, 0, 0, 12, 8, 12),
+                    4, "r05", "r05", true, domain, new Vec3i(0, 0, 0), Set.of()));
+        }
+        var vol = volumes.getFirst();
+        assertTrue(vol.domainContains(0, 0, 0));
+        assertFalse(vol.domainContains(0, 5, 0), "upper tier retreat — not constant section");
+        assertTrue(vol.domainContains(4, 5, 4));
+    }
+
+    @Test
+    void r06_atriumCenterDeniedPostprocessPlace() {
+        Map<String, Object> extra = hollowFloors(1, 4);
+        extra.put("masses", List.of(
+                Map.of("operation", "add", "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 12, "depth", 12, "height", 4)),
+                Map.of("operation", "subtract", "offset", Map.of("x", 4, "y", 0, "z", 4),
+                        "dimensions", Map.of("width", 4, "depth", 4, "height", 4))
+        ));
+        Component c = boxMass("r06", 12, 12, 4, extra);
+        var csg = MassBooleanComposition.composeFromComponent(c);
+        Set<Long> voids = new HashSet<>();
+        for (var v : csg.carveVoids()) {
+            voids.add(MassBooleanComposition.pack3(v.x(), v.y(), v.z()));
+        }
+        var vol = new PostProcessContext.BuildingVolume(
+                "main",
+                new com.formacraft.common.generation.component.util.ComponentFootprintUtil.Bounds(
+                        0, 0, 0, 12, 4, 12),
+                4, "r06", "r06", true, csg, new Vec3i(0, 0, 0), voids);
+        assertTrue(vol.isProtectedVoid(5, 1, 5));
+        assertFalse(vol.domainContains(5, 1, 5));
+        var ctx = PostProcessContext.create(
+                LlmPlanTestFixtures.builder().components(List.of(c)).build(),
+                BlockPos.ORIGIN, List.of(vol));
+        var scope = com.formacraft.common.compiler.postprocess.PostProcessWriteScope
+                .fromContext(ctx, Set.of());
+        assertFalse(scope.allowsPlace(new BlockPos(5, 1, 5)), "atrium must not get PLACE");
+    }
+
+    @Test
+    void r07_nonCsgTwoCellSlabThickness() {
+        Map<String, Object> extra = hollowFloors(2, 4);
+        extra.put("slab_thickness", 2);
+        extra.put("hollow", true);
+        Component c = boxMass("r07", 10, 10, 8, extra);
+        assertFalse(MassBooleanComposition.needsCsg(c));
+        var blocks = generate(c);
+        long oak0 = blocks.entrySet().stream()
+                .filter(e -> e.getKey().y() == 0 && e.getValue() != null && e.getValue().contains("oak")).count();
+        long oak1 = blocks.entrySet().stream()
+                .filter(e -> e.getKey().y() == 1 && e.getValue() != null && e.getValue().contains("oak")).count();
+        assertTrue(oak0 > 0 && oak1 > 0, "2-cell slab at ground");
+    }
+
+    @Test
+    void r08_slabThicknessEqualsBandEmitsGapForEnterable() {
+        Map<String, Object> extra = hollowFloors(2, 4);
+        extra.put("slab_thickness", 4);
+        extra.put("masses", List.of(
+                Map.of("operation", "add", "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 10, "depth", 10, "height", 8)),
+                Map.of("operation", "add", "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 10, "depth", 10, "height", 8))
+        ));
+        Component c = boxMass("r08", 10, 10, 8, extra);
+        generate(c);
+        assertTrue(CompileCapabilityDiagnostics.hasGap());
+        assertEquals("E_FLOOR_SLAB_CLEARANCE", CompileCapabilityDiagnostics.get().code());
+    }
+
+    @Test
+    void r09_tallGroundClearOverflow() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "r09");
+        params.put("floor_count", 3);
+        params.put("floor_height", 4);
+        params.put("ground_clear_height", 6);
+        params.put("height", 12);
+        com.formacraft.common.typology.UserConstraintContract.stampVerified(params, "height");
+        Component mass = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(8, 8, 12), List.of(), params);
+        // need = 6 + 2*4 = 14 > 12
+        LlmPlan out = FloorLayoutOverflowRepair.apply(
+                LlmPlanTestFixtures.builder().components(List.of(mass)).build());
+        assertTrue(out.hasCapabilityGap());
+        assertEquals("E_FLOOR_LAYOUT_OVERFLOW", out.capabilityGap().code());
+    }
+
+    @Test
+    void r10_protectedVoidNotFilledByShell() {
+        Map<String, Object> extra = hollowFloors(1, 4);
+        extra.put("protected_voids", List.of(Map.of("x", 3, "y", 0, "z", 3)));
+        extra.put("masses", List.of(
+                Map.of("operation", "add", "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 8, "depth", 8, "height", 4)),
+                Map.of("operation", "add", "offset", Map.of("x", 0, "y", 0, "z", 0),
+                        "dimensions", Map.of("width", 8, "depth", 8, "height", 4))
+        ));
+        Component c = boxMass("r10", 8, 8, 4, extra);
+        var blocks = generate(c);
+        assertFalse(floorCellsAt(blocks, 0).contains(new Vec3i(3, 0, 3)));
+    }
+
+    @Test
+    void r11_floorCountOnlyJavaPythonBandParity() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("component_id", "r11");
+        params.put("floor_count", 3);
+        params.put("anchor_mode", "min_corner");
+        Component c = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(10, 10, 12), List.of(), params);
+        ResolvedFloorLayout layout = ResolvedFloorLayout.from(c, 12);
+        assertEquals(3, layout.floorCount());
+        assertTrue(layout.floorHeight() >= 4);
+        assertEquals(List.of(0, layout.floorHeight(), layout.floorHeight() * 2), layout.floorYs());
+        assertTrue(layout.fits());
     }
 }

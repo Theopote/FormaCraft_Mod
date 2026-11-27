@@ -63,12 +63,16 @@ final class FloorLayoutOverflowRepair {
         int envelope = Math.max(1, component.dimensions().height());
         int minBand = InteriorSpaceDefaults.minStoreyBand();
         int authoredFh = ComponentParamParsers.intParam(params, "floor_height", "floorHeight");
+        int groundClear = ComponentParamParsers.intParam(params, "ground_clear_height", "groundClearHeight");
         // Authored storey bands are intentional (same policy as ResolvedFloorLayout) — never
         // silently raise floor_height=3 → 4 and shift intermediate slabs off their pinned Y.
         int floorHeight = authoredFh > 0
                 ? authoredFh
                 : Math.max(minBand, envelope / floorCount);
-        long need = (long) floorHeight * floorCount;
+        // Match ResolvedFloorLayout: H = ground_clear + (N-1)*floor_height when lobby set.
+        long need = groundClear > 0
+                ? (long) groundClear + (long) Math.max(0, floorCount - 1) * floorHeight
+                : (long) floorHeight * floorCount;
         if (need <= envelope) {
             return RepairResult.unchanged(component);
         }
@@ -103,14 +107,21 @@ final class FloorLayoutOverflowRepair {
             return RepairResult.of(new Component(component.componentType(), component.slotId(),
                     component.relativePosition(), dims, component.features(), next));
         }
-        // Soft floor_height may shrink into the sealed envelope — never reduce floor_count.
+        // Locked envelope: authored bands / ground_clear that still exceed need → gap
+        // (do not soft-clamp while ignoring ground_clear formula).
+        if (authoredFh > 0 || groundClear > 0) {
+            CapabilityGap gap = overflowGap(componentIndex, floorCount, floorHeight, need, envelope);
+            AssemblyCompileDiagnostics.set(gap);
+            FormacraftMod.LOGGER.info(
+                    "FloorLayoutOverflowRepair: sealed envelope={} cannot fit need={} (ground_clear={})",
+                    envelope, need, groundClear);
+            return RepairResult.gap(component, gap);
+        }
+        // Soft inferred floor_height may shrink into the sealed envelope — never reduce floor_count.
         int clampedHeight = Math.max(hostMass ? minBand : 1, (int) Math.min(floorHeight, envelope / floorCount));
-        if ((long) clampedHeight * floorCount > envelope) {
-            CapabilityGap gap = (authoredFh > 0 || hardFloor)
-                    ? overflowGap(componentIndex, floorCount, clampedHeight,
-                    (long) clampedHeight * floorCount, envelope)
-                    : conflictGap(componentIndex, floorCount, clampedHeight,
-                    (long) clampedHeight * floorCount, envelope);
+        long clampedNeed = (long) clampedHeight * floorCount;
+        if (clampedNeed > envelope) {
+            CapabilityGap gap = conflictGap(componentIndex, floorCount, clampedHeight, clampedNeed, envelope);
             AssemblyCompileDiagnostics.set(gap);
             FormacraftMod.LOGGER.info(
                     "FloorLayoutOverflowRepair: refusing floor_count reduction {}×{} into sealed envelope={}",

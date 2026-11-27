@@ -176,6 +176,11 @@ public final class ComponentPlanCompiler {
         if (AssemblyCompileDiagnostics.hasGap()) {
             return List.of();
         }
+        // Phase 02.3.3: junction intent cleanup before separation nudge.
+        plan = MassJunctionRepair.apply(plan);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return List.of();
+        }
         // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
         plan = MassFootprintSeparationRepair.apply(plan);
         // Pavilion height clamps can reintroduce floor_count×floor_height overflow.

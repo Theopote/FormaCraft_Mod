@@ -1358,8 +1358,16 @@ final class ComponentEmitPass {
                         origin.x() + offset.x(),
                         origin.y() + offset.y(),
                         origin.z() + offset.z());
-                Set<Long> protectedVoids = com.formacraft.common.generation.component.util
-                        .MassBooleanComposition.protectedVoidKeys(c);
+                Set<Long> protectedVoids = new java.util.LinkedHashSet<>(
+                        com.formacraft.common.generation.component.util
+                                .MassBooleanComposition.protectedVoidKeys(c));
+                for (var v : csg.carveVoids()) {
+                    if (com.formacraft.common.generation.component.util.MassBooleanComposition
+                            .inPackRange3(v.x(), v.y(), v.z())) {
+                        protectedVoids.add(com.formacraft.common.generation.component.util
+                                .MassBooleanComposition.pack3(v.x(), v.y(), v.z()));
+                    }
+                }
                 buildingVolumes.add(new PostProcessContext.BuildingVolume(
                         slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed,
                         csg, domainOrigin, protectedVoids));
@@ -1371,26 +1379,50 @@ final class ComponentEmitPass {
             return;
         }
 
-        // Non-CSG: one lightweight extruded footprint domain so L/U/courtyard share floor queries.
+        // Non-CSG: domain from actual ResolvedMassPart UNION (stepped-accurate), not host footprint extrude.
         try {
-            var dims = c.dimensions();
-            int w = dims == null ? 1 : Math.max(1, dims.width());
-            int d = dims == null ? 1 : Math.max(1, dims.depth());
-            int h = dims == null ? 1 : Math.max(1, dims.height());
-            var footprint = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(c, w, d);
-            var domain = com.formacraft.common.generation.component.util.MassBooleanComposition
-                    .domainFromFootprint(footprint, h, componentId);
+            var parts = com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c);
+            com.formacraft.common.generation.component.util.MassBooleanComposition.CsgResult domain = null;
+            if (parts.size() >= 2) {
+                // parts[0] is the synthetic host envelope; nested masses (1..) are the authored
+                // solid. UNION only nested parts so stepped retreat is not constant-section.
+                var nested = parts.subList(1, parts.size());
+                var csgParts = com.formacraft.common.generation.component.util.MassBooleanComposition
+                        .partsFromResolved(nested);
+                domain = com.formacraft.common.generation.component.util.MassBooleanComposition
+                        .compose(csgParts, componentId);
+            } else {
+                var dims = c.dimensions();
+                int w = dims == null ? 1 : Math.max(1, dims.width());
+                int d = dims == null ? 1 : Math.max(1, dims.depth());
+                int h = dims == null ? 1 : Math.max(1, dims.height());
+                var footprint = com.formacraft.common.generation.component.util.ResolvedFootprint.resolve(c, w, d);
+                domain = com.formacraft.common.generation.component.util.MassBooleanComposition
+                        .domainFromFootprint(footprint, h, componentId);
+            }
             Vec3i origin = com.formacraft.common.generation.component.util
                     .ComponentFootprintUtil.resolveMinCornerOrigin(c);
             if (origin == null) origin = c.relativePosition() == null
                     ? new Vec3i(0, 0, 0) : c.relativePosition();
-            var shifted = new ComponentFootprintUtil.Bounds(
-                    origin.x() + offset.x(),
-                    origin.y() + offset.y(),
-                    origin.z() + offset.z(),
-                    origin.x() + offset.x() + w,
-                    origin.y() + offset.y() + h,
-                    origin.z() + offset.z() + d);
+            ComponentFootprintUtil.Bounds shifted;
+            if (domain != null && !domain.isEmpty()) {
+                var b = domain.bounds();
+                shifted = new ComponentFootprintUtil.Bounds(
+                        b.minX() + origin.x() + offset.x(),
+                        b.minY() + origin.y() + offset.y(),
+                        b.minZ() + origin.z() + offset.z(),
+                        b.maxX() + origin.x() + offset.x(),
+                        b.maxY() + origin.y() + offset.y(),
+                        b.maxZ() + origin.z() + offset.z());
+            } else {
+                var dims = c.dimensions();
+                int w = dims == null ? 1 : Math.max(1, dims.width());
+                int d = dims == null ? 1 : Math.max(1, dims.depth());
+                int h = dims == null ? 1 : Math.max(1, dims.height());
+                shifted = new ComponentFootprintUtil.Bounds(
+                        origin.x() + offset.x(), origin.y() + offset.y(), origin.z() + offset.z(),
+                        origin.x() + offset.x() + w, origin.y() + offset.y() + h, origin.z() + offset.z() + d);
+            }
             if (shifted.width() <= 0 || shifted.depth() <= 0 || shifted.height() <= 0) {
                 return;
             }
@@ -1400,11 +1432,20 @@ final class ComponentEmitPass {
                     origin.x() + offset.x(),
                     origin.y() + offset.y(),
                     origin.z() + offset.z());
-            Set<Long> protectedVoids = com.formacraft.common.generation.component.util
-                    .MassBooleanComposition.protectedVoidKeys(c);
+            Set<Long> protectedVoids = new java.util.LinkedHashSet<>(
+                    com.formacraft.common.generation.component.util.MassBooleanComposition.protectedVoidKeys(c));
+            if (domain != null) {
+                for (var v : domain.carveVoids()) {
+                    if (com.formacraft.common.generation.component.util.MassBooleanComposition
+                            .inPackRange3(v.x(), v.y(), v.z())) {
+                        protectedVoids.add(com.formacraft.common.generation.component.util.MassBooleanComposition
+                                .pack3(v.x(), v.y(), v.z()));
+                    }
+                }
+            }
             buildingVolumes.add(new PostProcessContext.BuildingVolume(
                     slotKey, shifted, floorHeight, componentId, buildingId, lightingAllowed,
-                    domain.isEmpty() ? null : domain, domainOrigin, protectedVoids));
+                    domain == null || domain.isEmpty() ? null : domain, domainOrigin, protectedVoids));
         } catch (IllegalArgumentException ex) {
             FormacraftMod.LOGGER.debug(
                     "ComponentEmitPass: non-CSG domain fallback for {}: {}",
