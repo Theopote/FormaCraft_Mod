@@ -652,6 +652,11 @@ Roof omission uses the same first nonblank parameter and alias resolution as the
 | Phase 02.3.2 storey overflow grow | Authored `floor_count×floor_height` could grow unlocked envelope | **Fixed:** authored bands → `E_FLOOR_LAYOUT_OVERFLOW` (never silent grow); soft inferred may still grow; soft fh may clamp into sealed. HARD_CONSTRAINT. Tests: F05, `FloorLayoutOverflowRepairTest` |
 | Phase 02.3.2 ADD-only dual shell | `needsCsg` false for UNION-only nested masses → mid partition | **Fixed:** explicit ADD/UNION on `masses.size()≥2` → unified CSG; bare tier lists without `operation` stay on `ResolvedMassPart` (stepped). GEOMETRY. Tests: F15, W07, Oct20#6 |
 | Phase 02.3.2 CONNECTION_SEAM mover | Seam collapse skipped `moverAuthorized` | **Fixed:** require mover auth except passage / authored COMPOUND join. HARD_CONSTRAINT. Tests: d02b, separation_authorizedMover |
-| Phase 02.3.2 local corridor wall-fill | Diagnostic as hard fail candidate | **Deferred** to 02.3.3 (this phase: global collapse → `E_MASS_WALL_THICKNESS` only) |
-| Phase 02.3.3 multi-peer interlock set | Single `intentional_interlock_peer_id` | **Deferred** to 02.3.3 |
-| Phase 02.3.3 shared-wall / corridor junction | Multi-mass junction cleanup | **Deferred** to 02.3.3 |
+| Phase 02.3.2 local corridor wall-fill | Diagnostic as hard fail candidate | **Fixed (02.3.3):** `E_JUNCTION_PASSAGE_BLOCKED` when narrow_passage + span ≤ wall thicknesses (no silent shrink). HARD_CONSTRAINT. Tests: J15 |
+| Phase 02.3.3 multi-peer interlock set | Single `intentional_interlock_peer_id` | **Fixed:** `intentional_interlock_peer_ids` list + mutual pairwise check in `PatchOccupancyIndex` (A↔B and B↔C ≠ A↔C). HARD_CONSTRAINT. Tests: J11/J12, e01 |
+| Phase 02.3.3 shared-wall / corridor junction | Multi-mass junction cleanup | **Fixed:** `MassJunctionRepair` + `MassDomainRelation` + `junction_omit_cells`; explicit `junction_intent` only (never auto-open on CONTACTING). GEOMETRY + USER/AI intent. Tests: `MassJunction0233Test` J01–J18 |
+| Phase 02.3.3 needsCsg lone SUBTRACT | `list.size()<2` blocked host-seeded carve | **Fixed (closeout):** any SUBTRACT/INTERSECT → needsCsg; illegal op → gap. GEOMETRY. Tests: R01/R02 |
+| Phase 02.3.3 floor Y after carve | envelopeH clamp remapped floors | **Fixed:** domain `[minY,maxY)`; authored floorYs unchanged. GEOMETRY. Tests: R03/R04 |
+| Phase 02.3.3 non-CSG stepped domain | Host envelope UNION → constant section | **Fixed:** register nested `ResolvedMassPart` only (skip synthetic host). GEOMETRY. Tests: R05 |
+| Phase 02.3.3 exterior pad atrium | AABB pad authorized carve interiors | **Fixed:** `isProtectedVoid` deny + face-adjacent exterior pad. HARD_CONSTRAINT. Tests: R06 |
+| Phase 02.3.3 ground_clear overflow | Soft clamp ignored `ground_clear+(N-1)*H` | **Fixed:** sealed envelope + authored bands/ground_clear → `E_FLOOR_LAYOUT_OVERFLOW`. HARD_CONSTRAINT. Tests: R09 |
