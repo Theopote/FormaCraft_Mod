@@ -75,28 +75,22 @@ final class MassFootprintSeparationRepair {
                     continue;
                 }
 
-                boolean softAnnexHint = looksHorizontalAnnex(idOf(a).toLowerCase(Locale.ROOT))
-                        || looksSideHallRole(a)
-                        || looksHorizontalAnnex(idOf(b).toLowerCase(Locale.ROOT))
+                boolean aSoftAnnex = looksHorizontalAnnex(idOf(a).toLowerCase(Locale.ROOT))
+                        || looksSideHallRole(a);
+                boolean bSoftAnnex = looksHorizontalAnnex(idOf(b).toLowerCase(Locale.ROOT))
                         || looksSideHallRole(b);
-                // Soft-annex name is NONBINDING_HINT for mover choice only when authorized.
-                boolean canNudge = componentAllowsMassSeparation(plan, a, planSeparationOptIn)
-                        || componentAllowsMassSeparation(plan, b, planSeparationOptIn);
-                // Courtyard soft-annex still may separate when plan-meta opt-in OR mover stamped —
-                // name alone never authorizes design-locked primary peers (P1-01).
-                if (!canNudge && softAnnexHint && !intentionalPair
-                        && (planSeparationOptIn
-                        || truthyParam(a.params(), "allow_mass_separation", "allowMassSeparation")
-                        || truthyParam(b.params(), "allow_mass_separation", "allowMassSeparation"))) {
-                    canNudge = true;
-                }
-                // Legacy courtyard soft-annex: wing/pavilion may GAP-nudge without plan-wide flag
-                // (AABB3 or shallow seam). Soft-annex name alone never moves design-locked primaries.
-                if (!canNudge && softAnnexHint && !intentionalPair
+                boolean softAnnexHint = aSoftAnnex || bSoftAnnex;
+                // Pair may be considered when either side has opt-in, plan opt-in, or soft-annex hint.
+                // Actual move still requires moverAuthorized(a) (Phase 02.3.1 Task F).
+                boolean pairEligible = componentAllowsMassSeparation(plan, a, planSeparationOptIn)
+                        || componentAllowsMassSeparation(plan, b, planSeparationOptIn)
+                        || planSeparationOptIn;
+                if (!pairEligible && softAnnexHint && !intentionalPair
                         && (rel == MassSpatialRelation.AABB3_INTERSECT
                         || rel == MassSpatialRelation.CONNECTION_SEAM)) {
-                    canNudge = true;
+                    pairEligible = true;
                 }
+                boolean canNudge = pairEligible;
 
                 if (rel == MassSpatialRelation.CONNECTION_SEAM) {
                     // Soft-annex shallow seam → courtyard GAP path (not seam-collapse) — Phase 02.1.
@@ -121,6 +115,8 @@ final class MassFootprintSeparationRepair {
                     } else {
                         if (priority(a) > priority(b)) continue;
                         if (priority(a) == priority(b) && idOf(a).compareTo(idOf(b)) >= 0) continue;
+                        // Seam collapse is GEOMETRY for passage/COMPOUND/opt-in — mover need not be
+                        // soft-annex; opt-in/passage/compound already gated above.
                         var beforeSeam = ab;
                         Component seamNudged = nudgeSeamToContact(plan, a, b);
                         if (seamNudged == a) continue;
@@ -169,6 +165,20 @@ final class MassFootprintSeparationRepair {
                 // Prefer moving the pavilion / smaller body; equal score → lexicographically later id moves.
                 if (priority(a) > priority(b)) continue;
                 if (priority(a) == priority(b) && idOf(a).compareTo(idOf(b)) >= 0) continue;
+                // Phase 02.3.1 Task F: only the chosen mover may move — peer opt-in does not relocate a.
+                if (!moverAuthorized(plan, a, planSeparationOptIn, aSoftAnnex, intentionalPair)) {
+                    AssemblyCompileDiagnostics.set(new CapabilityGap(
+                            "E_MASS_FOOTPRINT_CONFLICT",
+                            "Chosen mover lacks allow_mass_separation (peer opt-in does not transfer)",
+                            "components[].params.allow_mass_separation",
+                            List.of(
+                                    "Stamp allow_mass_separation on the mass that should move",
+                                    "Or set plan_meta.allow_mass_separation=true",
+                                    "Or separate volumes in the plan"
+                            )
+                    ));
+                    return plan;
+                }
 
                 var before = ab;
                 Component nudged = nudgeAway(plan, a, b);
@@ -237,10 +247,25 @@ final class MassFootprintSeparationRepair {
                 || truthyParam(plan.proportionHints(), "auto_layout", "autoLayout");
     }
 
-    /** Component-scoped separation: plan opt-in or this component / its host family stamped. */
+    /** Component-scoped separation: plan opt-in or this component stamped. */
     private static boolean componentAllowsMassSeparation(LlmPlan plan, Component c, boolean planOptIn) {
         if (planOptIn) return true;
         return truthyParam(c == null ? null : c.params(), "allow_mass_separation", "allowMassSeparation");
+    }
+
+    /**
+     * The component that will actually move must itself hold authority.
+     * Soft-annex NONBINDING_HINT only licenses the annex mover, never a locked primary peer.
+     */
+    private static boolean moverAuthorized(
+            LlmPlan plan,
+            Component mover,
+            boolean planOptIn,
+            boolean moverIsSoftAnnex,
+            boolean intentionalPair
+    ) {
+        if (componentAllowsMassSeparation(plan, mover, planOptIn)) return true;
+        return moverIsSoftAnnex && !intentionalPair;
     }
 
     private static boolean truthyParam(Map<String, Object> params, String a, String b) {

@@ -8,14 +8,18 @@ import com.formacraft.common.llm.dto.Dimensions;
 import com.formacraft.common.llm.dto.Vec3i;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Authored mass boolean composition (Phase 02.2 / 02.2.1).
+ * Authored mass boolean composition (Phase 02.2 / 02.2.1 / 02.3.1).
  * <p>
  * Nested {@code params.masses[]} may carry {@code operation}/{@code op}:
  * {@code add|union} (default when absent), {@code subtract|carve}, {@code intersect}.
@@ -25,11 +29,17 @@ import java.util.Set;
  * Parent body = first UNION / envelope; annex = additional UNION; subtract/intersect
  * carve the accumulator. {@code replace_envelope} / centered tiers remain
  * {@link ResolvedMassPart} concerns, not CSG ops.
+ * <p>
+ * Phase 02.3.1: {@link CsgResult} carries O(1) occupancy + Y-slices; wall shell via
+ * 4-neigh erosion; carve voids tracked at SUBTRACT time (no AABB blast).
  */
 public final class MassBooleanComposition {
 
     /** HARD_CONSTRAINT — refuse pathological composites. */
     public static final int MAX_CSG_VOXELS = 250_000;
+
+    /** Cap on recorded carve-void cells (not AABB volume). */
+    public static final int MAX_CARVE_VOIDS = 250_000;
 
     /**
      * One CSG operand. Offsets are envelope-local (host min-corner space after fold).
@@ -37,20 +47,75 @@ public final class MassBooleanComposition {
     public record CsgPart(CsgOp op, int offsetX, int offsetY, int offsetZ, int width, int depth, int height) {}
 
     /**
-     * Consumable boolean solid (Phase 02.2.1 Task C). Bounds are true voxel min/max
-     * (exclusive max on each axis, half-open). Empty solid → zero-size bounds at origin.
+     * Consumable boolean solid with indexed queries (Phase 02.3.1 Task A).
+     * Bounds are true voxel min/max (exclusive max, half-open). Empty → zero-size at origin.
      */
-    public record CsgResult(
-            List<ShapeLibrary.Voxel> voxels,
-            int minX,
-            int minY,
-            int minZ,
-            int maxX,
-            int maxY,
-            int maxZ,
-            String sourceOwnerId
-    ) {
-        /** Legacy probe width (max exclusive X). */
+    public static final class CsgResult {
+        private final List<ShapeLibrary.Voxel> voxels;
+        private final Set<Long> occupied;
+        private final Map<Integer, Set<Long>> footprintByY;
+        private final List<ShapeLibrary.Voxel> carveVoids;
+        private final int minX;
+        private final int minY;
+        private final int minZ;
+        private final int maxX;
+        private final int maxY;
+        private final int maxZ;
+        private final String sourceOwnerId;
+
+        private CsgResult(
+                List<ShapeLibrary.Voxel> voxels,
+                Set<Long> occupied,
+                Map<Integer, Set<Long>> footprintByY,
+                List<ShapeLibrary.Voxel> carveVoids,
+                int minX, int minY, int minZ, int maxX, int maxY, int maxZ,
+                String sourceOwnerId
+        ) {
+            this.voxels = voxels;
+            this.occupied = occupied;
+            this.footprintByY = footprintByY;
+            this.carveVoids = carveVoids;
+            this.minX = minX;
+            this.minY = minY;
+            this.minZ = minZ;
+            this.maxX = maxX;
+            this.maxY = maxY;
+            this.maxZ = maxZ;
+            this.sourceOwnerId = sourceOwnerId;
+        }
+
+        public List<ShapeLibrary.Voxel> voxels() {
+            return voxels;
+        }
+
+        public int minX() {
+            return minX;
+        }
+
+        public int minY() {
+            return minY;
+        }
+
+        public int minZ() {
+            return minZ;
+        }
+
+        public int maxX() {
+            return maxX;
+        }
+
+        public int maxY() {
+            return maxY;
+        }
+
+        public int maxZ() {
+            return maxZ;
+        }
+
+        public String sourceOwnerId() {
+            return sourceOwnerId;
+        }
+
         public int envelopeWidth() {
             return Math.max(0, maxX - minX);
         }
@@ -64,18 +129,18 @@ public final class MassBooleanComposition {
         }
 
         public boolean isEmpty() {
-            return voxels == null || voxels.isEmpty();
+            return voxels.isEmpty();
         }
 
+        /** Average O(1) occupancy probe. */
         public boolean contains(int x, int y, int z) {
-            if (isEmpty()) return false;
-            for (ShapeLibrary.Voxel v : voxels) {
-                if (v.x() == x && v.y() == y && v.z() == z) return true;
-            }
-            return false;
+            return occupied.contains(pack3(x, y, z));
         }
 
-        /** Face-adjacent to a solid voxel but not itself solid (6-neighborhood). */
+        /**
+         * 6-neighborhood surface: solid with a missing face neighbor, or empty cell
+         * face-adjacent to a solid.
+         */
         public boolean isBoundary(int x, int y, int z) {
             if (contains(x, y, z)) {
                 return !contains(x - 1, y, z) || !contains(x + 1, y, z)
@@ -87,39 +152,88 @@ public final class MassBooleanComposition {
                     || contains(x, y, z - 1) || contains(x, y, z + 1);
         }
 
-        /** Solid XZ cells at storey Y (envelope-local). */
+        /** True when solid and missing at least one 6-face neighbor (exposed surface). */
+        public boolean isSolidSurface(int x, int y, int z) {
+            if (!contains(x, y, z)) return false;
+            return !contains(x - 1, y, z) || !contains(x + 1, y, z)
+                    || !contains(x, y - 1, z) || !contains(x, y + 1, z)
+                    || !contains(x, y, z - 1) || !contains(x, y, z + 1);
+        }
+
+        /** Solid XZ cells at storey Y — O(slice) via Y-index. */
         public Set<Long> footprintAt(int y) {
-            Set<Long> out = new HashSet<>();
-            if (isEmpty()) return out;
-            for (ShapeLibrary.Voxel v : voxels) {
-                if (v.y() == y) {
-                    out.add((((long) v.x()) << 32) ^ (v.z() & 0xffffffffL));
-                }
-            }
-            return out;
+            Set<Long> slice = footprintByY.get(y);
+            return slice == null ? Set.of() : slice;
         }
 
         /**
-         * Cells inside the AABB bounds that are not solid (atrium / carve voids).
-         * Empty when the solid fills its AABB or result is empty.
+         * Cells removed by SUBTRACT that were previously solid (atrium / carve).
+         * Does <strong>not</strong> enumerate empty AABB exterior between sparse parts.
          */
+        public List<ShapeLibrary.Voxel> carveVoids() {
+            return carveVoids;
+        }
+
+        /**
+         * @deprecated Prefer {@link #carveVoids()} — AABB hole blast is forbidden for walls.
+         *             Retained as an alias to carve voids for 02.2.1 call sites.
+         */
+        @Deprecated
         public List<ShapeLibrary.Voxel> voids() {
-            if (isEmpty()) return List.of();
-            Set<ShapeLibrary.Voxel> solid = new HashSet<>(voxels);
-            List<ShapeLibrary.Voxel> holes = new ArrayList<>();
-            for (int y = minY; y < maxY; y++) {
-                for (int x = minX; x < maxX; x++) {
-                    for (int z = minZ; z < maxZ; z++) {
-                        ShapeLibrary.Voxel v = new ShapeLibrary.Voxel(x, y, z);
-                        if (!solid.contains(v)) holes.add(v);
-                    }
-                }
-            }
-            return holes;
+            return carveVoids;
         }
 
         public ComponentFootprintUtil.Bounds bounds() {
             return new ComponentFootprintUtil.Bounds(minX, minY, minZ, maxX, maxY, maxZ);
+        }
+
+        /**
+         * Plan-horizontal 4-neigh erosion of thickness {@code t}, then shell = D \\ eroded.
+         * Y is preserved (walls stay vertical). Empty when D collapses.
+         */
+        /**
+         * Plan-horizontal shell. When erosion empties the domain, returns empty list so callers
+         * can emit {@code E_MASS_WALL_THICKNESS} instead of filling the whole solid.
+         */
+        public List<ShapeLibrary.Voxel> shellWalls(int thickness) {
+            int t = Math.max(1, thickness);
+            if (isEmpty()) return List.of();
+            Set<Long> domain = new HashSet<>(occupied);
+            Set<Long> eroded = domain;
+            for (int i = 0; i < t; i++) {
+                eroded = erode4Horizontal(eroded);
+                if (eroded.isEmpty()) {
+                    // Thickness collapses usable interior — do not treat entire D as wall.
+                    return List.of();
+                }
+            }
+            List<ShapeLibrary.Voxel> shell = new ArrayList<>();
+            for (ShapeLibrary.Voxel v : voxels) {
+                long key = pack3(v.x(), v.y(), v.z());
+                if (!eroded.contains(key)) {
+                    shell.add(v);
+                }
+            }
+            return shell;
+        }
+
+        /**
+         * XZ cells on the slice that are solid and have a missing 4-neigh in-plane
+         * (exterior or courtyard edge).
+         */
+        public Set<Long> horizontalBoundaryAt(int y) {
+            Set<Long> slice = footprintAt(y);
+            if (slice.isEmpty()) return Set.of();
+            Set<Long> edge = new HashSet<>();
+            for (long xz : slice) {
+                int x = unpackX(xz);
+                int z = unpackZ(xz);
+                if (!slice.contains(pack2(x - 1, z)) || !slice.contains(pack2(x + 1, z))
+                        || !slice.contains(pack2(x, z - 1)) || !slice.contains(pack2(x, z + 1))) {
+                    edge.add(xz);
+                }
+            }
+            return edge;
         }
     }
 
@@ -159,36 +273,37 @@ public final class MassBooleanComposition {
     /**
      * Peer-mass CSG cue: subtract / intersect / union against a host.
      * Returns null when this component is not a CSG satellite.
+     * Explicit {@code mass_operation} uses strict parse (Phase 02.3.1 Task C).
      */
     public static CsgOp peerMassOperation(Component component) {
         if (component == null || component.params() == null) return null;
         Object raw = component.params().get("mass_operation");
         if (raw == null) raw = component.params().get("massOperation");
-        if (raw == null) raw = component.params().get("operation");
-        CsgOp op = raw == null ? null : parseOpLenient(raw);
-        if (op == null) {
-            Object composition = component.params().get("mass_composition");
-            if (composition == null) composition = component.params().get("massComposition");
-            if (composition != null) {
-                String s = String.valueOf(composition).trim().toLowerCase(Locale.ROOT);
-                if (s.contains("subtract") || s.contains("carve")) return CsgOp.SUBTRACT;
-                if (s.contains("intersect")) return CsgOp.INTERSECT;
-                if (s.contains("union") || s.contains("interlock")) return CsgOp.UNION;
-            }
+        if (raw != null) {
+            return parseOpStrict(raw);
         }
-        if (op == null
-                && (truthy(component.params().get("intentional_interlock"))
-                || truthy(component.params().get("intentionalInterlock")))) {
+        // Legacy: bare operation / composition / intentional_interlock without mass_operation.
+        Object opField = component.params().get("operation");
+        if (opField != null) {
+            CsgOp op = parseOpLenient(opField);
+            if (op != null) return op;
+            throw new IllegalArgumentException(
+                    "E_MASS_CSG_OP_UNSUPPORTED: " + opField
+                            + " (expected add|union, subtract|carve, intersect)");
+        }
+        Object composition = component.params().get("mass_composition");
+        if (composition == null) composition = component.params().get("massComposition");
+        if (composition != null) {
+            String s = String.valueOf(composition).trim().toLowerCase(Locale.ROOT);
+            if (s.contains("subtract") || s.contains("carve")) return CsgOp.SUBTRACT;
+            if (s.contains("intersect")) return CsgOp.INTERSECT;
+            if (s.contains("union") || s.contains("interlock")) return CsgOp.UNION;
+        }
+        if (truthy(component.params().get("intentional_interlock"))
+                || truthy(component.params().get("intentionalInterlock"))) {
             return CsgOp.UNION;
         }
-        if (op == CsgOp.UNION
-                && !truthy(component.params().get("intentional_interlock"))
-                && !truthy(component.params().get("intentionalInterlock"))) {
-            Object explicit = component.params().get("mass_operation");
-            if (explicit == null) explicit = component.params().get("massOperation");
-            if (explicit == null) return null;
-        }
-        return op;
+        return null;
     }
 
     public static String peerHostId(Component component) {
@@ -208,8 +323,8 @@ public final class MassBooleanComposition {
         String aId = componentId(a);
         String bId = componentId(b);
         if (linksTo(a, bId) || linksTo(b, aId)) {
-            CsgOp opA = peerMassOperation(a);
-            CsgOp opB = peerMassOperation(b);
+            CsgOp opA = safePeerOp(a);
+            CsgOp opB = safePeerOp(b);
             if (opA != null || opB != null) return true;
             if (truthy(a.params() == null ? null : a.params().get("intentional_interlock"))
                     || truthy(a.params() == null ? null : a.params().get("intentionalInterlock"))
@@ -219,6 +334,15 @@ public final class MassBooleanComposition {
             }
         }
         return false;
+    }
+
+    /** peerMassOperation without throwing — used by relation probes. */
+    private static CsgOp safePeerOp(Component c) {
+        try {
+            return peerMassOperation(c);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     public static List<CsgPart> partsFromResolved(List<ResolvedMassPart> resolved) {
@@ -260,6 +384,7 @@ public final class MassBooleanComposition {
         }
 
         Set<ShapeLibrary.Voxel> acc = new HashSet<>();
+        Set<ShapeLibrary.Voxel> carved = new LinkedHashSet<>();
         boolean seeded = false;
         for (CsgPart part : parts) {
             List<ShapeLibrary.Voxel> chunk = boxVoxels(part.width(), part.depth(), part.height());
@@ -270,18 +395,22 @@ public final class MassBooleanComposition {
                     seeded = true;
                 }
                 case SUBTRACT -> {
-                    // Subtract before any seed is a no-op; after seed removes voxels (may empty).
-                    placed.forEach(acc::remove);
-                    // Do not clear seeded — empty after subtract is a legal finished state.
+                    for (ShapeLibrary.Voxel v : placed) {
+                        if (acc.remove(v)) {
+                            carved.add(v);
+                            if (carved.size() > MAX_CARVE_VOIDS) {
+                                throw new IllegalArgumentException(
+                                        "E_MASS_CSG_BUDGET: carve voids exceed " + MAX_CARVE_VOIDS);
+                            }
+                        }
+                    }
                 }
                 case INTERSECT -> {
                     if (!seeded) {
-                        // First INTERSECT seeds the accumulator (ShapeLibrary semantics).
                         acc.clear();
                         acc.addAll(placed);
                         seeded = true;
                     } else {
-                        // Empty acc after seed is a finished empty — never re-add placed (P0-01).
                         Set<ShapeLibrary.Voxel> next = new HashSet<>();
                         for (ShapeLibrary.Voxel v : placed) {
                             if (acc.contains(v)) next.add(v);
@@ -295,20 +424,42 @@ public final class MassBooleanComposition {
             throw new IllegalArgumentException(
                     "E_MASS_CSG_BUDGET: result exceeds " + MAX_CSG_VOXELS + " voxels");
         }
-        return fromVoxels(new ArrayList<>(acc), sourceOwnerId);
+        // Carve cells that are solid again (UNION after subtract) are not voids.
+        carved.removeAll(acc);
+        return fromVoxels(new ArrayList<>(acc), List.copyOf(carved), sourceOwnerId);
     }
 
     public static CsgResult fromVoxels(List<ShapeLibrary.Voxel> voxels, String sourceOwnerId) {
+        return fromVoxels(voxels, List.of(), sourceOwnerId);
+    }
+
+    public static CsgResult fromVoxels(
+            List<ShapeLibrary.Voxel> voxels,
+            List<ShapeLibrary.Voxel> carveVoids,
+            String sourceOwnerId
+    ) {
         if (voxels == null || voxels.isEmpty()) {
-            return new CsgResult(List.of(), 0, 0, 0, 0, 0, 0, sourceOwnerId);
+            return new CsgResult(
+                    List.of(), Set.of(), Map.of(),
+                    carveVoids == null ? List.of() : List.copyOf(carveVoids),
+                    0, 0, 0, 0, 0, 0, sourceOwnerId);
         }
+        List<ShapeLibrary.Voxel> sorted = new ArrayList<>(voxels);
+        sorted.sort(Comparator
+                .comparingInt(ShapeLibrary.Voxel::y)
+                .thenComparingInt(ShapeLibrary.Voxel::x)
+                .thenComparingInt(ShapeLibrary.Voxel::z));
+        Set<Long> occupied = new HashSet<>(sorted.size() * 2);
+        Map<Integer, Set<Long>> byY = new HashMap<>();
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
         int maxY = Integer.MIN_VALUE;
         int maxZ = Integer.MIN_VALUE;
-        for (ShapeLibrary.Voxel v : voxels) {
+        for (ShapeLibrary.Voxel v : sorted) {
+            occupied.add(pack3(v.x(), v.y(), v.z()));
+            byY.computeIfAbsent(v.y(), k -> new HashSet<>()).add(pack2(v.x(), v.z()));
             minX = Math.min(minX, v.x());
             minY = Math.min(minY, v.y());
             minZ = Math.min(minZ, v.z());
@@ -316,10 +467,21 @@ public final class MassBooleanComposition {
             maxY = Math.max(maxY, v.y() + 1);
             maxZ = Math.max(maxZ, v.z() + 1);
         }
-        return new CsgResult(List.copyOf(voxels), minX, minY, minZ, maxX, maxY, maxZ, sourceOwnerId);
+        Map<Integer, Set<Long>> frozenY = new HashMap<>();
+        for (var e : byY.entrySet()) {
+            frozenY.put(e.getKey(), Set.copyOf(e.getValue()));
+        }
+        return new CsgResult(
+                List.copyOf(sorted),
+                Set.copyOf(occupied),
+                Collections.unmodifiableMap(frozenY),
+                carveVoids == null ? List.of() : List.copyOf(carveVoids),
+                minX, minY, minZ, maxX, maxY, maxZ,
+                sourceOwnerId);
     }
 
     public static CsgResult composeFromComponent(Component component) {
+        assertHostShapeSupported(component);
         String owner = componentId(component);
         List<ResolvedMassPart> resolved = ResolvedMassPart.resolve(component);
         List<CsgPart> parts = partsFromMassesParam(component);
@@ -327,6 +489,50 @@ public final class MassBooleanComposition {
             parts = partsFromResolved(resolved);
         }
         return compose(parts, owner.isBlank() ? null : owner);
+    }
+
+    /** Host volume_geometry / plan cues must not silently become a box under CSG. */
+    public static void assertHostShapeSupported(Component component) {
+        if (component == null || component.params() == null) return;
+        Map<String, Object> params = component.params();
+        Object vg = params.get("volume_geometry");
+        if (vg == null) vg = params.get("volumeGeometry");
+        if (vg != null) {
+            String s = String.valueOf(vg).trim().toLowerCase(Locale.ROOT);
+            if (!s.isEmpty() && !"box".equals(s) && !"rect".equals(s) && !"rectangle".equals(s)
+                    && !"cube".equals(s) && !"aabb".equals(s)) {
+                throw new IllegalArgumentException(
+                        "E_MASS_CSG_SHAPE_UNSUPPORTED: host volume_geometry=" + s
+                                + " (only box/rect supported for CSG)");
+            }
+        }
+        assertBoxShapeToken(params.get("shape"));
+        assertBoxShapeToken(params.get("kind"));
+        assertBoxShapeToken(params.get("footprint"));
+        Object planType = params.get("plan_type");
+        if (planType == null) planType = params.get("planType");
+        if (planType != null) {
+            String p = String.valueOf(planType).trim().toLowerCase(Locale.ROOT);
+            // Plan patterns that are not a solid box solid — CSG path is box-only this phase.
+            if (!p.isEmpty() && !"rect".equals(p) && !"rectangle".equals(p) && !"box".equals(p)
+                    && !"none".equals(p)) {
+                throw new IllegalArgumentException(
+                        "E_MASS_CSG_SHAPE_UNSUPPORTED: host plan_type=" + p
+                                + " (CSG requires box envelope; use non-CSG footprint path)");
+            }
+        }
+    }
+
+    private static void assertBoxShapeToken(Object shape) {
+        if (shape == null) return;
+        String s = String.valueOf(shape).trim().toLowerCase(Locale.ROOT);
+        if (s.isEmpty()) return;
+        if (!"box".equals(s) && !"rect".equals(s) && !"rectangle".equals(s)
+                && !"cube".equals(s) && !"aabb".equals(s)) {
+            throw new IllegalArgumentException(
+                    "E_MASS_CSG_SHAPE_UNSUPPORTED: shape=" + s
+                            + " (only box/rect supported for CSG)");
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -343,19 +549,13 @@ public final class MassBooleanComposition {
             Object rawOp = m.get("operation");
             if (rawOp == null) rawOp = m.get("op");
             CsgOp op = rawOp == null ? CsgOp.UNION : parseOpStrict(rawOp);
-            // Non-box shapes are not silently coerced.
             Object shape = m.get("shape");
             if (shape == null) shape = m.get("kind");
             if (shape == null) shape = m.get("footprint");
-            if (shape != null) {
-                String s = String.valueOf(shape).trim().toLowerCase(Locale.ROOT);
-                if (!s.isEmpty() && !"box".equals(s) && !"rect".equals(s) && !"rectangle".equals(s)
-                        && !"cube".equals(s) && !"aabb".equals(s)) {
-                    throw new IllegalArgumentException(
-                            "E_MASS_CSG_SHAPE_UNSUPPORTED: nested mass shape=" + s
-                                    + " (only box/rect supported in Phase 02.2.1)");
-                }
-            }
+            assertBoxShapeToken(shape);
+            Object vg = m.get("volume_geometry");
+            if (vg == null) vg = m.get("volumeGeometry");
+            if (vg != null) assertBoxShapeToken(vg);
             Dimensions dims = readDims(m, envelope);
             Vec3i offset = readOffset(m);
             if (offset.y() == 0 && op == CsgOp.UNION) hasBase = true;
@@ -456,5 +656,66 @@ public final class MassBooleanComposition {
         if (raw instanceof Boolean b) return b;
         String s = String.valueOf(raw).trim().toLowerCase(Locale.ROOT);
         return "true".equals(s) || "1".equals(s) || "yes".equals(s);
+    }
+
+    /** Pack x,y,z with 21-bit signed bias (supports ±1M). */
+    public static long pack3(int x, int y, int z) {
+        final int b = 1 << 20;
+        long X = (long) x + b;
+        long Y = (long) y + b;
+        long Z = (long) z + b;
+        if ((X & ~0x1FFFFFL) != 0 || (Y & ~0x1FFFFFL) != 0 || (Z & ~0x1FFFFFL) != 0) {
+            throw new IllegalArgumentException(
+                    "E_MASS_CSG_BUDGET: coordinate out of pack range (" + x + "," + y + "," + z + ")");
+        }
+        return (X << 42) | (Y << 21) | Z;
+    }
+
+    public static long pack2(int x, int z) {
+        final int b = 1 << 20;
+        long X = (long) x + b;
+        long Z = (long) z + b;
+        if ((X & ~0x1FFFFFL) != 0 || (Z & ~0x1FFFFFL) != 0) {
+            throw new IllegalArgumentException(
+                    "E_MASS_CSG_BUDGET: coordinate out of pack range (" + x + ",?," + z + ")");
+        }
+        return (X << 21) | Z;
+    }
+
+    public static int unpackX(long xz) {
+        return (int) ((xz >>> 21) & 0x1FFFFFL) - (1 << 20);
+    }
+
+    public static int unpackZ(long xz) {
+        return (int) (xz & 0x1FFFFFL) - (1 << 20);
+    }
+
+    public static int unpack3X(long key) {
+        return (int) ((key >>> 42) & 0x1FFFFFL) - (1 << 20);
+    }
+
+    public static int unpack3Y(long key) {
+        return (int) ((key >>> 21) & 0x1FFFFFL) - (1 << 20);
+    }
+
+    public static int unpack3Z(long key) {
+        return (int) (key & 0x1FFFFFL) - (1 << 20);
+    }
+
+    /** One step of horizontal 4-neigh erosion (same Y). */
+    private static Set<Long> erode4Horizontal(Set<Long> domain) {
+        Set<Long> next = new HashSet<>();
+        for (long key : domain) {
+            int x = unpack3X(key);
+            int y = unpack3Y(key);
+            int z = unpack3Z(key);
+            if (domain.contains(pack3(x - 1, y, z))
+                    && domain.contains(pack3(x + 1, y, z))
+                    && domain.contains(pack3(x, y, z - 1))
+                    && domain.contains(pack3(x, y, z + 1))) {
+                next.add(key);
+            }
+        }
+        return next;
     }
 }

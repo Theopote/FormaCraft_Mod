@@ -80,6 +80,8 @@ flowchart TD
 | CSG BuildingVolume / postprocess domain | GEOMETRY_EXECUTION contract | `CsgResult` bounds/contains/voids; emit registers post-boolean volume only (no subtract-child AABB). Full wall/floor shell deferred to 02.3.1 |
 | Mass separation / CONNECTION_SEAM | HARD_CONSTRAINT + soft-annex NONBINDING_HINT | Seam needs opt-in, soft-annex GAP, or passage link; scoped `allow_mass_separation`; interlock via pair peer id in `PatchOccupancyIndex` (not component-wide overwrite) |
 | Stepped cue promotion | FORMAT_REPAIR | `SteppedMassCueRepair` honors local `stepped=false` / explicit `stack_mode` / eccentric XZ offsets |
+| CSG spatial domain + wall shell | GEOMETRY on CPC trunk | Indexed `CsgResult`; `BuildingGeometryContext.Entry.domain` parse-once; hollow `shellWalls(t)` / solid fill; `E_MASS_WALL_THICKNESS` on collapse. Floors deferred to 02.3.2 |
+| Mass separation mover auth | HARD_CONSTRAINT | Chosen mover must hold `allow_mass_separation` / plan opt-in / soft-annex self; peer stamp does not transfer |
 | BMC `allowsBlockAt` INTERSECT | EXPLICIT_TEMPLATE path only | Finished for opt-in `BuildingMassPipeline`; never default route |
 
 ## Default trunk call chain (Path A — code truth, Phase 01.1)

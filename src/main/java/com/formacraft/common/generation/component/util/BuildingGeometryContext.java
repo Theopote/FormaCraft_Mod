@@ -10,11 +10,27 @@ import java.util.Map;
  * Compile-scoped cache of {@link ResolvedBuildingGeometry} keyed by mass {@code component_id}.
  * Populated only inside a scope; closing restores the enclosing cache or releases thread state.
  * Generators must prefer this over re-resolving host topology.
+ * <p>
+ * Phase 02.3.1: optional {@link MassBooleanComposition.CsgResult} domain is parsed once in
+ * {@link #putMass} and reused by emit / BuildingVolume (no second compose).
  */
 public final class BuildingGeometryContext {
     private BuildingGeometryContext() {}
 
-    public record Entry(ResolvedBuildingGeometry geometry, Vec3i originMinCorner) {}
+    /**
+     * @param domain post-boolean occupancy when {@link MassBooleanComposition#needsCsg}; else null.
+     *               BuildingVolume AABB is coarse only — real occupancy is {@code domain}.
+     */
+    public record Entry(
+            ResolvedBuildingGeometry geometry,
+            Vec3i originMinCorner,
+            MassBooleanComposition.CsgResult domain
+    ) {
+        /** Compat: non-CSG entry. */
+        public Entry(ResolvedBuildingGeometry geometry, Vec3i originMinCorner) {
+            this(geometry, originMinCorner, null);
+        }
+    }
 
     private static final ThreadLocal<Map<String, Entry>> CACHE = new ThreadLocal<>();
 
@@ -47,11 +63,20 @@ public final class BuildingGeometryContext {
     }
 
     public static void put(String componentId, ResolvedBuildingGeometry geometry, Vec3i originMinCorner) {
+        put(componentId, geometry, originMinCorner, null);
+    }
+
+    public static void put(
+            String componentId,
+            ResolvedBuildingGeometry geometry,
+            Vec3i originMinCorner,
+            MassBooleanComposition.CsgResult domain
+    ) {
         if (componentId == null || componentId.isBlank() || geometry == null || originMinCorner == null) {
             return;
         }
         var cache = CACHE.get();
-        if (cache != null) cache.put(componentId, new Entry(geometry, originMinCorner));
+        if (cache != null) cache.put(componentId, new Entry(geometry, originMinCorner, domain));
     }
 
     public static void putMass(Component mass) {
@@ -74,7 +99,15 @@ public final class BuildingGeometryContext {
             return;
         }
         Vec3i origin = ComponentFootprintUtil.resolveMinCornerOrigin(mass);
-        put(componentId, geom, origin);
+        MassBooleanComposition.CsgResult domain = null;
+        if (MassBooleanComposition.needsCsg(mass)) {
+            try {
+                domain = MassBooleanComposition.composeFromComponent(mass);
+            } catch (IllegalArgumentException ignored) {
+                // Gap ownership stays with generate/fold callers; cache footprint-only.
+            }
+        }
+        put(componentId, geom, origin, domain);
     }
 
     public static Entry get(String componentId) {
@@ -102,9 +135,33 @@ public final class BuildingGeometryContext {
             if (geom == null || mass.relativePosition() == null) {
                 return null;
             }
-            return new Entry(geom, ComponentFootprintUtil.resolveMinCornerOrigin(mass));
+            MassBooleanComposition.CsgResult domain = null;
+            if (MassBooleanComposition.needsCsg(mass)) {
+                try {
+                    domain = MassBooleanComposition.composeFromComponent(mass);
+                } catch (IllegalArgumentException ignored) {
+                    // leave null
+                }
+            }
+            return new Entry(geom, ComponentFootprintUtil.resolveMinCornerOrigin(mass), domain);
         }
         putMass(mass);
         return get(id);
+    }
+
+    /**
+     * Resolve CSG domain once: prefer compile cache, else compose.
+     *
+     * @throws IllegalArgumentException from compose when invalid
+     */
+    public static MassBooleanComposition.CsgResult domainOrCompose(Component mass) {
+        if (mass == null) {
+            throw new IllegalArgumentException("E_MASS_CSG_EMPTY: no mass");
+        }
+        Entry entry = getOrResolve(mass);
+        if (entry != null && entry.domain() != null) {
+            return entry.domain();
+        }
+        return MassBooleanComposition.composeFromComponent(mass);
     }
 }

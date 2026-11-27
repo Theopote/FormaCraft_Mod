@@ -3,6 +3,7 @@ package com.formacraft.common.generation.component.impl;
 import com.formacraft.common.generation.CompileCapabilityDiagnostics;
 import com.formacraft.common.generation.component.util.GeneratedSurfaceCapture;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
+import com.formacraft.common.generation.component.util.BuildingGeometryContext;
 import com.formacraft.common.generation.component.util.MassBooleanComposition;
 import com.formacraft.common.compiler.semantic.SemanticComponent;
 import com.formacraft.common.generation.component.ComponentGenerator;
@@ -341,8 +342,9 @@ public class MassMainGenerator implements ComponentGenerator {
     }
 
     /**
-     * Emit the boolean solid set only — hollow/facade follow-ons must not re-inflate subtracted atriums.
-     * GEOMETRY_EXECUTION realizing authored ADD/SUBTRACT/INTERSECT (Phase 02.2).
+     * Emit CSG domain as wall shell (hollow) or solid fill.
+     * Domain is reused from {@link BuildingGeometryContext} when present (Phase 02.3.1).
+     * Hollow: {@code W_t = D \\ Erode_4(D,t)} — never expands outer AABB.
      */
     private List<BlockPatch> emitBooleanComposite(
             SemanticComponent semantic,
@@ -352,14 +354,39 @@ public class MassMainGenerator implements ComponentGenerator {
     ) {
         List<BlockPatch> out = new ArrayList<>();
         try {
-            MassBooleanComposition.CsgResult result = MassBooleanComposition.composeFromComponent(c);
+            MassBooleanComposition.CsgResult result =
+                    BuildingGeometryContext.domainOrCompose(c);
             String styleProfile = getStyleProfile(semantic);
             Palette palette = PaletteLibrary.forStyle(styleProfile);
             String wall = getBlockForPart(SemanticPart.WALL, semantic, palette);
             if (wall == null || wall.isBlank()) {
                 wall = ComponentParamParsers.stringParam(params, "minecraft:stone", "wall_block", "wallBlock", "material");
             }
-            for (ShapeLibrary.Voxel v : result.voxels()) {
+            boolean solidRequested = getParamBoolean(params, "solid", "solid_core", "solidCore");
+            boolean hollowExplicitFalse = params != null && Boolean.FALSE.equals(params.get("hollow"));
+            boolean emitSolid = solidRequested || hollowExplicitFalse;
+            int wallThickness = resolveWallThickness(params, semantic);
+
+            List<ShapeLibrary.Voxel> emitVoxels;
+            if (emitSolid || result.isEmpty()) {
+                emitVoxels = result.voxels();
+            } else {
+                emitVoxels = result.shellWalls(wallThickness);
+                if (emitVoxels.isEmpty() && !result.isEmpty()) {
+                    CompileCapabilityDiagnostics.set(new CapabilityGap(
+                            "E_MASS_WALL_THICKNESS",
+                            "wall_thickness=" + wallThickness + " collapses CSG domain; reduce thickness or enlarge mass",
+                            "components[].params.wall_thickness",
+                            List.of(
+                                    "Reduce wall_thickness",
+                                    "Enlarge the mass envelope",
+                                    "Or set solid=true for a filled volume"
+                            )
+                    ));
+                    return List.of();
+                }
+            }
+            for (ShapeLibrary.Voxel v : emitVoxels) {
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         origin.x() + v.x(),
@@ -369,8 +396,9 @@ public class MassMainGenerator implements ComponentGenerator {
                 ));
             }
             FormacraftMod.LOGGER.info(
-                    "MassMainGenerator: boolean composite voxels={} envelope={}x{}x{}",
-                    result.voxels().size(), result.envelopeWidth(), result.envelopeDepth(), result.envelopeHeight());
+                    "MassMainGenerator: boolean composite solid={} shellVoxels={}/{} thickness={} envelope={}x{}x{}",
+                    emitSolid, emitVoxels.size(), result.voxels().size(), wallThickness,
+                    result.envelopeWidth(), result.envelopeDepth(), result.envelopeHeight());
             return out;
         } catch (IllegalArgumentException ex) {
             String msg = ex.getMessage() == null ? "mass boolean composition failed" : ex.getMessage();
@@ -383,7 +411,8 @@ public class MassMainGenerator implements ComponentGenerator {
                     "components[].params.masses",
                     List.of(
                             "Reduce mass boolean volume under " + MassBooleanComposition.MAX_CSG_VOXELS + " voxels",
-                            "Use valid operation values: add|union, subtract|carve, intersect"
+                            "Use valid operation values: add|union, subtract|carve, intersect",
+                            "Use box/rect shapes for CSG (non-box → capability_gap)"
                     )
             ));
             return List.of();

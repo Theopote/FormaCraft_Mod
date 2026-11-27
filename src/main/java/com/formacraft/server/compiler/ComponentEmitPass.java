@@ -1328,14 +1328,16 @@ final class ComponentEmitPass {
 
         if (com.formacraft.common.generation.component.util.MassBooleanComposition.needsCsg(c)) {
             try {
-                var csg = com.formacraft.common.generation.component.util.MassBooleanComposition
-                        .composeFromComponent(c);
+                // Prefer parse-once domain from BuildingGeometryContext (Phase 02.3.1 Task B).
+                var csg = com.formacraft.common.generation.component.util.BuildingGeometryContext
+                        .domainOrCompose(c);
                 if (csg.isEmpty()) {
                     // Legal empty solid — no volume for floor/atrium fill (P0-03).
                     return;
                 }
                 var b = csg.bounds();
                 // Envelope-local CSG bounds + host min-corner origin + slot.
+                // BuildingVolume AABB is coarse filter only — occupancy is domain.contains.
                 Vec3i origin = com.formacraft.common.generation.component.util
                         .ComponentFootprintUtil.resolveMinCornerOrigin(c);
                 if (origin == null) origin = c.relativePosition() == null

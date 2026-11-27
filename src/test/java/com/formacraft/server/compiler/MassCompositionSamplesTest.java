@@ -150,12 +150,13 @@ class MassCompositionSamplesTest {
         assertEquals("E_MASS_FOOTPRINT_CONFLICT", AssemblyCompileDiagnostics.get().code());
     }
 
-    /** S6: allow_mass_separation opt-in nudges primary pair. */
+    /** S6: allow_mass_separation opt-in nudges primary pair (stamp the actual mover). */
     @Test
     void s06_allowMassSeparationOptInNudges() {
-        Component a = mass("primary_east", 0, 0, 0, 12, 12, 8);
-        Component b = massWith("primary_west", 6, 0, 6, 12, 12, 8,
+        // Equal priority → lexicographically earlier id moves; that mover must hold auth.
+        Component a = massWith("primary_east", 0, 0, 0, 12, 12, 8,
                 Map.of("allow_mass_separation", true));
+        Component b = mass("primary_west", 6, 0, 6, 12, 12, 8);
         LlmPlan repaired = MassFootprintSeparationRepair.apply(plan(a, b));
         assertFalse(AssemblyCompileDiagnostics.hasGap());
         assertTrue(

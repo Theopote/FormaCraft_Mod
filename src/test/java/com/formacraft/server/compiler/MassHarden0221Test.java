@@ -230,13 +230,14 @@ class MassHarden0221Test {
 
     @Test
     void d03_localSeparationOptInDoesNotDiffuse() {
+        // Equal priority → lexicographically earlier id moves; stamp that mover only.
         Component a = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(8, 8, 6), List.of(),
-                Map.of("component_id", "primary_a", "anchor_mode", "min_corner"));
+                Map.of("component_id", "primary_a", "anchor_mode", "min_corner",
+                        "allow_mass_separation", true));
         Component b = new Component("MASS_MAIN", "main", new Vec3i(4, 0, 4),
                 new Dimensions(8, 8, 6), List.of(),
-                Map.of("component_id", "primary_b", "anchor_mode", "min_corner",
-                        "allow_mass_separation", true));
+                Map.of("component_id", "primary_b", "anchor_mode", "min_corner"));
         Component c = new Component("MASS_MAIN", "main", new Vec3i(20, 0, 20),
                 new Dimensions(4, 4, 4), List.of(),
                 Map.of("component_id", "far_c", "anchor_mode", "min_corner"));
@@ -245,9 +246,7 @@ class MassHarden0221Test {
                         .components(List.of(a, b, c)).build());
         assertFalse(AssemblyCompileDiagnostics.hasGap(),
                 () -> String.valueOf(AssemblyCompileDiagnostics.get()));
-        // far_c untouched
         assertEquals(new Vec3i(20, 0, 20), repaired.components().get(2).relativePosition());
-        // colliding pair moved or stamped — not stuck overlapping without action
         assertNotEquals(
                 a.relativePosition().equals(repaired.components().get(0).relativePosition())
                         && b.relativePosition().equals(repaired.components().get(1).relativePosition()),

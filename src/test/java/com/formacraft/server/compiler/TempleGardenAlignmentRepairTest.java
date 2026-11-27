@@ -774,10 +774,11 @@ class TempleGardenAlignmentRepairTest {
                 new Dimensions(16, 16, 20), List.of(),
                 Map.of("component_id", "keep", "building_role", "keep",
                         "anchor_mode", "min_corner"));
+        // No hall role bonus — smaller volume is the mover and must hold allow_mass_separation.
         Component inner = new Component(
                 "MASS_MAIN", "body", new Vec3i(2, 2, 2),
                 new Dimensions(10, 10, 16), List.of(),
-                Map.of("component_id", "inner_volume", "building_role", "hall",
+                Map.of("component_id", "inner_volume",
                         "anchor_mode", "min_corner", "allow_mass_separation", true));
         AssemblyCompileDiagnostics.clear();
         LlmPlan repaired = MassFootprintSeparationRepair.apply(LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
