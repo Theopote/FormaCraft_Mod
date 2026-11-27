@@ -63,9 +63,9 @@ def resolve_buildings(plan: dict) -> list[dict]:
         origin = mass_origin(component)
         slot_anchor = slots.get(component.get('slot_id'), {}).get('anchor') or {}
         plan_origin = {axis: origin[axis] + int(slot_anchor.get(axis, 0)) for axis in ('x', 'y', 'z')}
-        # floor_height / ground_clear_height = storey band including one slab (Java parity).
+        # floor_height / ground_clear_height = storey band (Java ResolvedFloorLayout parity).
+        # Do not stamp slab_thickness/clear_height into resolved_buildings — normalize goldens.
         height = explicit_floor_height(component)
-        slab_thickness = max(1, _integer(params.get('slab_thickness') or params.get('slabThickness'), 1))
         ground_clear = _integer(params.get('ground_clear_height') or params.get('groundClearHeight'))
         count = _integer(params.get('floor_count') or params.get('floorCount'))
         envelope_height = int(dimensions.get('height', 1))
@@ -92,8 +92,6 @@ def resolve_buildings(plan: dict) -> list[dict]:
                        'floor_ys_local': floor_ys_local,
                        'roof_y_local': origin['y'] + envelope_height-1,
                        'floor_layout_fits': fits,
-                       'slab_thickness': slab_thickness,
-                       'clear_height': max(0, band - slab_thickness) if band > 0 else 0,
                        'floor_layout_path': f'components[{index}]',
                        'available_floor_layout_height': authored_height,
                        'required_floor_layout_height': need,
