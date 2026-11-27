@@ -75,24 +75,8 @@ class MassBooleanSamplesTest {
                         "offset", Map.of("x", 8, "y", 0, "z", 1),
                         "dimensions", Map.of("width", 4, "depth", 4, "height", 4))
         ));
-        // needsCsg is false when only ADD — still verify additive multi-mass path unchanged.
+        // Phase 02.3.2: explicit ADD-only nested masses enter unified UNION CSG (no mid partition).
         Component c = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
-                new Dimensions(12, 6, 4), List.of(), params);
-        assertFalse(MassBooleanComposition.needsCsg(c));
-        // Force CSG union path with an explicit no-op subtract of empty? Use intersect of union chain:
-        // Instead stamp a trivial carve outside to force CSG while keeping wing solid.
-        params.put("masses", List.of(
-                Map.of("operation", "add",
-                        "offset", Map.of("x", 0, "y", 0, "z", 0),
-                        "dimensions", Map.of("width", 8, "depth", 6, "height", 4)),
-                Map.of("operation", "add",
-                        "offset", Map.of("x", 8, "y", 0, "z", 1),
-                        "dimensions", Map.of("width", 4, "depth", 4, "height", 4)),
-                Map.of("operation", "subtract",
-                        "offset", Map.of("x", 20, "y", 0, "z", 20),
-                        "dimensions", Map.of("width", 1, "depth", 1, "height", 1))
-        ));
-        c = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(12, 6, 4), List.of(), params);
         assertTrue(MassBooleanComposition.needsCsg(c));
         var patches = new MassMainGenerator().generate(new SemanticComponent("MASS_MAIN", null, c));

@@ -52,7 +52,7 @@ ThreadLocal `BuildingGeometryContext` ends at emit; postprocess uses copied `Bui
 | A Domain lifetime | `BuildingVolume` domain handoff; `boundsContains` / `domainContains` / `isProtectedVoid` |
 | B Storey contract | `ResolvedFloorLayout` + `slab_thickness`; Python `resolved_geometry` parity; overflow gap |
 | C Domain-section floors | CSG hollow floors; solid / legal empty; material FLOOR |
-| D ADD-only unified shell | `needsCsg` true for nested `masses≥2` UNION-only |
+| D ADD-only unified shell | Explicit ADD/UNION on `masses≥2` → unified CSG; bare stepped tiers unchanged |
 | E 02.3.1 leftovers | Seam moverAuthorized; fold shape/`volume_geometry` gaps; pack/budget; surface capture |
 | F Tests | `FloorGeometry0232Test` F01–F15; W04/W05/W07/W10; CPC + mover |
 | G Gates / docs | This report + inventory / authority map |
@@ -61,7 +61,7 @@ ThreadLocal `BuildingGeometryContext` ends at emit; postprocess uses copied `Bui
 
 | Code | When |
 |------|------|
-| `E_FLOOR_LAYOUT_OVERFLOW` | Authored `floor_count × bands` exceed envelope (no silent grow) |
+| `E_FLOOR_LAYOUT_OVERFLOW` | Locked/hard `floor_count × bands` exceed envelope (soft unlocked may grow) |
 | `E_MASS_WALL_THICKNESS` | Hollow shell erosion collapses domain |
 | `E_MASS_FOOTPRINT_CONFLICT` | CONNECTION_SEAM mover unauthorized (non-COMPOUND / non-passage) |
 | `E_MASS_CSG_*` | Fold illegal op / non-box `volume_geometry` |
@@ -78,6 +78,7 @@ ThreadLocal `BuildingGeometryContext` ends at emit; postprocess uses copied `Bui
 | `constraintParityTest` | PASS |
 | Python `resolved_geometry` / shared_java_python | PASS (7) |
 | `eval.ci_gate --quick` | PASS |
+| `gradlew build` | PASS |
 
 **Not run / notes:** full `python_backend/tests` suite not executed end-to-end (module path); Inkscape `python` on PATH lacks pytest — used `py -3`. No Golden Digest edits.
 
@@ -94,7 +95,7 @@ ThreadLocal `BuildingGeometryContext` ends at emit; postprocess uses copied `Bui
 |---------|----------------|
 | Domain floors / ADD-only UNION | GEOMETRY |
 | BuildingVolume domain handoff | GEOMETRY_EXECUTION |
-| Storey overflow / no envelope grow | HARD_CONSTRAINT |
+| Storey overflow on locked/hard envelope | HARD_CONSTRAINT; soft unlocked grow = FORMAT_REPAIR |
 | CONNECTION_SEAM mover auth | HARD_CONSTRAINT |
 | Soft-annex / COMPOUND | NONBINDING_HINT (unchanged) |
 | Keyword typology / preset fallback | **not introduced** |
