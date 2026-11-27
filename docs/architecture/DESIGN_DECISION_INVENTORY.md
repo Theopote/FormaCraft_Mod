@@ -1,21 +1,5 @@
 # Design decision inventory
 
-An existing semantic validation repair includes class disagreement as optional model feedback (NONBINDING_HINT). Disagreement alone cannot reject a valid plan, trigger inference, or select a geometry template.
-
-Matching legacy request intent with a valid specific class and confident resolution also keeps its class. Keyword disagreement disables scaffold eligibility. Stale echoes and incomplete legacy records still use the compatibility merge.
-
-The Java fallback for plans containing only a model intent declaration now preserves confident specific classes on strong keyword disagreement, matching Python. A conflicting hint cannot enable scaffolding.
-
-Python preserves a confident, specific model classification when a strong keyword suggests a different class. It records the disagreement using the same diagnostic fields as Java and the conflicting hint cannot authorize scaffolding (NONBINDING_HINT).
-
-For matching versioned intent, Java records strong keyword disagreement as diagnostic metadata without modifying the resolved class or enabling a template (NONBINDING_HINT).
-
-Java retains the design classification and provenance of a recognized versioned request intent whose echo matches the original request. Server-side literal constraint reconciliation still runs. Missing or mismatched metadata uses the legacy request-text merge.
-
-The Python and Java semantic gates use recognized structured intent as the final class input. A generic or low-confidence resolution cannot be promoted by another keyword pass or by plan feature labels. Legacy plans lacking a recognized class can still use compatibility lookup.
-
-Python semantic classification uses resolved request intent without a second raw substring fallback. Java does not promote an authored finial feature (塔刹) to a whole-building tower classification. Both gates use the top-level class only for legacy plans without a structured class, so the mirror cannot bypass the confidence check. These removals prevent optional hints from reinstating specialized morphology checks.
-
 Compiler reentry without original request text no longer reruns keyword class merging on the plan echo (removed DESIGN_OVERRIDE). Explicit roof reconciliation and server seal verification remain active.
 
 The precise phrase 藏式白塔 provides a weak tower hint (NONBINDING_HINT). It cannot qualify a request for scaffolding or override a confident model declaration. Bare 塔 remains open-ended.
@@ -643,7 +627,6 @@ Roof omission uses the same first nonblank parameter and alias resolution as the
 | Phase 02.1 clock-tower / sculpture interlock | Authored 穿入 / `penetrates_hall_roof` / Atomium-style sphere-leg stacks hit `E_MASS_FOOTPRINT_CONFLICT` | **Fixed (2026-11-26):** free-text/feature 穿入·penetrat·东方明珠·sphere pod cues; tower↔primary shell interlock pair; stamp `allow_patch_overwrite` on `INTENTIONAL_INTERLOCK`. No hand-edit of Python normalize goldens. Tests: S04/S04b, ComplexBuildRetest |
 | Phase 02.1 stepped cue from plan features | Nested-mass ziggurat/egg goldens hand-stamped `stepped`/`stack_mode`, breaking Python normalize snapshots | **Fixed (2026-11-26):** `SteppedMassCueRepair` promotes distinguishing_features/genome stepped·tiered·ziggurat cues onto bodies (FORMAT_REPAIR). Tests: Oct19ReplayTest, python `test_oct19_crash_replay` |
 | Phase 02.1 CONNECTION_SEAM vs soft annex | Shallow wing↔hall overlap used seam-collapse instead of courtyard GAP → `WingSeparationDiagTest` lost `footprint_separated` | **Fixed (2026-11-26):** CONNECTION_SEAM seam-resolve skips soft-annex (wing/side/pavilion); those still nudge with GAP. Tests: `WingSeparationDiagTest`, S03/S10b |
-| Phase 02.1 CONNECTION_SEAM vs soft annex | Shallow wing↔hall overlap used seam-collapse instead of courtyard GAP → `WingSeparationDiagTest` lost `footprint_separated` | **Fixed (2026-11-26):** CONNECTION_SEAM seam-resolve skips soft-annex (wing/side/pavilion); those still nudge with GAP. Tests: `WingSeparationDiagTest`, S03/S10b |
 | Phase 02.1 normalizeBody min-3 | `ResolvedComponentGeometry.normalizeBody` / Python `body_dimensions` inflated authored 1×2×2 → 3×3×H | **Fixed:** preserve positive authored W/D/H (min 1); floor_height may still raise H. Fixture `small_envelope` updated. Python `resolved_geometry.body_dimensions` matched (2026-11-26 CI parity). Tests: `ResolvedComponentGeometryTest`, S07, `test_shared_java_python_geometry_cases` |
 | Phase 02.1 ResolvedMassPart auto-center | Contiguous nested masses silently recentered / parent dropped | **Fixed:** require explicit `stepped` / `stack_mode=centered` / `replace_envelope` / tier footprint cues. Tests: S08/S09/S09b; Oct20 retry 6 |
 | Phase 02.1 BuildingMassComposition | Parallel experimental mass CSG | **Inventory only in 02.1** — INTERSECT finished in 02.2 for opt-in BMC only |
@@ -656,5 +639,6 @@ Roof omission uses the same first nonblank parameter and alias resolution as the
 | Phase 02.2.1 CSG fold slot coords | Fold Δ used local minCorner without slot anchors | **Fixed:** `originInPlan` + slot. GEOMETRY. Tests: b01 |
 | Phase 02.2.1 BuildingVolume pre-boolean AABB | Emit registered subtract children as solid volumes | **Fixed:** CSG hosts register post-boolean `CsgResult.bounds()` only; folded satellites skipped. GEOMETRY contract. Tests: c01/c02 |
 | Phase 02.2.1 CONNECTION_SEAM auth | Seam collapse bypassed `canNudge`; plan-wide OR of any component | **Fixed:** unlinked seams need opt-in / soft-annex / passage link; soft-annex name NONBINDING_HINT. HARD_CONSTRAINT. Tests: d01–d03, S10b, fortress passage |
+| Phase 02.2.1 COMPOUND primary seam | Authored `layout.skeleton_type=COMPOUND` peer MASS_MAIN/TOWER staggered join (oct17_retry_2) hit `E_MASS_FOOTPRINT_CONFLICT` under P1-01 without opt-in | **Fixed:** `authoredCompoundSeamJoin` authorizes GEOMETRY seam-collapse only for COMPOUND + peer primary shells; soft-annex still GAP; non-COMPOUND still gaps (d02). Not a building-name keyword. Tests: d02/d02b, ComplexBuildRetest oct17_retry_2 |
 | Phase 02.2.1 interlock overwrite | Component-wide `allow_patch_overwrite` for interlock | **Fixed:** pair `intentional_interlock_peer_id` + occupancy mutual check. HARD_CONSTRAINT. Tests: e01/e02, S04 |
 | Phase 02.2.1 stepped cue override | Plan-text cue overwrote local `stepped=false` / eccentric offsets | **Fixed:** local opt-out + eccentric XZ lock. FORMAT_REPAIR fidelity. Tests: f01/f02 |

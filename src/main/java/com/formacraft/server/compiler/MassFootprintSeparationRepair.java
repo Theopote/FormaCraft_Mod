@@ -6,6 +6,7 @@ import com.formacraft.common.generation.component.util.MassBooleanComposition;
 import com.formacraft.common.generation.component.util.MassSpatialRelation;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.llm.dto.Dimensions;
+import com.formacraft.common.llm.dto.Layout;
 import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.common.llm.dto.Slot;
 import com.formacraft.common.llm.dto.Vec3i;
@@ -101,9 +102,11 @@ final class MassFootprintSeparationRepair {
                     // Soft-annex shallow seam → courtyard GAP path (not seam-collapse) — Phase 02.1.
                     if (softAnnexHint && !intentionalPair) {
                         // fall through to AABB3-style GAP nudge below
-                    } else if (!canNudge && !linkedByPassage(plan, a, b)) {
-                        // Passage / internal_connection authorizes seam collapse for compound joins
-                        // (fortress keep↔tower); unlinked seams still need allow_mass_separation.
+                    } else if (!canNudge
+                            && !linkedByPassage(plan, a, b)
+                            && !authoredCompoundSeamJoin(plan, a, b)) {
+                        // P1-01: unlinked seams on non-COMPOUND plans still need allow_mass_separation.
+                        // Passage / COMPOUND primary joins authorize GEOMETRY seam-collapse only.
                         AssemblyCompileDiagnostics.set(new CapabilityGap(
                                 "E_MASS_FOOTPRINT_CONFLICT",
                                 "CONNECTION_SEAM overlap without allow_mass_separation opt-in",
@@ -132,7 +135,7 @@ final class MassFootprintSeparationRepair {
                                 ? afterSeam.minZ() - beforeSeam.minZ()
                                 : seamNudged.relativePosition().z() - a.relativePosition().z();
                         FormacraftMod.LOGGER.info(
-                                "MassFootprintSeparationRepair: seam-resolve {} vs {} → {} (Δ={},{},{}) auth=opt-in",
+                                "MassFootprintSeparationRepair: seam-resolve {} vs {} → {} (Δ={},{},{}) auth=opt-in/compound",
                                 idOf(a), idOf(b), seamNudged.relativePosition(), sdx, sdy, sdz);
                         out.set(i, seamNudged);
                         shiftHostedSatellites(out, a, sdx, sdy, sdz);
@@ -566,6 +569,32 @@ final class MassFootprintSeparationRepair {
         String t = c.componentType().trim().toUpperCase(Locale.ROOT);
         return "MASS_MAIN".equals(t) || "MAIN_MASS".equals(t) || "TOWER".equals(t)
                 || "MASS_SECONDARY".equals(t);
+    }
+
+    /**
+     * Authored {@code layout.skeleton_type=COMPOUND} multi-mass plans expect shallow join tissue
+     * between peer primary shells (staggered lodge / fortress cluster). GEOMETRY seam-collapse
+     * only — never courtyard GAP and never from building-name keywords. Soft annex stays on the
+     * GAP path; P1-01 d02 (no COMPOUND layout) still gaps.
+     */
+    private static boolean authoredCompoundSeamJoin(LlmPlan plan, Component a, Component b) {
+        if (plan == null || plan.layout() == null || plan.layout().skeletonType() == null) {
+            return false;
+        }
+        if (plan.layout().skeletonType() != Layout.SkeletonType.COMPOUND) {
+            return false;
+        }
+        if (a == null || b == null) return false;
+        if (looksSideHallRole(a) || looksSideHallRole(b)
+                || looksHorizontalAnnex(idOf(a).toLowerCase(Locale.ROOT))
+                || looksHorizontalAnnex(idOf(b).toLowerCase(Locale.ROOT))) {
+            return false;
+        }
+        String ta = a.componentType() == null ? "" : a.componentType().trim().toUpperCase(Locale.ROOT);
+        String tb = b.componentType() == null ? "" : b.componentType().trim().toUpperCase(Locale.ROOT);
+        boolean aPrimary = "MASS_MAIN".equals(ta) || "MAIN_MASS".equals(ta) || "TOWER".equals(ta);
+        boolean bPrimary = "MASS_MAIN".equals(tb) || "MAIN_MASS".equals(tb) || "TOWER".equals(tb);
+        return aPrimary && bPrimary;
     }
 
     /**

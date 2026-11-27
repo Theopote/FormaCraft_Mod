@@ -208,6 +208,27 @@ class MassHarden0221Test {
     }
 
     @Test
+    void d02b_compoundPrimarySeamAuthorizesCollapse() {
+        // Authored COMPOUND skeleton + peer MASS_MAIN: GEOMETRY seam-collapse without opt-in
+        // (oct17_retry_2 staggered lodge). Non-COMPOUND still gaps — see d02.
+        Component hall = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
+                new Dimensions(13, 11, 9), List.of(),
+                Map.of("component_id", "lodge_a", "anchor_mode", "min_corner"));
+        Component wing = new Component("MASS_MAIN", "main", new Vec3i(12, 0, 1),
+                new Dimensions(8, 8, 16), List.of(),
+                Map.of("component_id", "lodge_b", "anchor_mode", "min_corner"));
+        LlmPlan repaired = MassFootprintSeparationRepair.apply(
+                LlmPlanTestFixtures.builder().allowCompilerSatellites(true)
+                        .layout(new Layout(Layout.SkeletonType.COMPOUND, false, List.of()))
+                        .components(List.of(hall, wing)).build());
+        assertFalse(AssemblyCompileDiagnostics.hasGap(),
+                () -> String.valueOf(AssemblyCompileDiagnostics.get()));
+        boolean moved = !hall.relativePosition().equals(repaired.components().get(0).relativePosition())
+                || !wing.relativePosition().equals(repaired.components().get(1).relativePosition());
+        assertTrue(moved, "COMPOUND primary CONNECTION_SEAM should seam-collapse to contact");
+    }
+
+    @Test
     void d03_localSeparationOptInDoesNotDiffuse() {
         Component a = new Component("MASS_MAIN", "main", new Vec3i(0, 0, 0),
                 new Dimensions(8, 8, 6), List.of(),

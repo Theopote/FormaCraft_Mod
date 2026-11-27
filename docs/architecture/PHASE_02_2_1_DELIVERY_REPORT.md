@@ -25,7 +25,7 @@ No DESIGN_OVERRIDE. No new keyword building routers. No `RequestIntentInjector` 
 | P0-01 | INTERSECT seeds only when `!seeded`; empty after seed stays empty |
 | P0-02 | `MassCsgPeerFoldRepair` Δ = `originInPlan(sat) − originInPlan(host)` |
 | P0-03 | Emit registers post-boolean `CsgResult.bounds()`; folded satellites skipped |
-| P1-01 | CONNECTION_SEAM requires opt-in / soft-annex GAP / passage link; nested thin ≠ seam |
+| P1-01 | CONNECTION_SEAM requires opt-in / soft-annex GAP / passage link / authored COMPOUND primary-shell join; nested thin ≠ seam |
 | P1-02 | `intentional_interlock_peer_id` mutual pair in `PatchOccupancyIndex` (no component-wide overwrite) |
 | P1-03 | `SteppedMassCueRepair` honors `stepped=false`, explicit `stack_mode`, eccentric XZ |
 
@@ -75,6 +75,7 @@ Phase2 golden digests: unchanged (no geometric digest rewrite required this roun
 | Fold via `originInPlan` | `MassCsgPeerFoldRepair` | GEOMETRY | b01 |
 | Post-boolean BuildingVolume | `ComponentEmitPass` | GEOMETRY_EXECUTION | c01/c02 |
 | CONNECTION_SEAM auth + soft-annex hint | `MassFootprintSeparationRepair` | HARD_CONSTRAINT / NONBINDING_HINT | d01–d03, S10b |
+| COMPOUND primary seam-collapse | `authoredCompoundSeamJoin` | GEOMETRY (layout skeleton, not building-name) | d02/d02b, oct17_retry_2 |
 | Pair interlock occupancy | `PatchOccupancyIndex` | HARD_CONSTRAINT | e01/e02, S04 |
 | Stepped local opt-out | `SteppedMassCueRepair` | FORMAT_REPAIR | f01/f02 |
 | Keyword typology / silent HOUSE | — | **not introduced** | — |
