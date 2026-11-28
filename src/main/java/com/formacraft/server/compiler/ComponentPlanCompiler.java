@@ -176,59 +176,44 @@ public final class ComponentPlanCompiler {
         if (AssemblyCompileDiagnostics.hasGap()) {
             return List.of();
         }
-        // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
-        // Phase 02.3.3.1 Task G: geometry-affecting repairs BEFORE junction freeze.
+        // --- Geometry-affecting repairs BEFORE freeze (Phase 02.3.4 A4) ---
         plan = MassFootprintSeparationRepair.apply(plan);
-        // Pavilion height clamps can reintroduce floor_count×floor_height overflow.
         plan = FloorLayoutOverflowRepair.apply(plan);
-        // Pavilion may reintroduce plan_type=octagon after the first pass — reconcile again.
         plan = FootprintCombinationRepair.apply(plan);
-        // Phase 02.3.3.1: junction omit/portal after pose/size freeze (not before separation).
-        plan = MassJunctionRepair.apply(plan);
-        if (AssemblyCompileDiagnostics.hasGap()) {
-            return List.of();
-        }
         plan = CastleTowerEnrichmentRepair.apply(plan);
         plan = NarrowTowerStairRepair.apply(plan);
-        // NarrowTower may inject wall_thickness after the earlier fit pass — reconcile again.
         plan = WallThicknessFitRepair.apply(plan);
         plan = ChurchEntranceRepair.apply(plan);
         plan = LandmarkMisrouteRepair.apply(plan);
-        // Baroque mansion / villa must not stay locked to Bird's Nest stadium_bowl.
         plan = StadiumMisrouteRepair.apply(plan);
-        // GrecoRoman style on 巴洛克大宅 must not square the mass or force temple pilasters.
         plan = BaroqueMansionStyleRepair.apply(plan);
-        // 楼阁/废土 composition ≠ dense_eaves octagon; 四角塔 → footprint=square.
         plan = DenseEavesPagodaMisrouteRepair.apply(plan);
-        // Gothic hall STRUCTURE must honour user 12×20 envelopes (not typology 25×45 defaults).
         plan = GothicHallDimensionRepair.apply(plan);
-        // Compositional gothic bell towers: iron-bar slits, steep spire, mixed walls, centered door.
         plan = GothicBellTowerFidelityRepair.apply(plan);
-        // 吊脚楼/干栏避难所 must not stay locked to suspension_bridge (吊桥 keyword collision).
         plan = StiltShelterMisrouteRepair.apply(plan);
-        // Non-suspension bridge prompts must not stay locked to twin-tower suspension typology.
         plan = BridgeMisrouteRepair.apply(plan);
         plan = BridgeCompositionRepair.apply(plan);
         // Stabilize primary masses first so unhosted towers re-evaluate support after hosts move.
-        // Tower-before-mass left towers parked on pre-snap mass tops once the mass dropped.
         plan = FloatingMassSnapRepair.apply(plan);
         plan = FloatingTowerSnapRepair.apply(plan);
         plan = HostedPlateLevelRepair.apply(plan);
         plan = HostIdRemapRepair.apply(plan);
         plan = ExplicitDesignConflictRepair.apply(plan);
-        // Land 重檐 / footprint / material intent before authored gates can hard-fail.
         plan = PlanIntentFidelityRepair.apply(plan);
-        // Office plate grow / storey bands can move hosts after the first bridge stretch —
-        // re-close corridor plates before authored bridge contact validation.
         plan = HostedPlateLevelRepair.apply(plan);
-        // Flat roofs drift off host top after open-frame / satellite lifts — snap before emit.
         plan = FlatRoofAttachmentRepair.apply(plan);
-        // Side-hall / temple / intent repairs may reintroduce duplicate host ids after the
-        // early uniquify pass — scrub again before authored validation.
         plan = DuplicateComponentIdRepair.apply(plan);
-        // Intent / typology repairs may reintroduce floor_count×floor_height overflow after
-        // earlier grows — reconcile envelopes once more before authored design gates.
         plan = FloorLayoutOverflowRepair.apply(plan);
+        plan = WallThicknessFitRepair.apply(plan);
+        // --- Geometry freeze: junction + protected voids consume frozen pose/size ---
+        plan = MassJunctionRepair.apply(plan);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return List.of();
+        }
+        plan = ProtectedSpaceRepair.apply(plan);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return List.of();
+        }
         plan = com.formacraft.common.palette.dynamic.MaterialFallbackPolicy.normalize(plan);
         // After normalize preserves authored tread ids: revise only unexecutable LLM treads.
         plan = com.formacraft.common.palette.dynamic.StairTreadMaterialRevision.apply(plan);
@@ -276,7 +261,15 @@ public final class ComponentPlanCompiler {
         GenerationCompileContext.install(GenerationCompileContext.fromPlan(
                 plan, typologyExclusivePlan, soleTypologyShell, exclusiveHosts, typologyHostParents));
         PatchOccupancyIndex patchOccupancy;
-        try (var geometry = com.formacraft.common.generation.component.util.BuildingGeometryContext.open()) {
+        try (var grants = com.formacraft.common.generation.component.util.JunctionGrantIndex.open();
+             var voids = com.formacraft.common.generation.component.util.ProtectedVoidIndex.open();
+             var geometry = com.formacraft.common.generation.component.util.BuildingGeometryContext.open()) {
+            if (plan.planMeta() != null) {
+                com.formacraft.common.generation.component.util.JunctionGrantIndex.loadFromMeta(
+                        plan.planMeta().get("compiler_junction_grants"));
+                com.formacraft.common.generation.component.util.ProtectedVoidIndex.loadFromMeta(
+                        plan.planMeta().get("compiler_protected_spaces"));
+            }
             for (Component mass : components) {
                 if (com.formacraft.common.generation.component.util.MassComponentKinds.isHostMass(mass)) {
                     com.formacraft.common.generation.component.util.BuildingGeometryContext.putMass(mass);

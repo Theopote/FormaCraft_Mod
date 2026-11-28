@@ -156,14 +156,14 @@ public final class MassJunctionGeometry {
         if (chosen == null || chosen.isEmpty()) {
             return OpeningResult.insufficient(faceATowardB);
         }
-        // Authored size must fit the contact region — never silent-shrink (Task E).
-        if (spanAlongTangent(chosen, faceATowardB) < width
-                || ySpan(chosen) < Math.min(height, 2)) {
+        // Authored size must fit the contact region — never silent-shrink (02.3.4 A1).
+        if (spanAlongTangent(chosen, faceATowardB) < width || ySpan(chosen) < height) {
             return OpeningResult.insufficient(faceATowardB);
         }
 
         List<Vec3i> aperture = clipToDoorSize(chosen, faceATowardB, width, height, y0, y1);
-        if (aperture.isEmpty()) {
+        // Full width×height rectangle must lie on real contact cells — no synthesize.
+        if (aperture.size() < width * height) {
             return OpeningResult.insufficient(faceATowardB);
         }
 
@@ -313,66 +313,61 @@ public final class MassJunctionGeometry {
             if (inY.isEmpty()) inY = region;
             int span = spanAlongTangent(inY, face);
             int ySpan = ySpan(inY);
-            if (span >= width && ySpan >= Math.min(height, 2)) {
+            // Require full authored height — never Math.min(height, 2) soft pass (02.3.4 A1).
+            if (span >= width && ySpan >= height) {
                 int score = span * ySpan;
                 if (score > bestScore) {
                     bestScore = score;
                     best = inY;
                 }
-            } else if (best == null && span * ySpan > bestScore) {
-                bestScore = span * ySpan;
-                best = inY;
             }
         }
         return best;
     }
 
+    /**
+     * Clip to door size using <strong>only</strong> real contact cells.
+     * Missing cells → empty list (caller emits capability_gap; no synthesize).
+     */
     private static List<Vec3i> clipToDoorSize(
             List<Vec3i> region, String face, int width, int height, int y0, int y1
     ) {
         if (region.isEmpty()) return List.of();
         boolean xAxis = "EAST".equalsIgnoreCase(face) || "WEST".equalsIgnoreCase(face);
+        Set<Long> regionKeys = new LinkedHashSet<>();
         int tMin = Integer.MAX_VALUE, tMax = Integer.MIN_VALUE;
         int yMin = Integer.MAX_VALUE, yMax = Integer.MIN_VALUE;
         for (Vec3i c : region) {
+            if (!MassBooleanComposition.inPackRange3(c.x(), c.y(), c.z())) continue;
+            regionKeys.add(MassBooleanComposition.pack3(c.x(), c.y(), c.z()));
             int t = xAxis ? c.z() : c.x();
             tMin = Math.min(tMin, t);
             tMax = Math.max(tMax, t);
             yMin = Math.min(yMin, c.y());
             yMax = Math.max(yMax, c.y());
         }
+        if (regionKeys.isEmpty()) return List.of();
         int mid = (tMin + tMax) / 2;
         int half = width / 2;
         int t0 = mid - half;
         int t1 = t0 + width;
         int yy0 = Math.max(y0, yMin);
         int yy1 = Math.min(y0 + height, yMax + 1);
-        if (yy1 <= yy0) {
-            yy0 = yMin;
-            yy1 = Math.min(yMin + height, yMax + 1);
+        if (yy1 - yy0 < height) {
+            return List.of(); // contact band shorter than authored door height
         }
-        // Prefer cells that exist in the region set.
-        Set<Long> regionKeys = new LinkedHashSet<>();
-        for (Vec3i c : region) {
-            if (MassBooleanComposition.inPackRange3(c.x(), c.y(), c.z())) {
-                regionKeys.add(MassBooleanComposition.pack3(c.x(), c.y(), c.z()));
-            }
-        }
-        List<Vec3i> out = new ArrayList<>();
-        // Use a representative normal-axis coordinate from the region (constant on a face).
         int faceCoord = xAxis ? region.getFirst().x() : region.getFirst().z();
+        List<Vec3i> out = new ArrayList<>(width * height);
         for (int t = t0; t < t1; t++) {
-            for (int y = yy0; y < yy1; y++) {
+            for (int y = yy0; y < yy0 + height; y++) {
                 int x = xAxis ? faceCoord : t;
                 int z = xAxis ? t : faceCoord;
-                long key = MassBooleanComposition.inPackRange3(x, y, z)
-                        ? MassBooleanComposition.pack3(x, y, z) : -1L;
-                if (key >= 0 && (regionKeys.contains(key) || regionKeys.isEmpty())) {
-                    out.add(new Vec3i(x, y, z));
-                } else if (key >= 0) {
-                    // Allow synthesized aperture on the contact face even if contact sampling was sparse.
-                    out.add(new Vec3i(x, y, z));
+                if (!MassBooleanComposition.inPackRange3(x, y, z)) return List.of();
+                long key = MassBooleanComposition.pack3(x, y, z);
+                if (!regionKeys.contains(key)) {
+                    return List.of(); // hole in contact — no synthesize (02.3.4 A1 / P0-01)
                 }
+                out.add(new Vec3i(x, y, z));
             }
         }
         return out;

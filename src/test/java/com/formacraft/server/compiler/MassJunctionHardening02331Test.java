@@ -24,10 +24,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -105,34 +103,14 @@ class MassJunctionHardening02331Test {
     }
 
     private static boolean isAirish(Map<Vec3i, String> blocks, int x, int y, int z) {
-        String b = blocks.get(new Vec3i(x, y, z));
-        return b == null || b.contains("air") || !b.contains("stone_brick");
+        return BuildingSpatialAssertions.isAir(blocks, x, y, z);
     }
 
     private static boolean bfsTraverse(
             Map<Vec3i, String> blocks, Vec3i start, Vec3i goal, int x0, int x1, int y0, int y1, int z0, int z1
     ) {
-        Set<Long> seen = new HashSet<>();
-        ArrayDeque<Vec3i> q = new ArrayDeque<>();
-        q.add(start);
-        while (!q.isEmpty()) {
-            Vec3i c = q.removeFirst();
-            if (c.equals(goal)) return true;
-            long key = (((long) c.x()) << 40) | (((long) c.y()) << 20) | (c.z() & 0xFFFFF);
-            if (!seen.add(key)) continue;
-            int[][] d = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
-            for (int[] n : d) {
-                int nx = c.x() + n[0], ny = c.y() + n[1], nz = c.z() + n[2];
-                if (nx < x0 || nx >= x1 || ny < y0 || ny >= y1 || nz < z0 || nz >= z1) continue;
-                if (!isAirish(blocks, nx, ny, nz) && !(nx == goal.x() && ny == goal.y() && nz == goal.z())) {
-                    // Allow walking onto goal even if marked; interiors are airish.
-                    String b = blocks.get(new Vec3i(nx, ny, nz));
-                    if (b != null && b.contains("stone_brick")) continue;
-                }
-                q.add(new Vec3i(nx, ny, nz));
-            }
-        }
-        return false;
+        // Topology: 2-high air passable (not !stone_brick). Player-pass+support is separate.
+        return BuildingSpatialAssertions.reachablePassable(blocks, start, goal, x0, x1, y0, y1, z0, z1);
     }
 
     // --- H01–H03 coordinate contract ---
@@ -564,7 +542,8 @@ class MassJunctionHardening02331Test {
                 .allowCompilerSatellites(true)
                 .components(repaired.components())
                 .build());
-        assertTrue(bfsTraverse(blocks, new Vec3i(4, 2, 4), new Vec3i(14, 2, 4),
+        // Feet on storey slab (y=0 floor → stand at y=1); require 2-high air + support.
+        assertTrue(bfsTraverse(blocks, new Vec3i(4, 1, 4), new Vec3i(14, 1, 4),
                 1, 19, 1, 5, 1, 9),
                 "A interior must reach B interior through opening");
     }

@@ -411,19 +411,38 @@ public class MassMainGenerator implements ComponentGenerator {
             }
 
             Set<Long> junctionOmit = junctionOmitCells(params);
+            Set<Long> junctionCarve = junctionPackedCells(params, "junction_carve_cells");
+            for (long carveKey : junctionCarve) {
+                if (!MassBooleanComposition.inPackRange3(
+                        MassBooleanComposition.unpack3X(carveKey),
+                        MassBooleanComposition.unpack3Y(carveKey),
+                        MassBooleanComposition.unpack3Z(carveKey))) continue;
+                out.add(new BlockPatch(
+                        BlockPatch.REMOVE,
+                        MassBooleanComposition.unpack3X(carveKey),
+                        MassBooleanComposition.unpack3Y(carveKey),
+                        MassBooleanComposition.unpack3Z(carveKey),
+                        "minecraft:air"));
+            }
             for (ShapeLibrary.Voxel v : emitVoxels) {
                 int wx = origin.x() + v.x();
                 int wy = origin.y() + v.y();
                 int wz = origin.z() + v.z();
-                if (!junctionOmit.isEmpty()
-                        && MassBooleanComposition.inPackRange3(wx, wy, wz)
-                        && junctionOmit.contains(MassBooleanComposition.pack3(wx, wy, wz))) {
-                    continue;
-                }
+                if (!MassBooleanComposition.inPackRange3(wx, wy, wz)) continue;
+                long worldKey = MassBooleanComposition.pack3(wx, wy, wz);
+                long localKey = MassBooleanComposition.inPackRange3(v.x(), v.y(), v.z())
+                        ? MassBooleanComposition.pack3(v.x(), v.y(), v.z()) : Long.MIN_VALUE;
+                if (!junctionOmit.isEmpty() && junctionOmit.contains(worldKey)) continue;
+                if (!junctionCarve.isEmpty() && junctionCarve.contains(worldKey)) continue;
+                if (localKey != Long.MIN_VALUE && !protectedVoids.isEmpty()
+                        && protectedVoids.contains(localKey)) continue;
+                if (com.formacraft.common.generation.component.util.ProtectedVoidIndex.isProtected(
+                        wx, wy, wz)) continue;
                 GeneratedSurfaceCapture.Role role = shellSurfaceRole(carveVoidKeys, v.x(), v.y(), v.z());
                 GeneratedSurfaceCapture.record(wx, wy, wz, role);
                 out.add(new BlockPatch(BlockPatch.PLACE, wx, wy, wz, wall));
             }
+            emitJunctionFloorPlaces(out, semantic, palette, params);
             FormacraftMod.LOGGER.info(
                     "MassMainGenerator: boolean composite solid={} shellVoxels={}/{} thickness={} envelope={}x{}x{}",
                     emitSolid, emitVoxels.size(), result.voxels().size(), wallThickness,
@@ -546,6 +565,18 @@ public class MassMainGenerator implements ComponentGenerator {
                 if (!MassBooleanComposition.inPackRange3(x, y, z)) continue;
                 long key = MassBooleanComposition.pack3(x, y, z);
                 if (carveVoidKeys.contains(key) || protectedVoids.contains(key)) continue;
+                int wx = origin.x() + x;
+                int wy = origin.y() + y;
+                int wz = origin.z() + z;
+                if (MassBooleanComposition.inPackRange3(wx, wy, wz)) {
+                    long worldKey = MassBooleanComposition.pack3(wx, wy, wz);
+                    // Host-local protect stamps use origin-relative keys in protected_voids;
+                    // also skip when plan-space protect index is active.
+                    if (com.formacraft.common.generation.component.util.ProtectedVoidIndex.isProtected(wx, wy, wz)) {
+                        continue;
+                    }
+                    if (protectedVoids.contains(worldKey)) continue;
+                }
                 out.add(new BlockPatch(
                         BlockPatch.PLACE,
                         origin.x() + x,
@@ -747,11 +778,17 @@ public class MassMainGenerator implements ComponentGenerator {
                     int surfaceX = rp.x() + mass.offsetX + localX;
                     int surfaceY = rp.y() + mass.offsetY + y;
                     int surfaceZ = rp.z() + mass.offsetZ + localZ;
-                    // Phase 02.3.3.1: shared-wall / opening omit cells (host-local packed).
-                    if (junctionOmit != null && !junctionOmit.isEmpty()
-                            && MassBooleanComposition.inPackRange3(surfaceX, surfaceY, surfaceZ)
-                            && junctionOmit.contains(MassBooleanComposition.pack3(surfaceX, surfaceY, surfaceZ))) {
-                        continue;
+                    // Phase 02.3.3.1/02.3.4: shared-wall / opening omit + protected voids.
+                    if (MassBooleanComposition.inPackRange3(surfaceX, surfaceY, surfaceZ)) {
+                        long surfaceKey = MassBooleanComposition.pack3(surfaceX, surfaceY, surfaceZ);
+                        if (junctionOmit != null && !junctionOmit.isEmpty()
+                                && junctionOmit.contains(surfaceKey)) {
+                            continue;
+                        }
+                        if (com.formacraft.common.generation.component.util.ProtectedVoidIndex.isProtected(
+                                surfaceX, surfaceY, surfaceZ)) {
+                            continue;
+                        }
                     }
                     if (x == 0 || z == 0 || x == currentWidth-1 || z == currentDepth-1
                             || isExteriorWallPosition(localX, localZ, footprint))
@@ -2011,8 +2048,12 @@ public class MassMainGenerator implements ComponentGenerator {
      * (Phase 02.3.3.1: keys match {@code origin + voxel}, not plan-space with slot).
      */
     private static Set<Long> junctionOmitCells(Map<String, Object> params) {
-        if (params == null) return Set.of();
-        Object raw = params.get("junction_omit_cells");
+        return junctionPackedCells(params, "junction_omit_cells");
+    }
+
+    private static Set<Long> junctionPackedCells(Map<String, Object> params, String key) {
+        if (params == null || key == null) return Set.of();
+        Object raw = params.get(key);
         if (!(raw instanceof List<?> list) || list.isEmpty()) return Set.of();
         Set<Long> out = new HashSet<>();
         for (Object o : list) {
@@ -2026,5 +2067,32 @@ public class MassMainGenerator implements ComponentGenerator {
             }
         }
         return out;
+    }
+
+    /** PLACE floor continuity cells stamped by junction repair (host-local pack3). */
+    private void emitJunctionFloorPlaces(
+            List<BlockPatch> out,
+            SemanticComponent semantic,
+            Palette palette,
+            Map<String, Object> params
+    ) {
+        Set<Long> floors = junctionPackedCells(params, "junction_floor_place_cells");
+        if (floors.isEmpty()) return;
+        String floor = getBlockForPart(SemanticPart.FLOOR, semantic, palette);
+        if (floor == null || floor.isEmpty()) {
+            floor = getBlockForPart(SemanticPart.COURTYARD_FLOOR, semantic, palette);
+        }
+        if (floor == null || floor.isEmpty()) {
+            floor = "minecraft:oak_planks";
+        }
+        for (long key : floors) {
+            int x = MassBooleanComposition.unpack3X(key);
+            int y = MassBooleanComposition.unpack3Y(key);
+            int z = MassBooleanComposition.unpack3Z(key);
+            if (com.formacraft.common.generation.component.util.ProtectedVoidIndex.isProtected(x, y, z)) {
+                continue;
+            }
+            out.add(new BlockPatch(BlockPatch.PLACE, x, y, z, floor));
+        }
     }
 }

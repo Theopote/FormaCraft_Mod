@@ -6,11 +6,13 @@ import com.formacraft.common.generation.component.util.BuildingGeometryContext;
 import com.formacraft.common.generation.component.util.ComponentFootprintUtil;
 import com.formacraft.common.generation.component.util.ComponentParamParsers;
 import com.formacraft.common.geometry.shape.CsgOp;
+import com.formacraft.common.generation.component.util.JunctionGrantIndex;
 import com.formacraft.common.generation.component.util.MassBooleanComposition;
 import com.formacraft.common.generation.component.util.MassDomainRelation;
 import com.formacraft.common.generation.component.util.MassJunctionGeometry;
 import com.formacraft.common.generation.component.util.MassJunctionIntent;
 import com.formacraft.common.generation.component.util.ResolvedFloorLayout;
+import com.formacraft.common.generation.component.util.ResolvedFootprint;
 import com.formacraft.common.generation.component.util.ResolvedMassPart;
 import com.formacraft.common.llm.dto.CapabilityGap;
 import com.formacraft.common.llm.dto.Component;
@@ -44,6 +46,13 @@ final class MassJunctionRepair {
         if (plan == null || plan.components() == null || plan.components().size() < 2) {
             return plan;
         }
+        boolean ownGrantScope = !JunctionGrantIndex.isActive();
+        try (JunctionGrantIndex.Scope grantScope = ownGrantScope ? JunctionGrantIndex.open() : null) {
+            return applyWithGrants(plan);
+        }
+    }
+
+    private static LlmPlan applyWithGrants(LlmPlan plan) {
         List<Component> out = new ArrayList<>(plan.components());
         boolean changed = false;
         List<Component> portals = new ArrayList<>();
@@ -77,7 +86,8 @@ final class MassJunctionRepair {
                     return plan;
                 }
                 MassJunctionIntent intent = edge.intent();
-                if (intent == MassJunctionIntent.INDEPENDENT) {
+                // UNSPECIFIED / explicit INDEPENDENT / conflict already handled — no geometry.
+                if (edge.isInactive()) {
                     continue;
                 }
 
@@ -107,6 +117,10 @@ final class MassJunctionRepair {
                             || rel.relation() == MassDomainRelation.EDGE_CONTACT) {
                         continue;
                     }
+                    // No AABB-only interlock grants (02.3.4 A2).
+                    if (!rel.domainAuthoritative()) {
+                        continue;
+                    }
                     if (stampPair(out, i, j, intent, rel, a, b)) changed = true;
                     stampAuthorizedCells(out, i, j, a, b, ab, bb, domains, rel, plan);
                     recordEdge(edgeTable, a, b, intent, rel);
@@ -130,8 +144,19 @@ final class MassJunctionRepair {
                             idOf(a), idOf(b), rel.relation());
                 }
 
+                if (intent == MassJunctionIntent.PASSAGE || intent == MassJunctionIntent.OPEN_CONNECTION
+                        || intent == MassJunctionIntent.SHARED_WALL) {
+                    // Shared/open/passage require domain authority for any delete/omit (A2).
+                    if (!rel.domainAuthoritative()) {
+                        FormacraftMod.LOGGER.debug(
+                                "MassJunctionRepair: skip {} {}↔{} — domain not authoritative",
+                                intent, idOf(a), idOf(b));
+                        continue;
+                    }
+                }
+
                 if (intent == MassJunctionIntent.PASSAGE || intent == MassJunctionIntent.OPEN_CONNECTION) {
-                    if (elevationMismatch(a, b, intent)) {
+                    if (elevationMismatch(plan, a, b, intent)) {
                         CapabilityGap gap = new CapabilityGap(
                                 "E_JUNCTION_ELEVATION_MISMATCH",
                                 "junction " + intent.name().toLowerCase(Locale.ROOT)
@@ -211,11 +236,13 @@ final class MassJunctionRepair {
             out.addAll(portals);
             changed = true;
         }
-        if (!edgeTable.isEmpty()) {
+        List<Map<String, Object>> grantMeta = JunctionGrantIndex.toMetaList();
+        if (!edgeTable.isEmpty() || !grantMeta.isEmpty()) {
             Map<String, Object> meta = plan.planMeta() == null
                     ? new LinkedHashMap<>()
                     : new LinkedHashMap<>(plan.planMeta());
-            meta.put("compiler_junction_edges", edgeTable);
+            if (!edgeTable.isEmpty()) meta.put("compiler_junction_edges", edgeTable);
+            if (!grantMeta.isEmpty()) meta.put("compiler_junction_grants", grantMeta);
             return PlanComponentRewrite.withComponentsAndMeta(plan, out, meta);
         }
         return changed ? PlanComponentRewrite.withComponents(plan, out) : plan;
@@ -225,7 +252,9 @@ final class MassJunctionRepair {
      * True when separation must not nudge this pair — junction intent already owns contact cleanup.
      */
     static boolean junctionHandlesPair(LlmPlan plan, Component a, Component b) {
-        MassJunctionIntent intent = MassJunctionIntent.forPair(plan, a, b);
+        MassJunctionIntent.EdgeResult edge = MassJunctionIntent.forEdge(plan, a, b);
+        if (edge.conflict() || edge.isInactive()) return false;
+        MassJunctionIntent intent = edge.intent();
         return intent == MassJunctionIntent.SHARED_WALL
                 || intent == MassJunctionIntent.OPEN_CONNECTION
                 || intent == MassJunctionIntent.PASSAGE
@@ -328,12 +357,14 @@ final class MassJunctionRepair {
             MassDomainRelation.Query rel,
             LlmPlan plan
     ) {
-        // Without domain authority, do not delete walls from AABB alone.
+        // Without domain authority, do not delete walls from AABB alone (02.3.4 A2 / P0-02).
         if (!rel.domainAuthoritative()
-                && (domains.domainA() == null || domains.domainB() == null)) {
+                || domains.domainA() == null || domains.domainB() == null
+                || domains.domainA().isEmpty() || domains.domainB().isEmpty()) {
             FormacraftMod.LOGGER.debug(
                     "MassJunctionRepair: skip shared-wall omit without domain authority {}↔{}",
                     idOf(a), idOf(b));
+            return false;
         }
 
         boolean aFirst = idOf(a).compareTo(idOf(b)) <= 0;
@@ -358,27 +389,18 @@ final class MassJunctionRepair {
         int secThickness = Math.max(1, ComponentParamParsers.intParam(
                 secondary.params(), 1, "wall_thickness", "wallThickness"));
 
-        Set<Long> omitPlan;
-        if (secondaryDomain != null && !secondaryDomain.isEmpty()
-                && primaryDomain != null && !primaryDomain.isEmpty()) {
-            omitPlan = MassJunctionGeometry.thicknessCollapseOmitCells(
-                    secondaryDomain, secondaryOrigin, primaryDomain, primaryOrigin,
-                    faceSec, bandMin, bandMax, secThickness);
-        } else {
-            omitPlan = aabbSharedFaceOmitPlan(secondary, primary, faceSec, bandMin, bandMax, secThickness, plan);
-        }
+        Set<Long> omitPlan = MassJunctionGeometry.thicknessCollapseOmitCells(
+                secondaryDomain, secondaryOrigin, primaryDomain, primaryOrigin,
+                faceSec, bandMin, bandMax, secThickness);
         if (omitPlan.isEmpty()) return false;
 
         Vec3i secSlot = slotOrigin(plan, secondary.slotId());
-        // Host-local = plan − slotAnchor (matches MassMainGenerator origin+voxel before slot translate).
         Set<Long> omitHost = toHostLocal(omitPlan, secSlot);
 
         Map<String, Object> params = new HashMap<>();
         if (secondary.params() != null) params.putAll(secondary.params());
         mergeOmit(params, omitHost);
         params.put("junction_shared_wall_owner", idOf(primary));
-        // Authorized seam cells (plan-space) for occupancy.
-        params.put("compiler_junction_authorized_cells", packList(omitPlan));
         out.set(secondaryIdx, new Component(
                 secondary.componentType(), secondary.slotId(), secondary.relativePosition(),
                 secondary.dimensions(), secondary.features(), params));
@@ -386,10 +408,13 @@ final class MassJunctionRepair {
         Map<String, Object> pParams = new HashMap<>();
         if (primary.params() != null) pParams.putAll(primary.params());
         MassJunctionIntent.stampPeer(pParams, idOf(secondary));
-        mergeAuthorized(pParams, omitPlan);
         out.set(primaryIdx, new Component(
                 primary.componentType(), primary.slotId(), primary.relativePosition(),
                 primary.dimensions(), primary.features(), pParams));
+        JunctionGrantIndex.put(
+                idOf(primary), idOf(secondary), omitPlan,
+                Set.of(JunctionGrantIndex.Op.OMIT, JunctionGrantIndex.Op.OVERWRITE),
+                "shared_wall");
         return true;
     }
 
@@ -423,18 +448,34 @@ final class MassJunctionRepair {
                 ResolvedFloorLayout.from(a, Math.max(1, ab.height())).slabThickness(),
                 ResolvedFloorLayout.from(b, Math.max(1, bb.height())).slabThickness());
 
-        List<Vec3i> contact = List.of();
-        if (domains.domainA() != null && domains.domainB() != null
-                && !domains.domainA().isEmpty() && !domains.domainB().isEmpty()) {
-            contact = MassDomainRelation.faceContactCellsA(
-                    domains.domainA(), domains.originPlanA(),
-                    domains.domainB(), domains.originPlanB(), faceA);
+        // Domain-authoritative contact only — no AABB synthesize (02.3.4 A2).
+        if (!rel.domainAuthoritative()
+                || domains.domainA() == null || domains.domainB() == null
+                || domains.domainA().isEmpty() || domains.domainB().isEmpty()) {
+            CapabilityGap gap = new CapabilityGap(
+                    "E_JUNCTION_DOMAIN_UNKNOWN",
+                    "open/passage between " + idOf(a) + " and " + idOf(b)
+                            + " lacks authoritative domains (AABB cannot authorize openings)",
+                    "components[].params.masses|footprint",
+                    List.of("Provide CSG/footprint domains", "Or omit open/passage intent")
+            );
+            CompileCapabilityDiagnostics.set(gap);
+            AssemblyCompileDiagnostics.set(gap);
+            return OpeningStamp.gapResult();
         }
+        List<Vec3i> contact = MassDomainRelation.faceContactCellsA(
+                domains.domainA(), domains.originPlanA(),
+                domains.domainB(), domains.originPlanB(), faceA);
         if (contact.isEmpty()) {
-            // Fallback: synthesize contact band from AABB shared face (broad-only, still through-thickness).
-            contact = MassJunctionGeometry.openingCells(
-                    ab, bb, faceA, Math.max(ab.minY(), bb.minY()), Math.min(ab.maxY(), bb.maxY()),
-                    Math.max(doorW, 4), Math.max(doorH, 3), slab);
+            CapabilityGap gap = new CapabilityGap(
+                    "E_JUNCTION_OPENING_INSUFFICIENT_CONTACT",
+                    "no face-contact cells between " + idOf(a) + " and " + idOf(b),
+                    "components[].params.junction_intent",
+                    List.of("Ensure face contact", "Or use shared_wall without opening")
+            );
+            CompileCapabilityDiagnostics.set(gap);
+            AssemblyCompileDiagnostics.set(gap);
+            return OpeningStamp.gapResult();
         }
 
         MassJunctionGeometry.OpeningResult opening = MassJunctionGeometry.throughThicknessOpening(
@@ -467,20 +508,24 @@ final class MassJunctionRepair {
         Map<String, Object> pa = new HashMap<>();
         if (a.params() != null) pa.putAll(a.params());
         mergeOmit(pa, omitHostA);
-        pa.put("junction_carve_cells", packList(carvePlan));
-        pa.put("junction_floor_place_cells", packList(floorPlan));
-        mergeAuthorized(pa, authPlan);
+        pa.put("junction_carve_cells", packList(toHostLocal(carvePlan, slotOrigin(plan, a.slotId()))));
+        pa.put("junction_floor_place_cells", packList(toHostLocal(floorPlan, slotOrigin(plan, a.slotId()))));
         out.set(i, new Component(a.componentType(), a.slotId(), a.relativePosition(),
                 a.dimensions(), a.features(), pa));
 
         Map<String, Object> pb = new HashMap<>();
         if (b.params() != null) pb.putAll(b.params());
         mergeOmit(pb, omitHostB);
-        pb.put("junction_carve_cells", packList(carvePlan));
-        pb.put("junction_floor_place_cells", packList(floorPlan));
-        mergeAuthorized(pb, authPlan);
+        pb.put("junction_carve_cells", packList(toHostLocal(carvePlan, slotOrigin(plan, b.slotId()))));
+        pb.put("junction_floor_place_cells", packList(toHostLocal(floorPlan, slotOrigin(plan, b.slotId()))));
         out.set(j, new Component(b.componentType(), b.slotId(), b.relativePosition(),
                 b.dimensions(), b.features(), pb));
+
+        JunctionGrantIndex.put(
+                idOf(a), idOf(b), authPlan,
+                Set.of(JunctionGrantIndex.Op.OMIT, JunctionGrantIndex.Op.CARVE,
+                        JunctionGrantIndex.Op.PLACE, JunctionGrantIndex.Op.OVERWRITE),
+                intent.name().toLowerCase(Locale.ROOT));
 
         Component portal = buildPortal(plan, a, b, opening, intent);
         return new OpeningStamp(true, false, portal);
@@ -492,59 +537,56 @@ final class MassJunctionRepair {
             ComponentFootprintUtil.Bounds ab, ComponentFootprintUtil.Bounds bb,
             DomainPair domains, MassDomainRelation.Query rel, LlmPlan plan
     ) {
+        // Domain-authoritative overlap/contact only — never AABB grant (02.3.4 A2/A3).
+        if (!rel.domainAuthoritative()
+                || domains.domainA() == null || domains.domainB() == null
+                || domains.domainA().isEmpty() || domains.domainB().isEmpty()) {
+            return;
+        }
         Set<Long> cells = new LinkedHashSet<>();
-        if (domains.domainA() != null && domains.domainB() != null
-                && !domains.domainA().isEmpty() && !domains.domainB().isEmpty()) {
-            String face = rel.sharedFace() != null ? rel.sharedFace() : inferFace(ab, bb);
-            if (face != null) {
-                for (Vec3i c : MassDomainRelation.faceContactCellsA(
-                        domains.domainA(), domains.originPlanA(),
-                        domains.domainB(), domains.originPlanB(), face)) {
-                    if (MassBooleanComposition.inPackRange3(c.x(), c.y(), c.z())) {
-                        cells.add(MassBooleanComposition.pack3(c.x(), c.y(), c.z()));
-                    }
-                }
-            }
-            // Overlap cells also authorized for interlock.
-            for (var v : domains.domainA().voxels()) {
-                int x = v.x() + domains.originPlanA().x();
-                int y = v.y() + domains.originPlanA().y();
-                int z = v.z() + domains.originPlanA().z();
-                if (domains.domainB().contains(
-                        x - domains.originPlanB().x(),
-                        y - domains.originPlanB().y(),
-                        z - domains.originPlanB().z())
-                        && MassBooleanComposition.inPackRange3(x, y, z)) {
-                    cells.add(MassBooleanComposition.pack3(x, y, z));
-                }
-            }
-        } else {
-            // AABB overlap band as authorized when domains unknown — still cell-scoped at emit.
-            int x0 = Math.max(ab.minX(), bb.minX());
-            int x1 = Math.min(ab.maxX(), bb.maxX());
-            int y0 = Math.max(ab.minY(), bb.minY());
-            int y1 = Math.min(ab.maxY(), bb.maxY());
-            int z0 = Math.max(ab.minZ(), bb.minZ());
-            int z1 = Math.min(ab.maxZ(), bb.maxZ());
-            for (int x = x0; x < x1; x++) {
-                for (int y = y0; y < y1; y++) {
-                    for (int z = z0; z < z1; z++) {
-                        if (MassBooleanComposition.inPackRange3(x, y, z)) {
-                            cells.add(MassBooleanComposition.pack3(x, y, z));
-                        }
-                    }
+        String face = rel.sharedFace() != null ? rel.sharedFace() : inferFace(ab, bb);
+        if (face != null) {
+            for (Vec3i c : MassDomainRelation.faceContactCellsA(
+                    domains.domainA(), domains.originPlanA(),
+                    domains.domainB(), domains.originPlanB(), face)) {
+                if (MassBooleanComposition.inPackRange3(c.x(), c.y(), c.z())) {
+                    cells.add(MassBooleanComposition.pack3(c.x(), c.y(), c.z()));
                 }
             }
         }
-        if (cells.isEmpty()) return;
+        for (var v : domains.domainA().voxels()) {
+            int x = v.x() + domains.originPlanA().x();
+            int y = v.y() + domains.originPlanA().y();
+            int z = v.z() + domains.originPlanA().z();
+            if (domains.domainB().contains(
+                    x - domains.originPlanB().x(),
+                    y - domains.originPlanB().y(),
+                    z - domains.originPlanB().z())
+                    && MassBooleanComposition.inPackRange3(x, y, z)) {
+                cells.add(MassBooleanComposition.pack3(x, y, z));
+            }
+        }
+        if (cells.isEmpty()) {
+            // Register empty pair grant = deny (not allow-all).
+            JunctionGrantIndex.put(idOf(a), idOf(b), Set.of(),
+                    Set.of(JunctionGrantIndex.Op.OVERWRITE), "intentional_interlock_empty");
+            return;
+        }
+        JunctionGrantIndex.put(idOf(a), idOf(b), cells,
+                Set.of(JunctionGrantIndex.Op.OVERWRITE, JunctionGrantIndex.Op.OMIT),
+                "intentional_interlock");
+        MassJunctionIntent.stampPeer(
+                out.get(i).params() == null ? new HashMap<>() : new HashMap<>(out.get(i).params()),
+                idOf(b));
+        // Refresh peer stamps on components.
         Map<String, Object> pa = new HashMap<>();
         if (out.get(i).params() != null) pa.putAll(out.get(i).params());
-        mergeAuthorized(pa, cells);
+        MassJunctionIntent.stampPeer(pa, idOf(b));
         out.set(i, new Component(a.componentType(), a.slotId(), a.relativePosition(),
                 a.dimensions(), a.features(), pa));
         Map<String, Object> pb = new HashMap<>();
         if (out.get(j).params() != null) pb.putAll(out.get(j).params());
-        mergeAuthorized(pb, cells);
+        MassJunctionIntent.stampPeer(pb, idOf(a));
         out.set(j, new Component(b.componentType(), b.slotId(), b.relativePosition(),
                 b.dimensions(), b.features(), pb));
     }
@@ -616,32 +658,53 @@ final class MassJunctionRepair {
         return Math.min(penX, penZ) > seamBudget;
     }
 
-    private static boolean elevationMismatch(Component a, Component b, MassJunctionIntent intent) {
+    /** Plan-space storey bottoms: slotY + relativeY + floorYs[i] (02.3.4 A5). */
+    private static boolean elevationMismatch(
+            LlmPlan plan, Component a, Component b, MassJunctionIntent intent
+    ) {
         if (intent != MassJunctionIntent.PASSAGE && intent != MassJunctionIntent.OPEN_CONNECTION) {
             return false;
         }
-        int ha = a.dimensions() == null ? 1 : Math.max(1, a.dimensions().height());
-        int hb = b.dimensions() == null ? 1 : Math.max(1, b.dimensions().height());
-        ResolvedFloorLayout la = ResolvedFloorLayout.from(a, ha);
-        ResolvedFloorLayout lb = ResolvedFloorLayout.from(b, hb);
-        int ya = la.floorYs().isEmpty() ? 0 : la.floorYs().getFirst();
-        int yb = lb.floorYs().isEmpty() ? 0 : lb.floorYs().getFirst();
-        // Compare host-local storey bottoms; relativePosition.y already folds ground offset.
-        int absA = (a.relativePosition() == null ? 0 : a.relativePosition().y()) + ya;
-        int absB = (b.relativePosition() == null ? 0 : b.relativePosition().y()) + yb;
-        return absA != absB;
+        List<Integer> planFloorsA = planSpaceFloorYs(plan, a);
+        List<Integer> planFloorsB = planSpaceFloorYs(plan, b);
+        if (planFloorsA.isEmpty() || planFloorsB.isEmpty()) {
+            return planSpaceBaseY(plan, a) != planSpaceBaseY(plan, b);
+        }
+        for (int ya : planFloorsA) {
+            for (int yb : planFloorsB) {
+                if (ya == yb) return false;
+            }
+        }
+        return true;
+    }
+
+    private static List<Integer> planSpaceFloorYs(LlmPlan plan, Component c) {
+        int h = c.dimensions() == null ? 1 : Math.max(1, c.dimensions().height());
+        ResolvedFloorLayout layout = ResolvedFloorLayout.from(c, h);
+        int base = planSpaceBaseY(plan, c);
+        List<Integer> out = new ArrayList<>();
+        if (layout.floorYs().isEmpty()) {
+            out.add(base);
+            return out;
+        }
+        for (int fy : layout.floorYs()) {
+            out.add(base + fy);
+        }
+        return out;
+    }
+
+    private static int planSpaceBaseY(LlmPlan plan, Component c) {
+        Vec3i slot = slotOrigin(plan, c == null ? null : c.slotId());
+        int ry = c == null || c.relativePosition() == null ? 0 : c.relativePosition().y();
+        return slot.y() + ry;
     }
 
     private static int sharedFloorY(
             Component a, Component b,
             ComponentFootprintUtil.Bounds ab, ComponentFootprintUtil.Bounds bb
     ) {
-        int ha = a.dimensions() == null ? 1 : Math.max(1, a.dimensions().height());
-        ResolvedFloorLayout la = ResolvedFloorLayout.from(a, ha);
-        int local = la.floorYs().isEmpty() ? 0 : la.floorYs().getFirst();
-        int base = a.relativePosition() == null ? ab.minY() : a.relativePosition().y();
-        // Plan-space floor slab bottom for the shared storey.
-        return Math.max(ab.minY(), Math.max(bb.minY(), base + local));
+        // ab/bb already include slot via planBounds.
+        return Math.max(ab.minY(), bb.minY());
     }
 
     private static boolean corridorBlockedByWalls(
@@ -725,14 +788,19 @@ final class MassJunctionRepair {
                 return MassBooleanComposition.compose(
                         MassBooleanComposition.partsFromResolved(solid), idOf(c));
             }
+            // Shaped non-CSG: same footprint extrude as ComponentEmitPass (02.3.4 A2 / P1-04).
             if (c.dimensions() != null) {
+                int w = Math.max(1, c.dimensions().width());
+                int d = Math.max(1, c.dimensions().depth());
+                int h = Math.max(1, c.dimensions().height());
+                var footprint = ResolvedFootprint.resolve(c, w, d);
+                if (footprint != null && (footprint.shape() != ResolvedFootprint.FootprintShape.RECTANGLE
+                        || footprint.pattern() != ResolvedFootprint.PlanPattern.NONE)) {
+                    return MassBooleanComposition.domainFromFootprint(footprint, h, idOf(c));
+                }
                 return MassBooleanComposition.compose(List.of(
                         new MassBooleanComposition.CsgPart(
-                                CsgOp.UNION,
-                                0, 0, 0,
-                                c.dimensions().width(),
-                                c.dimensions().depth(),
-                                c.dimensions().height())), idOf(c));
+                                CsgOp.UNION, 0, 0, 0, w, d, h)), idOf(c));
             }
         } catch (RuntimeException ignored) {
             // Broad-phase AABB only.

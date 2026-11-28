@@ -498,6 +498,31 @@ final class ComponentEmitPass {
                             return !bridge || target == null || (!target.equals(ownerId) && !target.equals(ownerHost));
                         });
                     }
+                    // Phase 02.3.4: PROTECT voids clip unauthorized PLACE/REMOVE — soft skip, not abort.
+                    if (com.formacraft.common.generation.component.util.ProtectedVoidIndex.isActive()) {
+                        int before = shiftedPatches.size();
+                        String writerId = ComponentPlanTypes.paramIdentity(c);
+                        shiftedPatches.removeIf(p -> {
+                            if (p == null) return false;
+                            if (!com.formacraft.common.generation.component.util.MassBooleanComposition
+                                    .inPackRange3(p.dx(), p.dy(), p.dz())) {
+                                return false;
+                            }
+                            long key = com.formacraft.common.generation.component.util.MassBooleanComposition
+                                    .pack3(p.dx(), p.dy(), p.dz());
+                            boolean placeOrClear = BlockPatch.PLACE.equals(p.action())
+                                    || BlockPatch.REMOVE.equals(p.action());
+                            return placeOrClear
+                                    && com.formacraft.common.generation.component.util.ProtectedVoidIndex
+                                    .deniesWriter(key, writerId, normalizedType);
+                        });
+                        if (before != shiftedPatches.size()) {
+                            AssemblyCompileDiagnostics.addSoftWarning("PROTECTED_VOID_CLIPPED",
+                                    "保护空洞已拒绝未授权写入，跳过 "
+                                            + (before - shiftedPatches.size()) + " 条操作",
+                                    c.componentType(), writerId);
+                        }
+                    }
                     if ("DECOR_DETAIL".equals(normalizedType)) {
                         int before = shiftedPatches.size();
                         shiftedPatches.removeIf(p -> surfaceLedger.isProtectedFromDecoration(c, new BlockPos(p.dx(), p.dy(), p.dz())));

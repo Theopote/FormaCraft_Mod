@@ -3,6 +3,7 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.compiler.postprocess.PostProcessPatchDelta;
 import com.formacraft.common.compiler.postprocess.PostProcessWritePolicy;
 import com.formacraft.common.compiler.postprocess.PostProcessWriteScope;
+import com.formacraft.common.generation.component.util.JunctionGrantIndex;
 import com.formacraft.common.generation.component.util.MassBooleanComposition;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.patch.BlockPatch;
@@ -435,6 +436,18 @@ public final class PatchOccupancyIndex {
 
             String canon = canonical(p.targetBlock());
             PlaceRecord prev = placeMap.get(pos);
+            // Phase 02.3.4: PROTECT beats generic PLACE. EmitPass soft-clips these patches;
+            // hard-fail here only if a denied write still reaches occupancy (fail-closed).
+            if (MassBooleanComposition.inPackRange3(pos.getX(), pos.getY(), pos.getZ())) {
+                long planKey = MassBooleanComposition.pack3(pos.getX(), pos.getY(), pos.getZ());
+                String writerId = writer == null || writer.params() == null
+                        || writer.params().get("component_id") == null
+                        ? "" : String.valueOf(writer.params().get("component_id")).trim();
+                if (com.formacraft.common.generation.component.util.ProtectedVoidIndex
+                        .deniesWriter(planKey, writerId, type)) {
+                    continue; // soft omit — never fill a protected void
+                }
+            }
             if (prev != null) {
                 String prevCanon = canonical(prev.targetBlock());
                 if (prevCanon != null && prevCanon.equals(canon)) {
@@ -850,24 +863,34 @@ public final class PatchOccupancyIndex {
                 return false;
             }
         }
-        // Cell-scoped: when either side stamps authorized cells, require membership.
+        // Pair-scoped cell authority (02.3.4 A3): JunctionGrantIndex is source of truth.
+        // Empty registered grant = deny. Missing grant + mutual peers = legacy volume interlock
+        // only when no pair was registered for this edge.
         if (planCell != null) {
+            if (!MassBooleanComposition.inPackRange3(planCell.getX(), planCell.getY(), planCell.getZ())) {
+                return false;
+            }
+            long key = MassBooleanComposition.pack3(planCell.getX(), planCell.getY(), planCell.getZ());
+            if (JunctionGrantIndex.isActive() && JunctionGrantIndex.hasPair(writerId, prevId)) {
+                return JunctionGrantIndex.allowsCell(
+                        writerId, prevId, key, JunctionGrantIndex.Op.OVERWRITE);
+            }
+            // Legacy peer-only path when no compile grant index entry exists.
             Set<Long> auth = authorizedCellsOf(writer);
             Set<Long> authPrev = authorizedCellsOf(previous.owner());
             if (!auth.isEmpty() || !authPrev.isEmpty()) {
-                if (!MassBooleanComposition.inPackRange3(planCell.getX(), planCell.getY(), planCell.getZ())) {
-                    return false;
-                }
-                long key = MassBooleanComposition.pack3(planCell.getX(), planCell.getY(), planCell.getZ());
-                boolean inWriter = auth.isEmpty() || auth.contains(key);
-                boolean inPrev = authPrev.isEmpty() || authPrev.contains(key);
-                if (!inWriter || !inPrev) return false;
+                // Non-empty component stamps still require membership; empty side ≠ allow-all.
+                boolean inWriter = !auth.isEmpty() && auth.contains(key);
+                boolean inPrev = !authPrev.isEmpty() && authPrev.contains(key);
+                if (auth.isEmpty()) inWriter = inPrev;
+                if (authPrev.isEmpty()) inPrev = inWriter;
+                return inWriter && inPrev;
             }
         }
         return true;
     }
 
-    /** Plan-space authorized junction/interlock cells (compiler stamps). */
+    /** Compat: component-level stamp list (prefer JunctionGrantIndex). */
     private static Set<Long> authorizedCellsOf(Component c) {
         Set<Long> out = new HashSet<>();
         if (c == null || c.params() == null) return out;

@@ -162,6 +162,11 @@ public class PostProcessWriteScope {
         }
 
         private boolean isProtectedVoid(BlockPos p) {
+            // Compile-scoped index is authoritative when active (Phase 02.3.4 Task F).
+            if (com.formacraft.common.generation.component.util.ProtectedVoidIndex.isProtected(
+                    p.getX(), p.getY(), p.getZ())) {
+                return true;
+            }
             for (var v : ctx.buildingVolumes()) {
                 if (v.isProtectedVoid(p.getX(), p.getY(), p.getZ())) return true;
             }
