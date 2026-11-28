@@ -94,7 +94,14 @@ public final class BuildingGeometryContext {
         if (mass.params() != null && "plate".equalsIgnoreCase(String.valueOf(mass.params().get("extrude_mode")))) {
             return;
         }
-        ResolvedBuildingGeometry geom = ResolvedBuildingGeometry.resolve(mass);
+        ResolvedBuildingGeometry geom;
+        try {
+            geom = ResolvedBuildingGeometry.resolve(mass);
+        } catch (IllegalArgumentException ignored) {
+            // E_PLAN_PATTERN_UNSUPPORTED / E_FOOTPRINT_SHAPE_UNSUPPORTED etc. — leave for
+            // MassMainGenerator → ComponentEmitPass.geometryConstraintCode (do not abort putMass).
+            return;
+        }
         if (geom == null) {
             return;
         }
@@ -131,7 +138,12 @@ public final class BuildingGeometryContext {
             return existing;
         }
         if (!isActive() || id == null || id.isEmpty()) {
-            ResolvedBuildingGeometry geom = ResolvedBuildingGeometry.resolve(mass);
+            ResolvedBuildingGeometry geom;
+            try {
+                geom = ResolvedBuildingGeometry.resolve(mass);
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
             if (geom == null || mass.relativePosition() == null) {
                 return null;
             }

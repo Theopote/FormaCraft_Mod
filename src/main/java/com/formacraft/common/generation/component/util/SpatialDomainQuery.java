@@ -48,7 +48,13 @@ public final class SpatialDomainQuery {
         int d = mass.dimensions() == null ? 0 : Math.max(1, mass.dimensions().depth());
         int h = mass.dimensions() == null ? 1 : Math.max(1, mass.dimensions().height());
         if (w <= 0 || d <= 0) return null;
-        ResolvedFootprint fp = ResolvedFootprint.resolve(mass, w, d);
+        ResolvedFootprint fp;
+        try {
+            fp = ResolvedFootprint.resolve(mass, w, d);
+        } catch (IllegalArgumentException ex) {
+            // Unsupported plan_type / shape — emit path owns capability_gap; probes stay null.
+            return null;
+        }
         if (fp == null) return null;
         String id = mass.params() == null || mass.params().get("component_id") == null
                 ? "" : String.valueOf(mass.params().get("component_id"));
