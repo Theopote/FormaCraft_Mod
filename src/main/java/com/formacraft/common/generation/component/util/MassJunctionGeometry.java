@@ -2,21 +2,43 @@ package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.llm.dto.Vec3i;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
- * Shared-face / junction cell extraction (Phase 02.3.3 Tasks D–E).
- * Classification: GEOMETRY — operates only on authorized contact cells.
+ * Shared-face / junction cell extraction (Phase 02.3.3 / 02.3.3.1 Tasks D–E).
+ * Classification: GEOMETRY — operates only on authorized contact cells in <strong>plan-space</strong>.
  */
 public final class MassJunctionGeometry {
     private MassJunctionGeometry() {}
 
     /**
+     * Through-thickness opening result (plan-space cells).
+     * {@code insufficientContact=true} → caller emits capability_gap (no silent shrink).
+     */
+    public record OpeningResult(
+            List<Vec3i> omitPlanA,
+            List<Vec3i> omitPlanB,
+            List<Vec3i> carvePlan,
+            List<Vec3i> floorPlacePlan,
+            Vec3i portalPlanAnchor,
+            String faceATowardB,
+            int doorWidth,
+            int doorHeight,
+            boolean insufficientContact
+    ) {
+        public static OpeningResult insufficient(String face) {
+            return new OpeningResult(List.of(), List.of(), List.of(), List.of(),
+                    null, face, 0, 0, true);
+        }
+    }
+
+    /**
      * Plan-space cells of A's shell that sit on the shared face with B (face-adjacent to B domain).
-     * Used to collapse duplicate wall thickness on the later writer without stripping other walls.
      */
     public static Set<Long> sharedFaceCellsA(
             MassBooleanComposition.CsgResult domainA,
@@ -50,7 +72,6 @@ public final class MassJunctionGeometry {
             int z = v.z() + oa.z();
             if (y < y0 || y >= y1) continue;
             if (!domainA.isSolidSurface(v.x(), v.y(), v.z())) continue;
-            // Cell on A that is face-adjacent toward B
             boolean towardB = false;
             for (int step = 1; step <= t + 1; step++) {
                 int nx = x + dx * step;
@@ -82,11 +103,9 @@ public final class MassJunctionGeometry {
             int bandMaxY,
             int secondaryThickness
     ) {
-        // Omit secondary shell cells that overlap or sit in the primary's wall thickness band.
         Set<Long> shared = sharedFaceCellsA(
                 domainSecondary, originSecondary, domainPrimary, originPrimary,
                 faceOfSecondaryTowardPrimary, bandMinY, bandMaxY, secondaryThickness);
-        // Also omit secondary cells that volumetrically coincide with primary solids on the seam.
         Vec3i os = originSecondary == null ? new Vec3i(0, 0, 0) : originSecondary;
         Vec3i op = originPrimary == null ? new Vec3i(0, 0, 0) : originPrimary;
         for (var v : domainSecondary.voxels()) {
@@ -103,8 +122,91 @@ public final class MassJunctionGeometry {
     }
 
     /**
-     * Opening cells for open_connection / passage: a doorway band on the shared face.
-     * Returns plan-space packed cells (wall openings start above floor slab).
+     * Expand contact-face cells through both wall thicknesses into a continuous opening corridor.
+     * Contact cells must be plan-space face-adjacent cells on A toward B.
+     */
+    public static OpeningResult throughThicknessOpening(
+            List<Vec3i> contactCellsA,
+            String faceATowardB,
+            int thicknessA,
+            int thicknessB,
+            int doorWidth,
+            int doorHeight,
+            int floorSlabBottomY,
+            int slabThickness
+    ) {
+        if (contactCellsA == null || contactCellsA.isEmpty() || faceATowardB == null) {
+            return OpeningResult.insufficient(faceATowardB);
+        }
+        int tA = Math.max(1, thicknessA);
+        int tB = Math.max(1, thicknessB);
+        int width = Math.max(1, doorWidth);
+        int height = Math.max(2, doorHeight);
+        int slab = Math.max(1, slabThickness);
+        int y0 = floorSlabBottomY + slab; // openings start above floor slab
+        int y1 = y0 + height;
+
+        int[] normal = normalOf(faceATowardB);
+        if (normal == null) return OpeningResult.insufficient(faceATowardB);
+        int ndx = normal[0], ndz = normal[1];
+
+        // Continuous contact regions in the tangential plane at opening Y band.
+        List<List<Vec3i>> regions = contactRegions(contactCellsA, faceATowardB, y0, y1);
+        List<Vec3i> chosen = pickRegionFitting(regions, faceATowardB, width, height, y0, y1);
+        if (chosen == null || chosen.isEmpty()) {
+            return OpeningResult.insufficient(faceATowardB);
+        }
+        // Authored size must fit the contact region — never silent-shrink (Task E).
+        if (spanAlongTangent(chosen, faceATowardB) < width
+                || ySpan(chosen) < Math.min(height, 2)) {
+            return OpeningResult.insufficient(faceATowardB);
+        }
+
+        List<Vec3i> aperture = clipToDoorSize(chosen, faceATowardB, width, height, y0, y1);
+        if (aperture.isEmpty()) {
+            return OpeningResult.insufficient(faceATowardB);
+        }
+
+        Set<Long> omitA = new LinkedHashSet<>();
+        Set<Long> omitB = new LinkedHashSet<>();
+        Set<Long> carve = new LinkedHashSet<>();
+        Set<Long> floorPlace = new LinkedHashSet<>();
+        Vec3i portalAnchor = null;
+
+        for (Vec3i cell : aperture) {
+            // A thickness inward (against normal from contact toward B = step 0..tA-1 back into A)
+            for (int s = 0; s < tA; s++) {
+                int x = cell.x() - ndx * s;
+                int y = cell.y();
+                int z = cell.z() - ndz * s;
+                addPacked(omitA, x, y, z);
+                addPacked(carve, x, y, z);
+                if (portalAnchor == null) portalAnchor = new Vec3i(x, y, z);
+            }
+            // B thickness along normal into B
+            for (int s = 1; s <= tB; s++) {
+                int x = cell.x() + ndx * s;
+                int y = cell.y();
+                int z = cell.z() + ndz * s;
+                addPacked(omitB, x, y, z);
+                addPacked(carve, x, y, z);
+            }
+            // Floor continuity across seam at slab Y
+            for (int s = 0; s < tA; s++) {
+                addPacked(floorPlace, cell.x() - ndx * s, floorSlabBottomY, cell.z() - ndz * s);
+            }
+            for (int s = 0; s <= tB; s++) {
+                addPacked(floorPlace, cell.x() + ndx * s, floorSlabBottomY, cell.z() + ndz * s);
+            }
+        }
+
+        return new OpeningResult(
+                unpack(omitA), unpack(omitB), unpack(carve), unpack(floorPlace),
+                portalAnchor, faceATowardB, width, height, false);
+    }
+
+    /**
+     * Legacy AABB-mid opening (compat). Prefer {@link #throughThicknessOpening} with contact cells.
      */
     public static List<Vec3i> openingCells(
             ComponentFootprintUtil.Bounds aabbA,
@@ -146,6 +248,182 @@ public final class MassJunctionGeometry {
                     out.add(new Vec3i(x, y, z));
                 }
             }
+        }
+        return out;
+    }
+
+    private static List<List<Vec3i>> contactRegions(
+            List<Vec3i> cells, String face, int y0, int y1
+    ) {
+        Set<Long> inBand = new LinkedHashSet<>();
+        for (Vec3i c : cells) {
+            if (c.y() >= y0 && c.y() < y1 && MassBooleanComposition.inPackRange3(c.x(), c.y(), c.z())) {
+                inBand.add(MassBooleanComposition.pack3(c.x(), c.y(), c.z()));
+            }
+        }
+        // If contact was sampled only on shell surface Y outside band, relax to any Y and filter later.
+        if (inBand.isEmpty()) {
+            for (Vec3i c : cells) {
+                if (MassBooleanComposition.inPackRange3(c.x(), c.y(), c.z())) {
+                    inBand.add(MassBooleanComposition.pack3(c.x(), c.y(), c.z()));
+                }
+            }
+        }
+        List<List<Vec3i>> regions = new ArrayList<>();
+        Set<Long> seen = new LinkedHashSet<>();
+        boolean xAxis = "EAST".equalsIgnoreCase(face) || "WEST".equalsIgnoreCase(face);
+        for (Long key : inBand) {
+            if (seen.contains(key)) continue;
+            List<Vec3i> region = new ArrayList<>();
+            ArrayDeque<Long> q = new ArrayDeque<>();
+            q.add(key);
+            seen.add(key);
+            while (!q.isEmpty()) {
+                long k = q.removeFirst();
+                int x = MassBooleanComposition.unpack3X(k);
+                int y = MassBooleanComposition.unpack3Y(k);
+                int z = MassBooleanComposition.unpack3Z(k);
+                region.add(new Vec3i(x, y, z));
+                // 4-connect in face plane (Y + tangent)
+                int[][] deltas = xAxis
+                        ? new int[][]{{0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}
+                        : new int[][]{{0, 1, 0}, {0, -1, 0}, {1, 0, 0}, {-1, 0, 0}};
+                for (int[] d : deltas) {
+                    int nx = x + d[0], ny = y + d[1], nz = z + d[2];
+                    if (!MassBooleanComposition.inPackRange3(nx, ny, nz)) continue;
+                    long nk = MassBooleanComposition.pack3(nx, ny, nz);
+                    if (inBand.contains(nk) && seen.add(nk)) q.add(nk);
+                }
+            }
+            regions.add(region);
+        }
+        return regions;
+    }
+
+    private static List<Vec3i> pickRegionFitting(
+            List<List<Vec3i>> regions, String face, int width, int height, int y0, int y1
+    ) {
+        List<Vec3i> best = null;
+        int bestScore = -1;
+        for (List<Vec3i> region : regions) {
+            List<Vec3i> inY = new ArrayList<>();
+            for (Vec3i c : region) {
+                if (c.y() >= y0 && c.y() < y1) inY.add(c);
+            }
+            if (inY.isEmpty()) inY = region;
+            int span = spanAlongTangent(inY, face);
+            int ySpan = ySpan(inY);
+            if (span >= width && ySpan >= Math.min(height, 2)) {
+                int score = span * ySpan;
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = inY;
+                }
+            } else if (best == null && span * ySpan > bestScore) {
+                bestScore = span * ySpan;
+                best = inY;
+            }
+        }
+        return best;
+    }
+
+    private static List<Vec3i> clipToDoorSize(
+            List<Vec3i> region, String face, int width, int height, int y0, int y1
+    ) {
+        if (region.isEmpty()) return List.of();
+        boolean xAxis = "EAST".equalsIgnoreCase(face) || "WEST".equalsIgnoreCase(face);
+        int tMin = Integer.MAX_VALUE, tMax = Integer.MIN_VALUE;
+        int yMin = Integer.MAX_VALUE, yMax = Integer.MIN_VALUE;
+        for (Vec3i c : region) {
+            int t = xAxis ? c.z() : c.x();
+            tMin = Math.min(tMin, t);
+            tMax = Math.max(tMax, t);
+            yMin = Math.min(yMin, c.y());
+            yMax = Math.max(yMax, c.y());
+        }
+        int mid = (tMin + tMax) / 2;
+        int half = width / 2;
+        int t0 = mid - half;
+        int t1 = t0 + width;
+        int yy0 = Math.max(y0, yMin);
+        int yy1 = Math.min(y0 + height, yMax + 1);
+        if (yy1 <= yy0) {
+            yy0 = yMin;
+            yy1 = Math.min(yMin + height, yMax + 1);
+        }
+        // Prefer cells that exist in the region set.
+        Set<Long> regionKeys = new LinkedHashSet<>();
+        for (Vec3i c : region) {
+            if (MassBooleanComposition.inPackRange3(c.x(), c.y(), c.z())) {
+                regionKeys.add(MassBooleanComposition.pack3(c.x(), c.y(), c.z()));
+            }
+        }
+        List<Vec3i> out = new ArrayList<>();
+        // Use a representative normal-axis coordinate from the region (constant on a face).
+        int faceCoord = xAxis ? region.getFirst().x() : region.getFirst().z();
+        for (int t = t0; t < t1; t++) {
+            for (int y = yy0; y < yy1; y++) {
+                int x = xAxis ? faceCoord : t;
+                int z = xAxis ? t : faceCoord;
+                long key = MassBooleanComposition.inPackRange3(x, y, z)
+                        ? MassBooleanComposition.pack3(x, y, z) : -1L;
+                if (key >= 0 && (regionKeys.contains(key) || regionKeys.isEmpty())) {
+                    out.add(new Vec3i(x, y, z));
+                } else if (key >= 0) {
+                    // Allow synthesized aperture on the contact face even if contact sampling was sparse.
+                    out.add(new Vec3i(x, y, z));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static int spanAlongTangent(List<Vec3i> cells, String face) {
+        if (cells.isEmpty()) return 0;
+        boolean xAxis = "EAST".equalsIgnoreCase(face) || "WEST".equalsIgnoreCase(face);
+        int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
+        for (Vec3i c : cells) {
+            int t = xAxis ? c.z() : c.x();
+            min = Math.min(min, t);
+            max = Math.max(max, t);
+        }
+        return max - min + 1;
+    }
+
+    private static int ySpan(List<Vec3i> cells) {
+        if (cells.isEmpty()) return 0;
+        int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
+        for (Vec3i c : cells) {
+            min = Math.min(min, c.y());
+            max = Math.max(max, c.y());
+        }
+        return max - min + 1;
+    }
+
+    private static int[] normalOf(String face) {
+        if (face == null) return null;
+        return switch (face.toUpperCase(Locale.ROOT)) {
+            case "EAST" -> new int[]{1, 0};
+            case "WEST" -> new int[]{-1, 0};
+            case "SOUTH" -> new int[]{0, 1};
+            case "NORTH" -> new int[]{0, -1};
+            default -> null;
+        };
+    }
+
+    private static void addPacked(Set<Long> set, int x, int y, int z) {
+        if (MassBooleanComposition.inPackRange3(x, y, z)) {
+            set.add(MassBooleanComposition.pack3(x, y, z));
+        }
+    }
+
+    private static List<Vec3i> unpack(Set<Long> keys) {
+        List<Vec3i> out = new ArrayList<>(keys.size());
+        for (long k : keys) {
+            out.add(new Vec3i(
+                    MassBooleanComposition.unpack3X(k),
+                    MassBooleanComposition.unpack3Y(k),
+                    MassBooleanComposition.unpack3Z(k)));
         }
         return out;
     }

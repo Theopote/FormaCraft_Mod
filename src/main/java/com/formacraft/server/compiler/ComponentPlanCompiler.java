@@ -176,17 +176,18 @@ public final class ComponentPlanCompiler {
         if (AssemblyCompileDiagnostics.hasGap()) {
             return List.of();
         }
-        // Phase 02.3.3: junction intent cleanup before separation nudge.
-        plan = MassJunctionRepair.apply(plan);
-        if (AssemblyCompileDiagnostics.hasGap()) {
-            return List.of();
-        }
         // Separate overlapping hall/pavilion footprints before stilts / emit write the same cells.
+        // Phase 02.3.3.1 Task G: geometry-affecting repairs BEFORE junction freeze.
         plan = MassFootprintSeparationRepair.apply(plan);
         // Pavilion height clamps can reintroduce floor_count×floor_height overflow.
         plan = FloorLayoutOverflowRepair.apply(plan);
         // Pavilion may reintroduce plan_type=octagon after the first pass — reconcile again.
         plan = FootprintCombinationRepair.apply(plan);
+        // Phase 02.3.3.1: junction omit/portal after pose/size freeze (not before separation).
+        plan = MassJunctionRepair.apply(plan);
+        if (AssemblyCompileDiagnostics.hasGap()) {
+            return List.of();
+        }
         plan = CastleTowerEnrichmentRepair.apply(plan);
         plan = NarrowTowerStairRepair.apply(plan);
         // NarrowTower may inject wall_thickness after the earlier fit pass — reconcile again.

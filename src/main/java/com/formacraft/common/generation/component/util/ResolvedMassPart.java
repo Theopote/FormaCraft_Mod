@@ -7,9 +7,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** Existing nested masses are parts of one component, expressed relative to its min corner. */
-public record ResolvedMassPart(String partId, Vec3i offset, Vec3i origin, Dimensions dimensions,
-                               Map<String, Object> sourceParams) {
+/**
+ * Existing nested masses are parts of one component, expressed relative to its min corner.
+ * {@code syntheticEnvelope=true} marks the host envelope row that is only a reference AABB when
+ * nested {@code masses[]} define the authored solid (Phase 02.3.3.1 Task C / P1-01).
+ */
+public record ResolvedMassPart(
+        String partId,
+        Vec3i offset,
+        Vec3i origin,
+        Dimensions dimensions,
+        Map<String, Object> sourceParams,
+        boolean syntheticEnvelope
+) {
+    /** Compat ctor — not a synthetic envelope. */
+    public ResolvedMassPart(String partId, Vec3i offset, Vec3i origin, Dimensions dimensions,
+                            Map<String, Object> sourceParams) {
+        this(partId, offset, origin, dimensions, sourceParams, false);
+    }
+
     public static List<ResolvedMassPart> resolve(Component component) {
         var geometry = ResolvedComponentGeometry.resolve(component);
         if (geometry == null) return List.of();
@@ -17,9 +33,14 @@ public record ResolvedMassPart(String partId, Vec3i offset, Vec3i origin, Dimens
         String id = params != null && params.get("component_id") != null ? String.valueOf(params.get("component_id"))
                 : "body@" + geometry.origin().x() + ":" + geometry.origin().y() + ":" + geometry.origin().z();
         var result = new ArrayList<ResolvedMassPart>();
+        boolean hasNestedMasses = params != null && params.get("masses") instanceof List<?> masses
+                && !masses.isEmpty();
+        // Host envelope is synthetic only when nested masses[] will define the solid.
         result.add(new ResolvedMassPart(id, new Vec3i(0, 0, 0), geometry.origin(), geometry.dimensions(),
-                params == null ? Map.of() : params));
-        if (params == null || !(params.get("masses") instanceof List<?> masses)) return List.copyOf(result);
+                params == null ? Map.of() : params, hasNestedMasses));
+        if (!hasNestedMasses) return List.copyOf(result);
+        @SuppressWarnings("unchecked")
+        List<?> masses = (List<?>) params.get("masses");
         for (int index = 0; index < masses.size(); index++) {
             if (!(masses.get(index) instanceof Map<?, ?> raw)) continue;
             @SuppressWarnings("unchecked") var part = (Map<String, Object>) raw;
@@ -36,11 +57,11 @@ public record ResolvedMassPart(String partId, Vec3i offset, Vec3i origin, Dimens
                     ComponentParamParsers.intParam(offset, 0, "y"), ComponentParamParsers.intParam(offset, 0, "z"));
             var origin = new Vec3i(geometry.origin().x() + delta.x(), geometry.origin().y() + delta.y(),
                     geometry.origin().z() + delta.z());
-            result.add(new ResolvedMassPart(id + "#mass_" + (index+1), delta, origin,
-                    new Dimensions(width, depth, height), part));
+            result.add(new ResolvedMassPart(id + "#mass_" + (index + 1), delta, origin,
+                    new Dimensions(width, depth, height), part, false));
         }
-        // Contiguous centered tiers: only auto-center when the plan explicitly opts in
-        // (stack_mode=centered / replace_envelope / align=center). Otherwise keep authored offsets.
+        // Contiguous centered tiers: only auto-center when the plan explicitly opts in.
+        // Returns real tiers only (no synthetic envelope).
         if (result.size() >= 3 && allowsCenteredTierStack(params)) {
             var tiers = new ArrayList<>(result.subList(1, result.size()));
             tiers.sort(java.util.Comparator.comparingInt(p -> p.offset().y()));
@@ -69,7 +90,8 @@ public record ResolvedMassPart(String partId, Vec3i offset, Vec3i origin, Dimens
                                     geometry.origin().y() + delta.y(),
                                     geometry.origin().z() + delta.z()),
                             tier.dimensions(),
-                            tier.sourceParams()));
+                            tier.sourceParams(),
+                            false));
                 }
                 return List.copyOf(centered);
             }
@@ -77,11 +99,17 @@ public record ResolvedMassPart(String partId, Vec3i offset, Vec3i origin, Dimens
         return List.copyOf(result);
     }
 
-    /**
-     * Explicit stack cue — not inferred from contiguous Y alone (Phase 02.1 Task D).
-     * Classification: EXPLICIT_TEMPLATE / AI_PLANNED params ({@code stepped}, {@code stack_mode},
-     * {@code replace_envelope}, tier footprint/setback fields) — never building-name heuristics.
-     */
+    /** Authored solid parts only — skips synthetic host envelope when present. */
+    public static List<ResolvedMassPart> solidParts(List<ResolvedMassPart> parts) {
+        if (parts == null || parts.isEmpty()) return List.of();
+        List<ResolvedMassPart> solid = new ArrayList<>();
+        for (ResolvedMassPart p : parts) {
+            if (p != null && !p.syntheticEnvelope()) solid.add(p);
+        }
+        // No nested masses → sole host body is the solid (syntheticEnvelope=false).
+        return solid.isEmpty() ? List.copyOf(parts) : List.copyOf(solid);
+    }
+
     private static boolean allowsCenteredTierStack(Map<String, Object> params) {
         if (params == null) return false;
         if (Boolean.TRUE.equals(params.get("replace_envelope"))
@@ -117,6 +145,7 @@ public record ResolvedMassPart(String partId, Vec3i offset, Vec3i origin, Dimens
 
     public ComponentFootprintUtil.Bounds bounds() {
         return new ComponentFootprintUtil.Bounds(origin.x(), origin.y(), origin.z(),
-                origin.x()+dimensions.width(), origin.y()+dimensions.height(), origin.z()+dimensions.depth());
+                origin.x() + dimensions.width(), origin.y() + dimensions.height(),
+                origin.z() + dimensions.depth());
     }
 }

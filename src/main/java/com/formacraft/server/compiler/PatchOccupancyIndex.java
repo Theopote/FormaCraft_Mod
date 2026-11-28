@@ -3,6 +3,7 @@ package com.formacraft.server.compiler;
 import com.formacraft.common.compiler.postprocess.PostProcessPatchDelta;
 import com.formacraft.common.compiler.postprocess.PostProcessWritePolicy;
 import com.formacraft.common.compiler.postprocess.PostProcessWriteScope;
+import com.formacraft.common.generation.component.util.MassBooleanComposition;
 import com.formacraft.common.llm.dto.Component;
 import com.formacraft.common.patch.BlockPatch;
 import net.minecraft.util.math.BlockPos;
@@ -37,8 +38,14 @@ public final class PatchOccupancyIndex {
     /**
      * Current occupancy holder for a cell (single writer — not a history stack).
      * {@code writerType} is what {@link WriteAttribution.Report#currentOccupancyWriter()} reports.
+     * {@code originalOwner} is the first PLACE owner for this cell — further interlock overwrites
+     * must remain mutual with both original and current (Phase 02.3.3.1 Task F anti A→B→C).
      */
-    public record PlaceRecord(String writerType, String targetBlock, Component owner) {}
+    public record PlaceRecord(String writerType, String targetBlock, Component owner, Component originalOwner) {
+        public PlaceRecord(String writerType, String targetBlock, Component owner) {
+            this(writerType, targetBlock, owner, owner);
+        }
+    }
 
     /**
      * @param previousWriter current occupancy writer at the cell when the conflict was detected
@@ -439,13 +446,16 @@ public final class PatchOccupancyIndex {
                                 type, p.targetBlock(), "approach_path_keeps_site_plate"));
                     }
                     // Same material: replace ownership with current writer only (no privilege inherit).
-                    placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer));
+                    // Retain originalOwner so interlock grants cannot leak A→B→C.
+                    placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer,
+                            prev.originalOwner() != null ? prev.originalOwner() : prev.owner()));
                     removeSet.remove(pos);
                     continue;
                 }
                 // Same component emit: later patches win (MASS may place footing then wall at one cell).
                 if (sameComponentIdentity(writer, prev.owner())) {
-                    placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer));
+                    placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer,
+                            prev.originalOwner() != null ? prev.originalOwner() : writer));
                     removeSet.remove(pos);
                     continue;
                 }
@@ -490,7 +500,10 @@ public final class PatchOccupancyIndex {
                 // MASS_SECONDARY may REMOVE (carve) host cells via isHostedMassSecondaryCarve,
                 // but PLACE overwrite still requires a seam/plate/tier join — otherwise interior
                 // tiers and unrelated secondary masses punch through the host body.
-                boolean intentionalInterlockPeer = isIntentionalInterlockPeerJoin(writer, prev);
+                // Patches passed to validate/commit are already in plan-space (emit applies
+                // slotAnchor before validate). {@code slotOffset} is the same frame's origin for
+                // dormer envelopes — do NOT add it again to authorized-cell probes.
+                boolean intentionalInterlockPeer = isIntentionalInterlockPeerJoin(writer, prev, pos);
                 if (approachPathKeepsAgainstSitePlate(prev.writerType(), type)
                         || (!overwriteOk && !chimneyFooting && !gateOnPath && !sameSlotRoofJoin
                         && !compoundRoofMassReseal
@@ -509,7 +522,10 @@ public final class PatchOccupancyIndex {
                                     : "unauthorized_place_overwrite"));
                 }
             }
-            placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer));
+            Component original = prev != null && prev.originalOwner() != null
+                    ? prev.originalOwner()
+                    : (prev != null ? prev.owner() : writer);
+            placeMap.put(pos, new PlaceRecord(type, p.targetBlock(), writer, original));
             removeSet.remove(pos);
         }
         return Optional.empty();
@@ -803,20 +819,71 @@ public final class PatchOccupancyIndex {
     }
 
     /**
-     * Pair-scoped intentional interlock (Phase 02.2.1 Task E / P1-02; 02.3.3 Task F multi-peer).
-     * Writer may overwrite previous only when each side names the other via
-     * {@code intentional_interlock_peer_id} or {@code intentional_interlock_peer_ids}.
-     * A↔B and B↔C may both hold; A∩B grant does not clear A↔C.
+     * Pair-scoped intentional interlock (Phase 02.2.1 / 02.3.3 / 02.3.3.1 Task F).
+     * Writer may overwrite previous only when:
+     * <ul>
+     *   <li>mutual peers with <em>current</em> owner, and</li>
+     *   <li>mutual peers with <em>original</em> owner (anti A→B→C leakage), and</li>
+     *   <li>cell ∈ authorized junction/interlock cell set (when stamped).</li>
+     * </ul>
      * Component-wide {@code allow_patch_overwrite} is not used for this path.
      */
     static boolean isIntentionalInterlockPeerJoin(Component writer, PlaceRecord previous) {
+        return isIntentionalInterlockPeerJoin(writer, previous, null);
+    }
+
+    static boolean isIntentionalInterlockPeerJoin(Component writer, PlaceRecord previous, BlockPos planCell) {
         if (writer == null || previous == null || previous.owner() == null) return false;
         if (writer.params() == null || previous.owner().params() == null) return false;
         String writerId = componentIdOf(writer);
         String prevId = componentIdOf(previous.owner());
         if (writerId.isEmpty() || prevId.isEmpty()) return false;
-        // Mutual pair only — A↔B does not authorize A↔C.
-        return peerIdsOf(writer).contains(prevId) && peerIdsOf(previous.owner()).contains(writerId);
+        // Mutual with current owner.
+        if (!peerIdsOf(writer).contains(prevId) || !peerIdsOf(previous.owner()).contains(writerId)) {
+            return false;
+        }
+        // Mutual with original owner — B overwrite does not authorize C vs A.
+        Component original = previous.originalOwner() != null ? previous.originalOwner() : previous.owner();
+        String originalId = componentIdOf(original);
+        if (!originalId.isEmpty() && !originalId.equals(prevId)) {
+            if (!peerIdsOf(writer).contains(originalId) || !peerIdsOf(original).contains(writerId)) {
+                return false;
+            }
+        }
+        // Cell-scoped: when either side stamps authorized cells, require membership.
+        if (planCell != null) {
+            Set<Long> auth = authorizedCellsOf(writer);
+            Set<Long> authPrev = authorizedCellsOf(previous.owner());
+            if (!auth.isEmpty() || !authPrev.isEmpty()) {
+                if (!MassBooleanComposition.inPackRange3(planCell.getX(), planCell.getY(), planCell.getZ())) {
+                    return false;
+                }
+                long key = MassBooleanComposition.pack3(planCell.getX(), planCell.getY(), planCell.getZ());
+                boolean inWriter = auth.isEmpty() || auth.contains(key);
+                boolean inPrev = authPrev.isEmpty() || authPrev.contains(key);
+                if (!inWriter || !inPrev) return false;
+            }
+        }
+        return true;
+    }
+
+    /** Plan-space authorized junction/interlock cells (compiler stamps). */
+    private static Set<Long> authorizedCellsOf(Component c) {
+        Set<Long> out = new HashSet<>();
+        if (c == null || c.params() == null) return out;
+        Object raw = c.params().get("compiler_junction_authorized_cells");
+        if (raw == null) raw = c.params().get("intentional_interlock_cells");
+        if (!(raw instanceof java.util.Collection<?> col)) return out;
+        for (Object o : col) {
+            if (o instanceof Number n) out.add(n.longValue());
+            else if (o != null) {
+                try {
+                    out.add(Long.parseLong(String.valueOf(o)));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return out;
     }
 
     private static String componentIdOf(Component c) {

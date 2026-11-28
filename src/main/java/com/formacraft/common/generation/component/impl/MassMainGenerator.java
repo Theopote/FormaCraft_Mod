@@ -747,7 +747,7 @@ public class MassMainGenerator implements ComponentGenerator {
                     int surfaceX = rp.x() + mass.offsetX + localX;
                     int surfaceY = rp.y() + mass.offsetY + y;
                     int surfaceZ = rp.z() + mass.offsetZ + localZ;
-                    // Phase 02.3.3: shared-wall / opening omit cells (plan-space packed).
+                    // Phase 02.3.3.1: shared-wall / opening omit cells (host-local packed).
                     if (junctionOmit != null && !junctionOmit.isEmpty()
                             && MassBooleanComposition.inPackRange3(surfaceX, surfaceY, surfaceZ)
                             && junctionOmit.contains(MassBooleanComposition.pack3(surfaceX, surfaceY, surfaceZ))) {
@@ -2006,7 +2006,10 @@ public class MassMainGenerator implements ComponentGenerator {
         return Math.min(v, 1.0);
     }
 
-    /** Plan-space packed cells omitted for shared-wall collapse / junction openings. */
+    /**
+     * Host-local packed cells omitted for shared-wall collapse / junction openings
+     * (Phase 02.3.3.1: keys match {@code origin + voxel}, not plan-space with slot).
+     */
     private static Set<Long> junctionOmitCells(Map<String, Object> params) {
         if (params == null) return Set.of();
         Object raw = params.get("junction_omit_cells");

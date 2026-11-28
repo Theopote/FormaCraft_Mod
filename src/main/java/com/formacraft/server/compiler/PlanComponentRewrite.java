@@ -7,6 +7,7 @@ import com.formacraft.common.llm.dto.LlmPlan;
 import com.formacraft.server.assembly.AssemblyCompileDiagnostics;
 
 import java.util.List;
+import java.util.Map;
 
 /** Shared LlmPlan reconstruction when only components[] or layout change. */
 final class PlanComponentRewrite {
@@ -20,6 +21,28 @@ final class PlanComponentRewrite {
                 plan.planProgram(), plan.planSkeleton(), plan.planStatus(), plan.error(),
                 plan.capabilityGap(), plan.playerFidelityNoticeZh(), plan.distinguishingFeatures(),
                 plan.enrichmentGuard(), plan.planMeta(), plan.designSources());
+    }
+
+    static LlmPlan withPlanMeta(LlmPlan plan, Map<String, Object> planMeta) {
+        return new LlmPlan(
+                plan.mode(), plan.styleProfile(), plan.anchor(), plan.globalConstraints(), plan.layout(),
+                plan.components(), plan.genome(), plan.styleAttributes(), plan.proportionHints(),
+                plan.alignmentAndSymmetry(), plan.targetSlotId(), plan.allowedArea(), plan.patch(),
+                plan.planProgram(), plan.planSkeleton(), plan.planStatus(), plan.error(),
+                plan.capabilityGap(), plan.playerFidelityNoticeZh(), plan.distinguishingFeatures(),
+                plan.enrichmentGuard(), planMeta, plan.designSources());
+    }
+
+    static LlmPlan withComponentsAndMeta(
+            LlmPlan plan, List<Component> components, Map<String, Object> planMeta
+    ) {
+        return new LlmPlan(
+                plan.mode(), plan.styleProfile(), plan.anchor(), plan.globalConstraints(), plan.layout(),
+                components, plan.genome(), plan.styleAttributes(), plan.proportionHints(),
+                plan.alignmentAndSymmetry(), plan.targetSlotId(), plan.allowedArea(), plan.patch(),
+                plan.planProgram(), plan.planSkeleton(), plan.planStatus(), plan.error(),
+                plan.capabilityGap(), plan.playerFidelityNoticeZh(), plan.distinguishingFeatures(),
+                plan.enrichmentGuard(), planMeta, plan.designSources());
     }
 
     static LlmPlan withLayout(LlmPlan plan, Layout layout) {

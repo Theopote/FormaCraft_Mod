@@ -1383,12 +1383,11 @@ final class ComponentEmitPass {
         try {
             var parts = com.formacraft.common.generation.component.util.ResolvedMassPart.resolve(c);
             com.formacraft.common.generation.component.util.MassBooleanComposition.CsgResult domain = null;
-            if (parts.size() >= 2) {
-                // parts[0] is the synthetic host envelope; nested masses (1..) are the authored
-                // solid. UNION only nested parts so stepped retreat is not constant-section.
-                var nested = parts.subList(1, parts.size());
+            var solid = com.formacraft.common.generation.component.util.ResolvedMassPart.solidParts(parts);
+            // Skip syntheticEnvelope host row when nested masses[] define the authored solid (02.3.3.1).
+            if (parts.size() >= 2 && solid.size() >= 1) {
                 var csgParts = com.formacraft.common.generation.component.util.MassBooleanComposition
-                        .partsFromResolved(nested);
+                        .partsFromResolved(solid);
                 domain = com.formacraft.common.generation.component.util.MassBooleanComposition
                         .compose(csgParts, componentId);
             } else {

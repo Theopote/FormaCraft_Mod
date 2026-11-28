@@ -59,7 +59,12 @@ LlmPlan → MassCsgPeerFoldRepair
 | `FloorGeometry0232Test` (F01–F15 + R01–R11) | PASS |
 | `MassJunction0233Test` (J01–J18) | PASS |
 | `MassHarden0221Test` / `MassShell0231Test` | PASS |
-| FlatRoof / Lighting / Oct20 (as available) | see gates below |
+| `FloorLayoutOverflowRepairTest` / Live0023 adobe floors | PASS |
+| `FlatRoofCoverageValidatorTest` / `LightingPostProcessorTest` / `Oct20RetryReplayTest` | PASS |
+| `constraintParityTest` | PASS |
+| Python `pytest` (`python_backend/tests`) | PASS (1317) |
+| `eval.ci_gate --quick` | PASS |
+| `gradlew build` | PASS |
 
 ## Residuals → 02.3.4
 

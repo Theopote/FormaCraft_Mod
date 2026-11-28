@@ -1,6 +1,7 @@
 package com.formacraft.common.generation.component.util;
 
 import com.formacraft.common.llm.dto.Component;
+import com.formacraft.common.llm.dto.LlmPlan;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,11 +12,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Explicit multi-mass junction design intent (Phase 02.3.3 Task C).
+ * Explicit multi-mass junction design intent (Phase 02.3.3 / 02.3.3.1).
  * <p>
- * Geometry relation ({@link MassDomainRelation}) ≠ design relation. Intent is read from
- * explicit component/plan params only — never inferred from building names or mere CONTACTING.
- * Owner: USER_EXPLICIT / AI_PLANNED; Java executes contact geometry only.
+ * Intent is a <strong>pair edge</strong>, not a single component field that spreads to all
+ * neighbors. Owner: USER_EXPLICIT / AI_PLANNED; Java executes contact geometry only.
  */
 public enum MassJunctionIntent {
     INDEPENDENT,
@@ -29,7 +29,25 @@ public enum MassJunctionIntent {
     public static final String PARAM_INTENT_ALT = "mass_junction";
     public static final String PARAM_PEER = "junction_peer_id";
     public static final String PARAM_PEERS = "junction_peer_ids";
+    public static final String PARAM_BY_PEER = "junction_by_peer";
     public static final String PARAM_CONNECTION = "connection_intent";
+    /** Compiler-derived peer intent map — never overwrites authored {@link #PARAM_INTENT}. */
+    public static final String PARAM_COMPILER_BY_PEER = "compiler_junction_by_peer";
+
+    /** Result of resolving a pair edge (may carry conflict). */
+    public record EdgeResult(MassJunctionIntent intent, boolean conflict, String conflictDetail) {
+        public static EdgeResult independent() {
+            return new EdgeResult(INDEPENDENT, false, null);
+        }
+
+        public static EdgeResult of(MassJunctionIntent intent) {
+            return new EdgeResult(intent == null ? INDEPENDENT : intent, false, null);
+        }
+
+        public static EdgeResult conflict(String detail) {
+            return new EdgeResult(INDEPENDENT, true, detail);
+        }
+    }
 
     /** Parse a single intent token; unknown → INDEPENDENT. */
     public static MassJunctionIntent parseToken(Object raw) {
@@ -48,65 +66,124 @@ public enum MassJunctionIntent {
     }
 
     /**
-     * Pair intent between two masses. Requires an explicit intent key on at least one side
-     * that names the other (or a mutual intent without peer when both declare the same kind).
-     * Mere adjacency never yields OPEN/SHARED — returns INDEPENDENT.
+     * Pair-scoped edge intent (Phase 02.3.3.1 Task B). Never peerless-broadcasts a unilateral
+     * intent, and never picks open&gt;passage&gt;shared on conflict.
      */
-    public static MassJunctionIntent forPair(Component a, Component b) {
-        if (a == null || b == null) return INDEPENDENT;
+    public static EdgeResult forEdge(LlmPlan plan, Component a, Component b) {
+        if (a == null || b == null) return EdgeResult.independent();
         String aId = idOf(a);
         String bId = idOf(b);
-        if (aId.isEmpty() || bId.isEmpty()) return INDEPENDENT;
+        if (aId.isEmpty() || bId.isEmpty()) return EdgeResult.independent();
 
-        MassJunctionIntent aIntent = intentToward(a, bId);
-        MassJunctionIntent bIntent = intentToward(b, aId);
-        if (aIntent != INDEPENDENT && bIntent != INDEPENDENT) {
-            // Prefer more "open" when both declare (open > passage > shared > interlock > vertical).
-            return rank(aIntent) >= rank(bIntent) ? aIntent : bIntent;
+        MassJunctionIntent fromList = intentFromJunctionLists(plan, a, b, aId, bId);
+        // Enum is never null — only a non-INDEPENDENT list hit short-circuits.
+        if (fromList != INDEPENDENT) {
+            return EdgeResult.of(fromList);
         }
-        if (aIntent != INDEPENDENT && (peersOf(a).contains(bId) || peersOf(a).isEmpty())) {
-            return aIntent;
+
+        MassJunctionIntent aMap = intentFromByPeerMap(a, bId);
+        MassJunctionIntent bMap = intentFromByPeerMap(b, aId);
+        if (aMap != INDEPENDENT || bMap != INDEPENDENT) {
+            return resolveMutual(aMap, bMap, aId, bId);
         }
-        if (bIntent != INDEPENDENT && (peersOf(b).contains(aId) || peersOf(b).isEmpty())) {
-            return bIntent;
+
+        // Legacy: junction_intent only when peer explicitly names the other (no empty-peer broadcast).
+        MassJunctionIntent aLegacy = intentTowardScoped(a, bId);
+        MassJunctionIntent bLegacy = intentTowardScoped(b, aId);
+        if (aLegacy != INDEPENDENT || bLegacy != INDEPENDENT) {
+            return resolveMutual(aLegacy, bLegacy, aId, bId);
         }
-        // intentional_interlock flag / peer ids without junction_intent
+
         if (truthy(a.params(), "intentional_interlock", "intentionalInterlock")
                 && truthy(b.params(), "intentional_interlock", "intentionalInterlock")) {
-            return INTENTIONAL_INTERLOCK;
+            return EdgeResult.of(INTENTIONAL_INTERLOCK);
         }
         if (peerIdsInclude(a, bId) && peerIdsInclude(b, aId)) {
-            return INTENTIONAL_INTERLOCK;
+            return EdgeResult.of(INTENTIONAL_INTERLOCK);
+        }
+        return EdgeResult.independent();
+    }
+
+    /** Compat wrapper — returns intent or INDEPENDENT; conflicts also yield INDEPENDENT (caller should use {@link #forEdge}). */
+    public static MassJunctionIntent forPair(Component a, Component b) {
+        return forEdge(null, a, b).intent();
+    }
+
+    public static MassJunctionIntent forPair(LlmPlan plan, Component a, Component b) {
+        return forEdge(plan, a, b).intent();
+    }
+
+    private static EdgeResult resolveMutual(
+            MassJunctionIntent aIntent,
+            MassJunctionIntent bIntent,
+            String aId,
+            String bId
+    ) {
+        if (aIntent == INDEPENDENT) return EdgeResult.of(bIntent);
+        if (bIntent == INDEPENDENT) return EdgeResult.of(aIntent);
+        if (aIntent == bIntent) return EdgeResult.of(aIntent);
+        return EdgeResult.conflict(
+                "junction intent conflict " + aId + "=" + aIntent.name().toLowerCase(Locale.ROOT)
+                        + " vs " + bId + "=" + bIntent.name().toLowerCase(Locale.ROOT));
+    }
+
+    private static MassJunctionIntent intentFromJunctionLists(
+            LlmPlan plan, Component a, Component b, String aId, String bId
+    ) {
+        MassJunctionIntent fromPlan = scanJunctionList(
+                plan == null || plan.planMeta() == null ? null : plan.planMeta().get("junctions"),
+                aId, bId);
+        if (fromPlan != INDEPENDENT) return fromPlan;
+        MassJunctionIntent fromA = scanJunctionList(
+                a.params() == null ? null : a.params().get("junctions"), aId, bId);
+        if (fromA != INDEPENDENT) return fromA;
+        return scanJunctionList(b.params() == null ? null : b.params().get("junctions"), aId, bId);
+    }
+
+    private static MassJunctionIntent scanJunctionList(Object raw, String aId, String bId) {
+        if (!(raw instanceof List<?> list)) return INDEPENDENT;
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> m)) continue;
+            String from = str(m.get("from"));
+            if (from.isEmpty()) from = str(m.get("a"));
+            String to = str(m.get("to"));
+            if (to.isEmpty()) to = str(m.get("b"));
+            MassJunctionIntent intent = parseToken(m.get("intent") != null ? m.get("intent") : m.get("type"));
+            if (intent == INDEPENDENT) continue;
+            if ((from.equals(aId) && to.equals(bId)) || (from.equals(bId) && to.equals(aId))) {
+                return intent;
+            }
         }
         return INDEPENDENT;
     }
 
-    private static int rank(MassJunctionIntent i) {
-        return switch (i) {
-            case OPEN_CONNECTION -> 5;
-            case PASSAGE -> 4;
-            case SHARED_WALL -> 3;
-            case INTENTIONAL_INTERLOCK -> 2;
-            case VERTICAL_CONNECTION -> 1;
-            case INDEPENDENT -> 0;
-        };
+    private static MassJunctionIntent intentFromByPeerMap(Component c, String peerId) {
+        if (c == null || c.params() == null) return INDEPENDENT;
+        Object raw = c.params().get(PARAM_BY_PEER);
+        if (raw == null) raw = c.params().get("junctionByPeer");
+        if (raw == null) raw = c.params().get(PARAM_COMPILER_BY_PEER);
+        if (!(raw instanceof Map<?, ?> map)) return INDEPENDENT;
+        Object v = map.get(peerId);
+        if (v == null) return INDEPENDENT;
+        return parseToken(v);
     }
 
-    private static MassJunctionIntent intentToward(Component c, String peerId) {
+    /** Legacy single intent — requires peer set to contain peerId (never empty-peer broadcast). */
+    private static MassJunctionIntent intentTowardScoped(Component c, String peerId) {
         if (c == null || c.params() == null) return INDEPENDENT;
         Map<String, Object> p = c.params();
         Object raw = first(p, PARAM_INTENT, PARAM_INTENT_ALT, PARAM_CONNECTION, "junctionIntent", "massJunction");
         MassJunctionIntent intent = parseToken(raw);
         if (intent == INDEPENDENT) return INDEPENDENT;
-        Set<String> peers = peersOf(c);
-        if (!peers.isEmpty() && !peers.contains(peerId)) {
+        Set<String> peers = junctionPeersOnly(c);
+        if (peers.isEmpty() || !peers.contains(peerId)) {
             return INDEPENDENT;
         }
         return intent;
     }
 
-    /** Explicit junction + interlock peer ids (multi-peer aware). */
-    public static Set<String> peersOf(Component c) {
+    /** Junction peer ids only (not interlock peers) for legacy scoping. */
+    public static Set<String> junctionPeersOnly(Component c) {
         Set<String> out = new LinkedHashSet<>();
         if (c == null || c.params() == null) return out;
         Map<String, Object> p = c.params();
@@ -114,6 +191,14 @@ public enum MassJunctionIntent {
         addPeer(out, p.get("junctionPeerId"));
         addPeers(out, p.get(PARAM_PEERS));
         addPeers(out, p.get("junctionPeerIds"));
+        return out;
+    }
+
+    /** Explicit junction + interlock peer ids (multi-peer aware). */
+    public static Set<String> peersOf(Component c) {
+        Set<String> out = junctionPeersOnly(c);
+        if (c == null || c.params() == null) return out;
+        Map<String, Object> p = c.params();
         addPeer(out, p.get("intentional_interlock_peer_id"));
         addPeer(out, p.get("intentionalInterlockPeerId"));
         addPeers(out, p.get("intentional_interlock_peer_ids"));
@@ -167,7 +252,6 @@ public enum MassJunctionIntent {
         }
         String s = String.valueOf(raw).trim();
         if (s.startsWith("[") && s.endsWith("]")) {
-            // Tolerate JSON-ish list string
             for (String part : s.substring(1, s.length() - 1).split(",")) {
                 addPeer(out, part.replace("\"", "").trim());
             }
@@ -183,6 +267,10 @@ public enum MassJunctionIntent {
         return id == null ? "" : String.valueOf(id).trim();
     }
 
+    private static String str(Object o) {
+        return o == null ? "" : String.valueOf(o).trim();
+    }
+
     /** Merge peer id into multi-peer list params (keeps single-key compat). */
     public static void stampPeer(Map<String, Object> params, String peerId) {
         if (params == null || peerId == null || peerId.isBlank()) return;
@@ -196,6 +284,10 @@ public enum MassJunctionIntent {
         params.remove("allow_patch_overwrite");
     }
 
+    /**
+     * Compiler-derived stamps only — does <strong>not</strong> overwrite authored
+     * {@code junction_intent} / {@code junction_by_peer}.
+     */
     public static void stampJunction(
             Map<String, Object> params,
             MassJunctionIntent intent,
@@ -205,17 +297,28 @@ public enum MassJunctionIntent {
             int bandMaxY
     ) {
         if (params == null || intent == null || intent == INDEPENDENT) return;
-        params.put(PARAM_INTENT, intent.name().toLowerCase(Locale.ROOT));
         if (peerId != null && !peerId.isBlank()) {
-            params.put(PARAM_PEER, peerId.trim());
-            Set<String> peers = new LinkedHashSet<>();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> derived = params.get(PARAM_COMPILER_BY_PEER) instanceof Map<?, ?> m
+                    ? new java.util.LinkedHashMap<>((Map<String, Object>) m)
+                    : new java.util.LinkedHashMap<>();
+            derived.put(peerId.trim(), intent.name().toLowerCase(Locale.ROOT));
+            params.put(PARAM_COMPILER_BY_PEER, derived);
+            Set<String> peers = new LinkedHashSet<>(junctionPeersOnly(
+                    new Component("MASS_MAIN", "main", null, null, List.of(), params)));
+            // Read peers from map we are mutating:
+            peers.clear();
             addPeer(peers, params.get(PARAM_PEER));
             addPeers(peers, params.get(PARAM_PEERS));
             peers.add(peerId.trim());
             params.put(PARAM_PEERS, new ArrayList<>(peers));
+            // Keep a single peer pointer for occupancy helpers without clobbering authored intent.
+            if (params.get(PARAM_PEER) == null) {
+                params.put(PARAM_PEER, peerId.trim());
+            }
         }
         if (sharedFace != null && !sharedFace.isBlank()) {
-            params.put("shared_wall_face", sharedFace);
+            params.put("compiler_junction_shared_face", sharedFace);
             params.put("junction_shared_face", sharedFace);
         }
         if (bandMaxY > bandMinY) {
