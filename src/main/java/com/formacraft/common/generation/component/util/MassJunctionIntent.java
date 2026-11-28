@@ -241,14 +241,20 @@ public enum MassJunctionIntent {
     }
 
     private static void addPeers(Set<String> out, Object raw) {
-        if (raw == null) return;
-        if (raw instanceof Collection<?> col) {
-            for (Object o : col) addPeer(out, o);
-            return;
-        }
-        if (raw instanceof Object[] arr) {
-            for (Object o : arr) addPeer(out, o);
-            return;
+        switch (raw) {
+            case null -> {
+                return;
+            }
+            case Collection<?> col -> {
+                for (Object o : col) addPeer(out, o);
+                return;
+            }
+            case Object[] arr -> {
+                for (Object o : arr) addPeer(out, o);
+                return;
+            }
+            default -> {
+            }
         }
         String s = String.valueOf(raw).trim();
         if (s.startsWith("[") && s.endsWith("]")) {
@@ -313,9 +319,7 @@ public enum MassJunctionIntent {
             peers.add(peerId.trim());
             params.put(PARAM_PEERS, new ArrayList<>(peers));
             // Keep a single peer pointer for occupancy helpers without clobbering authored intent.
-            if (params.get(PARAM_PEER) == null) {
-                params.put(PARAM_PEER, peerId.trim());
-            }
+            params.computeIfAbsent(PARAM_PEER, k -> peerId.trim());
         }
         if (sharedFace != null && !sharedFace.isBlank()) {
             params.put("compiler_junction_shared_face", sharedFace);

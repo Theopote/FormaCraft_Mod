@@ -43,6 +43,15 @@ No keyword building routers, no Golden Digest edits, no parallel geometry compil
 | `MassJunction0233Test` (J01–J18) | PASS |
 | `FloorGeometry0232Test` / `MassHarden0221Test` / `MassShell0231Test` | PASS |
 | `FlatRoofCoverageValidatorTest` / `LightingPostProcessorTest` / `Oct20RetryReplayTest` | PASS |
+| `ComplexBuildRetest` (incl. oct17/oct18 compound townhall+tower) | PASS |
+| `gradlew build` | PASS |
+| `constraintParityTest` | PASS |
+| Python `pytest` (`python_backend/tests`) | PASS (1317) |
+| `eval.ci_gate --quick` | PASS |
+
+## P0 fix during gates
+
+Cell-scoped interlock probed `pos + slotOffset` even though emit patches are already plan-space → false-negative auth membership on COMPOUND tower/hall (穿入). Fixed: authorized-cell probe uses plan-space `pos` only.
 
 ## Design-authority audit (summary)
 
